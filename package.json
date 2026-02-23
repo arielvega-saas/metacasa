@@ -15,8 +15,5 @@
   "devDependencies": {
     "vite": "5.0.10",
     "@vitejs/plugin-react": "4.2.1"
-  },
-  "engines": {
-    "node": "18.x"
   }
 }
