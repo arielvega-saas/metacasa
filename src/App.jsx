@@ -4,7 +4,8 @@ import {
   Settings, Trash2, X, Plus, Minus, History, TrendingUp, PiggyBank,
   BarChart3, PieChart, ArrowUpRight, ArrowDownLeft, FileSpreadsheet,
   ChevronLeft, ChevronRight, Calendar, LogOut, Home, Check,
-  AlertCircle, CheckCircle2, Info, Edit3
+  AlertCircle, CheckCircle2, Info, Edit3,
+  Search, SlidersHorizontal, ArrowUpDown, XCircle
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -241,6 +242,13 @@ export default function App() {
   const [showDatePicker,   setShowDatePicker]   = useState(false);
   const [editingTx,        setEditingTx]        = useState(null);
 
+  // BÚSQUEDA Y FILTROS (Historial)
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [filterType,       setFilterType]       = useState('ALL');   // ALL | GASTO | INGRESO
+  const [filterCategory,   setFilterCategory]   = useState('');      // '' = todas
+  const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
+  const [allMonths,        setAllMonths]        = useState(false);   // false = solo mes actual
+
   // FORM
   const [type,       setType]       = useState('GASTO');
   const [amount,     setAmount]     = useState('');
@@ -473,6 +481,50 @@ export default function App() {
     return d.getMonth()===currentDate.getMonth() && d.getFullYear()===currentDate.getFullYear();
   });
 
+  // ── Transacciones filtradas para Historial ──
+  const filteredTxs = useMemo(() => {
+    let base = allMonths ? transactions : monthTxs;
+
+    // Filtro por tipo
+    if (filterType !== 'ALL') base = base.filter(t => t.type === filterType);
+
+    // Filtro por categoría
+    if (filterCategory) base = base.filter(t => t.category === filterCategory);
+
+    // Búsqueda por texto (categoría, nota, monto)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      base = base.filter(t =>
+        t.category.toLowerCase().includes(q) ||
+        (t.note || '').toLowerCase().includes(q) ||
+        String(t.amount).includes(q)
+      );
+    }
+
+    // Ordenamiento
+    return [...base].sort((a, b) => {
+      if (sortBy === 'date_desc')   return new Date(b.date) - new Date(a.date);
+      if (sortBy === 'date_asc')    return new Date(a.date) - new Date(b.date);
+      if (sortBy === 'amount_desc') return Number(b.amount) - Number(a.amount);
+      if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
+      return 0;
+    });
+  }, [transactions, monthTxs, allMonths, filterType, filterCategory, searchQuery, sortBy]);
+
+  // Categorías disponibles según el filtro de tipo actual
+  const filterableCats = useMemo(() => {
+    const base = allMonths ? transactions : monthTxs;
+    const src = filterType === 'ALL' ? base : base.filter(t => t.type === filterType);
+    return [...new Set(src.map(t => t.category))].sort();
+  }, [transactions, monthTxs, allMonths, filterType]);
+
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || sortBy !== 'date_desc' || allMonths;
+
+  const clearFilters = () => {
+    setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
+    setSortBy('date_desc'); setAllMonths(false);
+  };
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -669,67 +721,162 @@ export default function App() {
             TAB: HISTORIAL
         ════════════════════════════════ */}
         {activeTab==='history' && (
-          <div className="px-5 pt-5 space-y-5">
-            <div className="flex justify-between items-center">
+          <div className="pt-5 space-y-4">
+            {/* Header */}
+            <div className="px-5 flex justify-between items-center">
               <h2 className="text-xl font-black uppercase tracking-tight">Historial</h2>
-              <div className="flex gap-2">
-                <button onClick={exportExcel} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar CSV">
-                  <FileSpreadsheet className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Período */}
-            <div className="flex items-center justify-between bg-zinc-900/50 rounded-2xl px-4 py-3 border border-white/5">
-              <button onClick={()=>changeMonth(-1)} className="p-1.5 active:opacity-60"><ChevronLeft className="w-5 h-5 text-zinc-500"/></button>
-              <button onClick={()=>setShowDatePicker(true)} className="text-sm font-bold text-white">
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+              <button onClick={exportExcel} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar CSV">
+                <FileSpreadsheet className="w-4 h-4" />
               </button>
-              <button onClick={()=>changeMonth(1)} className="p-1.5 active:opacity-60"><ChevronRight className="w-5 h-5 text-zinc-500"/></button>
             </div>
 
-            {loadingData ? (
-              <div className="space-y-3">{[1,2,3].map(i=><SkeletonCard key={i} className="h-20"/>)}</div>
-            ) : monthTxs.length===0 ? (
-              <div className="text-center py-16 space-y-3">
-                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto">
-                  <History className="w-7 h-7 text-zinc-700"/>
-                </div>
-                <p className="text-sm font-semibold text-zinc-600">Sin movimientos este mes</p>
-                <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-indigo-400">+ Registrar uno</button>
+            {/* Barra de búsqueda */}
+            <div className="px-5">
+              <div className="flex items-center gap-2 bg-zinc-900/70 border border-white/8 rounded-2xl px-4 py-3">
+                <Search className="w-4 h-4 text-zinc-500 flex-shrink-0"/>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por categoría, nota o monto…"
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button onClick={()=>setSearchQuery('')} className="active:opacity-60">
+                    <XCircle className="w-4 h-4 text-zinc-600"/>
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {monthTxs.map(t=>(
-                  <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5 overflow-hidden">
-                    <div className="flex items-center gap-4 p-4">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0
-                        ${t.type==='INGRESO'?'bg-emerald-500/15 text-emerald-400':'bg-rose-500/15 text-rose-400'}`}>
-                        {t.type==='INGRESO'?'IN':'OUT'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{t.category}</p>
-                        <p className="text-xs text-zinc-600">{new Date(t.date).toLocaleDateString('es-AR',{day:'2-digit',month:'short'})}</p>
-                        {t.note && <p className="text-xs text-zinc-500 italic truncate mt-0.5">"{t.note}"</p>}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <p className={`text-base font-black ${t.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
-                          {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
-                        </p>
-                        <div className="flex flex-col gap-1">
-                          <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 hover:text-indigo-400 transition-colors">
-                            <Edit3 className="w-3.5 h-3.5"/>
-                          </button>
-                          <button onClick={()=>deleteTransaction(t.id)} className="p-1.5 text-zinc-700 hover:text-rose-500 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5"/>
-                          </button>
+            </div>
+
+            {/* Filtros rápidos — scroll horizontal */}
+            <div className="overflow-x-auto no-scrollbar">
+              <div className="flex gap-2 px-5 pb-1" style={{width:'max-content'}}>
+
+                {/* Toggle mes/todos */}
+                <button
+                  onClick={()=>setAllMonths(v=>!v)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                    ${allMonths?'bg-white text-black':'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  <Calendar className="w-3.5 h-3.5"/>
+                  {allMonths ? 'Todos los meses' : `${MONTHS[currentDate.getMonth()].slice(0,3)} ${currentDate.getFullYear()}`}
+                </button>
+
+                {/* Separador */}
+                <div className="w-px bg-white/10 self-stretch my-1"/>
+
+                {/* Tipo */}
+                {['ALL','GASTO','INGRESO'].map(t=>(
+                  <button key={t}
+                    onClick={()=>{ setFilterType(t); setFilterCategory(''); }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                      ${filterType===t
+                        ? t==='GASTO' ? 'bg-rose-600 text-white'
+                          : t==='INGRESO' ? 'bg-emerald-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                        : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                    {t==='ALL'?'Todos':t}
+                  </button>
+                ))}
+
+                {/* Separador */}
+                {filterableCats.length > 0 && <div className="w-px bg-white/10 self-stretch my-1"/>}
+
+                {/* Chips de categoría */}
+                {filterableCats.map(cat=>(
+                  <button key={cat}
+                    onClick={()=>setFilterCategory(fc=>fc===cat?'':cat)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                      ${filterCategory===cat
+                        ? 'bg-white text-black'
+                        : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sort + resultado count */}
+            <div className="px-5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {loadingData
+                  ? <span className="text-xs text-zinc-600">Cargando…</span>
+                  : <span className="text-xs text-zinc-500">{filteredTxs.length} movimiento{filteredTxs.length!==1?'s':''}</span>
+                }
+                {hasActiveFilters && (
+                  <button onClick={clearFilters} className="text-xs text-indigo-400 font-semibold ml-2 active:opacity-60">
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={e=>setSortBy(e.target.value)}
+                  className="appearance-none bg-zinc-900/60 border border-white/8 rounded-xl pl-3 pr-7 py-2 text-xs font-semibold text-zinc-400 focus:outline-none">
+                  <option value="date_desc">Más reciente</option>
+                  <option value="date_asc">Más antiguo</option>
+                  <option value="amount_desc">Mayor monto</option>
+                  <option value="amount_asc">Menor monto</option>
+                </select>
+                <ArrowUpDown className="w-3 h-3 text-zinc-600 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"/>
+              </div>
+            </div>
+
+            {/* Lista */}
+            <div className="px-5">
+              {loadingData ? (
+                <div className="space-y-3">{[1,2,3].map(i=><SkeletonCard key={i} className="h-20"/>)}</div>
+              ) : filteredTxs.length===0 ? (
+                <div className="text-center py-16 space-y-3">
+                  <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto">
+                    {searchQuery || hasActiveFilters
+                      ? <Search className="w-7 h-7 text-zinc-700"/>
+                      : <History className="w-7 h-7 text-zinc-700"/>}
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-600">
+                    {searchQuery || hasActiveFilters ? 'Sin resultados para esa búsqueda' : 'Sin movimientos este mes'}
+                  </p>
+                  {hasActiveFilters
+                    ? <button onClick={clearFilters} className="text-sm font-bold text-indigo-400">Limpiar filtros</button>
+                    : <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-indigo-400">+ Registrar uno</button>
+                  }
+                </div>
+              ) : (
+                <div className="space-y-2.5 pb-4">
+                  {filteredTxs.map(t=>(
+                    <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-3.5 p-4">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0
+                          ${t.type==='INGRESO'?'bg-emerald-500/15 text-emerald-400':'bg-rose-500/15 text-rose-400'}`}>
+                          {t.type==='INGRESO'?'IN':'OUT'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{t.category}</p>
+                          <p className="text-xs text-zinc-600">
+                            {new Date(t.date).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}
+                          </p>
+                          {t.note && <p className="text-xs text-zinc-500 italic truncate mt-0.5">"{t.note}"</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <p className={`text-base font-black ${t.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
+                            {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
+                          </p>
+                          <div className="flex flex-col gap-1">
+                            <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors">
+                              <Edit3 className="w-3.5 h-3.5"/>
+                            </button>
+                            <button onClick={()=>deleteTransaction(t.id)} className="p-1.5 text-zinc-700 active:text-rose-500 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5"/>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
