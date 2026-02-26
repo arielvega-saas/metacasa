@@ -751,6 +751,135 @@ function CuotaForm({ cuota, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// DEBT CARD
+// ─────────────────────────────────────────────
+function DebtCard({ debt, onSettle, onEdit, onDelete }) {
+  const isMine = debt.direction === 'i_owe';
+  const settled = debt.settled;
+  return (
+    <div className={`rounded-2xl border p-4 flex items-center gap-3 transition-all
+      ${settled ? 'bg-zinc-900/30 border-white/5 opacity-55'
+        : isMine ? 'bg-rose-500/5 border-rose-500/15'
+        : 'bg-emerald-500/5 border-emerald-500/15'}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+        ${settled ? 'bg-zinc-800' : isMine ? 'bg-rose-500/15' : 'bg-emerald-500/15'}`}>
+        {debt.emoji || (isMine ? '💸' : '🤝')}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-bold truncate ${settled ? 'text-zinc-500 line-through' : 'text-white'}`}>{debt.name}</p>
+        <p className={`text-xs font-semibold mt-0.5 ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
+          {settled ? 'Saldada' : isMine ? 'Le debo' : 'Me debe'}
+        </p>
+        {debt.note ? <p className="text-xs text-zinc-600 italic truncate mt-0.5">"{debt.note}"</p> : null}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <p className={`text-base font-black ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
+          ${formatNumber(debt.amount)}
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {!settled && (
+            <button onClick={()=>onSettle(debt.id)} className="p-1 text-zinc-600 active:text-emerald-400 transition-colors" title="Marcar saldada">
+              <Check className="w-3.5 h-3.5"/>
+            </button>
+          )}
+          <button onClick={()=>onEdit(debt)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
+            <Edit3 className="w-3.5 h-3.5"/>
+          </button>
+          <button onClick={()=>onDelete(debt.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
+            <Trash2 className="w-3.5 h-3.5"/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DEBT FORM
+// ─────────────────────────────────────────────
+function DebtForm({ debt, onSave, onClose }) {
+  const [name,      setName]      = useState(debt?.name || '');
+  const [amount,    setAmount]    = useState(debt ? String(debt.amount) : '');
+  const [direction, setDirection] = useState(debt?.direction || 'owed_to_me');
+  const [note,      setNote]      = useState(debt?.note || '');
+  const [date,      setDate]      = useState(debt?.date || new Date().toISOString().slice(0,10));
+  const [emoji,     setEmoji]     = useState(debt?.emoji || '');
+
+  const DEBT_EMOJIS = ['🤝','💸','💰','🎁','🍕','🍺','✈️','🏠','📱','🎮','👕','🚗','💊','🎓','🎵'];
+
+  const handleSave = () => {
+    if (!name.trim() || !amount) return;
+    onSave({
+      id: debt?.id || Date.now(),
+      name: name.trim(),
+      amount: parseInt(amount.replace(/\D/g,'')) || 0,
+      direction, note: note.trim(), date,
+      emoji: emoji || (direction==='i_owe' ? '💸' : '🤝'),
+      settled: debt?.settled || false,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
+      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black uppercase tracking-tight">{debt ? 'Editar' : 'Nueva'} deuda</h3>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
+        </div>
+
+        {/* Dirección */}
+        <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
+          {[
+            { v:'owed_to_me', l:'Me deben', color:'bg-emerald-600' },
+            { v:'i_owe',      l:'Debo yo',  color:'bg-rose-600'    },
+          ].map(opt=>(
+            <button key={opt.v} onClick={()=>setDirection(opt.v)}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all
+                ${direction===opt.v ? opt.color+' text-white' : 'text-zinc-500'}`}>
+              {opt.l}
+            </button>
+          ))}
+        </div>
+
+        {/* Nombre + Emoji */}
+        <div className="flex gap-3">
+          <select value={emoji} onChange={e=>setEmoji(e.target.value)}
+            className="w-14 h-14 bg-zinc-900 rounded-2xl border border-white/10 text-2xl text-center appearance-none focus:outline-none">
+            <option value="">🤝</option>
+            {DEBT_EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
+          </select>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre de la persona…"
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+        </div>
+
+        {/* Monto */}
+        <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
+          placeholder="$ Monto" inputMode="numeric"
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Fecha</p>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Nota (opcional)</p>
+            <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Por qué…"
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+        </div>
+
+        <button onClick={handleSave} disabled={!name.trim()||!amount}
+          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          {debt ? 'Guardar cambios' : direction==='i_owe' ? 'Registrar que debo' : 'Registrar que me deben'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // REPORT MODAL — snapshot mensual compartible
 // ─────────────────────────────────────────────
 function ReportModal({ stats, transactions, currentDate, prevMonth, projection, recurring, onClose }) {
@@ -1198,6 +1327,12 @@ export default function App() {
   const [editingGoal,     setEditingGoal]     = useState(null);
   const [contributeGoal,  setContributeGoal]  = useState(null);
 
+  // DEUDAS
+  const [debts,           setDebts]           = useState([]);
+  const [showDebtsModal,  setShowDebtsModal]  = useState(false);
+  const [showDebtForm,    setShowDebtForm]    = useState(false);
+  const [editingDebt,     setEditingDebt]     = useState(null);
+
   // CUOTAS (localStorage)
   const [cuotas,          setCuotas]          = useState(() => {
     try { return JSON.parse(localStorage.getItem(CUOTAS_KEY) || '[]'); } catch { return []; }
@@ -1267,9 +1402,13 @@ export default function App() {
     if (error && error.code !== 'PGRST116') { console.error(error); return; }
     const raw = data?.data || null;
     if (raw) {
-      const { meta, ...cats } = raw;
+      const { meta, goals: cloudGoals, cuotas: cloudCuotas, debts: cloudDebts, ...cats } = raw;
       setCustomCats(cats);
       setCatMeta(meta || {});
+      // Cloud wins over localStorage
+      if (cloudGoals)  { setGoals(cloudGoals);   localStorage.setItem(GOALS_KEY,  JSON.stringify(cloudGoals));  }
+      if (cloudCuotas) { setCuotas(cloudCuotas); localStorage.setItem(CUOTAS_KEY, JSON.stringify(cloudCuotas)); }
+      if (cloudDebts)  { setDebts(cloudDebts); }
     } else {
       setCustomCats(null);
       setCatMeta({});
@@ -1412,12 +1551,28 @@ export default function App() {
 
   const activeCuotas = cuotas.filter(c => c.paidCuotas < c.totalCuotas);
 
+  // ── DEUDAS COMPUTED ──
+  const totalOwedToMe = debts.filter(d => !d.settled && d.direction === 'owed_to_me').reduce((a,d) => a + d.amount, 0);
+  const totalIOwe     = debts.filter(d => !d.settled && d.direction === 'i_owe').reduce((a,d) => a + d.amount, 0);
+  const pendingDebts  = debts.filter(d => !d.settled);
+
   // ── TIPO DE CAMBIO ──
   const updateExchangeRate = (val) => {
     const n = parseFloat(String(val).replace(/\D/g,'')) || 0;
     setExchangeRate(n);
     localStorage.setItem('metacasa_usd_rate', String(n));
   };
+
+  // ── SYNC EXTRAS → SUPABASE (goals / cuotas / debts en el blob de categories) ──
+  const syncExtrasToCloud = useCallback(async (newGoals, newCuotas, newDebts) => {
+    if (!userId) return;
+    const cats = customCats || INITIAL_CATEGORIES;
+    const payload = { ...cats, meta: catMeta, goals: newGoals, cuotas: newCuotas, debts: newDebts };
+    const { error } = await supabase.from('categories').upsert(
+      { user_id: userId, data: payload }, { onConflict: 'user_id' }
+    );
+    if (error) console.error('syncExtrasToCloud error:', error);
+  }, [userId, customCats, catMeta]);
 
   // ── VOZ ──
   const startListening = useCallback(() => {
@@ -1447,10 +1602,11 @@ export default function App() {
     setIsListening(false);
   }, []);
 
-  // ── METAS CRUD (localStorage) ──
+  // ── METAS CRUD (localStorage + cloud sync) ──
   const persistGoals = (list) => {
     setGoals(list);
     localStorage.setItem(GOALS_KEY, JSON.stringify(list));
+    syncExtrasToCloud(list, cuotas, debts);
   };
   const saveGoal = (data) => {
     const exists = goals.find(g => g.id === data.id);
@@ -1467,10 +1623,11 @@ export default function App() {
     haptic(15);
   };
 
-  // ── CUOTAS CRUD (localStorage) ──
+  // ── CUOTAS CRUD (localStorage + cloud sync) ──
   const persistCuotas = (list) => {
     setCuotas(list);
     localStorage.setItem(CUOTAS_KEY, JSON.stringify(list));
+    syncExtrasToCloud(goals, list, debts);
   };
   const saveCuota  = (data) => {
     const updated = cuotas.find(c=>c.id===data.id)
@@ -1486,6 +1643,25 @@ export default function App() {
       : c
     ));
     haptic(15);
+  };
+
+  // ── DEUDAS CRUD (localStorage + cloud sync) ──
+  const persistDebts = (list) => {
+    setDebts(list);
+    syncExtrasToCloud(goals, cuotas, list);
+  };
+  const saveDebt = (data) => {
+    const updated = debts.find(d => d.id === data.id)
+      ? debts.map(d => d.id===data.id ? data : d)
+      : [...debts, data];
+    persistDebts(updated);
+    haptic(15);
+  };
+  const deleteDebt = (id) => { persistDebts(debts.filter(d => d.id !== id)); haptic(20); };
+  const settleDebt = (id) => {
+    persistDebts(debts.map(d => d.id===id ? { ...d, settled: true } : d));
+    haptic(15);
+    toast('Deuda saldada ✓', 'success');
   };
 
   // ── DELETE CONFIRM (inline 2-tap) ──
@@ -1996,6 +2172,47 @@ export default function App() {
                   </button>
                 )}
 
+                {/* Deudas — preview en Home */}
+                {pendingDebts.length > 0 && (
+                  <button onClick={()=>setShowDebtsModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-sm font-bold text-zinc-300 flex items-center gap-2">
+                          🤝 Deudas
+                        </p>
+                        <span className="text-xs text-zinc-500">{pendingDebts.length} activa{pendingDebts.length!==1?'s':''} →</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {totalOwedToMe > 0 && (
+                          <div className="bg-emerald-500/10 rounded-xl p-2.5 text-center">
+                            <p className="text-[10px] text-zinc-500 font-semibold">Me deben</p>
+                            <p className="text-sm font-black text-emerald-400">${formatNumber(totalOwedToMe)}</p>
+                          </div>
+                        )}
+                        {totalIOwe > 0 && (
+                          <div className="bg-rose-500/10 rounded-xl p-2.5 text-center">
+                            <p className="text-[10px] text-zinc-500 font-semibold">Debo yo</p>
+                            <p className="text-sm font-black text-rose-400">${formatNumber(totalIOwe)}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        {pendingDebts.slice(0,3).map(d=>(
+                          <div key={d.id} className="flex items-center justify-between">
+                            <span className="text-sm text-zinc-400 flex items-center gap-1.5 min-w-0 truncate">
+                              <span>{d.emoji}</span><span className="truncate">{d.name}</span>
+                            </span>
+                            <span className={`text-xs font-black flex-shrink-0 ml-2 ${d.direction==='i_owe'?'text-rose-400':'text-emerald-400'}`}>
+                              {d.direction==='i_owe'?'-':'+'} ${formatNumber(d.amount)}
+                            </span>
+                          </div>
+                        ))}
+                        {pendingDebts.length > 3 && <p className="text-xs text-zinc-700 text-center">+{pendingDebts.length-3} más →</p>}
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Tendencias 6 meses */}
                 {transactions.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -2427,6 +2644,17 @@ export default function App() {
                 <Target className="w-4 h-4 text-indigo-400"/>
                 Administrar metas
                 {goals.length>0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{goals.length}</span>}
+              </button>
+            </div>
+
+            {/* Deudas y Préstamos */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Deudas y préstamos</p>
+              <button onClick={()=>setShowDebtsModal(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <span className="text-base leading-none">🤝</span>
+                Administrar deudas
+                {pendingDebts.length>0 && <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{pendingDebts.length}</span>}
               </button>
             </div>
 
@@ -3083,6 +3311,93 @@ export default function App() {
           goal={contributeGoal}
           onSave={(amt)=>{ addContribution(contributeGoal.id, amt); setContributeGoal(null); }}
           onClose={()=>setContributeGoal(null)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Deudas y Préstamos
+      ════════════════════════════════ */}
+      {showDebtsModal && (
+        <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+          <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                🤝 Deudas
+              </h3>
+              <p className="text-xs text-zinc-600 mt-0.5">{pendingDebts.length} activa{pendingDebts.length!==1?'s':''}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>{ setEditingDebt(null); setShowDebtForm(true); }}
+                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                <Plus className="w-5 h-5"/>
+              </button>
+              <button onClick={()=>setShowDebtsModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 no-scrollbar pb-12">
+            {debts.length === 0 ? (
+              <div className="text-center py-20 space-y-4">
+                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-3xl">🤝</div>
+                <p className="text-sm font-semibold text-zinc-600">Sin deudas registradas</p>
+                <p className="text-xs text-zinc-700">Llevá el registro de lo que te deben y lo que debés</p>
+                <button onClick={()=>{ setEditingDebt(null); setShowDebtForm(true); }}
+                  className="text-sm font-bold text-indigo-400">+ Agregar la primera</button>
+              </div>
+            ) : (
+              <>
+                {/* Resumen */}
+                {(totalOwedToMe > 0 || totalIOwe > 0) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
+                      <p className="text-xs text-zinc-500 font-semibold mb-1">Me deben</p>
+                      <p className="text-xl font-black text-emerald-400">${formatNumber(totalOwedToMe)}</p>
+                    </div>
+                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-center">
+                      <p className="text-xs text-zinc-500 font-semibold mb-1">Debo yo</p>
+                      <p className="text-xl font-black text-rose-400">${formatNumber(totalIOwe)}</p>
+                    </div>
+                  </div>
+                )}
+                {/* Activas */}
+                {pendingDebts.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Activas</p>
+                    {pendingDebts.map(d=>(
+                      <DebtCard key={d.id} debt={d}
+                        onSettle={settleDebt}
+                        onEdit={(debt)=>{ setEditingDebt(debt); setShowDebtForm(true); }}
+                        onDelete={deleteDebt}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Saldadas */}
+                {debts.filter(d=>d.settled).length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Saldadas</p>
+                    {debts.filter(d=>d.settled).map(d=>(
+                      <DebtCard key={d.id} debt={d}
+                        onSettle={settleDebt}
+                        onEdit={(debt)=>{ setEditingDebt(debt); setShowDebtForm(true); }}
+                        onDelete={deleteDebt}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showDebtForm && (
+        <DebtForm
+          debt={editingDebt}
+          onSave={(data)=>{ saveDebt(data); setShowDebtForm(false); }}
+          onClose={()=>setShowDebtForm(false)}
         />
       )}
 
