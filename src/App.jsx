@@ -6,7 +6,8 @@ import {
   ChevronLeft, ChevronRight, Calendar, LogOut, Home, Check,
   AlertCircle, CheckCircle2, Info, Edit3,
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
-  Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown
+  Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
+  Mic, MicOff, Share2, FileText, Sparkles
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -39,6 +40,34 @@ const FREQUENCIES = [
   { v:'monthly', l:'Mensual',  icon:'🗓️' },
   { v:'yearly',  l:'Anual',    icon:'📌' },
 ];
+
+// Keywords para auto-sugerencia de categoría desde nota/voz
+const CATEGORY_KEYWORDS = {
+  'Alimentación': ['supermercado','mercado','verdura','carne','comida','almacén','carnicería','panadería','fiambrería','kiosco','pizza','empanada','sushi','chino','ferretería','lácteo','fruta'],
+  'Transporte':   ['nafta','combustible','colectivo','uber','taxi','peaje','garage','estacionamiento','subte','tren','moto','auto','patente','seguro auto','acpm'],
+  'Salud':        ['médico','farmacia','remedio','medicamento','clínica','hospital','dentista','obra social','turno','consulta','análisis','enfermedad'],
+  'Vivienda':     ['alquiler','expensas','reparación','plomero','electricista','pintura','mueble','hogar','silla','mesa'],
+  'Ocio':         ['cine','teatro','restaurante','bar','cerveza','netflix','spotify','disney','juego','entretenimiento','viaje','hotel','vacaciones','delivery','pedidosya','rappi'],
+  'Servicios':    ['luz','gas','agua','internet','cable','wifi','celular','teléfono','factura','abono','streaming'],
+  'Sueldo':       ['sueldo','salario','pago','jornal','honorario','cobré','cobra'],
+  'Inversiones':  ['inversión','plazo fijo','cripto','bitcoin','acciones','dividendo','interés','renta'],
+  'Ventas':       ['venta','vendí','cobré','facturé'],
+};
+
+// Parser de monto desde texto de voz
+const parseVoiceAmount = (text) => {
+  const digitMatch = text.match(/\b(\d[\d.,]*)\b/);
+  if (digitMatch) return parseInt(digitMatch[1].replace(/[.,]/g,''));
+  const words = {
+    'cien':100,'ciento':100,'doscientos':200,'trescientos':300,'cuatrocientos':400,'quinientos':500,
+    'mil':1000,'dos mil':2000,'tres mil':3000,'cuatro mil':4000,'cinco mil':5000,
+    'seis mil':6000,'siete mil':7000,'ocho mil':8000,'nueve mil':9000,'diez mil':10000,
+    'quince mil':15000,'veinte mil':20000,'treinta mil':30000,'cincuenta mil':50000,'cien mil':100000,
+  };
+  const lower = text.toLowerCase();
+  for (const [phrase,val] of Object.entries(words)) { if (lower.includes(phrase)) return val; }
+  return 0;
+};
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -362,6 +391,182 @@ function EditTransactionModal({ tx, categories, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// REPORT MODAL — snapshot mensual compartible
+// ─────────────────────────────────────────────
+function ReportModal({ stats, transactions, currentDate, prevMonth, projection, recurring, onClose }) {
+  const toast = useToast();
+  const month = currentDate.getMonth(), year = currentDate.getFullYear();
+  const monthTxs = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  const now = new Date();
+  const isCurrentMonth = now.getMonth()===month && now.getFullYear()===year;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysPassed = isCurrentMonth ? now.getDate() : daysInMonth;
+  const monthProgress = Math.round((daysPassed/daysInMonth)*100);
+  const topCats = Object.entries(stats.expenseByCategory).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const handleShare = async () => {
+    const lines = [
+      `📊 MetaCasa — ${MONTHS[month]} ${year}`,
+      ``,
+      `💰 Ingresos:   $${formatNumber(stats.income)}`,
+      `💸 Gastos:     $${formatNumber(stats.expenses)}`,
+      `🐷 Ahorro:     $${formatNumber(stats.savingsAmount)}`,
+      `📈 Inversión:  $${formatNumber(stats.investmentAmount)}`,
+      `✅ Disponible: $${formatNumber(stats.available)}`,
+      ``,
+      topCats.length ? `🗂 Top categorías:\n${topCats.map(([c,v])=>`  · ${c}: $${formatNumber(v)}`).join('\n')}` : '',
+      ``,
+      `Generado con MetaCasa 🏠`,
+    ].filter(Boolean).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: `MetaCasa — ${MONTHS[month]} ${year}`, text: lines }); } catch {}
+    } else {
+      await navigator.clipboard?.writeText(lines);
+      toast('Copiado al portapapeles ✓', 'success');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+        <div>
+          <h3 className="text-xl font-black uppercase tracking-tight">Reporte</h3>
+          <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[month]} {year} · {monthTxs.length} movimientos</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleShare} className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform" title="Compartir">
+            <Share2 className="w-5 h-5"/>
+          </button>
+          <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 no-scrollbar pb-12">
+
+        {/* Tarjetas de balance */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label:'Ingresos',  value:stats.income,          color:'text-emerald-400', bg:'bg-emerald-500/10' },
+            { label:'Gastos',    value:stats.expenses,         color:'text-rose-400',    bg:'bg-rose-500/10'    },
+            { label:'Ahorro',    value:stats.savingsAmount,    color:'text-emerald-400', bg:'bg-zinc-900/60'    },
+            { label:'Inversión', value:stats.investmentAmount, color:'text-indigo-400',  bg:'bg-indigo-500/10'  },
+          ].map(item=>(
+            <div key={item.label} className={`${item.bg} rounded-2xl p-4 border border-white/5`}>
+              <p className="text-xs text-zinc-500 font-semibold">{item.label}</p>
+              <p className={`text-xl font-black mt-0.5 ${item.color}`}>${formatNumber(item.value)}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Saldo disponible */}
+        <div className={`rounded-2xl p-5 border ${stats.available>=0?'bg-indigo-600/10 border-indigo-500/20':'bg-rose-600/10 border-rose-500/20'}`}>
+          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Saldo disponible</p>
+          <p className={`text-4xl font-black mt-1 ${stats.available>=0?'text-white':'text-rose-400'}`}>${formatNumber(stats.available)}</p>
+        </div>
+
+        {/* Progreso del mes */}
+        <div className="bg-zinc-900/40 rounded-2xl p-4 border border-white/5 space-y-2">
+          <div className="flex justify-between items-center">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Progreso del mes</p>
+            <span className="text-xs font-bold text-zinc-400">{daysPassed}/{daysInMonth} días</span>
+          </div>
+          <div className="h-2 bg-black rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-600 rounded-full" style={{width:`${monthProgress}%`}}/>
+          </div>
+          <p className="text-xs text-zinc-700 text-right">{monthProgress}% del mes</p>
+        </div>
+
+        {/* Top categorías */}
+        {topCats.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Top gastos</p>
+            <div className="bg-zinc-900/40 rounded-2xl border border-white/5 overflow-hidden">
+              {topCats.map(([cat,val],i)=>{
+                const pct = stats.expenses>0 ? Math.round((val/stats.expenses)*100) : 0;
+                return (
+                  <div key={cat} className={`px-5 py-3.5 ${i<topCats.length-1?'border-b border-white/5':''}`}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-sm font-semibold text-zinc-200">{cat}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-zinc-600">{pct}%</span>
+                        <span className="text-sm font-black">${formatNumber(val)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-black/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-rose-500 rounded-full transition-all duration-700" style={{width:`${pct}%`}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Comparativa mes anterior */}
+        {(prevMonth.income>0||prevMonth.expense>0) && (
+          <div className="bg-zinc-900/40 rounded-2xl border border-white/5 p-5 space-y-3">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">vs mes anterior</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-zinc-600 mb-0.5">Ingresos ant.</p>
+                <p className="text-lg font-black text-zinc-400">${formatNumber(prevMonth.income)}</p>
+                {prevMonth.income>0 && <p className={`text-xs font-bold mt-0.5 ${stats.income>=prevMonth.income?'text-emerald-400':'text-rose-400'}`}>
+                  {stats.income>=prevMonth.income?'▲':'▼'} {Math.abs(((stats.income-prevMonth.income)/prevMonth.income)*100).toFixed(0)}%
+                </p>}
+              </div>
+              <div>
+                <p className="text-xs text-zinc-600 mb-0.5">Gastos ant.</p>
+                <p className="text-lg font-black text-zinc-400">${formatNumber(prevMonth.expense)}</p>
+                {prevMonth.expense>0 && <p className={`text-xs font-bold mt-0.5 ${stats.expenses<=prevMonth.expense?'text-emerald-400':'text-rose-400'}`}>
+                  {stats.expenses<=prevMonth.expense?'▼':'▲'} {Math.abs(((stats.expenses-prevMonth.expense)/prevMonth.expense)*100).toFixed(0)}%
+                </p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Proyección */}
+        {projection && (
+          <div className={`rounded-2xl p-5 border space-y-2 ${projection.projectedAvailable>=0?'bg-emerald-500/5 border-emerald-500/20':'bg-rose-500/5 border-rose-500/20'}`}>
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Proyección a fin de mes</p>
+            <div className="flex justify-between">
+              <div><p className="text-xs text-zinc-600">Gasto estimado</p><p className="text-lg font-black text-rose-400">${formatNumber(projection.projectedExpense)}</p></div>
+              <div className="text-right"><p className="text-xs text-zinc-600">Saldo estimado</p><p className={`text-lg font-black ${projection.projectedAvailable>=0?'text-emerald-400':'text-rose-400'}`}>${formatNumber(projection.projectedAvailable)}</p></div>
+            </div>
+          </div>
+        )}
+
+        {/* Recurrentes */}
+        {recurring.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Recurrentes activos ({recurring.length})</p>
+            <div className="bg-zinc-900/40 rounded-2xl border border-white/5 overflow-hidden">
+              {recurring.map((r,i)=>{
+                const freq = FREQUENCIES.find(f=>f.v===r.frequency);
+                return (
+                  <div key={r.id} className={`flex justify-between items-center px-5 py-3.5 ${i<recurring.length-1?'border-b border-white/5':''}`}>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">{r.category}</p>
+                      <p className="text-xs text-zinc-600">{freq?.l} · próx. {r.next_date}</p>
+                    </div>
+                    <p className={`text-sm font-black ${r.type==='INGRESO'?'text-emerald-400':'text-zinc-300'}`}>
+                      {r.type==='GASTO'?'-':'+'} ${formatNumber(r.amount)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // TRENDS CHART — barras últimos 6 meses
 // ─────────────────────────────────────────────
 function TrendsChart({ transactions }) {
@@ -617,6 +822,13 @@ export default function App() {
     return stored ? parseFloat(stored) : 0;
   });
 
+  // VOZ + REPORTE
+  const [isListening,  setIsListening]  = useState(false);
+  const [showReport,   setShowReport]   = useState(false);
+  const recognitionRef = useRef(null);
+  const voiceSupported = typeof window !== 'undefined' &&
+    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
   const toast = useToast();
   const userId = session?.user?.id;
   const mountedRef = useRef(false);
@@ -809,6 +1021,48 @@ export default function App() {
     setExchangeRate(n);
     localStorage.setItem('metacasa_usd_rate', String(n));
   };
+
+  // ── VOZ ──
+  const startListening = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast('Tu dispositivo no soporta dictado por voz', 'error'); return; }
+    const rec = new SR();
+    recognitionRef.current = rec;
+    rec.lang = 'es-AR';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onstart  = () => setIsListening(true);
+    rec.onend    = () => setIsListening(false);
+    rec.onerror  = (e) => { setIsListening(false); if (e.error !== 'aborted') toast('Error de voz: ' + e.error, 'error'); };
+    rec.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      const parsed = parseVoiceAmount(text);
+      if (parsed > 0) setAmount(String(parsed));
+      setNote(text);
+      toast('Dictado capturado ✓', 'success');
+    };
+    rec.start();
+  }, [toast]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
+
+  // ── AUTO-SUGERENCIA DE CATEGORÍA ──
+  const catSuggestion = useMemo(() => {
+    if (!note.trim() || note.length < 3) return null;
+    const lower = note.toLowerCase();
+    const allCats = [...(activeCategories.GASTO||[]), ...(activeCategories.INGRESO||[])];
+    for (const [catName, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      if (!allCats.includes(catName)) continue;
+      if (keywords.some(kw => lower.includes(kw))) {
+        return catName === category ? null : catName;
+      }
+    }
+    return null;
+  }, [note, category, activeCategories]);
 
   // ── ACTIONS ──
   const handleSaveTransaction = async () => {
@@ -1333,13 +1587,26 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Monto */}
-              <div className="space-y-1">
+              {/* Monto + Voz */}
+              <div className="space-y-2">
                 <input type="text" value={amount?formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
                   placeholder="$ 0"
                   className="w-full bg-transparent text-6xl font-black text-center focus:outline-none placeholder:text-zinc-800"
                   inputMode="numeric" />
-                <p className="text-center text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                <div className="flex items-center justify-center gap-3">
+                  <p className="text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                  {voiceSupported && (
+                    <button onClick={isListening ? stopListening : startListening}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                        ${isListening
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                      {isListening
+                        ? <><MicOff className="w-3.5 h-3.5"/><span className="animate-pulse">Escuchando…</span></>
+                        : <><Mic className="w-3.5 h-3.5"/>Dictado</>}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Categoría — chip grid con emojis */}
@@ -1369,6 +1636,18 @@ export default function App() {
               {/* Nota */}
               <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Detalle opcional del movimiento…"
                 className="w-full bg-black/40 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 min-h-[90px] resize-none focus:outline-none focus:border-indigo-500/40 transition-colors" />
+
+              {/* Auto-sugerencia de categoría */}
+              {catSuggestion && (
+                <button onClick={()=>setCategory(catSuggestion)}
+                  className="w-full flex items-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 text-left active:scale-[0.98] transition-all">
+                  <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0"/>
+                  <span className="text-xs font-semibold text-indigo-300 flex-1">
+                    ¿Categoría sugerida: <strong className="text-white">{catSuggestion}</strong>?
+                  </span>
+                  <span className="text-xs text-indigo-500 font-bold flex-shrink-0">Aplicar →</span>
+                </button>
+              )}
 
               {/* Botón guardar */}
               <button onClick={handleSaveTransaction} disabled={!amount||!category||savingTx}
@@ -1627,6 +1906,11 @@ export default function App() {
                 <Bell className="w-4 h-4"/>
                 Vencimientos y alertas
                 {urgentCount > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{urgentCount}</span>}
+              </button>
+              <button onClick={()=>setShowReport(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-400"/>
+                Reporte de {MONTHS[currentDate.getMonth()]}
               </button>
             </div>
 
@@ -2077,6 +2361,21 @@ export default function App() {
           categories={activeCategories}
           onSave={loadTransactions}
           onClose={()=>setEditingTx(null)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Reporte mensual
+      ════════════════════════════════ */}
+      {showReport && (
+        <ReportModal
+          stats={stats}
+          transactions={transactions}
+          currentDate={currentDate}
+          prevMonth={prevMonth}
+          projection={projection}
+          recurring={recurring}
+          onClose={()=>setShowReport(false)}
         />
       )}
     </div>
