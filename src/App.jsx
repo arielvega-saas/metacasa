@@ -880,6 +880,120 @@ function DebtForm({ debt, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// ANNUAL MODAL — resumen 12 meses del año
+// ─────────────────────────────────────────────
+function AnnualModal({ transactions, year, onClose }) {
+  const months = useMemo(() => {
+    return Array.from({ length: 12 }, (_, m) => {
+      const txs = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === m && d.getFullYear() === year;
+      });
+      const income  = txs.filter(t => t.type==='INGRESO').reduce((a,c) => a+Number(c.amount), 0);
+      const expense = txs.filter(t => t.type==='GASTO').reduce((a,c) => a+Number(c.amount), 0);
+      const balance = income - expense;
+      return { m, income, expense, balance, count: txs.length };
+    });
+  }, [transactions, year]);
+
+  const totals = useMemo(() => ({
+    income:  months.reduce((a,r) => a+r.income, 0),
+    expense: months.reduce((a,r) => a+r.expense, 0),
+    balance: months.reduce((a,r) => a+r.balance, 0),
+  }), [months]);
+
+  const maxVal = Math.max(...months.map(r => Math.max(r.income, r.expense)), 1);
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+        <div>
+          <h3 className="text-xl font-black uppercase tracking-tight">Año {year}</h3>
+          <p className="text-xs text-zinc-600 mt-0.5">Resumen anual · 12 meses</p>
+        </div>
+        <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-5 no-scrollbar pb-12 space-y-5">
+        {/* Totales del año */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
+            <p className="text-[10px] text-zinc-500 font-semibold mb-1">INGRESOS</p>
+            <p className="text-base font-black text-emerald-400">${formatNumber(totals.income)}</p>
+          </div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-center">
+            <p className="text-[10px] text-zinc-500 font-semibold mb-1">GASTOS</p>
+            <p className="text-base font-black text-rose-400">${formatNumber(totals.expense)}</p>
+          </div>
+          <div className={`border rounded-2xl p-4 text-center ${totals.balance>=0?'bg-indigo-500/10 border-indigo-500/20':'bg-zinc-900/60 border-white/5'}`}>
+            <p className="text-[10px] text-zinc-500 font-semibold mb-1">BALANCE</p>
+            <p className={`text-base font-black ${totals.balance>=0?'text-indigo-300':'text-rose-400'}`}>${formatNumber(totals.balance)}</p>
+          </div>
+        </div>
+
+        {/* Gráfico SVG barras por mes */}
+        <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+          <div className="flex items-center gap-3 mb-3 text-[10px] font-semibold text-zinc-500">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Ingresos</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block"/>Gastos</span>
+          </div>
+          <svg viewBox={`0 0 ${12*28} 80`} className="w-full">
+            {months.map((row, i) => {
+              const h_inc = row.income  > 0 ? Math.round((row.income  / maxVal) * 65) : 0;
+              const h_exp = row.expense > 0 ? Math.round((row.expense / maxVal) * 65) : 0;
+              const x = i * 28;
+              return (
+                <g key={i}>
+                  {h_inc > 0 && <rect x={x+2}  y={75-h_inc} width={11} height={h_inc} rx="3" fill="#10b981" opacity="0.8"/>}
+                  {h_exp > 0 && <rect x={x+15} y={75-h_exp} width={11} height={h_exp} rx="3" fill="#f43f5e" opacity="0.8"/>}
+                  <text x={x+14} y="80" textAnchor="middle" fill="#52525b" fontSize="6" fontWeight="700">
+                    {MONTHS[row.m].slice(0,3)}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Filas por mes */}
+        <div className="space-y-2">
+          {months.map(row => (
+            row.count === 0 ? null : (
+              <div key={row.m} className="bg-zinc-900/50 rounded-2xl border border-white/5 px-4 py-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-zinc-300 w-24">{MONTHS[row.m]}</span>
+                  <div className="flex items-center gap-4 flex-1 justify-end">
+                    <div className="text-right">
+                      <p className="text-[10px] text-zinc-600">Ingresos</p>
+                      <p className="text-xs font-bold text-emerald-400">${formatNumber(row.income)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-zinc-600">Gastos</p>
+                      <p className="text-xs font-bold text-rose-400">${formatNumber(row.expense)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-zinc-600">Balance</p>
+                      <p className={`text-xs font-black ${row.balance>=0?'text-white':'text-rose-400'}`}>
+                        {row.balance>=0?'+':''} ${formatNumber(row.balance)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          ))}
+          {months.every(r=>r.count===0) && (
+            <div className="text-center py-16">
+              <p className="text-sm font-semibold text-zinc-600">Sin movimientos en {year}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // REPORT MODAL — snapshot mensual compartible
 // ─────────────────────────────────────────────
 function ReportModal({ stats, transactions, currentDate, prevMonth, projection, recurring, onClose }) {
@@ -1287,6 +1401,7 @@ export default function App() {
   const [showRecurringForm,  setShowRecurringForm]   = useState(false);
   const [editingRecurring,   setEditingRecurring]    = useState(null);
   const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
+  const [showAnnualModal,    setShowAnnualModal]     = useState(false);
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -1555,6 +1670,20 @@ export default function App() {
   const totalOwedToMe = debts.filter(d => !d.settled && d.direction === 'owed_to_me').reduce((a,d) => a + d.amount, 0);
   const totalIOwe     = debts.filter(d => !d.settled && d.direction === 'i_owe').reduce((a,d) => a + d.amount, 0);
   const pendingDebts  = debts.filter(d => !d.settled);
+
+  // ── PATRIMONIO NETO ──
+  const patrimonioNeto = useMemo(() => {
+    // Activos: saldo disponible del mes actual + total guardado en metas + lo que me deben
+    const activeGoalsSaved = goals.reduce((a, g) => a + g.current, 0);
+    const activos = Math.max(0, stats.available) + activeGoalsSaved + totalOwedToMe;
+    // Pasivos: total que debo + cuotas pendientes × monto mensual restante
+    const cuotasPendientes = cuotas.reduce((a, c) => {
+      const rem = Math.max(0, c.totalCuotas - c.paidCuotas);
+      return a + rem * c.monthlyAmount;
+    }, 0);
+    const pasivos = totalIOwe + cuotasPendientes;
+    return { activos, pasivos, neto: activos - pasivos };
+  }, [stats.available, goals, totalOwedToMe, totalIOwe, cuotas]);
 
   // ── TIPO DE CAMBIO ──
   const updateExchangeRate = (val) => {
@@ -2263,6 +2392,38 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Patrimonio Neto */}
+                {(patrimonioNeto.activos > 0 || patrimonioNeto.pasivos > 0) && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">Patrimonio neto</p>
+                      <span className={`text-sm font-black ${patrimonioNeto.neto >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {patrimonioNeto.neto >= 0 ? '+' : ''} ${formatNumber(patrimonioNeto.neto)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-500 font-semibold flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Activos
+                        </span>
+                        <span className="text-xs font-bold text-emerald-400">${formatNumber(patrimonioNeto.activos)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-500 font-semibold flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 inline-block"/>Pasivos
+                        </span>
+                        <span className="text-xs font-bold text-rose-400">${formatNumber(patrimonioNeto.pasivos)}</span>
+                      </div>
+                      {patrimonioNeto.activos > 0 && (
+                        <div className="h-2 bg-black/60 rounded-full overflow-hidden mt-2">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 rounded-full transition-all duration-700"
+                            style={{width:`${Math.min(100, (patrimonioNeto.activos / (patrimonioNeto.activos + patrimonioNeto.pasivos)) * 100).toFixed(0)}%`}}/>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Vencimientos urgentes en Home */}
                 {(billsDue.overdue.length > 0 || billsDue.today.length > 0 || billsDue.soon.length > 0) && (
                   <button onClick={()=>setShowBillsModal(true)} className="w-full text-left">
@@ -2509,7 +2670,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Lista */}
+            {/* Lista — agrupada por fecha */}
             <div className="px-5">
               {loadingData ? (
                 <div className="space-y-3">{[1,2,3].map(i=><SkeletonCard key={i} className="h-20"/>)}</div>
@@ -2528,43 +2689,79 @@ export default function App() {
                     : <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-indigo-400">+ Registrar uno</button>
                   }
                 </div>
-              ) : (
-                <div className="space-y-2.5 pb-4">
-                  {filteredTxs.map(t=>(
-                    <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-3.5 p-4">
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
-                          ${t.type==='INGRESO'?'bg-emerald-500/15':'bg-rose-500/15'}`}>
-                          {getEmoji(t.category)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-white truncate">{t.category}</p>
-                          <p className="text-xs text-zinc-600">
-                            {new Date(t.date).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}
-                          </p>
-                          {t.note && <p className="text-xs text-zinc-500 italic truncate mt-0.5">"{t.note}"</p>}
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <p className={`text-base font-black ${t.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
-                            {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
-                          </p>
-                          <div className="flex flex-col gap-1">
-                            <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors">
-                              <Edit3 className="w-3.5 h-3.5"/>
-                            </button>
-                            <button onClick={()=>requestDelete(t.id,'tx')}
-                              className={`p-1.5 transition-colors rounded ${pendingDelete?.id===t.id&&pendingDelete?.type==='tx' ? 'text-rose-500 bg-rose-500/15' : 'text-zinc-700 active:text-rose-500'}`}>
-                              {pendingDelete?.id===t.id&&pendingDelete?.type==='tx'
-                                ? <Check className="w-3.5 h-3.5"/>
-                                : <Trash2 className="w-3.5 h-3.5"/>}
-                            </button>
+              ) : (() => {
+                // Agrupar por fecha (YYYY-MM-DD)
+                const groups = {};
+                filteredTxs.forEach(t => {
+                  const key = t.date.slice(0,10);
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(t);
+                });
+                const sortedDays = Object.keys(groups).sort((a,b) =>
+                  sortBy==='date_asc' ? a.localeCompare(b) : b.localeCompare(a)
+                );
+                const today = new Date().toISOString().slice(0,10);
+                const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+                const dayLabel = (key) => {
+                  if (key===today) return 'Hoy';
+                  if (key===yesterday) return 'Ayer';
+                  return new Date(key+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+                };
+                return (
+                  <div className="space-y-5 pb-6">
+                    {sortedDays.map(day => {
+                      const txs = groups[day];
+                      const dayInc = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+                      const dayExp = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+                      const dayBal = dayInc - dayExp;
+                      return (
+                        <div key={day}>
+                          {/* Separador de fecha */}
+                          <div className="flex items-center justify-between mb-2.5 px-1">
+                            <span className="text-xs font-bold text-zinc-500 capitalize">{dayLabel(day)}</span>
+                            <span className={`text-xs font-black ${dayBal>=0?'text-emerald-500':'text-rose-400'}`}>
+                              {dayBal>=0?'+':''} ${formatNumber(dayBal)}
+                            </span>
+                          </div>
+                          {/* Filas del día */}
+                          <div className="space-y-2">
+                            {txs.map(t=>(
+                              <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
+                                <div className="flex items-center gap-3.5 p-4">
+                                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+                                    ${t.type==='INGRESO'?'bg-emerald-500/15':'bg-rose-500/15'}`}>
+                                    {getEmoji(t.category)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-white truncate">{t.category}</p>
+                                    {t.note && <p className="text-xs text-zinc-500 italic truncate mt-0.5">"{t.note}"</p>}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <p className={`text-base font-black ${t.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
+                                      {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
+                                    </p>
+                                    <div className="flex flex-col gap-1">
+                                      <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors">
+                                        <Edit3 className="w-3.5 h-3.5"/>
+                                      </button>
+                                      <button onClick={()=>requestDelete(t.id,'tx')}
+                                        className={`p-1.5 transition-colors rounded ${pendingDelete?.id===t.id&&pendingDelete?.type==='tx' ? 'text-rose-500 bg-rose-500/15' : 'text-zinc-700 active:text-rose-500'}`}>
+                                        {pendingDelete?.id===t.id&&pendingDelete?.type==='tx'
+                                          ? <Check className="w-3.5 h-3.5"/>
+                                          : <Trash2 className="w-3.5 h-3.5"/>}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -2690,6 +2887,11 @@ export default function App() {
                 className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-400"/>
                 Reporte de {MONTHS[currentDate.getMonth()]}
+              </button>
+              <button onClick={()=>setShowAnnualModal(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <BarChart3 className="w-4 h-4 text-indigo-400"/>
+                Vista anual {currentDate.getFullYear()}
               </button>
             </div>
 
@@ -3398,6 +3600,17 @@ export default function App() {
           debt={editingDebt}
           onSave={(data)=>{ saveDebt(data); setShowDebtForm(false); }}
           onClose={()=>setShowDebtForm(false)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Vista Anual
+      ════════════════════════════════ */}
+      {showAnnualModal && (
+        <AnnualModal
+          transactions={transactions}
+          year={currentDate.getFullYear()}
+          onClose={()=>setShowAnnualModal(false)}
         />
       )}
 
