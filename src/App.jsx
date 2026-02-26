@@ -2225,6 +2225,25 @@ export default function App() {
     setSortBy('date_desc'); setAllMonths(false);
   };
 
+  // ── RESUMEN DEL FILTRO (historial) ──
+  const filteredIncome  = useMemo(() => filteredTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0), [filteredTxs]);
+  const filteredExpense = useMemo(() => filteredTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0),   [filteredTxs]);
+  const filteredBalance = filteredIncome - filteredExpense;
+
+  // ── RECIENTES — últimas 3 categorías usadas (por tipo actual) ──
+  const recentCategories = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const t of [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date))) {
+      if (t.type !== type) continue;
+      if (seen.has(t.category)) continue;
+      seen.add(t.category);
+      result.push(t.category);
+      if (result.length >= 4) break;
+    }
+    return result;
+  }, [transactions, type]);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2650,11 +2669,27 @@ export default function App() {
               </div>
 
               {/* Monto + Voz */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <input type="text" value={amount?formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
                   placeholder="$ 0"
                   className="w-full bg-transparent text-6xl font-black text-center focus:outline-none placeholder:text-zinc-800"
                   inputMode="numeric" />
+
+                {/* Montos rápidos */}
+                <div className="overflow-x-auto no-scrollbar -mx-1">
+                  <div className="flex gap-2 px-1" style={{width:'max-content'}}>
+                    {[100,500,1000,2000,5000,10000,20000,50000].map(v=>(
+                      <button key={v} onClick={()=>setAmount(String(v))}
+                        className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-95
+                          ${amount===String(v)
+                            ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
+                            : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                        {v>=1000?`${v/1000}k`:v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-center gap-3">
                   <p className="text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
                   {voiceSupported && (
@@ -2671,20 +2706,39 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Categoría — chip grid con emojis */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
-                <div className="flex flex-wrap gap-2">
-                  {activeCategories[type]?.map(c=>(
-                    <button key={c} onClick={()=>setCategory(c)}
-                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95
-                        ${category===c
-                          ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg' : 'bg-emerald-600 text-white shadow-lg'
-                          : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
-                      <span className="text-base leading-none">{getEmoji(c)}</span>
-                      <span>{c}</span>
-                    </button>
-                  ))}
+              {/* Recientes + Categoría — chip grid con emojis */}
+              <div className="space-y-3">
+                {recentCategories.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-zinc-600 ml-1">Recientes</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {recentCategories.map(cat=>(
+                        <button key={cat} onClick={()=>setCategory(cat)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
+                            ${category===cat
+                              ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
+                              : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                          <span>{getEmoji(cat)}</span>
+                          <span>{cat}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
+                  <div className="flex flex-wrap gap-2">
+                    {activeCategories[type]?.map(c=>(
+                      <button key={c} onClick={()=>setCategory(c)}
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95
+                          ${category===c
+                            ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg' : 'bg-emerald-600 text-white shadow-lg'
+                            : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                        <span className="text-base leading-none">{getEmoji(c)}</span>
+                        <span>{c}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -2827,6 +2881,26 @@ export default function App() {
                 <ArrowUpDown className="w-3 h-3 text-zinc-600 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"/>
               </div>
             </div>
+
+            {/* Banda resumen del filtro */}
+            {filteredTxs.length > 0 && !loadingData && (
+              <div className="px-5 grid grid-cols-3 gap-2">
+                <div className="bg-emerald-500/10 rounded-xl p-2.5 text-center">
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Ingresos</p>
+                  <p className="text-sm font-black text-emerald-400 mt-0.5">${formatNumber(filteredIncome)}</p>
+                </div>
+                <div className="bg-rose-500/10 rounded-xl p-2.5 text-center">
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Gastos</p>
+                  <p className="text-sm font-black text-rose-400 mt-0.5">${formatNumber(filteredExpense)}</p>
+                </div>
+                <div className={`rounded-xl p-2.5 text-center ${filteredBalance >= 0 ? 'bg-indigo-500/10' : 'bg-zinc-900/60'}`}>
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Balance</p>
+                  <p className={`text-sm font-black mt-0.5 ${filteredBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                    {filteredBalance >= 0 ? '+' : ''} ${formatNumber(filteredBalance)}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Lista — agrupada por fecha */}
             <div className="px-5">
