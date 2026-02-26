@@ -7,7 +7,8 @@ import {
   AlertCircle, CheckCircle2, Info, Edit3,
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
-  Mic, MicOff, Share2, FileText, Sparkles
+  Mic, MicOff, Share2, FileText, Sparkles,
+  Target, Trophy, Wallet
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -68,6 +69,15 @@ const parseVoiceAmount = (text) => {
   for (const [phrase,val] of Object.entries(words)) { if (lower.includes(phrase)) return val; }
   return 0;
 };
+
+// Emojis para metas de ahorro
+const GOAL_EMOJIS = ['🎯','✈️','🏠','🚗','💻','📱','🎓','💍','🏖️','🎪','🎸','🐕','🌍','🏋️','🎮','👶','🏥','🛋️','🌿','⛵'];
+
+// Haptic feedback (solo en dispositivos que lo soportan)
+const haptic = (ms = 10) => { try { navigator.vibrate?.(ms); } catch {} };
+
+// Clave localStorage para metas
+const GOALS_KEY = 'metacasa_goals';
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -384,6 +394,190 @@ function EditTransactionModal({ tx, categories, onSave, onClose }) {
         <button onClick={handleSave} disabled={saving}
           className="w-full py-5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
           {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GOAL CARD
+// ─────────────────────────────────────────────
+function GoalCard({ goal, onContribute, onDelete }) {
+  const pct = goal.target > 0 ? Math.min(100, Math.round((goal.current/goal.target)*100)) : 0;
+  const daysLeft = goal.deadline
+    ? Math.ceil((new Date(goal.deadline) - new Date()) / 86400000)
+    : null;
+  const done = pct >= 100;
+  return (
+    <div className={`rounded-2xl p-5 border space-y-3.5 ${done ? 'bg-emerald-500/8 border-emerald-500/20' : 'bg-zinc-900/60 border-white/8'}`}>
+      <div className="flex justify-between items-start">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-2xl flex-shrink-0">{goal.emoji}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white truncate">{goal.name}</p>
+            {daysLeft !== null && (
+              <p className={`text-xs font-semibold mt-0.5 ${daysLeft < 0 ? 'text-rose-400' : daysLeft < 30 ? 'text-amber-400' : 'text-zinc-600'}`}>
+                {daysLeft < 0 ? 'Fecha vencida' : daysLeft === 0 ? 'Vence hoy' : `${daysLeft}d restantes`}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0 ml-2">
+          <p className="text-xs text-zinc-600">Meta</p>
+          <p className="text-sm font-black">${formatNumber(goal.target)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs">
+          <span className="text-zinc-400 font-semibold">${formatNumber(goal.current)} guardado</span>
+          <span className={`font-black ${done ? 'text-emerald-400' : 'text-indigo-400'}`}>{pct}%</span>
+        </div>
+        <div className="h-3 bg-black/60 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+            style={{width:`${pct}%`}}/>
+        </div>
+        <p className="text-xs text-zinc-700">
+          {done ? '🎉 ¡Meta alcanzada!' : `Falta $${formatNumber(goal.target - goal.current)}`}
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        {!done && (
+          <button onClick={()=>onContribute(goal)}
+            className="flex-1 py-3 bg-indigo-600/15 border border-indigo-500/25 rounded-xl text-xs font-bold text-indigo-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <Plus className="w-3.5 h-3.5"/> Sumar aporte
+          </button>
+        )}
+        {done && (
+          <div className="flex-1 py-3 bg-emerald-500/10 rounded-xl text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5">
+            <Trophy className="w-3.5 h-3.5"/> ¡Completada!
+          </div>
+        )}
+        <button onClick={()=>onDelete(goal.id)}
+          className="p-3 bg-zinc-900 rounded-xl border border-white/8 active:scale-90 transition-all">
+          <Trash2 className="w-3.5 h-3.5 text-zinc-600"/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GOAL FORM
+// ─────────────────────────────────────────────
+function GoalForm({ goal, onSave, onClose }) {
+  const [name,     setName]     = useState(goal?.name || '');
+  const [target,   setTarget]   = useState(goal ? String(goal.target) : '');
+  const [current,  setCurrent]  = useState(goal ? String(goal.current) : '0');
+  const [emoji,    setEmoji]    = useState(goal?.emoji || '🎯');
+  const [deadline, setDeadline] = useState(goal?.deadline || '');
+  const [showPick, setShowPick] = useState(false);
+
+  const handleSave = () => {
+    if (!name.trim() || !target) return;
+    onSave({
+      id: goal?.id || Date.now(),
+      name: name.trim(), emoji,
+      target: parseInt(target.replace(/\D/g,'')) || 0,
+      current: parseInt(current.replace(/\D/g,'')) || 0,
+      deadline: deadline || null,
+      createdAt: goal?.createdAt || new Date().toISOString().slice(0,10),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
+      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black uppercase tracking-tight">{goal ? 'Editar' : 'Nueva'} meta</h3>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
+        </div>
+
+        {/* Emoji selector */}
+        <div className="flex items-center gap-3">
+          <button onClick={()=>setShowPick(v=>!v)}
+            className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center text-3xl active:scale-90 transition-transform">
+            {emoji}
+          </button>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre de la meta…"
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+        </div>
+        {showPick && (
+          <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
+            <div className="grid grid-cols-10 gap-1">
+              {GOAL_EMOJIS.map(e=>(
+                <button key={e} onClick={()=>{ setEmoji(e); setShowPick(false); }}
+                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 transition-colors ${emoji===e?'bg-indigo-600':''}`}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Meta ($)</p>
+            <input value={target} onChange={e=>setTarget(e.target.value.replace(/\D/g,''))}
+              placeholder="0" inputMode="numeric"
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Ya tengo ($)</p>
+            <input value={current} onChange={e=>setCurrent(e.target.value.replace(/\D/g,''))}
+              placeholder="0" inputMode="numeric"
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs text-zinc-600 ml-1">Fecha límite (opcional)</p>
+          <input type="date" value={deadline} onChange={e=>setDeadline(e.target.value)}
+            className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+        </div>
+
+        <button onClick={handleSave} disabled={!name.trim()||!target}
+          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          {goal ? 'Guardar cambios' : 'Crear meta'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CONTRIBUTE SHEET
+// ─────────────────────────────────────────────
+function ContributeSheet({ goal, onSave, onClose }) {
+  const [amount, setAmount] = useState('');
+  return (
+    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
+      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{goal.emoji}</span>
+            <h3 className="text-lg font-black uppercase tracking-tight">{goal.name}</h3>
+          </div>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
+        </div>
+        <p className="text-sm text-zinc-500">Progreso actual: <strong className="text-white">${formatNumber(goal.current)}</strong> / ${formatNumber(goal.target)}</p>
+        <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
+          placeholder="$ Monto a sumar" inputMode="numeric"
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+        <div className="grid grid-cols-4 gap-2">
+          {[1000,5000,10000,50000].map(v=>(
+            <button key={v} onClick={()=>setAmount(String(amount ? parseInt(amount)+v : v))}
+              className="py-2.5 bg-zinc-900 rounded-xl text-xs font-bold text-zinc-400 border border-white/8 active:scale-90 transition-all">
+              +{formatNumber(v)}
+            </button>
+          ))}
+        </div>
+        <button onClick={()=>{ if(amount) onSave(parseInt(amount)); }}
+          disabled={!amount}
+          className="w-full py-5 bg-emerald-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          Sumar ${formatNumber(parseInt(amount||0))} a la meta
         </button>
       </div>
     </div>
@@ -829,6 +1023,19 @@ export default function App() {
   const voiceSupported = typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+  // METAS DE AHORRO (localStorage)
+  const [goals,           setGoals]           = useState(() => {
+    try { return JSON.parse(localStorage.getItem(GOALS_KEY) || '[]'); } catch { return []; }
+  });
+  const [showGoalsModal,  setShowGoalsModal]  = useState(false);
+  const [showGoalForm,    setShowGoalForm]    = useState(false);
+  const [editingGoal,     setEditingGoal]     = useState(null);
+  const [contributeGoal,  setContributeGoal]  = useState(null);
+
+  // CONFIRMACIÓN INLINE DE ELIMINACIÓN
+  const [pendingDelete,   setPendingDelete]   = useState(null); // { id, type }
+  const pendingDeleteRef = useRef(null);
+
   const toast = useToast();
   const userId = session?.user?.id;
   const mountedRef = useRef(false);
@@ -1050,6 +1257,43 @@ export default function App() {
     setIsListening(false);
   }, []);
 
+  // ── METAS CRUD (localStorage) ──
+  const persistGoals = (list) => {
+    setGoals(list);
+    localStorage.setItem(GOALS_KEY, JSON.stringify(list));
+  };
+  const saveGoal = (data) => {
+    const exists = goals.find(g => g.id === data.id);
+    const updated = exists ? goals.map(g => g.id===data.id ? data : g) : [...goals, data];
+    persistGoals(updated);
+    haptic(15);
+  };
+  const deleteGoal = (id) => {
+    persistGoals(goals.filter(g => g.id !== id));
+    haptic(20);
+  };
+  const addContribution = (goalId, amount) => {
+    persistGoals(goals.map(g => g.id===goalId ? { ...g, current: g.current + amount } : g));
+    haptic(15);
+  };
+
+  // ── DELETE CONFIRM (inline 2-tap) ──
+  const requestDelete = (id, type = 'tx') => {
+    if (pendingDelete?.id === id && pendingDelete?.type === type) {
+      // Second tap → execute
+      clearTimeout(pendingDeleteRef.current);
+      setPendingDelete(null);
+      if (type === 'tx')   deleteTransaction(id);
+      if (type === 'bill') deleteBill(id);
+      haptic(30);
+    } else {
+      // First tap → arm
+      setPendingDelete({ id, type });
+      clearTimeout(pendingDeleteRef.current);
+      pendingDeleteRef.current = setTimeout(() => setPendingDelete(null), 3000);
+    }
+  };
+
   // ── AUTO-SUGERENCIA DE CATEGORÍA ──
   const catSuggestion = useMemo(() => {
     if (!note.trim() || note.length < 3) return null;
@@ -1076,6 +1320,7 @@ export default function App() {
     setAmount(''); setNote('');
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 1800);
+    haptic(15);
     toast('Movimiento registrado ✓', 'success');
     await loadTransactions();
   };
@@ -1470,6 +1715,37 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Metas de ahorro — preview en Home */}
+                {goals.filter(g=>!g.completed).length > 0 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-indigo-400"/> Metas
+                      </p>
+                      <button onClick={()=>setShowGoalsModal(true)} className="text-xs text-indigo-400 font-semibold">Ver todas →</button>
+                    </div>
+                    <div className="space-y-3">
+                      {goals.filter(g=>!g.completed).slice(0,2).map(g=>{
+                        const pct = g.target>0?Math.min(100,Math.round((g.current/g.target)*100)):0;
+                        return (
+                          <div key={g.id} className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-semibold text-zinc-300 flex items-center gap-1.5">
+                                <span>{g.emoji}</span>{g.name}
+                              </span>
+                              <span className="text-xs font-bold text-indigo-400">{pct}%</span>
+                            </div>
+                            <div className="h-2 bg-black/60 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-600 rounded-full" style={{width:`${pct}%`}}/>
+                            </div>
+                            <p className="text-xs text-zinc-700">${formatNumber(g.current)} / ${formatNumber(g.target)}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Tendencias 6 meses */}
                 {transactions.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -1809,8 +2085,11 @@ export default function App() {
                             <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors">
                               <Edit3 className="w-3.5 h-3.5"/>
                             </button>
-                            <button onClick={()=>deleteTransaction(t.id)} className="p-1.5 text-zinc-700 active:text-rose-500 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5"/>
+                            <button onClick={()=>requestDelete(t.id,'tx')}
+                              className={`p-1.5 transition-colors rounded ${pendingDelete?.id===t.id&&pendingDelete?.type==='tx' ? 'text-rose-500 bg-rose-500/15' : 'text-zinc-700 active:text-rose-500'}`}>
+                              {pendingDelete?.id===t.id&&pendingDelete?.type==='tx'
+                                ? <Check className="w-3.5 h-3.5"/>
+                                : <Trash2 className="w-3.5 h-3.5"/>}
                             </button>
                           </div>
                         </div>
@@ -1877,6 +2156,17 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Metas de Ahorro */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Metas de ahorro</p>
+              <button onClick={()=>setShowGoalsModal(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <Target className="w-4 h-4 text-indigo-400"/>
+                Administrar metas
+                {goals.length>0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{goals.length}</span>}
+              </button>
             </div>
 
             {/* Movimientos Recurrentes */}
@@ -2361,6 +2651,81 @@ export default function App() {
           categories={activeCategories}
           onSave={loadTransactions}
           onClose={()=>setEditingTx(null)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Metas de Ahorro
+      ════════════════════════════════ */}
+      {showGoalsModal && (
+        <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+          <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                <Target className="w-5 h-5 text-indigo-400"/> Metas de ahorro
+              </h3>
+              <p className="text-xs text-zinc-600 mt-0.5">{goals.length} meta{goals.length!==1?'s':''}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>{ setEditingGoal(null); setShowGoalForm(true); }}
+                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                <Plus className="w-5 h-5"/>
+              </button>
+              <button onClick={()=>setShowGoalsModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 no-scrollbar pb-12">
+            {goals.length === 0 ? (
+              <div className="text-center py-20 space-y-4">
+                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto">
+                  <Target className="w-7 h-7 text-zinc-700"/>
+                </div>
+                <p className="text-sm font-semibold text-zinc-600">Sin metas de ahorro</p>
+                <p className="text-xs text-zinc-700">Vacaciones, auto, electrónico…</p>
+                <button onClick={()=>{ setEditingGoal(null); setShowGoalForm(true); }}
+                  className="text-sm font-bold text-indigo-400">+ Crear la primera</button>
+              </div>
+            ) : (
+              <>
+                {/* Resumen total */}
+                <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-zinc-500 font-semibold">Total guardado</p>
+                    <p className="text-xl font-black text-indigo-300">${formatNumber(goals.reduce((a,g)=>a+g.current,0))}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-zinc-500 font-semibold">Total metas</p>
+                    <p className="text-xl font-black">${formatNumber(goals.reduce((a,g)=>a+g.target,0))}</p>
+                  </div>
+                </div>
+                {goals.map(g=>(
+                  <GoalCard key={g.id} goal={g}
+                    onContribute={(goal)=>setContributeGoal(goal)}
+                    onDelete={deleteGoal}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showGoalForm && (
+        <GoalForm
+          goal={editingGoal}
+          onSave={(data)=>{ saveGoal(data); setShowGoalForm(false); }}
+          onClose={()=>setShowGoalForm(false)}
+        />
+      )}
+
+      {contributeGoal && (
+        <ContributeSheet
+          goal={contributeGoal}
+          onSave={(amt)=>{ addContribution(contributeGoal.id, amt); setContributeGoal(null); }}
+          onClose={()=>setContributeGoal(null)}
         />
       )}
 
