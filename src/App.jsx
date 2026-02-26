@@ -79,6 +79,7 @@ const haptic = (ms = 10) => { try { navigator.vibrate?.(ms); } catch {} };
 // Claves localStorage
 const GOALS_KEY  = 'metacasa_goals';
 const CUOTAS_KEY = 'metacasa_cuotas';
+const MEMO_KEY   = 'metacasa_memos';
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -1535,6 +1536,9 @@ export default function App() {
   const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
   const [allMonths,        setAllMonths]        = useState(false);   // false = solo mes actual
   const [filterDate,       setFilterDate]       = useState('');      // '' | 'YYYY-MM-DD'
+  const [monthMemos,       setMonthMemos]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem(MEMO_KEY) || '{}'); } catch { return {}; }
+  });
 
   // FORM
   const [type,       setType]       = useState('GASTO');
@@ -2370,6 +2374,34 @@ export default function App() {
     haptic(10);
   }, []);
 
+  // ── MEMO MENSUAL ──
+  const saveMemo = useCallback((text) => {
+    const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+    const updated = { ...monthMemos, [key]: text };
+    setMonthMemos(updated);
+    localStorage.setItem(MEMO_KEY, JSON.stringify(updated));
+  }, [currentDate, monthMemos]);
+
+  const currentMemo = useMemo(() => {
+    const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+    return monthMemos[key] || '';
+  }, [monthMemos, currentDate]);
+
+  // ── SPARKLINE ÚLTIMOS 7 DÍAS ──
+  const last7DaysData = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const expense = transactions
+        .filter(t => t.date.slice(0, 10) === dateStr && t.type === 'GASTO')
+        .reduce((a, c) => a + Number(c.amount), 0);
+      const label = i === 6 ? 'Hoy' : i === 5 ? 'Ayer'
+        : d.toLocaleDateString('es-AR', { weekday: 'short' }).replace('.','').slice(0,2);
+      return { dateStr, expense, label };
+    });
+  }, [transactions]);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2553,6 +2585,40 @@ export default function App() {
                     onDayPress={goToDate}
                   />
                 )}
+
+                {/* Sparkline — últimos 7 días de gasto */}
+                {last7DaysData.some(d => d.expense > 0) && (() => {
+                  const maxD = Math.max(...last7DaysData.map(d => d.expense));
+                  return (
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                      <p className="text-sm font-bold text-zinc-300 mb-4 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-rose-400"/> Últimos 7 días
+                      </p>
+                      <div className="flex items-end gap-1.5 h-14">
+                        {last7DaysData.map((d, i) => {
+                          const barH = maxD > 0 ? Math.max(3, Math.round((d.expense / maxD) * 48)) : 3;
+                          const isToday = i === 6;
+                          return (
+                            <button key={d.dateStr}
+                              onClick={() => d.expense > 0 && goToDate(d.dateStr)}
+                              disabled={d.expense === 0}
+                              className="flex-1 flex flex-col items-center gap-1 group">
+                              <div
+                                className={`w-full rounded-t-md transition-all group-active:opacity-70
+                                  ${isToday ? 'bg-indigo-500' : d.expense > 0 ? 'bg-rose-500/55' : 'bg-zinc-800/50'}`}
+                                style={{ height: `${barH}px` }}
+                              />
+                              <span className={`text-[9px] font-bold leading-none
+                                ${isToday ? 'text-indigo-400' : d.expense > 0 ? 'text-zinc-500' : 'text-zinc-800'}`}>
+                                {d.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Racha de ahorro */}
                 {savingsStreak >= 1 && (
@@ -2791,6 +2857,21 @@ export default function App() {
                   </button>
                 )}
 
+                {/* Nota del mes */}
+                <div className="bg-amber-500/5 rounded-[1.5rem] border border-amber-500/10 overflow-hidden">
+                  <div className="px-5 pt-4 pb-1 flex items-center gap-2">
+                    <span className="text-base leading-none">📝</span>
+                    <span className="text-sm font-bold text-zinc-400">Nota del mes</span>
+                  </div>
+                  <textarea
+                    value={currentMemo}
+                    onChange={e => saveMemo(e.target.value)}
+                    placeholder="Algo para recordar de este mes…"
+                    rows={2}
+                    className="w-full bg-transparent px-5 pb-4 pt-2 text-sm text-zinc-400 placeholder:text-zinc-700 resize-none focus:outline-none leading-relaxed"
+                  />
+                </div>
+
                 {/* Empty state */}
                 {monthTxs.length===0 && (
                   <div className="text-center py-10 space-y-3">
@@ -2902,8 +2983,26 @@ export default function App() {
               </div>
 
               {/* Fecha */}
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-zinc-600 ml-1">Fecha</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between ml-1">
+                  <p className="text-xs font-semibold text-zinc-600">Fecha</p>
+                  <div className="flex gap-1.5">
+                    {['Hoy', 'Ayer'].map((label, i) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - i);
+                      const dStr = d.toISOString().slice(0, 10);
+                      return (
+                        <button key={label} onClick={() => setTxDate(dStr)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-95
+                            ${txDate === dStr
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <input type="date" value={txDate} onChange={e=>setTxDate(e.target.value)}
                   className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 font-semibold text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
               </div>
