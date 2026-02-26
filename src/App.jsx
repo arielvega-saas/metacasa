@@ -11,6 +11,7 @@ import {
   TrendingUp,
   PiggyBank,
   BarChart3,
+  PieChart,
   ArrowUpRight,
   ArrowDownLeft,
   FileSpreadsheet,
@@ -154,6 +155,7 @@ export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetChartView, setBudgetChartView] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -904,53 +906,121 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL: Categorías (Barras) */}
-        {showBudgetModal && (
-          <div className="fixed inset-0 z-[110] bg-black flex flex-col pt-12">
-            <div className="px-8 pb-6 flex justify-between items-end border-b border-white/10">
-              <div>
-                <h3 className="text-2xl font-black italic uppercase">Categorías</h3>
-                <p className="text-[9px] font-bold text-zinc-600 uppercase mt-1 tracking-widest italic">{MONTHS[currentDate.getMonth()]}</p>
+        {/* MODAL: Categorías */}
+        {showBudgetModal && (() => {
+          const CHART_COLORS = ['#6366f1','#f43f5e','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+          const chartData = activeCategories.GASTO
+            .map((cat, i) => ({ cat, spent: stats.expenseByCategory[cat] || 0, color: CHART_COLORS[i % CHART_COLORS.length] }))
+            .filter(d => d.spent > 0);
+          const totalSpent = chartData.reduce((s, d) => s + d.spent, 0);
+
+          // SVG donut
+          const R = 80, r = 52, cx = 100, cy = 100;
+          let angle = -Math.PI / 2;
+          const slices = chartData.map(d => {
+            const frac = d.spent / (totalSpent || 1);
+            const a1 = angle, a2 = angle + frac * 2 * Math.PI;
+            angle = a2;
+            const x1o = cx + R * Math.cos(a1), y1o = cy + R * Math.sin(a1);
+            const x2o = cx + R * Math.cos(a2), y2o = cy + R * Math.sin(a2);
+            const x1i = cx + r * Math.cos(a2), y1i = cy + r * Math.sin(a2);
+            const x2i = cx + r * Math.cos(a1), y2i = cy + r * Math.sin(a1);
+            const large = frac > 0.5 ? 1 : 0;
+            return { ...d, frac, path: `M${x1o},${y1o} A${R},${R} 0 ${large},1 ${x2o},${y2o} L${x1i},${y1i} A${r},${r} 0 ${large},0 ${x2i},${y2i} Z` };
+          });
+
+          return (
+            <div className="fixed inset-0 z-[110] bg-black flex flex-col pt-12">
+              <div className="px-8 pb-6 flex justify-between items-end border-b border-white/10">
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase">Categorías</h3>
+                  <p className="text-[9px] font-bold text-zinc-600 uppercase mt-1 tracking-widest italic">{MONTHS[currentDate.getMonth()]}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBudgetChartView(v => !v)}
+                    className={`p-3 rounded-full transition-all active:scale-90 ${budgetChartView ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-400'}`}
+                  >
+                    {budgetChartView ? <BarChart3 className="w-5 h-5" /> : <PieChart className="w-5 h-5" />}
+                  </button>
+                  <button onClick={() => setShowBudgetModal(false)} className="p-3 bg-zinc-900 rounded-full active:scale-90 transition-transform"><X className="w-6 h-6" /></button>
+                </div>
               </div>
-              <button onClick={() => setShowBudgetModal(false)} className="p-3 bg-zinc-900 rounded-full active:scale-90 transition-transform"><X className="w-6 h-6" /></button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6 no-scrollbar pb-32">
-              {activeCategories.GASTO.map(cat => {
-                const limit = budgets[cat]?.amount || 0;
-                const spent = stats.expenseByCategory[cat] || 0;
-                const remaining = limit - spent;
-                const progress = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
-                const isOver = remaining < 0;
-
-                return (
-                  <div key={cat} className="bg-zinc-900/40 rounded-[2rem] p-7 border border-white/5 space-y-5 shadow-xl">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <h4 className="text-xs font-black uppercase tracking-[0.15em] text-white">{cat}</h4>
-                        <p className="text-[10px] font-bold text-zinc-600 italic">Asignado: ${formatNumber(limit)}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[9px] font-black uppercase block mb-1 tracking-widest ${isOver ? 'text-rose-500' : 'text-emerald-500'}`}>
-                          {isOver ? 'Excedido' : 'Restante'}
-                        </span>
-                        <p className={`text-2xl font-black tracking-tighter ${isOver ? 'text-rose-500' : 'text-white'}`}>
-                          ${formatNumber(remaining)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="h-2.5 bg-black rounded-full overflow-hidden border border-white/5 p-0.5">
-                      <div
-                        className={`h-full rounded-full transition-all duration-1000 shadow-lg ${isOver ? 'bg-rose-600' : 'bg-indigo-600'}`}
-                        style={{ width: `${limit > 0 ? progress : 0}%` }}
-                      />
-                    </div>
+              <div className="flex-1 overflow-y-auto px-8 py-8 no-scrollbar pb-32">
+                {budgetChartView ? (
+                  /* ── VISTA GRÁFICO ── */
+                  <div className="space-y-8">
+                    {totalSpent === 0 ? (
+                      <p className="text-zinc-600 text-center text-xs mt-16 uppercase tracking-widest">Sin gastos este mes</p>
+                    ) : (
+                      <>
+                        <div className="flex justify-center">
+                          <svg viewBox="0 0 200 200" className="w-56 h-56">
+                            {slices.map((s, i) => (
+                              <path key={i} d={s.path} fill={s.color} />
+                            ))}
+                            <text x="100" y="96" textAnchor="middle" fill="white" fontSize="9" fontWeight="900" fontStyle="italic" className="uppercase tracking-widest">TOTAL</text>
+                            <text x="100" y="112" textAnchor="middle" fill="white" fontSize="13" fontWeight="900">${formatNumber(totalSpent)}</text>
+                          </svg>
+                        </div>
+                        <div className="space-y-3">
+                          {slices.map((s, i) => (
+                            <div key={i} className="flex items-center justify-between bg-zinc-900/40 rounded-2xl px-5 py-4 border border-white/5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                <span className="text-xs font-black uppercase tracking-wider">{s.cat}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black">${formatNumber(s.spent)}</p>
+                                <p className="text-[10px] text-zinc-500 font-bold">{(s.frac * 100).toFixed(1)}%</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                );
-              })}
+                ) : (
+                  /* ── VISTA BARRAS ── */
+                  <div className="space-y-6">
+                    {activeCategories.GASTO.map(cat => {
+                      const limit = budgets[cat]?.amount || 0;
+                      const spent = stats.expenseByCategory[cat] || 0;
+                      const remaining = limit - spent;
+                      const progress = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
+                      const isOver = remaining < 0;
+                      return (
+                        <div key={cat} className="bg-zinc-900/40 rounded-[2rem] p-7 border border-white/5 space-y-5 shadow-xl">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-black uppercase tracking-[0.15em] text-white">{cat}</h4>
+                              <p className="text-[10px] font-bold text-zinc-600 italic">Asignado: ${formatNumber(limit)}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-[9px] font-black uppercase block mb-1 tracking-widest ${isOver ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                {isOver ? 'Excedido' : 'Restante'}
+                              </span>
+                              <p className={`text-2xl font-black tracking-tighter ${isOver ? 'text-rose-500' : 'text-white'}`}>
+                                ${formatNumber(remaining)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="h-2.5 bg-black rounded-full overflow-hidden border border-white/5 p-0.5">
+                            <div
+                              className={`h-full rounded-full transition-all duration-1000 shadow-lg ${isOver ? 'bg-rose-600' : 'bg-indigo-600'}`}
+                              style={{ width: `${limit > 0 ? progress : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Modal Manager Categorías */}
         {showCatManager && (
