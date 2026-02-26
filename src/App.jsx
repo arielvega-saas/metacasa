@@ -20,6 +20,26 @@ const INITIAL_CATEGORIES = {
 const MONTHS = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"];
 const CHART_COLORS = ['#6366f1','#f43f5e','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
+// Emojis default por nombre de categoría
+const DEFAULT_EMOJIS = {
+  Vivienda:'🏠', Transporte:'🚗', Salud:'🏥', Ocio:'🎮', Alimentación:'🍽️', Servicios:'⚡',
+  Sueldo:'💼', Inversiones:'📈', Ventas:'🛍️',
+};
+// Paleta de emojis para el picker
+const EMOJI_PALETTE = [
+  '🏠','🚗','🏥','🎮','🍽️','⚡','💼','📈','🛍️','🎓','✈️','🏋️',
+  '🐶','🐱','🌿','🎵','📱','💊','🛒','🎁','🏦','💳','🍕','☕',
+  '🚌','⛽','🎬','📚','👕','🏡','🔧','🧹','🌙','☀️','🍺','🎯',
+  '💰','💸','🤝','📊','🔑','🏊','🎨','💡','🧘','🌊','🚀','🍎',
+];
+// Frecuencias para recurrentes
+const FREQUENCIES = [
+  { v:'daily',   l:'Diario',   icon:'📅' },
+  { v:'weekly',  l:'Semanal',  icon:'📆' },
+  { v:'monthly', l:'Mensual',  icon:'🗓️' },
+  { v:'yearly',  l:'Anual',    icon:'📌' },
+];
+
 // ─────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────
@@ -342,6 +362,157 @@ function EditTransactionModal({ tx, categories, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// RECURRING CARD
+// ─────────────────────────────────────────────
+function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
+  const freq = FREQUENCIES.find(f => f.v === rec.frequency);
+  return (
+    <div className={`rounded-2xl border p-4 flex items-center gap-3 transition-all ${rec.active ? 'bg-zinc-900/60 border-white/8' : 'bg-zinc-900/30 border-white/5 opacity-50'}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+        ${rec.type==='INGRESO' ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}>
+        {getEmoji(rec.category)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className={`text-sm font-bold truncate ${rec.active ? 'text-white' : 'text-zinc-500'}`}>{rec.category}</p>
+          <span className="text-xs text-zinc-600 flex-shrink-0">{freq?.icon} {freq?.l}</span>
+        </div>
+        {rec.note ? <p className="text-xs text-zinc-500 italic truncate">"{rec.note}"</p> : null}
+        <p className="text-xs text-zinc-600 mt-0.5">Próximo: {rec.next_date}</p>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <p className={`text-base font-black ${rec.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
+          {rec.type==='GASTO'?'-':'+'} ${formatNumber(rec.amount)}
+        </p>
+        <div className="flex flex-col gap-0.5">
+          <button onClick={()=>onToggle(rec)} className={`p-1 transition-colors ${rec.active?'text-indigo-400':'text-zinc-700'}`} title={rec.active?'Pausar':'Activar'}>
+            <RefreshCw className="w-3.5 h-3.5"/>
+          </button>
+          <button onClick={()=>onEdit(rec)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
+            <Edit3 className="w-3.5 h-3.5"/>
+          </button>
+          <button onClick={()=>onDelete(rec.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
+            <Trash2 className="w-3.5 h-3.5"/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// RECURRING FORM
+// ─────────────────────────────────────────────
+function RecurringForm({ rec, categories, onSave, onClose }) {
+  const [type,      setType]      = useState(rec?.type || 'GASTO');
+  const [amount,    setAmount]    = useState(rec ? String(rec.amount) : '');
+  const [category,  setCategory]  = useState(rec?.category || (categories?.GASTO?.[0] || ''));
+  const [frequency, setFrequency] = useState(rec?.frequency || 'monthly');
+  const [startDate, setStartDate] = useState(rec?.start_date || new Date().toISOString().slice(0,10));
+  const [endDate,   setEndDate]   = useState(rec?.end_date || '');
+  const [note,      setNote]      = useState(rec?.note || '');
+  const [saving,    setSaving]    = useState(false);
+
+  const currentCats = categories?.[type] || [];
+
+  const handleSave = async () => {
+    if (!amount || !category) return;
+    setSaving(true);
+    await onSave({
+      id: rec?.id,
+      type,
+      amount: parseFloat(amount.replace(/\D/g,'')) || 0,
+      category,
+      frequency,
+      start_date: startDate,
+      next_date: rec?.next_date || startDate,
+      end_date: endDate || null,
+      note: note.trim(),
+      active: rec?.active ?? true,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-end justify-center">
+      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black uppercase tracking-tight">{rec ? 'Editar' : 'Nuevo'} recurrente</h3>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
+        </div>
+
+        {/* Tipo */}
+        <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
+          {['GASTO','INGRESO'].map(t=>(
+            <button key={t} onClick={()=>{ setType(t); setCategory(categories?.[t]?.[0]||''); }}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${type===t?(t==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'):'text-zinc-500'}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Monto */}
+        <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
+          placeholder="$ 0" inputMode="numeric"
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+
+        {/* Categoría */}
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-600 ml-1">Categoría</p>
+          <div className="flex flex-wrap gap-2">
+            {currentCats.map(c=>(
+              <button key={c} onClick={()=>setCategory(c)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all
+                  ${category===c?(type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'):'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Frecuencia */}
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-600 ml-1">Frecuencia</p>
+          <div className="grid grid-cols-4 gap-2">
+            {FREQUENCIES.map(f=>(
+              <button key={f.v} onClick={()=>setFrequency(f.v)}
+                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1
+                  ${frequency===f.v?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                <span className="text-base">{f.icon}</span>
+                <span>{f.l}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fechas */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Inicia</p>
+            <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Termina (opc.)</p>
+            <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+        </div>
+
+        {/* Nota */}
+        <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Nota (opcional)"
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 focus:outline-none focus:border-indigo-500/60"/>
+
+        <button onClick={handleSave} disabled={saving||!amount||!category}
+          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          {saving ? 'Guardando…' : rec ? 'Guardar cambios' : 'Agregar recurrente'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // APP PRINCIPAL
 // ─────────────────────────────────────────────
 export default function App() {
@@ -357,8 +528,10 @@ export default function App() {
   const [budgets,      setBudgets]      = useState({});
   const [strategy,     setStrategy]     = useState({ savingsPercent: 0, investmentPercent: 0 });
   const [customCats,   setCustomCats]   = useState(null);
+  const [catMeta,      setCatMeta]      = useState({}); // { NombreCat: { emoji, color } }
   const [loadingData,  setLoadingData]  = useState(true);
   const [bills,        setBills]        = useState([]);
+  const [recurring,    setRecurring]    = useState([]);
 
   // NAVIGATION
   const [activeTab, setActiveTab] = useState('home'); // home | add | history | settings
@@ -372,9 +545,13 @@ export default function App() {
   const [showCatManager,   setShowCatManager]   = useState(false);
   const [showDatePicker,   setShowDatePicker]   = useState(false);
   const [editingTx,        setEditingTx]        = useState(null);
-  const [showBillsModal,   setShowBillsModal]   = useState(false);
-  const [showBillForm,     setShowBillForm]      = useState(false);
-  const [editingBill,      setEditingBill]       = useState(null); // null = nuevo, obj = editar
+  const [showBillsModal,     setShowBillsModal]     = useState(false);
+  const [showBillForm,       setShowBillForm]        = useState(false);
+  const [editingBill,        setEditingBill]         = useState(null);
+  const [showRecurringModal, setShowRecurringModal]  = useState(false);
+  const [showRecurringForm,  setShowRecurringForm]   = useState(false);
+  const [editingRecurring,   setEditingRecurring]    = useState(null);
+  const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -448,8 +625,52 @@ export default function App() {
     if (!userId) return;
     const { data, error } = await supabase.from('categories').select('data').maybeSingle();
     if (error && error.code !== 'PGRST116') { console.error(error); return; }
-    setCustomCats(data?.data || null);
+    const raw = data?.data || null;
+    if (raw) {
+      const { meta, ...cats } = raw;
+      setCustomCats(cats);
+      setCatMeta(meta || {});
+    } else {
+      setCustomCats(null);
+      setCatMeta({});
+    }
   }, [userId]);
+
+  const loadRecurring = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('recurring_transactions').select('*')
+      .eq('active', true).order('next_date', { ascending: true });
+    if (error) { console.error(error); return; }
+    setRecurring(data || []);
+  }, [userId]);
+
+  // Auto-generador: procesa recurrentes cuyo next_date <= hoy
+  const autoGenerateRecurring = useCallback(async (recurringList) => {
+    if (!userId || !recurringList.length) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const due = recurringList.filter(r => r.active && r.next_date <= todayStr);
+    if (!due.length) return;
+    const inserts = due.map(r => ({
+      user_id: userId, amount: r.amount, category: r.category,
+      type: r.type, note: r.note || '', date: new Date(r.next_date).toISOString()
+    }));
+    await supabase.from('transactions').insert(inserts);
+    // Avanzar next_date de cada recurrente
+    for (const r of due) {
+      const nd = new Date(r.next_date);
+      if (r.frequency === 'daily')   nd.setDate(nd.getDate() + 1);
+      if (r.frequency === 'weekly')  nd.setDate(nd.getDate() + 7);
+      if (r.frequency === 'monthly') nd.setMonth(nd.getMonth() + 1);
+      if (r.frequency === 'yearly')  nd.setFullYear(nd.getFullYear() + 1);
+      const nextStr = nd.toISOString().slice(0, 10);
+      const shouldDeactivate = r.end_date && nextStr > r.end_date;
+      await supabase.from('recurring_transactions').update({
+        next_date: nextStr, active: !shouldDeactivate
+      }).eq('id', r.id);
+    }
+    if (due.length > 0) toast(`${due.length} movimiento${due.length>1?'s':''} recurrente${due.length>1?'s':''} generado${due.length>1?'s':''}`, 'info');
+  }, [userId, toast]);
 
   const loadBills = useCallback(async () => {
     if (!userId) return;
@@ -463,9 +684,21 @@ export default function App() {
 
   const loadAll = useCallback(async () => {
     setLoadingData(true);
-    await Promise.all([loadTransactions(), loadBudgets(), loadStrategy(), loadCategories(), loadBills()]);
+    const [,,,,recurringData] = await Promise.all([
+      loadTransactions(), loadBudgets(), loadStrategy(), loadCategories(),
+      (async () => {
+        if (!userId) return [];
+        const { data } = await supabase.from('recurring_transactions').select('*').eq('active', true).order('next_date', { ascending: true });
+        const list = data || [];
+        setRecurring(list);
+        return list;
+      })(),
+      loadBills()
+    ]);
+    await autoGenerateRecurring(recurringData || []);
+    if (recurringData?.length) await loadTransactions(); // recargar si hubo auto-gen
     setLoadingData(false);
-  }, [loadTransactions, loadBudgets, loadStrategy, loadCategories, loadBills]);
+  }, [loadTransactions, loadBudgets, loadStrategy, loadCategories, loadBills, autoGenerateRecurring, userId]);
 
   useEffect(() => { if (userId) loadAll(); }, [userId, loadAll]);
 
@@ -573,18 +806,59 @@ export default function App() {
     await loadBills();
   };
 
-  const manageCategory = async (action, name) => {
+  // Helper emoji
+  const getEmoji = useCallback((catName) =>
+    catMeta[catName]?.emoji || DEFAULT_EMOJIS[catName] || '📁'
+  , [catMeta]);
+
+  const manageCategory = async (action, name, extra) => {
     if (!userId || !name) return;
     let nc = { ...activeCategories };
     if (!nc[type]) nc[type] = [];
     const clean = name.trim();
     if (!clean) return;
     if (action==='ADD') { if (!nc[type].includes(clean)) nc[type]=[...nc[type],clean]; }
-    else nc[type]=nc[type].filter(c=>c!==clean);
-    const { error } = await supabase.from('categories').upsert({ user_id: userId, data: nc },{ onConflict: 'user_id' });
+    else if (action==='DELETE') nc[type]=nc[type].filter(c=>c!==clean);
+    // Guardar también catMeta si hay emoji
+    let newMeta = { ...catMeta };
+    if (action==='EMOJI') { newMeta[clean] = { ...(newMeta[clean]||{}), emoji: extra }; setCatMeta(newMeta); }
+    const payload = { ...nc, meta: newMeta };
+    const { error } = await supabase.from('categories').upsert({ user_id: userId, data: payload },{ onConflict: 'user_id' });
     if (error) { toast(error.message, 'error'); return; }
-    setNewCatName(""); setCustomCats(nc);
-    toast(action==='ADD'?'Categoría agregada':'Categoría eliminada', 'success');
+    setNewCatName("");
+    if (action!=='EMOJI') setCustomCats(nc);
+    toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':'Emoji actualizado', 'success');
+  };
+
+  // ── RECURRING CRUD ──
+  const saveRecurring = async (data) => {
+    if (!userId) return false;
+    const payload = { ...data, user_id: userId };
+    let error;
+    if (data.id) {
+      const { id, user_id, created_at, ...fields } = payload;
+      ({ error } = await supabase.from('recurring_transactions').update(fields).eq('id', data.id));
+    } else {
+      ({ error } = await supabase.from('recurring_transactions').insert(payload));
+    }
+    if (error) { toast(error.message, 'error'); return false; }
+    toast(data.id ? 'Recurrente actualizado' : 'Recurrente guardado ✓', 'success');
+    await loadRecurring();
+    return true;
+  };
+
+  const deleteRecurring = async (id) => {
+    const { error } = await supabase.from('recurring_transactions').delete().eq('id', id);
+    if (error) { toast(error.message, 'error'); return; }
+    toast('Recurrente eliminado', 'info');
+    await loadRecurring();
+  };
+
+  const toggleRecurring = async (rec) => {
+    const { error } = await supabase.from('recurring_transactions').update({ active: !rec.active }).eq('id', rec.id);
+    if (error) { toast(error.message, 'error'); return; }
+    toast(rec.active ? 'Pausado' : 'Activado', 'info');
+    await loadRecurring();
   };
 
   const updateBudget = async (cat, val) => {
@@ -842,7 +1116,7 @@ export default function App() {
                       {chartData.sort((a,b)=>b.spent-a.spent).slice(0,3).map((d,i)=>(
                         <div key={i} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:d.color}}/>
+                            <span className="text-base leading-none">{getEmoji(d.cat)}</span>
                             <span className="text-sm font-semibold text-zinc-300">{d.cat}</span>
                           </div>
                           <div className="text-right">
@@ -931,11 +1205,22 @@ export default function App() {
                 <p className="text-center text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
               </div>
 
-              {/* Categoría */}
-              <select value={category} onChange={e=>setCategory(e.target.value)}
-                className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 font-semibold text-sm text-white appearance-none text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
-                {activeCategories[type]?.map(c=><option key={c} value={c}>{c}</option>)}
-              </select>
+              {/* Categoría — chip grid con emojis */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
+                <div className="flex flex-wrap gap-2">
+                  {activeCategories[type]?.map(c=>(
+                    <button key={c} onClick={()=>setCategory(c)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95
+                        ${category===c
+                          ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg' : 'bg-emerald-600 text-white shadow-lg'
+                          : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                      <span className="text-base leading-none">{getEmoji(c)}</span>
+                      <span>{c}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Fecha */}
               <div className="space-y-1">
@@ -1028,11 +1313,11 @@ export default function App() {
                 {filterableCats.map(cat=>(
                   <button key={cat}
                     onClick={()=>setFilterCategory(fc=>fc===cat?'':cat)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                    className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
                       ${filterCategory===cat
                         ? 'bg-white text-black'
                         : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
-                    {cat}
+                    <span>{getEmoji(cat)}</span><span>{cat}</span>
                   </button>
                 ))}
               </div>
@@ -1089,9 +1374,9 @@ export default function App() {
                   {filteredTxs.map(t=>(
                     <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
                       <div className="flex items-center gap-3.5 p-4">
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0
-                          ${t.type==='INGRESO'?'bg-emerald-500/15 text-emerald-400':'bg-rose-500/15 text-rose-400'}`}>
-                          {t.type==='INGRESO'?'IN':'OUT'}
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+                          ${t.type==='INGRESO'?'bg-emerald-500/15':'bg-rose-500/15'}`}>
+                          {getEmoji(t.category)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-white truncate">{t.category}</p>
@@ -1165,7 +1450,10 @@ export default function App() {
               <div className="bg-zinc-900/40 rounded-[1.75rem] border border-white/5 overflow-hidden">
                 {activeCategories.GASTO.map((cat,i)=>(
                   <div key={cat} className={`flex items-center justify-between px-5 py-4 ${i<activeCategories.GASTO.length-1?'border-b border-white/5':''}`}>
-                    <span className="text-sm font-semibold text-zinc-300">{cat}</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg leading-none">{getEmoji(cat)}</span>
+                      <span className="text-sm font-semibold text-zinc-300">{cat}</span>
+                    </div>
                     <input type="text" value={formatNumber(budgets[cat]?.amount||0)}
                       onChange={async e=>{ const v=parseFormattedNumber(e.target.value); await updateBudget(cat,v); }}
                       className="bg-transparent text-right font-bold text-sm w-24 focus:outline-none focus:text-indigo-400 transition-colors"
@@ -1173,6 +1461,17 @@ export default function App() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Movimientos Recurrentes */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Automatización</p>
+              <button onClick={()=>setShowRecurringModal(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 text-indigo-400"/>
+                Movimientos recurrentes
+                {recurring.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{recurring.length}</span>}
+              </button>
             </div>
 
             {/* Categorías */}
@@ -1330,7 +1629,7 @@ export default function App() {
                     {slices.sort((a,b)=>b.spent-a.spent).map((s,i)=>(
                       <div key={i} className="flex items-center justify-between bg-zinc-900/50 rounded-2xl px-4 py-3.5 border border-white/5">
                         <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{backgroundColor:s.color}}/>
+                          <span className="text-lg leading-none">{getEmoji(s.cat)}</span>
                           <span className="text-sm font-semibold">{s.cat}</span>
                         </div>
                         <div className="text-right">
@@ -1350,9 +1649,12 @@ export default function App() {
                 return (
                   <div key={cat} className="bg-zinc-900/50 rounded-[1.75rem] p-6 border border-white/5 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-sm font-bold text-white">{cat}</h4>
-                        <p className="text-xs text-zinc-600 mt-0.5">Asignado: ${formatNumber(limit)}</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl leading-none">{getEmoji(cat)}</span>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{cat}</h4>
+                          <p className="text-xs text-zinc-600 mt-0.5">Asignado: ${formatNumber(limit)}</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <span className={`text-xs font-bold block mb-0.5 ${isOver?'text-rose-400':'text-emerald-400'}`}>{isOver?'Excedido':'Restante'}</span>
@@ -1401,11 +1703,36 @@ export default function App() {
 
           <div className="flex-1 overflow-y-auto px-6 pb-10 space-y-2 no-scrollbar">
             {activeCategories[type]?.map(c=>(
-              <div key={c} className="flex justify-between items-center bg-zinc-900/40 px-5 py-4 rounded-2xl border border-white/5">
-                <span className="text-sm font-semibold text-zinc-200">{c}</span>
-                <button onClick={()=>manageCategory('DELETE',c)} className="p-2 text-zinc-700 hover:text-rose-500 transition-colors">
-                  <Trash2 className="w-4 h-4"/>
-                </button>
+              <div key={c} className="space-y-2">
+                <div className="flex justify-between items-center bg-zinc-900/40 px-4 py-3.5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={()=>setShowEmojiPicker(showEmojiPicker===c ? null : c)}
+                      className="w-10 h-10 rounded-xl bg-zinc-800 border border-white/8 flex items-center justify-center text-xl active:scale-90 transition-transform"
+                      title="Cambiar emoji">
+                      {getEmoji(c)}
+                    </button>
+                    <span className="text-sm font-semibold text-zinc-200">{c}</span>
+                  </div>
+                  <button onClick={()=>manageCategory('DELETE',c)} className="p-2 text-zinc-700 active:text-rose-500 transition-colors">
+                    <Trash2 className="w-4 h-4"/>
+                  </button>
+                </div>
+                {showEmojiPicker===c && (
+                  <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
+                    <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2 ml-1">Elegir emoji para {c}</p>
+                    <div className="grid grid-cols-8 gap-1">
+                      {EMOJI_PALETTE.map(emoji=>(
+                        <button key={emoji}
+                          onClick={()=>{ manageCategory('EMOJI', c, emoji); setShowEmojiPicker(null); }}
+                          className={`w-9 h-9 flex items-center justify-center text-lg rounded-xl transition-all active:scale-90
+                            ${getEmoji(c)===emoji ? 'bg-indigo-600' : 'active:bg-white/10'}`}>
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1510,6 +1837,65 @@ export default function App() {
           categories={[...activeCategories.GASTO, ...activeCategories.INGRESO]}
           onSave={async (data) => { const ok = await saveBill(data); if(ok) setShowBillForm(false); }}
           onClose={()=>setShowBillForm(false)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Recurrentes
+      ════════════════════════════════ */}
+      {showRecurringModal && (
+        <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+          <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-indigo-400"/> Recurrentes
+              </h3>
+              <p className="text-xs text-zinc-600 mt-0.5">{recurring.length} activo{recurring.length!==1?'s':''}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>{ setEditingRecurring(null); setShowRecurringForm(true); }}
+                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                <Plus className="w-5 h-5"/>
+              </button>
+              <button onClick={()=>setShowRecurringModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 no-scrollbar pb-10">
+            {recurring.length === 0 ? (
+              <div className="text-center py-20 space-y-4">
+                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto">
+                  <RefreshCw className="w-7 h-7 text-zinc-700"/>
+                </div>
+                <p className="text-sm font-semibold text-zinc-600">Sin movimientos recurrentes</p>
+                <p className="text-xs text-zinc-700">Sueldos, alquileres, suscripciones…</p>
+                <button onClick={()=>{ setEditingRecurring(null); setShowRecurringForm(true); }}
+                  className="text-sm font-bold text-indigo-400">
+                  + Agregar el primero
+                </button>
+              </div>
+            ) : (
+              recurring.map(rec=>(
+                <RecurringCard key={rec.id} rec={rec} getEmoji={getEmoji}
+                  onEdit={(r)=>{ setEditingRecurring(r); setShowRecurringForm(true); }}
+                  onDelete={deleteRecurring}
+                  onToggle={toggleRecurring}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FORM: Nuevo/Editar Recurrente */}
+      {showRecurringForm && (
+        <RecurringForm
+          rec={editingRecurring}
+          categories={activeCategories}
+          onSave={async (data)=>{ const ok = await saveRecurring(data); if(ok) setShowRecurringForm(false); }}
+          onClose={()=>setShowRecurringForm(false)}
         />
       )}
 
