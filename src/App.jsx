@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
-  Target, Trophy, Wallet
+  Target, Trophy, Wallet, Copy, Lightbulb
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -880,6 +880,51 @@ function DebtForm({ debt, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// CONFETTI — celebración al completar una meta
+// ─────────────────────────────────────────────
+function Confetti({ onDone }) {
+  useEffect(() => {
+    const t = setTimeout(() => onDone?.(), 2800);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const particles = useMemo(() =>
+    Array.from({ length: 36 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      color: ['#6366f1','#10b981','#f43f5e','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8],
+      delay: (Math.random() * 0.6).toFixed(2),
+      dur:   (1.6 + Math.random() * 1.2).toFixed(2),
+      size:  Math.floor(6 + Math.random() * 9),
+      rot:   Math.floor(Math.random() * 360),
+    }))
+  , []);
+  return (
+    <div className="fixed inset-0 z-[900] pointer-events-none overflow-hidden">
+      {particles.map(p => (
+        <div key={p.id} className="absolute animate-confetti-fall"
+          style={{
+            left: `${p.x}%`, top: '-20px',
+            width: p.size, height: p.size,
+            backgroundColor: p.color,
+            borderRadius: p.id % 3 === 0 ? '50%' : '2px',
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.dur}s`,
+            transform: `rotate(${p.rot}deg)`,
+          }}
+        />
+      ))}
+      <div className="absolute inset-x-0 top-1/3 flex justify-center">
+        <div className="bg-black/90 border border-white/10 rounded-3xl px-10 py-7 text-center shadow-2xl animate-slide-down">
+          <div className="text-5xl mb-3">🏆</div>
+          <p className="text-xl font-black text-white">¡Meta alcanzada!</p>
+          <p className="text-sm text-zinc-400 mt-1">¡Felicitaciones! 🎉</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ANNUAL MODAL — resumen 12 meses del año
 // ─────────────────────────────────────────────
 function AnnualModal({ transactions, year, onClose }) {
@@ -1402,6 +1447,7 @@ export default function App() {
   const [editingRecurring,   setEditingRecurring]    = useState(null);
   const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
+  const [showConfetti,       setShowConfetti]        = useState(false);
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -1747,9 +1793,18 @@ export default function App() {
     persistGoals(goals.filter(g => g.id !== id));
     haptic(20);
   };
-  const addContribution = (goalId, amount) => {
-    persistGoals(goals.map(g => g.id===goalId ? { ...g, current: g.current + amount } : g));
-    haptic(15);
+  const addContribution = (goalId, contributionAmt) => {
+    const goalBefore = goals.find(g => g.id === goalId);
+    const newCurrent = (goalBefore?.current || 0) + contributionAmt;
+    const justCompleted = goalBefore && goalBefore.current < goalBefore.target && newCurrent >= goalBefore.target;
+    const updated = goals.map(g => g.id===goalId ? { ...g, current: newCurrent } : g);
+    persistGoals(updated);
+    if (justCompleted) {
+      setShowConfetti(true);
+      haptic(50);
+    } else {
+      haptic(15);
+    }
   };
 
   // ── CUOTAS CRUD (localStorage + cloud sync) ──
@@ -1824,6 +1879,75 @@ export default function App() {
     return null;
   }, [note, category, activeCategories]);
 
+  // ── INSIGHTS DINÁMICOS ──
+  const insights = useMemo(() => {
+    if (stats.income === 0 && stats.expenses === 0) return [];
+    const result = [];
+
+    // 1. Tendencia de la categoría principal vs mes anterior
+    const topCat = Object.entries(stats.expenseByCategory).sort((a,b)=>b[1]-a[1])[0];
+    if (topCat && prevMonth.expense > 0) {
+      const prev = new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1);
+      const prevSpent = transactions
+        .filter(t => { const d = new Date(t.date); return d.getMonth()===prev.getMonth() && d.getFullYear()===prev.getFullYear() && t.category===topCat[0] && t.type==='GASTO'; })
+        .reduce((a,c) => a+Number(c.amount), 0);
+      if (prevSpent > 0) {
+        const pct = Math.round(((topCat[1] - prevSpent) / prevSpent) * 100);
+        if (Math.abs(pct) >= 10) result.push({
+          emoji: pct > 0 ? '📈' : '📉',
+          text: `${topCat[0]}: ${pct>0?'+':''}${pct}% vs mes anterior`,
+          color: pct > 0 ? 'text-rose-400' : 'text-emerald-400',
+        });
+      }
+    }
+
+    // 2. Tasa de ahorro
+    if (stats.income > 0 && stats.available > 0) {
+      const rate = Math.round((stats.available / stats.income) * 100);
+      if (rate >= 10) result.push({
+        emoji: '🐷',
+        text: `Guardás el ${rate}% de tus ingresos este mes`,
+        color: 'text-emerald-400',
+      });
+    }
+
+    // 3. Categoría excedida
+    const overspent = (activeCategories.GASTO || []).find(cat => {
+      const limit = budgets[cat]?.amount || 0;
+      return limit > 0 && (stats.expenseByCategory[cat] || 0) > limit;
+    });
+    if (overspent) result.push({
+      emoji: '⚠️',
+      text: `Excediste el límite de ${overspent}`,
+      color: 'text-rose-400',
+    });
+
+    // 4. Próximo vencimiento en ≤7 días
+    const nextBill = [...bills].filter(b=>b.status==='pending').sort((a,b)=>a.due_date.localeCompare(b.due_date))[0];
+    if (nextBill) {
+      const days = Math.ceil((new Date(nextBill.due_date+'T12:00:00') - new Date()) / 86400000);
+      if (days >= 0 && days <= 7) result.push({
+        emoji: '📅',
+        text: `${nextBill.title} vence ${days===0?'hoy':'en '+days+' día'+(days!==1?'s':'')}`,
+        color: days <= 2 ? 'text-rose-400' : 'text-amber-400',
+      });
+    }
+
+    return result.slice(0, 3);
+  }, [stats, prevMonth, transactions, currentDate, bills, budgets, activeCategories]);
+
+  // ── COPIAR MOVIMIENTO AL FORMULARIO ──
+  const prefillFromTransaction = useCallback((t) => {
+    setType(t.type);
+    setCategory(t.category);
+    setAmount(String(t.amount));
+    setNote(t.note || '');
+    setTxDate(new Date().toISOString().slice(0, 10));
+    setActiveTab('add');
+    haptic(10);
+    toast('Movimiento copiado al formulario', 'info');
+  }, [toast]);
+
   // ── ACTIONS ──
   const handleSaveTransaction = async () => {
     if (!userId || !amount || !category) return;
@@ -1833,6 +1957,23 @@ export default function App() {
     const { error } = await supabase.from('transactions').insert(payload);
     setSavingTx(false);
     if (error) { toast(error.message, 'error'); return; }
+
+    // ── Alerta de presupuesto ──
+    if (type === 'GASTO') {
+      const limit = budgets[category]?.amount || 0;
+      if (limit > 0) {
+        const prevSpent = stats.expenseByCategory[category] || 0;
+        const newSpent  = prevSpent + numericAmount;
+        const prevPct   = (prevSpent / limit) * 100;
+        const newPct    = (newSpent  / limit) * 100;
+        if (newPct >= 100 && prevPct < 100) {
+          setTimeout(() => toast(`⚠️ Superaste el presupuesto de ${category}`, 'error'), 500);
+        } else if (newPct >= 80 && prevPct < 80) {
+          setTimeout(() => toast(`⚡ ${category} al ${Math.round(newPct)}% del límite`, 'info'), 500);
+        }
+      }
+    }
+
     setAmount(''); setNote('');
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 1800);
@@ -2233,6 +2374,23 @@ export default function App() {
                             <span className="text-sm font-bold">${formatNumber(d.spent)}</span>
                             <span className="text-xs text-zinc-600 ml-1.5">{totalSpent>0?((d.spent/totalSpent)*100).toFixed(0):0}%</span>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Insights dinámicos */}
+                {insights.length > 0 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 flex items-center gap-2 mb-3">
+                      <Lightbulb className="w-4 h-4 text-amber-400"/> Insights
+                    </p>
+                    <div className="space-y-2.5">
+                      {insights.map((ins, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-lg leading-none flex-shrink-0">{ins.emoji}</span>
+                          <span className={`text-xs font-semibold ${ins.color}`}>{ins.text}</span>
                         </div>
                       ))}
                     </div>
@@ -2741,7 +2899,10 @@ export default function App() {
                                       {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
                                     </p>
                                     <div className="flex flex-col gap-1">
-                                      <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors">
+                                      <button onClick={()=>prefillFromTransaction(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors" title="Copiar como nuevo">
+                                        <Copy className="w-3.5 h-3.5"/>
+                                      </button>
+                                      <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors" title="Editar">
                                         <Edit3 className="w-3.5 h-3.5"/>
                                       </button>
                                       <button onClick={()=>requestDelete(t.id,'tx')}
@@ -3604,6 +3765,13 @@ export default function App() {
       )}
 
       {/* ════════════════════════════════
+          CONFETTI — celebración de meta
+      ════════════════════════════════ */}
+      {showConfetti && (
+        <Confetti onDone={() => setShowConfetti(false)} />
+      )}
+
+      {/* ════════════════════════════════
           MODAL: Vista Anual
       ════════════════════════════════ */}
       {showAnnualModal && (
@@ -3652,6 +3820,11 @@ function GlobalStyles() {
         50%      { transform: translateY(-6px); }
       }
       .animate-bounce { animation: bounce 0.9s infinite; }
+      @keyframes confetti-fall {
+        0%   { transform: translateY(0) rotate(0deg);    opacity: 1; }
+        100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
+      }
+      .animate-confetti-fall { animation: confetti-fall ease-in forwards; }
     `}</style>
   );
 }
