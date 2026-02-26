@@ -880,6 +880,85 @@ function DebtForm({ debt, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// SPENDING CALENDAR — mini heatmap mensual
+// ─────────────────────────────────────────────
+function SpendingCalendar({ transactions, year, month, onDayPress }) {
+  const dayExpenses = useMemo(() => {
+    const map = {};
+    transactions.forEach(t => {
+      if (t.type !== 'GASTO') return;
+      const d = new Date(t.date + 'T12:00:00');
+      if (d.getMonth() !== month || d.getFullYear() !== year) return;
+      const day = d.getDate();
+      map[day] = (map[day] || 0) + Number(t.amount);
+    });
+    return map;
+  }, [transactions, year, month]);
+
+  const maxExp = useMemo(() => Math.max(1, ...Object.values(dayExpenses).length ? Object.values(dayExpenses) : [1]), [dayExpenses]);
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay(); // 0=Dom
+  const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Lun=0
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const now = new Date();
+  const isToday = (day) => day && now.getDate() === day && now.getMonth() === month && now.getFullYear() === year;
+
+  const getColor = (day) => {
+    if (!day) return '';
+    const exp = dayExpenses[day] || 0;
+    if (exp === 0) return 'bg-zinc-900/60 border-white/5 text-zinc-700';
+    const ratio = exp / maxExp;
+    if (ratio < 0.33) return 'bg-emerald-500/25 border-emerald-500/20 text-emerald-300';
+    if (ratio < 0.66) return 'bg-amber-500/30 border-amber-500/20 text-amber-300';
+    return 'bg-rose-500/35 border-rose-500/25 text-rose-300';
+  };
+
+  const toDateStr = (day) => {
+    const m = String(month + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    return `${year}-${m}-${d}`;
+  };
+
+  return (
+    <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+      <p className="text-sm font-bold text-zinc-300 mb-3 flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-indigo-400"/>
+        Gastos del mes
+      </p>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {['L','M','X','J','V','S','D'].map(d => (
+          <div key={d} className="text-center text-[10px] font-bold text-zinc-600">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => (
+          <button
+            key={i}
+            onClick={() => day && dayExpenses[day] && onDayPress(toDateStr(day))}
+            disabled={!day || !dayExpenses[day]}
+            className={`aspect-square flex items-center justify-center rounded-lg text-[11px] font-bold border transition-all
+              ${day ? getColor(day) : 'border-transparent'}
+              ${isToday(day) ? 'ring-1 ring-indigo-400/70' : ''}
+              ${day && dayExpenses[day] ? 'active:scale-90' : ''}`}>
+            {day ? <span className={isToday(day) ? 'text-indigo-300 font-black' : ''}>{day}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 mt-3 justify-end">
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-emerald-500/30 border border-emerald-500/20"/><span className="text-[10px] text-zinc-600">poco</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500/35 border border-amber-500/20"/><span className="text-[10px] text-zinc-600">medio</span></div>
+        <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-rose-500/40 border border-rose-500/25"/><span className="text-[10px] text-zinc-600">mucho</span></div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // CONFETTI — celebración al completar una meta
 // ─────────────────────────────────────────────
 function Confetti({ onDone }) {
@@ -1455,6 +1534,7 @@ export default function App() {
   const [filterCategory,   setFilterCategory]   = useState('');      // '' = todas
   const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
   const [allMonths,        setAllMonths]        = useState(false);   // false = solo mes actual
+  const [filterDate,       setFilterDate]       = useState('');      // '' | 'YYYY-MM-DD'
 
   // FORM
   const [type,       setType]       = useState('GASTO');
@@ -2191,6 +2271,9 @@ export default function App() {
     // Filtro por categoría
     if (filterCategory) base = base.filter(t => t.category === filterCategory);
 
+    // Filtro por fecha específica (drill-down desde el calendario)
+    if (filterDate) base = base.filter(t => t.date === filterDate);
+
     // Búsqueda por texto (categoría, nota, monto)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -2209,7 +2292,7 @@ export default function App() {
       if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, monthTxs, allMonths, filterType, filterCategory, searchQuery, sortBy]);
+  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, searchQuery, sortBy]);
 
   // Categorías disponibles según el filtro de tipo actual
   const filterableCats = useMemo(() => {
@@ -2218,11 +2301,11 @@ export default function App() {
     return [...new Set(src.map(t => t.category))].sort();
   }, [transactions, monthTxs, allMonths, filterType]);
 
-  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || sortBy !== 'date_desc' || allMonths;
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || sortBy !== 'date_desc' || allMonths;
 
   const clearFilters = () => {
     setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
-    setSortBy('date_desc'); setAllMonths(false);
+    setFilterDate(''); setSortBy('date_desc'); setAllMonths(false);
   };
 
   // ── RESUMEN DEL FILTRO (historial) ──
@@ -2268,6 +2351,19 @@ export default function App() {
     setFilterCategory(cat);
     setFilterType(txType);
     setAllMonths(false);
+    setFilterDate('');
+    setSortBy('date_desc');
+    setSearchQuery('');
+    setActiveTab('history');
+    haptic(10);
+  }, []);
+
+  // ── DRILL-THROUGH A HISTORIAL POR FECHA ──
+  const goToDate = useCallback((dateStr) => {
+    setFilterDate(dateStr);
+    setAllMonths(true);       // necesitamos ver todos los meses para que aparezca la fecha
+    setFilterType('ALL');
+    setFilterCategory('');
     setSortBy('date_desc');
     setSearchQuery('');
     setActiveTab('history');
@@ -2446,6 +2542,16 @@ export default function App() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Calendario de gastos del mes */}
+                {monthTxs.filter(t=>t.type==='GASTO').length > 0 && (
+                  <SpendingCalendar
+                    transactions={transactions}
+                    year={currentDate.getFullYear()}
+                    month={currentDate.getMonth()}
+                    onDayPress={goToDate}
+                  />
                 )}
 
                 {/* Racha de ahorro */}
@@ -2725,7 +2831,8 @@ export default function App() {
                 <input type="text" value={amount?formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
                   placeholder="$ 0"
                   className="w-full bg-transparent text-6xl font-black text-center focus:outline-none placeholder:text-zinc-800"
-                  inputMode="numeric" />
+                  inputMode="numeric"
+                  onKeyDown={e => { if (e.key==='Enter' && amount && category && !savingTx) { e.target.blur(); handleSaveTransaction(); } }} />
 
                 {/* Montos rápidos */}
                 <div className="overflow-x-auto no-scrollbar -mx-1">
@@ -2835,7 +2942,15 @@ export default function App() {
           <div className="pt-5 space-y-4">
             {/* Header */}
             <div className="px-5 flex justify-between items-center">
-              <h2 className="text-xl font-black uppercase tracking-tight">Historial</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black uppercase tracking-tight">Historial</h2>
+                {allMonths && !filterDate && (
+                  <button onClick={() => { setAllMonths(false); haptic(10); }}
+                    className="text-xs font-bold text-indigo-400 active:opacity-60">
+                    Ir a hoy →
+                  </button>
+                )}
+              </div>
               <button onClick={exportExcel} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar CSV">
                 <FileSpreadsheet className="w-4 h-4" />
               </button>
@@ -2864,7 +2979,18 @@ export default function App() {
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-2 px-5 pb-1" style={{width:'max-content'}}>
 
+                {/* Chip de fecha activa (drill-down desde calendario) */}
+                {filterDate && (
+                  <button onClick={() => { setFilterDate(''); setAllMonths(false); haptic(10); }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-indigo-600 text-white">
+                    <Calendar className="w-3.5 h-3.5"/>
+                    {(() => { const p = filterDate.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; })()}
+                    <X className="w-3 h-3 opacity-70"/>
+                  </button>
+                )}
+
                 {/* Toggle mes/todos */}
+                {!filterDate && (
                 <button
                   onClick={()=>setAllMonths(v=>!v)}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
@@ -2872,6 +2998,7 @@ export default function App() {
                   <Calendar className="w-3.5 h-3.5"/>
                   {allMonths ? 'Todos los meses' : `${MONTHS[currentDate.getMonth()].slice(0,3)} ${currentDate.getFullYear()}`}
                 </button>
+                )}
 
                 {/* Separador */}
                 <div className="w-px bg-white/10 self-stretch my-1"/>
