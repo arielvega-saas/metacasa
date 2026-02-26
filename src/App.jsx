@@ -76,8 +76,9 @@ const GOAL_EMOJIS = ['🎯','✈️','🏠','🚗','💻','📱','🎓','💍','
 // Haptic feedback (solo en dispositivos que lo soportan)
 const haptic = (ms = 10) => { try { navigator.vibrate?.(ms); } catch {} };
 
-// Clave localStorage para metas
-const GOALS_KEY = 'metacasa_goals';
+// Claves localStorage
+const GOALS_KEY  = 'metacasa_goals';
+const CUOTAS_KEY = 'metacasa_cuotas';
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -585,6 +586,171 @@ function ContributeSheet({ goal, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// CUOTA CARD
+// ─────────────────────────────────────────────
+function CuotaCard({ cuota, onEdit, onDelete, onPay }) {
+  const remaining = cuota.totalCuotas - cuota.paidCuotas;
+  const pct = Math.round((cuota.paidCuotas / cuota.totalCuotas) * 100);
+  const done = remaining <= 0;
+  const totalLeft = remaining * cuota.monthlyAmount;
+
+  return (
+    <div className={`rounded-2xl border p-4 space-y-3 transition-all ${done ? 'bg-zinc-900/30 border-white/5 opacity-60' : 'bg-zinc-900/60 border-white/8'}`}>
+      <div className="flex justify-between items-start">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-2xl flex-shrink-0">{cuota.emoji}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white truncate">{cuota.name}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {cuota.paidCuotas}/{cuota.totalCuotas} cuotas · ${formatNumber(cuota.monthlyAmount)}/mes
+            </p>
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0 ml-2">
+          <p className="text-xs text-zinc-600">Resta</p>
+          <p className={`text-sm font-black ${done ? 'text-emerald-400' : 'text-white'}`}>
+            {done ? '¡Listo!' : `$${formatNumber(totalLeft)}`}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <div className="h-2 bg-black/60 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : pct >= 80 ? 'bg-amber-500' : 'bg-indigo-600'}`}
+            style={{width:`${pct}%`}}/>
+        </div>
+        <div className="flex justify-between text-[10px] text-zinc-600 font-semibold">
+          <span>{pct}% pagado</span>
+          <span>{remaining} cuota{remaining!==1?'s':''} restante{remaining!==1?'s':''}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        {!done && (
+          <button onClick={()=>onPay(cuota.id)}
+            className="flex-1 py-2.5 bg-indigo-600/15 border border-indigo-500/25 rounded-xl text-xs font-bold text-indigo-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <Check className="w-3.5 h-3.5"/> Pagar cuota
+          </button>
+        )}
+        <button onClick={()=>onEdit(cuota)} className="p-2.5 bg-zinc-900 rounded-xl border border-white/8 active:scale-90 transition-all">
+          <Edit3 className="w-3.5 h-3.5 text-zinc-600"/>
+        </button>
+        <button onClick={()=>onDelete(cuota.id)} className="p-2.5 bg-zinc-900 rounded-xl border border-white/8 active:scale-90 transition-all">
+          <Trash2 className="w-3.5 h-3.5 text-zinc-600"/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CUOTA FORM
+// ─────────────────────────────────────────────
+function CuotaForm({ cuota, onSave, onClose }) {
+  const [name,        setName]        = useState(cuota?.name || '');
+  const [emoji,       setEmoji]       = useState(cuota?.emoji || '💳');
+  const [monthly,     setMonthly]     = useState(cuota ? String(cuota.monthlyAmount) : '');
+  const [totalCuotas, setTotalCuotas] = useState(cuota ? String(cuota.totalCuotas) : '12');
+  const [paidCuotas,  setPaidCuotas]  = useState(cuota ? String(cuota.paidCuotas) : '0');
+  const [startDate,   setStartDate]   = useState(cuota?.startDate || new Date().toISOString().slice(0,10));
+  const [showPick,    setShowPick]    = useState(false);
+
+  const total = (parseInt(monthly||0) * parseInt(totalCuotas||0));
+
+  const handleSave = () => {
+    if (!name.trim() || !monthly || !totalCuotas) return;
+    onSave({
+      id: cuota?.id || Date.now(),
+      name: name.trim(), emoji,
+      monthlyAmount: parseInt(monthly.replace(/\D/g,'')) || 0,
+      totalCuotas:   parseInt(totalCuotas) || 1,
+      paidCuotas:    Math.min(parseInt(paidCuotas)||0, parseInt(totalCuotas)||1),
+      startDate,
+    });
+  };
+
+  const CUOTA_EMOJIS = ['💳','📱','💻','🛋️','🚗','📺','🎸','🧳','👕','🏋️','🎮','🛒','✈️','🏠','💊','🎓','🐕','⌚','📷','🍳'];
+
+  return (
+    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
+      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black uppercase tracking-tight">{cuota ? 'Editar' : 'Nueva'} cuota</h3>
+          <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={()=>setShowPick(v=>!v)}
+            className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center text-3xl active:scale-90 transition-transform">
+            {emoji}
+          </button>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre (ej: TV, Celular…)"
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+        </div>
+        {showPick && (
+          <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
+            <div className="grid grid-cols-10 gap-1">
+              {CUOTA_EMOJIS.map(e=>(
+                <button key={e} onClick={()=>{ setEmoji(e); setShowPick(false); }}
+                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 ${emoji===e?'bg-indigo-600':''}`}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Valor por cuota ($)</p>
+            <input value={monthly} onChange={e=>setMonthly(e.target.value.replace(/\D/g,''))}
+              placeholder="0" inputMode="numeric"
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Total cuotas</p>
+            <div className="flex gap-2">
+              {['3','6','12','18','24'].map(n=>(
+                <button key={n} onClick={()=>setTotalCuotas(n)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${totalCuotas===n?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {total > 0 && (
+          <div className="bg-zinc-900/50 rounded-xl p-3 flex justify-between items-center text-sm">
+            <span className="text-zinc-500">Total financiado</span>
+            <span className="font-black text-white">${formatNumber(total)}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Ya pagué</p>
+            <input value={paidCuotas} onChange={e=>setPaidCuotas(e.target.value.replace(/\D/g,''))}
+              placeholder="0" inputMode="numeric"
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-600 ml-1">Inicio</p>
+            <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          </div>
+        </div>
+
+        <button onClick={handleSave} disabled={!name.trim()||!monthly||!totalCuotas}
+          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          {cuota ? 'Guardar cambios' : 'Agregar cuota'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // REPORT MODAL — snapshot mensual compartible
 // ─────────────────────────────────────────────
 function ReportModal({ stats, transactions, currentDate, prevMonth, projection, recurring, onClose }) {
@@ -1032,6 +1198,14 @@ export default function App() {
   const [editingGoal,     setEditingGoal]     = useState(null);
   const [contributeGoal,  setContributeGoal]  = useState(null);
 
+  // CUOTAS (localStorage)
+  const [cuotas,          setCuotas]          = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CUOTAS_KEY) || '[]'); } catch { return []; }
+  });
+  const [showCuotasModal, setShowCuotasModal] = useState(false);
+  const [showCuotaForm,   setShowCuotaForm]   = useState(false);
+  const [editingCuota,    setEditingCuota]    = useState(null);
+
   // CONFIRMACIÓN INLINE DE ELIMINACIÓN
   const [pendingDelete,   setPendingDelete]   = useState(null); // { id, type }
   const pendingDeleteRef = useRef(null);
@@ -1222,6 +1396,22 @@ export default function App() {
     return { income, expense };
   }, [transactions, currentDate]);
 
+  // ── CUOTAS DEL MES ──
+  const cuotasMonthly = useMemo(() => {
+    const now = new Date();
+    return cuotas
+      .filter(c => {
+        if (c.paidCuotas >= c.totalCuotas) return false;
+        const start = new Date(c.startDate);
+        const end = new Date(c.startDate);
+        end.setMonth(end.getMonth() + c.totalCuotas);
+        return now >= start && now < end;
+      })
+      .reduce((a, c) => a + c.monthlyAmount, 0);
+  }, [cuotas]);
+
+  const activeCuotas = cuotas.filter(c => c.paidCuotas < c.totalCuotas);
+
   // ── TIPO DE CAMBIO ──
   const updateExchangeRate = (val) => {
     const n = parseFloat(String(val).replace(/\D/g,'')) || 0;
@@ -1274,6 +1464,27 @@ export default function App() {
   };
   const addContribution = (goalId, amount) => {
     persistGoals(goals.map(g => g.id===goalId ? { ...g, current: g.current + amount } : g));
+    haptic(15);
+  };
+
+  // ── CUOTAS CRUD (localStorage) ──
+  const persistCuotas = (list) => {
+    setCuotas(list);
+    localStorage.setItem(CUOTAS_KEY, JSON.stringify(list));
+  };
+  const saveCuota  = (data) => {
+    const updated = cuotas.find(c=>c.id===data.id)
+      ? cuotas.map(c => c.id===data.id ? data : c)
+      : [...cuotas, data];
+    persistCuotas(updated);
+    haptic(15);
+  };
+  const deleteCuota = (id) => { persistCuotas(cuotas.filter(c=>c.id!==id)); haptic(20); };
+  const payCuota    = (id) => {
+    persistCuotas(cuotas.map(c => c.id===id
+      ? { ...c, paidCuotas: Math.min(c.paidCuotas+1, c.totalCuotas) }
+      : c
+    ));
     haptic(15);
   };
 
@@ -1665,6 +1876,14 @@ export default function App() {
                           </span>
                           <p className="text-xl font-black tracking-tight">${formatNumber(stats.expenses)}</p>
                         </div>
+                        {cuotasMonthly > 0 && (
+                          <div className="col-span-2 bg-amber-500/10 rounded-2xl p-3 flex justify-between items-center">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                              <Wallet className="w-3.5 h-3.5"/> Cuotas del mes
+                            </span>
+                            <span className="text-sm font-black text-amber-300">${formatNumber(cuotasMonthly)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20" />
@@ -1744,6 +1963,37 @@ export default function App() {
                       })}
                     </div>
                   </div>
+                )}
+
+                {/* Cuotas activas — preview en Home */}
+                {activeCuotas.length > 0 && (
+                  <button onClick={()=>setShowCuotasModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-sm font-bold text-zinc-300 flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-amber-400"/> Cuotas
+                        </p>
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-600">{activeCuotas.length} en curso</p>
+                          <p className="text-sm font-black text-amber-400">${formatNumber(cuotasMonthly)}/mes</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {activeCuotas.slice(0,3).map(c=>{
+                          const rem = c.totalCuotas - c.paidCuotas;
+                          return (
+                            <div key={c.id} className="flex items-center justify-between">
+                              <span className="text-sm text-zinc-400 flex items-center gap-1.5">
+                                <span>{c.emoji}</span>{c.name}
+                              </span>
+                              <span className="text-xs text-zinc-600">{rem} cuota{rem!==1?'s':''} · ${formatNumber(c.monthlyAmount)}</span>
+                            </div>
+                          );
+                        })}
+                        {activeCuotas.length > 3 && <p className="text-xs text-zinc-700 text-center">+{activeCuotas.length-3} más →</p>}
+                      </div>
+                    </div>
+                  </button>
                 )}
 
                 {/* Tendencias 6 meses */}
@@ -2158,6 +2408,17 @@ export default function App() {
               </div>
             </div>
 
+            {/* Cuotas */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Cuotas en curso</p>
+              <button onClick={()=>setShowCuotasModal(true)}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <Wallet className="w-4 h-4 text-amber-400"/>
+                Administrar cuotas
+                {activeCuotas.length>0 && <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full">{activeCuotas.length}</span>}
+              </button>
+            </div>
+
             {/* Metas de Ahorro */}
             <div className="space-y-3">
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Metas de ahorro</p>
@@ -2405,7 +2666,12 @@ export default function App() {
                       </div>
                     </div>
                     <div className="h-2 bg-black rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-700 ${isOver?'bg-rose-600':'bg-indigo-600'}`} style={{width:`${limit>0?progress:0}%`}}/>
+                      <div className={`h-full rounded-full transition-all duration-700 ${
+                        isOver ? 'bg-rose-600' :
+                        progress >= 80 ? 'bg-amber-500' :
+                        progress >= 50 ? 'bg-yellow-500' :
+                        'bg-emerald-500'
+                      }`} style={{width:`${limit>0?progress:0}%`}}/>
                     </div>
                   </div>
                 );
@@ -2651,6 +2917,97 @@ export default function App() {
           categories={activeCategories}
           onSave={loadTransactions}
           onClose={()=>setEditingTx(null)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Cuotas
+      ════════════════════════════════ */}
+      {showCuotasModal && (
+        <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+          <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-amber-400"/> Cuotas
+              </h3>
+              <p className="text-xs text-zinc-600 mt-0.5">
+                {activeCuotas.length} activa{activeCuotas.length!==1?'s':''} · ${formatNumber(cuotasMonthly)}/mes
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>{ setEditingCuota(null); setShowCuotaForm(true); }}
+                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                <Plus className="w-5 h-5"/>
+              </button>
+              <button onClick={()=>setShowCuotasModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 no-scrollbar pb-12">
+            {cuotas.length === 0 ? (
+              <div className="text-center py-20 space-y-4">
+                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto">
+                  <Wallet className="w-7 h-7 text-zinc-700"/>
+                </div>
+                <p className="text-sm font-semibold text-zinc-600">Sin cuotas registradas</p>
+                <p className="text-xs text-zinc-700">Electrónicos, muebles, ropa…</p>
+                <button onClick={()=>{ setEditingCuota(null); setShowCuotaForm(true); }}
+                  className="text-sm font-bold text-indigo-400">+ Agregar la primera</button>
+              </div>
+            ) : (
+              <>
+                {/* Resumen */}
+                {cuotasMonthly > 0 && (
+                  <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-zinc-500 font-semibold">Compromiso mensual</p>
+                      <p className="text-xl font-black text-amber-400">${formatNumber(cuotasMonthly)}/mes</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-zinc-500 font-semibold">Total restante</p>
+                      <p className="text-lg font-black">${formatNumber(cuotas.reduce((a,c)=>a+(c.totalCuotas-c.paidCuotas)*c.monthlyAmount,0))}</p>
+                    </div>
+                  </div>
+                )}
+                {/* Activas */}
+                {activeCuotas.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">En curso ({activeCuotas.length})</p>
+                    {activeCuotas.map(c=>(
+                      <CuotaCard key={c.id} cuota={c}
+                        onEdit={(c)=>{ setEditingCuota(c); setShowCuotaForm(true); }}
+                        onDelete={deleteCuota}
+                        onPay={payCuota}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Completadas */}
+                {cuotas.filter(c=>c.paidCuotas>=c.totalCuotas).length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider ml-1">Completadas</p>
+                    {cuotas.filter(c=>c.paidCuotas>=c.totalCuotas).map(c=>(
+                      <CuotaCard key={c.id} cuota={c}
+                        onEdit={(c)=>{ setEditingCuota(c); setShowCuotaForm(true); }}
+                        onDelete={deleteCuota}
+                        onPay={payCuota}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showCuotaForm && (
+        <CuotaForm
+          cuota={editingCuota}
+          onSave={(data)=>{ saveCuota(data); setShowCuotaForm(false); }}
+          onClose={()=>setShowCuotaForm(false)}
         />
       )}
 
