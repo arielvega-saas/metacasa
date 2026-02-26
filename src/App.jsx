@@ -2244,6 +2244,36 @@ export default function App() {
     return result;
   }, [transactions, type]);
 
+  // ── RACHA DE AHORRO ──
+  const savingsStreak = useMemo(() => {
+    let streak = 0;
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth(), y = d.getFullYear();
+      const mTxs = transactions.filter(t => {
+        const td = new Date(t.date);
+        return td.getMonth() === m && td.getFullYear() === y;
+      });
+      if (mTxs.length === 0) { if (i === 0) continue; break; }
+      const inc = mTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const exp = mTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      if (inc > exp) { streak++; } else { break; }
+    }
+    return streak;
+  }, [transactions]);
+
+  // ── DRILL-THROUGH A HISTORIAL POR CATEGORÍA ──
+  const goToCategory = useCallback((cat, txType = 'GASTO') => {
+    setFilterCategory(cat);
+    setFilterType(txType);
+    setAllMonths(false);
+    setSortBy('date_desc');
+    setSearchQuery('');
+    setActiveTab('history');
+    haptic(10);
+  }, []);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2382,18 +2412,20 @@ export default function App() {
                       <p className="text-sm font-bold text-zinc-300">Top gastos</p>
                       <button onClick={()=>{setShowBudgetModal(true);setBudgetChartView(true);}} className="text-xs text-indigo-400 font-semibold">Ver gráfico →</button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {chartData.sort((a,b)=>b.spent-a.spent).slice(0,3).map((d,i)=>(
-                        <div key={i} className="flex items-center justify-between">
+                        <button key={i} onClick={()=>goToCategory(d.cat,'GASTO')}
+                          className="w-full flex items-center justify-between py-1.5 active:opacity-60 transition-opacity">
                           <div className="flex items-center gap-2">
                             <span className="text-base leading-none">{getEmoji(d.cat)}</span>
                             <span className="text-sm font-semibold text-zinc-300">{d.cat}</span>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex items-center gap-1.5">
                             <span className="text-sm font-bold">${formatNumber(d.spent)}</span>
-                            <span className="text-xs text-zinc-600 ml-1.5">{totalSpent>0?((d.spent/totalSpent)*100).toFixed(0):0}%</span>
+                            <span className="text-xs text-zinc-600">{totalSpent>0?((d.spent/totalSpent)*100).toFixed(0):0}%</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-700"/>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -2412,6 +2444,26 @@ export default function App() {
                           <span className={`text-xs font-semibold ${ins.color}`}>{ins.text}</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Racha de ahorro */}
+                {savingsStreak >= 1 && (
+                  <div className={`rounded-[1.5rem] p-5 border ${savingsStreak >= 6 ? 'bg-amber-500/8 border-amber-500/20' : 'bg-zinc-900/40 border-white/5'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl leading-none">{savingsStreak >= 6 ? '🔥' : savingsStreak >= 3 ? '🌟' : '✨'}</span>
+                        <div>
+                          <p className="text-sm font-bold text-white">Racha de ahorro</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            {savingsStreak === 1 ? '1 mes con balance positivo' : `${savingsStreak} meses seguidos en positivo`}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-4xl font-black tabular-nums ${savingsStreak >= 6 ? 'text-amber-400' : savingsStreak >= 3 ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                        {savingsStreak}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -3185,6 +3237,17 @@ export default function App() {
       </div>
 
       {/* ════════════════════════════════
+          FAB — Registrar rápido
+      ════════════════════════════════ */}
+      {(activeTab === 'home' || activeTab === 'history') && (
+        <button
+          onClick={() => { setActiveTab('add'); haptic(12); }}
+          className="fixed z-[85] right-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-14 h-14 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-indigo-400/30">
+          <Plus className="w-7 h-7 text-white"/>
+        </button>
+      )}
+
+      {/* ════════════════════════════════
           BOTTOM TAB BAR (iOS-style)
       ════════════════════════════════ */}
       <div className="fixed bottom-0 left-0 right-0 z-[90] bg-black/90 backdrop-blur-xl border-t border-white/8 pb-[env(safe-area-inset-bottom)]">
@@ -3318,13 +3381,14 @@ export default function App() {
                 return (
                   <div key={cat} className="bg-zinc-900/50 rounded-[1.75rem] p-6 border border-white/5 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
+                      <button className="flex items-center gap-3 active:opacity-60 transition-opacity text-left"
+                        onClick={()=>{ setShowBudgetModal(false); goToCategory(cat,'GASTO'); }}>
                         <span className="text-2xl leading-none">{getEmoji(cat)}</span>
                         <div>
                           <h4 className="text-sm font-bold text-white">{cat}</h4>
-                          <p className="text-xs text-zinc-600 mt-0.5">Asignado: ${formatNumber(limit)}</p>
+                          <p className="text-xs text-zinc-600 mt-0.5">Asignado: ${formatNumber(limit)} · Ver →</p>
                         </div>
-                      </div>
+                      </button>
                       <div className="text-right">
                         <span className={`text-xs font-bold block mb-0.5 ${isOver?'text-rose-400':'text-emerald-400'}`}>{isOver?'Excedido':'Restante'}</span>
                         <p className={`text-2xl font-black tracking-tight ${isOver?'text-rose-400':'text-white'}`}>${formatNumber(remaining)}</p>
