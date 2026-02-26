@@ -2533,28 +2533,42 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Top categorías rápido */}
+                {/* Distribución de gastos — donut + leyenda interactiva */}
                 {chartData.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
-                      <p className="text-sm font-bold text-zinc-300">Top gastos</p>
-                      <button onClick={()=>{setShowBudgetModal(true);setBudgetChartView(true);}} className="text-xs text-indigo-400 font-semibold">Ver gráfico →</button>
+                      <p className="text-sm font-bold text-zinc-300">Distribución de gastos</p>
+                      <button onClick={()=>{ setShowBudgetModal(true); setBudgetChartView(true); }}
+                        className="text-xs text-indigo-400 font-semibold">
+                        Ver detalle →
+                      </button>
                     </div>
-                    <div className="space-y-1">
-                      {chartData.sort((a,b)=>b.spent-a.spent).slice(0,3).map((d,i)=>(
-                        <button key={i} onClick={()=>goToCategory(d.cat,'GASTO')}
-                          className="w-full flex items-center justify-between py-1.5 active:opacity-60 transition-opacity">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base leading-none">{getEmoji(d.cat)}</span>
-                            <span className="text-sm font-semibold text-zinc-300">{d.cat}</span>
+                    <div className="flex items-center gap-4">
+                      {/* Donut SVG */}
+                      <div className="relative flex-shrink-0 w-[108px] h-[108px]">
+                        <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+                          {slices.map((s, i) => <path key={i} d={s.path} fill={s.color}/>)}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-base font-black text-white leading-tight">${formatNumber(totalSpent)}</p>
+                            <p className="text-[9px] text-zinc-600 mt-0.5">gastos</p>
                           </div>
-                          <div className="text-right flex items-center gap-1.5">
-                            <span className="text-sm font-bold">${formatNumber(d.spent)}</span>
-                            <span className="text-xs text-zinc-600">{totalSpent>0?((d.spent/totalSpent)*100).toFixed(0):0}%</span>
-                            <ChevronRight className="w-3.5 h-3.5 text-zinc-700"/>
-                          </div>
-                        </button>
-                      ))}
+                        </div>
+                      </div>
+                      {/* Leyenda clickeable */}
+                      <div className="flex-1 space-y-2">
+                        {[...chartData].sort((a,b)=>b.spent-a.spent).slice(0,5).map((d,i)=>(
+                          <button key={i} onClick={()=>goToCategory(d.cat,'GASTO')}
+                            className="w-full flex items-center gap-2 active:opacity-60 transition-opacity">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:d.color}}/>
+                            <span className="text-xs text-zinc-300 truncate flex-1 text-left">{d.cat}</span>
+                            <span className="text-[11px] font-black text-zinc-400">
+                              {totalSpent>0?Math.round((d.spent/totalSpent)*100):0}%
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2982,6 +2996,29 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Hint de presupuesto al seleccionar categoría GASTO */}
+              {category && type === 'GASTO' && (() => {
+                const spent = stats.expenseByCategory[category] || 0;
+                const limit = budgets[category]?.amount || 0;
+                const catColor = chartData.find(d=>d.cat===category)?.color || '#6366f1';
+                if (spent === 0 && limit === 0) return null;
+                const pct = limit > 0 ? Math.round((spent/limit)*100) : null;
+                return (
+                  <div className="flex items-center gap-2 px-1 py-1.5 rounded-xl"
+                    style={{backgroundColor:`${catColor}12`}}>
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:catColor}}/>
+                    <span className="text-xs text-zinc-400">
+                      Este mes en <strong className="text-white">{category}</strong>: ${formatNumber(spent)}
+                      {limit > 0 && (
+                        <span className={`ml-1 font-bold ${pct >= 100 ? 'text-rose-400' : pct >= 80 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                          · {pct}% del límite
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
+
               {/* Fecha */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between ml-1">
@@ -3159,6 +3196,50 @@ export default function App() {
                 <ArrowUpDown className="w-3 h-3 text-zinc-600 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"/>
               </div>
             </div>
+
+            {/* Stats de categoría filtrada */}
+            {filterCategory && filteredTxs.length > 0 && !loadingData && (() => {
+              const catColor = chartData.find(d=>d.cat===filterCategory)?.color || '#6366f1';
+              const total = filteredTxs.reduce((a,c)=>a+Number(c.amount),0);
+              const avg = filteredTxs.length > 0 ? Math.round(total/filteredTxs.length) : 0;
+              const budget = budgets[filterCategory]?.amount || 0;
+              return (
+                <div className="px-5">
+                  <div className="rounded-2xl p-4 border"
+                    style={{backgroundColor:`${catColor}12`, borderColor:`${catColor}30`}}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:catColor}}/>
+                      <span className="text-sm font-bold text-zinc-200">{filterCategory}</span>
+                      {budget > 0 && (
+                        <span className="ml-auto text-xs font-semibold text-zinc-500">
+                          {Math.round((total/budget)*100)}% del límite
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Total</p>
+                        <p className="text-sm font-black text-white">${formatNumber(total)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Movimientos</p>
+                        <p className="text-sm font-black text-white">{filteredTxs.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Promedio</p>
+                        <p className="text-sm font-black text-white">${formatNumber(avg)}</p>
+                      </div>
+                    </div>
+                    {budget > 0 && (
+                      <div className="mt-3 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500"
+                          style={{width:`${Math.min(100,Math.round((total/budget)*100))}%`, backgroundColor:catColor}}/>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Banda resumen del filtro */}
             {filteredTxs.length > 0 && !loadingData && (
@@ -3621,12 +3702,12 @@ export default function App() {
                       </div>
                     </div>
                     <div className="h-2 bg-black rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-700 ${
-                        isOver ? 'bg-rose-600' :
-                        progress >= 80 ? 'bg-amber-500' :
-                        progress >= 50 ? 'bg-yellow-500' :
-                        'bg-emerald-500'
-                      }`} style={{width:`${limit>0?progress:0}%`}}/>
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${limit>0?progress:0}%`,
+                          backgroundColor: isOver ? '#f43f5e'
+                            : chartData.find(d=>d.cat===cat)?.color ?? '#6366f1',
+                        }}/>
                     </div>
                   </div>
                 );
