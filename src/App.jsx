@@ -362,6 +362,47 @@ function EditTransactionModal({ tx, categories, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// TRENDS CHART — barras últimos 6 meses
+// ─────────────────────────────────────────────
+function TrendsChart({ transactions }) {
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    months.push({ month: d.getMonth(), year: d.getFullYear(), label: MONTHS[d.getMonth()].slice(0,3) });
+  }
+  const data = months.map(({ month, year, label }) => {
+    const txs = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth()===month && d.getFullYear()===year;
+    });
+    const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+    return { label, income, expense };
+  });
+  const maxVal = Math.max(...data.map(d=>Math.max(d.income,d.expense)), 1);
+  const W=340, H=120, PB=24, PT=8, groupW=W/6, barW=(groupW-10)/2;
+  const innerH = H - PT - PB;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      {data.map((d,i)=>{
+        const x = i*groupW;
+        const iH = Math.max((d.income/maxVal)*innerH, d.income>0?2:0);
+        const eH = Math.max((d.expense/maxVal)*innerH, d.expense>0?2:0);
+        return (
+          <g key={i}>
+            <rect x={x+4}        y={PT+innerH-iH} width={barW} height={iH} fill="#10b981" rx={2} opacity="0.85"/>
+            <rect x={x+4+barW+2} y={PT+innerH-eH} width={barW} height={eH} fill="#f43f5e" rx={2} opacity="0.85"/>
+            <text x={x+groupW/2} y={H-6} textAnchor="middle" fill="#52525b" fontSize="9" fontWeight="600">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────
 // RECURRING CARD
 // ─────────────────────────────────────────────
 function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
@@ -570,6 +611,12 @@ export default function App() {
   const [savingTx,   setSavingTx]   = useState(false);
   const [savedOk,    setSavedOk]    = useState(false);
 
+  // TIPO DE CAMBIO (persiste en localStorage)
+  const [exchangeRate, setExchangeRate] = useState(() => {
+    const stored = localStorage.getItem('metacasa_usd_rate');
+    return stored ? parseFloat(stored) : 0;
+  });
+
   const toast = useToast();
   const userId = session?.user?.id;
   const mountedRef = useRef(false);
@@ -727,6 +774,41 @@ export default function App() {
     return { income, expenses, available, expenseByCategory, savingsAmount, investmentAmount,
              totalBudgetsAssigned, availableToAssign, historicalSavingsTotal, historicalInvestmentTotal };
   }, [transactions, currentDate, strategy, budgets]);
+
+  // ── PROYECCIÓN FIN DE MES ──
+  const projection = useMemo(() => {
+    const now = new Date();
+    const isCurrentMonth = now.getMonth()===currentDate.getMonth() && now.getFullYear()===currentDate.getFullYear();
+    if (!isCurrentMonth) return null;
+    const daysPassed = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const daysLeft = daysInMonth - daysPassed;
+    if (daysPassed === 0 || stats.expenses === 0) return null;
+    const dailyRate = stats.expenses / daysPassed;
+    const projectedExpense = Math.round(stats.expenses + dailyRate * daysLeft);
+    const projectedAvailable = stats.income - projectedExpense - stats.savingsAmount - stats.investmentAmount;
+    const trend = stats.expenses > 0 ? ((projectedExpense / stats.expenses - 1) * 100).toFixed(0) : 0;
+    return { projectedExpense, projectedAvailable, daysLeft, dailyRate, trend };
+  }, [stats, currentDate]);
+
+  // ── COMPARATIVA MES ANTERIOR ──
+  const prevMonth = useMemo(() => {
+    const prev = new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1);
+    const txs = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth()===prev.getMonth() && d.getFullYear()===prev.getFullYear();
+    });
+    const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+    return { income, expense };
+  }, [transactions, currentDate]);
+
+  // ── TIPO DE CAMBIO ──
+  const updateExchangeRate = (val) => {
+    const n = parseFloat(String(val).replace(/\D/g,'')) || 0;
+    setExchangeRate(n);
+    localStorage.setItem('metacasa_usd_rate', String(n));
+  };
 
   // ── ACTIONS ──
   const handleSaveTransaction = async () => {
@@ -1066,6 +1148,11 @@ export default function App() {
                     <div className="relative z-10">
                       <p className="text-xs font-semibold text-indigo-200/60 uppercase tracking-wider">Saldo disponible</p>
                       <SharedSizeText value={stats.available} fontSizeClass="text-5xl" />
+                      {exchangeRate > 0 && (
+                        <p className="text-sm font-bold text-indigo-300/70 -mt-3">
+                          ≈ USD {formatNumber(Math.round(stats.available / exchangeRate))}
+                        </p>
+                      )}
                       <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-3">
                         <div className="bg-white/8 rounded-2xl p-4">
                           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-300 mb-1.5">
@@ -1125,6 +1212,56 @@ export default function App() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tendencias 6 meses */}
+                {transactions.length > 0 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Últimos 6 meses</p>
+                      <div className="flex items-center gap-3 text-[10px] font-semibold text-zinc-500">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Ing.</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block"/>Gas.</span>
+                      </div>
+                    </div>
+                    <TrendsChart transactions={transactions}/>
+                    {prevMonth.expense > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/5 flex justify-between text-xs">
+                        <span className="text-zinc-600">vs mes anterior · gastos</span>
+                        <span className={`font-bold ${stats.expenses > prevMonth.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {stats.expenses > prevMonth.expense ? '▲' : '▼'}
+                          {prevMonth.expense > 0 ? Math.abs(((stats.expenses-prevMonth.expense)/prevMonth.expense)*100).toFixed(0) : 0}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Proyección fin de mes */}
+                {projection && (
+                  <div className="bg-zinc-900/40 rounded-2xl p-5 border border-white/5">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Proyección fin de mes</p>
+                        <p className="text-xs text-zinc-700 mt-0.5">Quedan {projection.daysLeft} días · ${formatNumber(Math.round(projection.dailyRate))}/día</p>
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-full ${projection.projectedAvailable >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                        {projection.projectedAvailable >= 0 ? 'OK' : '⚠️ DÉFICIT'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-black/30 rounded-xl p-3">
+                        <p className="text-[10px] text-zinc-600 font-semibold">Gasto proyectado</p>
+                        <p className="text-lg font-black text-rose-400 mt-0.5">${formatNumber(projection.projectedExpense)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3">
+                        <p className="text-[10px] text-zinc-600 font-semibold">Saldo proyectado</p>
+                        <p className={`text-lg font-black mt-0.5 ${projection.projectedAvailable>=0?'text-emerald-400':'text-rose-400'}`}>
+                          ${formatNumber(projection.projectedAvailable)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1491,6 +1628,38 @@ export default function App() {
                 Vencimientos y alertas
                 {urgentCount > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{urgentCount}</span>}
               </button>
+            </div>
+
+            {/* Tipo de cambio */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Tipo de cambio</p>
+              <div className="bg-zinc-900/40 rounded-2xl border border-white/5 p-5 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-white">USD → ARS</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">Ingresá el valor del dólar manualmente</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-zinc-600 font-semibold">$</span>
+                    <input
+                      type="text"
+                      value={exchangeRate || ''}
+                      onChange={e=>updateExchangeRate(e.target.value)}
+                      placeholder="0"
+                      inputMode="numeric"
+                      className="bg-black/60 rounded-xl px-3 py-2.5 w-24 text-right font-black text-sm text-white focus:outline-none border border-white/10 focus:border-indigo-500/60 transition-colors"
+                    />
+                  </div>
+                </div>
+                {exchangeRate > 0 ? (
+                  <div className="flex items-center justify-between text-xs bg-black/30 rounded-xl px-3 py-2">
+                    <span className="text-zinc-500">$1.000 ARS =</span>
+                    <span className="font-bold text-indigo-300">USD {(1000/exchangeRate).toFixed(2)}</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-700">Al configurarlo aparecerá el equivalente en USD en el balance.</p>
+                )}
+              </div>
             </div>
 
             {/* Cuenta */}
