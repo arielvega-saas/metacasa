@@ -1617,6 +1617,104 @@ function CategoryDetailModal({ cat, transactions, currentDate, getEmoji, formatN
 }
 
 // ─────────────────────────────────────────────
+// COMPARE MODAL
+// ─────────────────────────────────────────────
+function CompareModal({ transactions, MONTHS, formatNumber, onClose }) {
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const [monthA, setMonthA] = React.useState({ year: now.getFullYear(),  month: now.getMonth() });
+  const [monthB, setMonthB] = React.useState({ year: prev.getFullYear(), month: prev.getMonth() });
+
+  const availableMonths = React.useMemo(() => {
+    const set = new Set(transactions.map(t => t.date.slice(0,7)));
+    return [...set].sort().reverse().slice(0,24).map(key => {
+      const [y, m] = key.split('-').map(Number);
+      return { year: y, month: m - 1, key };
+    });
+  }, [transactions]);
+
+  const getStats = (y, m) => {
+    const txs = transactions.filter(t => { const d = new Date(t.date); return d.getFullYear()===y && d.getMonth()===m; });
+    const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+    const balance = income - expense;
+    const rate = income > 0 ? Math.round(((income-expense)/income)*100) : 0;
+    const bycat = {};
+    txs.filter(t=>t.type==='GASTO').forEach(t=>{bycat[t.category]=(bycat[t.category]||0)+Number(t.amount);});
+    const top3 = Object.entries(bycat).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return { income, expense, balance, rate, top3, count: txs.length };
+  };
+
+  const sA = React.useMemo(()=>getStats(monthA.year,monthA.month),[transactions,monthA]);
+  const sB = React.useMemo(()=>getStats(monthB.year,monthB.month),[transactions,monthB]);
+
+  const CompRow = ({ label, vA, vB, higherIsBetter }) => {
+    const aWins = higherIsBetter ? (parseFloat(String(vA).replace(/[^0-9.-]/g,'')) >= parseFloat(String(vB).replace(/[^0-9.-]/g,''))) : (parseFloat(String(vA).replace(/[^0-9.-]/g,'')) <= parseFloat(String(vB).replace(/[^0-9.-]/g,'')));
+    return (
+      <div className="grid grid-cols-3 items-center py-2.5 border-b border-white/5">
+        <span className={`text-xs font-black text-right pr-2 ${aWins ? 'text-emerald-400' : 'text-zinc-300'}`}>{vA}</span>
+        <span className="text-[10px] text-zinc-600 text-center font-semibold">{label}</span>
+        <span className={`text-xs font-black text-left pl-2 ${!aWins ? 'text-emerald-400' : 'text-zinc-300'}`}>{vB}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-black flex flex-col">
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+        <h3 className="text-xl font-black uppercase tracking-tight">Comparar meses</h3>
+        <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
+      </div>
+      {/* Pickers */}
+      <div className="px-6 py-4 grid grid-cols-2 gap-3 border-b border-white/5">
+        {[{ label:'Mes A', state: monthA, set: setMonthA, color:'text-indigo-400' },
+          { label:'Mes B', state: monthB, set: setMonthB, color:'text-violet-400' }].map(({ label, state, set, color }) => (
+          <div key={label}>
+            <p className={`text-[10px] font-bold mb-1.5 ${color}`}>{label}</p>
+            <select value={`${state.year}-${state.month}`}
+              onChange={e => { const [y,m]=e.target.value.split('-').map(Number); set({year:y,month:m}); }}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none appearance-none">
+              {availableMonths.map(m => (
+                <option key={m.key} value={`${m.year}-${m.month}`}>
+                  {MONTHS[m.month].slice(0,3)} {m.year}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* Column headers */}
+        <div className="grid grid-cols-3 items-center mb-2">
+          <p className="text-xs font-black text-indigo-400 text-right pr-2">{MONTHS[monthA.month].slice(0,3)} {monthA.year}</p>
+          <div/>
+          <p className="text-xs font-black text-violet-400 text-left pl-2">{MONTHS[monthB.month].slice(0,3)} {monthB.year}</p>
+        </div>
+        <CompRow label="Ingresos"    vA={`$${formatNumber(sA.income)}`}  vB={`$${formatNumber(sB.income)}`}  higherIsBetter={true}/>
+        <CompRow label="Gastos"      vA={`$${formatNumber(sA.expense)}`} vB={`$${formatNumber(sB.expense)}`} higherIsBetter={false}/>
+        <CompRow label="Balance"     vA={`$${formatNumber(sA.balance)}`} vB={`$${formatNumber(sB.balance)}`} higherIsBetter={true}/>
+        <CompRow label="Tasa ahorro" vA={`${sA.rate}%`}  vB={`${sB.rate}%`}  higherIsBetter={true}/>
+        <CompRow label="Movimientos" vA={String(sA.count)} vB={String(sB.count)} higherIsBetter={false}/>
+        {/* Top cats */}
+        <div className="mt-5 grid grid-cols-2 gap-4">
+          {[{s:sA,label:MONTHS[monthA.month].slice(0,3),col:'text-indigo-400'},{s:sB,label:MONTHS[monthB.month].slice(0,3),col:'text-violet-400'}].map(({s,label,col})=>(
+            <div key={label}>
+              <p className={`text-[10px] font-bold mb-2 ${col}`}>Top — {label}</p>
+              {s.top3.length > 0 ? s.top3.map(([cat,amt])=>(
+                <div key={cat} className="flex justify-between items-center py-1.5 border-b border-white/5">
+                  <span className="text-xs text-zinc-400 truncate">{cat}</span>
+                  <span className="text-xs font-black text-white ml-2 flex-shrink-0">${formatNumber(amt)}</span>
+                </div>
+              )) : <p className="text-xs text-zinc-700">Sin gastos</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // RECURRING CARD
 // ─────────────────────────────────────────────
 function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
@@ -1814,6 +1912,7 @@ export default function App() {
   const [showConfetti,       setShowConfetti]        = useState(false);
   const [selectedCatDetail,  setSelectedCatDetail]  = useState(null);  // catName | null
   const [showWidgetEditor,   setShowWidgetEditor]   = useState(false);
+  const [showCompareModal,   setShowCompareModal]   = useState(false);
   const [hiddenWidgets,      setHiddenWidgets]      = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_WIDGETS_KEY) || '[]')); }
     catch { return new Set(); }
@@ -2622,6 +2721,55 @@ export default function App() {
     const { error } = await supabase.from('budgets').upsert({ user_id: userId, category: cat, amount: Number(val||0) },{ onConflict: 'user_id,category' });
     if (error) { toast(error.message,'error'); return; }
     await loadBudgets();
+  };
+
+  const suggestBudgets = async () => {
+    if (!userId) return;
+    const now = new Date();
+    const rows = [];
+    activeCategories.GASTO.forEach(cat => {
+      const amounts = [];
+      for (let i = 1; i <= 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear(), m = d.getMonth();
+        const total = transactions
+          .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+          .reduce((a, c) => a + Number(c.amount), 0);
+        if (total > 0) amounts.push(total);
+      }
+      if (amounts.length > 0) {
+        const avg = amounts.reduce((a,b)=>a+b,0) / amounts.length;
+        rows.push({ user_id: userId, category: cat, amount: Math.round(avg * 1.05) });
+      }
+    });
+    if (rows.length === 0) { toast('Sin historial para sugerir presupuestos','info'); return; }
+    const { error } = await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,category' });
+    if (error) { toast(error.message,'error'); return; }
+    await loadBudgets();
+    toast(`✓ Sugerencias aplicadas para ${rows.length} categorías (+5% buffer)`, 'success');
+    haptic(20);
+  };
+
+  const exportAllJSON = () => {
+    const data = {
+      exportDate: new Date().toISOString(),
+      version: '1.0',
+      transactions,
+      budgets,
+      goals,
+      debts,
+      cuotas,
+      strategy,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `MetaCasa_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Backup descargado ✓', 'success');
+    haptic(12);
   };
 
   const exportExcel = (txList, filename = 'MetaCasa_Finanzas.csv') => {
@@ -5687,6 +5835,11 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              <button onClick={suggestBudgets}
+                className="w-full py-3.5 bg-indigo-600/15 border border-indigo-500/25 rounded-2xl text-sm font-semibold text-indigo-400 active:bg-indigo-600/25 transition-colors flex items-center justify-center gap-2">
+                <span className="text-base leading-none">🪄</span>
+                Sugerir del historial (+5% buffer)
+              </button>
             </div>
 
             {/* Cuotas */}
@@ -5760,6 +5913,11 @@ export default function App() {
                 <BarChart3 className="w-4 h-4 text-indigo-400"/>
                 Vista anual {currentDate.getFullYear()}
               </button>
+              <button onClick={()=>{ haptic(10); setShowCompareModal(true); }}
+                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
+                <span className="text-base leading-none">⚖️</span>
+                Comparar dos meses
+              </button>
             </div>
 
             {/* Tipo de cambio */}
@@ -5805,6 +5963,10 @@ export default function App() {
                 <button onClick={() => exportExcel(transactions)} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <FileSpreadsheet className="w-4 h-4 text-emerald-400"/>
                   <span className="text-sm font-semibold text-zinc-300">Exportar CSV</span>
+                </button>
+                <button onClick={exportAllJSON} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none w-4 text-center">📦</span>
+                  <span className="text-sm font-semibold text-zinc-300">Backup JSON completo</span>
                 </button>
                 <button onClick={signOut} className="flex items-center gap-3 px-5 py-4 w-full active:bg-zinc-900/60 transition-colors">
                   <LogOut className="w-4 h-4 text-rose-400"/>
@@ -6657,6 +6819,18 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Comparar dos meses
+      ════════════════════════════════ */}
+      {showCompareModal && (
+        <CompareModal
+          transactions={transactions}
+          MONTHS={MONTHS}
+          formatNumber={formatNumber}
+          onClose={() => setShowCompareModal(false)}
+        />
       )}
 
       {/* ════════════════════════════════
