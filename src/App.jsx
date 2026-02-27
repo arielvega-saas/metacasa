@@ -136,6 +136,9 @@ const WIDGET_LIST = [
   { id: 'todaySummary',     label: 'Resumen de hoy',            icon: '📅' },
   { id: 'prevMonthCompare', label: 'Comparativa mes anterior',  icon: '⚖️' },
   { id: 'budgetCoverage',   label: 'Cobertura de presupuesto',  icon: '🧩' },
+  { id: 'weekOverWeek',     label: 'Semana vs semana',          icon: '🌓' },
+  { id: 'savingsMomentum',  label: 'Momentum de ahorro',        icon: '📈' },
+  { id: 'surpriseCategory', label: 'Categoría sorpresa',        icon: '🏷️' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4543,6 +4546,71 @@ export default function App() {
     return { total: activeCats.length, covered: withBudget.length, noBudget, pct };
   }, [activeCategories, stats, budgets]);
 
+  // weekOverWeek — gasto semana actual (lun–hoy) vs mismos días semana anterior
+  const weekOverWeek = useMemo(() => {
+    const now=new Date(); now.setHours(0,0,0,0);
+    const dow=(now.getDay()+6)%7; // 0=lun, 6=dom
+    const monday=new Date(now.getTime()-dow*86400000);
+    const lastMonday=new Date(monday.getTime()-7*86400000);
+    const gasto=transactions.filter(t=>t.type==='GASTO');
+    const sumRange=(start,end)=>gasto.filter(t=>{const d=new Date(t.date+'T12:00:00');return d>=start&&d<=end;}).reduce((a,c)=>a+Number(c.amount),0);
+    const curr=sumRange(monday,now);
+    const prev=sumRange(lastMonday,new Date(now.getTime()-7*86400000));
+    if(curr===0&&prev===0) return null;
+    const pct=prev>0?Math.round(((curr-prev)/prev)*100):null;
+    const days=[];
+    for(let i=0;i<=dow;i++){
+      const d=new Date(monday.getTime()+i*86400000);
+      const key=d.toISOString().slice(0,10);
+      days.push(gasto.filter(t=>t.date.slice(0,10)===key).reduce((a,c)=>a+Number(c.amount),0));
+    }
+    const DOW=['L','M','X','J','V','S','D'];
+    return{curr:Math.round(curr),prev:Math.round(prev),diff:Math.round(curr-prev),pct,isUp:curr>prev,days,labels:DOW.slice(0,dow+1),maxDay:Math.max(...days,1)};
+  }, [transactions]);
+
+  // savingsMomentum — tendencia mensual de ahorro (últimos 4 meses)
+  const savingsMomentum = useMemo(() => {
+    const now=new Date();
+    const savings=[];
+    for(let i=4;i>=1;i--){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const m=d.getMonth(), y=d.getFullYear();
+      const txs=transactions.filter(t=>{const td=new Date(t.date);return td.getMonth()===m&&td.getFullYear()===y;});
+      const inc=txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const exp=txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      if(inc>0||exp>0) savings.push({label:MONTHS[m].slice(0,3),value:Math.round(inc-exp)});
+    }
+    if(savings.length<2) return null;
+    const last=savings[savings.length-1].value, prev=savings[savings.length-2].value;
+    const change=last-prev;
+    const trend=change>500?'up':change<-500?'down':'flat';
+    const avg=Math.round(savings.reduce((a,s)=>a+s.value,0)/savings.length);
+    const maxAbs=Math.max(...savings.map(s=>Math.abs(s.value)),1);
+    return{savings,last,prev,change,trend,avg,maxAbs};
+  }, [transactions]);
+
+  // surpriseCategory — categoría con mayor desvío positivo vs su promedio de 3 meses
+  const surpriseCategory = useMemo(() => {
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const results=activeCategories.GASTO.map(cat=>{
+      const currSpent=stats.expenseByCategory[cat]||0;
+      if(currSpent===0) return null;
+      const prevSums=[];
+      for(let i=1;i<=3;i++){
+        const d=new Date(y,m-i,1); const pm=d.getMonth(), py=d.getFullYear();
+        const s=transactions.filter(t=>{const td=new Date(t.date);return t.type==='GASTO'&&t.category===cat&&td.getMonth()===pm&&td.getFullYear()===py;}).reduce((a,c)=>a+Number(c.amount),0);
+        if(s>0) prevSums.push(s);
+      }
+      if(prevSums.length===0) return null;
+      const avg=prevSums.reduce((a,v)=>a+v,0)/prevSums.length;
+      const ratio=avg>0?currSpent/avg:null;
+      if(!ratio||ratio<1.5) return null;
+      return{cat,currSpent,avg:Math.round(avg),ratio:Math.round(ratio*10)/10};
+    }).filter(Boolean);
+    if(results.length===0) return null;
+    return results.sort((a,b)=>b.ratio-a.ratio)[0];
+  }, [transactions, currentDate, stats, activeCategories]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -7077,6 +7145,102 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Semana vs semana ── */}
+                {!isHidden('weekOverWeek') && weekOverWeek && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">🌓 Semana vs semana</p>
+                      {weekOverWeek.pct !== null && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${weekOverWeek.isUp ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                          {weekOverWeek.isUp ? '▲' : '▼'} {Math.abs(weekOverWeek.pct)}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-4 mb-4">
+                      <div>
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Esta semana</p>
+                        <p className="text-xl font-black text-white">{priv(`$${formatNumber(weekOverWeek.curr)}`)}</p>
+                      </div>
+                      <div className="border-l border-white/8 pl-4">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Semana pasada</p>
+                        <p className="text-xl font-black text-zinc-500">{priv(`$${formatNumber(weekOverWeek.prev)}`)}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 items-end">
+                      {weekOverWeek.days.map((d, i) => {
+                        const h = Math.max(6, Math.round((d / weekOverWeek.maxDay) * 44));
+                        const isToday = i === weekOverWeek.days.length - 1;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                            <div className={`w-full rounded-md ${isToday ? 'bg-indigo-500' : 'bg-zinc-700'}`} style={{height:`${h}px`}}/>
+                            <span className={`text-[9px] ${isToday ? 'text-indigo-400' : 'text-zinc-600'}`}>{weekOverWeek.labels[i]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Momentum de ahorro ── */}
+                {!isHidden('savingsMomentum') && savingsMomentum && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">📈 Momentum de ahorro</p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className={`text-3xl ${savingsMomentum.trend==='up'?'text-emerald-400':savingsMomentum.trend==='down'?'text-rose-400':'text-zinc-400'}`}>
+                        {savingsMomentum.trend==='up'?'↗':savingsMomentum.trend==='down'?'↘':'→'}
+                      </span>
+                      <div>
+                        <p className="text-lg font-black text-white">{priv(`$${formatNumber(savingsMomentum.last)}`)}</p>
+                        <p className={`text-xs ${savingsMomentum.change>=0?'text-emerald-400':'text-rose-400'}`}>
+                          {savingsMomentum.change>=0?'+':''}{priv(`$${formatNumber(savingsMomentum.change)}`)} vs mes anterior
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 items-end">
+                      {savingsMomentum.savings.map((s, i) => {
+                        const isPos = s.value >= 0;
+                        const h = Math.max(4, Math.round((Math.abs(s.value) / savingsMomentum.maxAbs) * 40));
+                        const isLast = i === savingsMomentum.savings.length - 1;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                            <div className={`w-full rounded-md ${isPos ? (isLast ? 'bg-emerald-500' : 'bg-emerald-500/40') : (isLast ? 'bg-rose-500' : 'bg-rose-500/40')}`} style={{height:`${h}px`}}/>
+                            <span className="text-[9px] text-zinc-600">{s.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-2 text-center">
+                      Promedio: {priv(`$${formatNumber(savingsMomentum.avg)}`)} / mes
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Categoría sorpresa ── */}
+                {!isHidden('surpriseCategory') && surpriseCategory && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">🏷️ Categoría sorpresa</p>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl bg-amber-500/15 rounded-xl p-2">⚠️</span>
+                      <div>
+                        <p className="text-base font-bold text-amber-300">{surpriseCategory.cat}</p>
+                        <p className="text-xs text-zinc-400">
+                          {surpriseCategory.ratio}× tu promedio habitual
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="flex-1 bg-zinc-800 rounded-xl p-3">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Este mes</p>
+                        <p className="text-sm font-bold text-amber-300">{priv(`$${formatNumber(surpriseCategory.currSpent)}`)}</p>
+                      </div>
+                      <div className="flex-1 bg-zinc-800 rounded-xl p-3">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Prom. 3 meses</p>
+                        <p className="text-sm font-bold text-zinc-400">{priv(`$${formatNumber(surpriseCategory.avg)}`)}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
