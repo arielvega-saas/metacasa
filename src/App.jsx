@@ -1589,6 +1589,8 @@ export default function App() {
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
   const [showScrollTop,      setShowScrollTop]       = useState(false);
+  const [deferredInstall,    setDeferredInstall]     = useState(null);
+  const [showInstallBanner,  setShowInstallBanner]   = useState(false);
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -1802,6 +1804,13 @@ export default function App() {
     const onScroll = () => setShowScrollTop(window.scrollY > 250);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setDeferredInstall(e); setShowInstallBanner(true); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   // ── STATS ──
@@ -2536,6 +2545,37 @@ export default function App() {
   }, [monthTxs, currentDate]);
 
   // Resumen año a la fecha (YTD)
+  const savingsRateData = useMemo(() => {
+    if (stats.income === 0) return null;
+    const rate = Math.round(((stats.income - stats.expenses) / stats.income) * 100);
+    const prevRate = prevMonth.income > 0
+      ? Math.round(((prevMonth.income - prevMonth.expense) / prevMonth.income) * 100)
+      : null;
+    const diff = prevRate !== null ? rate - prevRate : null;
+    return { rate, prevRate, diff };
+  }, [stats, prevMonth]);
+
+  const catTrends = useMemo(() => {
+    if (chartData.length === 0) return null;
+    const months3 = [2, 1, 0].map(offset => {
+      const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - offset, 1);
+      return { year: d.getFullYear(), month: d.getMonth(), label: MONTHS[d.getMonth()].slice(0, 3) };
+    });
+    const top4 = [...chartData].sort((a, b) => b.spent - a.spent).slice(0, 4);
+    return top4.map(cat => ({
+      cat: cat.cat,
+      color: cat.color,
+      amounts: months3.map(m =>
+        transactions
+          .filter(t => t.type === 'GASTO' && t.category === cat.cat
+            && new Date(t.date).getMonth() === m.month
+            && new Date(t.date).getFullYear() === m.year)
+          .reduce((a, c) => a + Number(c.amount), 0)
+      ),
+      labels: months3.map(m => m.label),
+    }));
+  }, [chartData, transactions, currentDate]);
+
   const yearStats = useMemo(() => {
     const year = currentDate.getFullYear();
     const ytx = transactions.filter(t => new Date(t.date).getFullYear() === year);
@@ -2853,6 +2893,80 @@ export default function App() {
                           </p>
                         </button>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tasa de ahorro */}
+                {savingsRateData && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex items-center gap-5">
+                      {/* Arc SVG */}
+                      <div className="relative flex-shrink-0 w-[88px] h-[88px]">
+                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                          <circle cx="50" cy="50" r="38" fill="none" stroke="#27272a" strokeWidth="10"/>
+                          <circle cx="50" cy="50" r="38" fill="none"
+                            stroke={savingsRateData.rate >= 20 ? '#10b981' : savingsRateData.rate >= 0 ? '#f59e0b' : '#f43f5e'}
+                            strokeWidth="10" strokeLinecap="round"
+                            strokeDasharray={`${Math.max(0, Math.min(100, savingsRateData.rate)) * 2.39} 239`}/>
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <p className={`text-lg font-black leading-none ${savingsRateData.rate >= 20 ? 'text-emerald-400' : savingsRateData.rate >= 0 ? 'text-amber-400' : 'text-rose-400'}`}>
+                            {savingsRateData.rate}%
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-zinc-300 mb-1">Tasa de ahorro</p>
+                        <p className="text-xs text-zinc-500 mb-2">
+                          {savingsRateData.rate >= 20 ? '🟢 Excelente' : savingsRateData.rate >= 10 ? '🟡 Buena' : savingsRateData.rate >= 0 ? '🟠 Ajustada' : '🔴 Déficit'}
+                        </p>
+                        {savingsRateData.diff !== null && (
+                          <span className={`text-[11px] font-black px-2 py-1 rounded-full ${savingsRateData.diff > 0 ? 'bg-emerald-500/15 text-emerald-400' : savingsRateData.diff < 0 ? 'bg-rose-500/15 text-rose-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                            {savingsRateData.diff > 0 ? '▲' : savingsRateData.diff < 0 ? '▼' : '='} {Math.abs(savingsRateData.diff)}pp vs mes ant.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tendencia de categorías */}
+                {catTrends && catTrends.length > 0 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">Top categorías · 3 meses</p>
+                    <div className="space-y-3.5">
+                      {catTrends.map(c => {
+                        const maxAmt = Math.max(...c.amounts, 1);
+                        return (
+                          <button key={c.cat} onClick={() => goToCategory(c.cat, 'GASTO')}
+                            className="w-full flex items-center gap-3 active:opacity-60 transition-opacity">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }}/>
+                            <span className="text-xs text-zinc-400 w-[72px] truncate text-left">{c.cat}</span>
+                            <div className="flex-1 flex items-end gap-1" style={{ height: '28px' }}>
+                              {c.amounts.map((amt, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                                  <div className="w-full rounded-sm"
+                                    style={{
+                                      height: `${Math.max((amt / maxAmt) * 22, amt > 0 ? 3 : 0)}px`,
+                                      backgroundColor: c.color,
+                                      opacity: 0.35 + i * 0.3,
+                                    }}/>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-black text-zinc-300">${formatNumber(c.amounts[2])}</p>
+                              <p className="text-[9px] text-zinc-700">{c.labels[2]}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between mt-3 pt-2 border-t border-white/5">
+                      {catTrends[0]?.labels.map((l, i) => (
+                        <span key={i} className="text-[9px] text-zinc-700 flex-1 text-center">{l}</span>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -4011,6 +4125,33 @@ export default function App() {
           className="fixed z-[85] left-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-11 h-11 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all border border-white/10">
           <ChevronLeft className="w-4 h-4 text-zinc-300 -rotate-90"/>
         </button>
+      )}
+
+      {/* PWA install banner */}
+      {showInstallBanner && (
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+60px)] left-4 right-4 z-[95] bg-zinc-900 border border-indigo-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 max-w-md mx-auto">
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+            <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white leading-tight">Instalá MetaCasa</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">Acceso rápido sin el navegador</p>
+          </div>
+          <button
+            onClick={async () => {
+              if (!deferredInstall) return;
+              deferredInstall.prompt();
+              const { outcome } = await deferredInstall.userChoice;
+              if (outcome === 'accepted') toast('¡Aplicación instalada! ✓', 'success');
+              setDeferredInstall(null); setShowInstallBanner(false);
+            }}
+            className="px-3.5 py-2 bg-indigo-600 rounded-xl text-xs font-black active:scale-95 transition-transform">
+            Instalar
+          </button>
+          <button onClick={() => setShowInstallBanner(false)} className="p-1.5 active:opacity-60">
+            <X className="w-4 h-4 text-zinc-600"/>
+          </button>
+        </div>
       )}
 
       {/* ════════════════════════════════
