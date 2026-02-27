@@ -8,9 +8,20 @@ import {
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
-  Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff, LayoutGrid
+  Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff, LayoutGrid,
+  GripVertical
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import {
+  DndContext, closestCenter,
+  PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates,
+  verticalListSortingStrategy, useSortable, arrayMove
+} from '@dnd-kit/sortable';
+import { CSS as DndCSS } from '@dnd-kit/utilities';
 
 // ─────────────────────────────────────────────
 // CONSTANTES
@@ -1952,6 +1963,46 @@ function RecurringForm({ rec, categories, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────
+// SORTABLE WIDGET ITEM (para Personalizar modal)
+// ─────────────────────────────────────────────
+function SortableWidgetItem({ widget, hidden, size, onToggle, onCycleSize }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: widget.id });
+  const style = { transform: DndCSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const sizeLabel = size === 'S' ? 'S' : size === 'L' ? 'L' : 'M';
+  return (
+    <div ref={setNodeRef} style={style}
+      className={`flex items-center gap-2 px-3 py-3 rounded-2xl border transition-all
+        ${hidden ? 'bg-zinc-900/20 border-white/4 opacity-50' : 'bg-zinc-900/50 border-white/8'}`}>
+      {/* Drag handle */}
+      <button {...attributes} {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 text-zinc-600 hover:text-zinc-400 touch-none flex-shrink-0"
+        tabIndex={-1}>
+        <GripVertical className="w-4 h-4"/>
+      </button>
+      {/* Icon + Label */}
+      <span className="text-base leading-none flex-shrink-0">{widget.icon}</span>
+      <span className={`text-sm font-semibold flex-1 min-w-0 truncate ${hidden ? 'text-zinc-600' : 'text-zinc-300'}`}>{widget.label}</span>
+      {/* Size cycle button */}
+      {!hidden && (
+        <button onClick={() => onCycleSize(widget.id)}
+          className={`text-[10px] font-black px-2 py-1 rounded-lg border flex-shrink-0 transition-all active:scale-90
+            ${size === 'S' ? 'bg-zinc-800 border-zinc-700 text-zinc-400' :
+              size === 'L' ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-400' :
+              'bg-zinc-900 border-white/8 text-zinc-500'}`}>
+          {sizeLabel}
+        </button>
+      )}
+      {/* Toggle switch */}
+      <button onClick={() => onToggle(widget.id)}
+        className={`w-10 h-5 rounded-full flex-shrink-0 flex items-center px-0.5 transition-all
+          ${hidden ? 'bg-zinc-800 justify-start' : 'bg-indigo-600 justify-end'}`}>
+        <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // APP PRINCIPAL
 // ─────────────────────────────────────────────
 export default function App() {
@@ -2018,22 +2069,64 @@ export default function App() {
       return next;
     });
   };
-  // widgetOrder + widgetSizes — stubs replaced in commit 2
-  // eslint-disable-next-line no-unused-vars
-  const getOrder = (_id) => 0;
-  // eslint-disable-next-line no-unused-vars
-  const getWidgetSize = (_id) => 'M';
+  // ── Widget Order (persisted) ──
+  const [widgetOrder, setWidgetOrder] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(WIDGET_ORDER_KEY) || 'null');
+      const allIds = WIDGET_LIST.map(w => w.id);
+      if (!stored) return allIds;
+      const missing = allIds.filter(id => !stored.includes(id));
+      return [...stored.filter(id => allIds.includes(id)), ...missing];
+    } catch { return WIDGET_LIST.map(w => w.id); }
+  });
+
+  // ── Widget Sizes (persisted) ──
+  const [widgetSizes, setWidgetSizes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(WIDGET_SIZES_KEY) || '{}'); }
+    catch { return {}; }
+  });
+
+  const getOrder = useCallback((id) => {
+    const idx = widgetOrder.indexOf(id);
+    return idx === -1 ? widgetOrder.length : idx;
+  }, [widgetOrder]);
+
+  const getWidgetSize = useCallback((id) => widgetSizes[id] ?? 'M', [widgetSizes]);
+
+  const cycleWidgetSize = useCallback((id) => {
+    setWidgetSizes(prev => {
+      const cur = prev[id] ?? 'M';
+      const next = cur === 'M' ? 'S' : cur === 'S' ? 'L' : 'M';
+      const n = { ...prev, [id]: next };
+      localStorage.setItem(WIDGET_SIZES_KEY, JSON.stringify(n));
+      haptic(6);
+      return n;
+    });
+  }, []);
+
+  const reorderWidgets = useCallback((activeId, overId) => {
+    setWidgetOrder(prev => {
+      const oldIdx = prev.indexOf(activeId);
+      const newIdx = prev.indexOf(overId);
+      if (oldIdx === -1 || newIdx === -1) return prev;
+      const next = arrayMove(prev, oldIdx, newIdx);
+      localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // ww() = widget wrapper: aplica isHidden, CSS order y size
-  const ww = (id, content) => {
+  const ww = useCallback((id, content) => {
     if (isHidden(id)) return null;
     const size = getWidgetSize(id);
     return (
       <div key={id} style={{ order: getOrder(id) }} className={
         size === 'L' ? 'md:col-span-2' :
-        size === 'S' ? 'max-h-[76px] overflow-hidden relative after:content-[\'\'] after:absolute after:bottom-0 after:inset-x-0 after:h-5 after:bg-gradient-to-t after:from-black after:to-transparent' : ''
+        size === 'S' ? 'max-h-[76px] overflow-hidden relative after:content-[""] after:absolute after:bottom-0 after:inset-x-0 after:h-5 after:bg-gradient-to-t after:from-black after:to-transparent pointer-events-none' : ''
       }>{content}</div>
     );
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetOrder, widgetSizes, hiddenWidgets]);
   const [showScrollTop,      setShowScrollTop]       = useState(false);
   const [deferredInstall,    setDeferredInstall]     = useState(null);
   const [showInstallBanner,  setShowInstallBanner]   = useState(false);
@@ -10135,45 +10228,66 @@ export default function App() {
           MODAL: Editor de widgets
       ════════════════════════════════ */}
       {showWidgetEditor && (
-        <div className="fixed inset-0 z-[130] flex items-end" onClick={()=>setShowWidgetEditor(false)}>
-          <div className="w-full max-w-md mx-auto bg-zinc-950 rounded-t-[2rem] border-t border-white/8 pb-[calc(env(safe-area-inset-bottom)+16px)]"
+        <div className="fixed inset-0 z-[130] flex items-end md:items-center justify-center" onClick={()=>setShowWidgetEditor(false)}>
+          <div className="w-full max-w-md md:max-w-lg mx-auto bg-zinc-950 rounded-t-[2rem] md:rounded-[2rem] border-t md:border border-white/8 pb-[calc(env(safe-area-inset-bottom)+16px)] md:pb-0"
             onClick={e=>e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                   <LayoutGrid className="w-5 h-5 text-indigo-400"/> Personalizar Home
                 </h3>
-                <p className="text-xs text-zinc-600 mt-0.5">Ocultá los widgets que no usás</p>
+                <p className="text-xs text-zinc-600 mt-0.5">Arrastrá ⠿ para reordenar · S/M/L para tamaño</p>
               </div>
               <button onClick={()=>setShowWidgetEditor(false)} className="p-2 bg-zinc-900 rounded-xl">
                 <X className="w-4 h-4"/>
               </button>
             </div>
-            <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-2">
-              {WIDGET_LIST.map(({ id, label, icon }) => {
-                const hidden = isHidden(id);
-                return (
-                  <button key={id} onClick={()=>toggleWidget(id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-95
-                      ${hidden ? 'bg-zinc-900/30 border-white/5 opacity-50' : 'bg-zinc-900/50 border-white/8'}`}>
-                    <span className="text-lg leading-none flex-shrink-0">{icon}</span>
-                    <span className={`text-sm font-semibold flex-1 text-left ${hidden ? 'text-zinc-600' : 'text-zinc-300'}`}>{label}</span>
-                    <div className={`w-10 h-5 rounded-full transition-all flex-shrink-0 flex items-center px-0.5
-                      ${hidden ? 'bg-zinc-800 justify-start' : 'bg-indigo-600 justify-end'}`}>
-                      <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
-                    </div>
-                  </button>
-                );
-              })}
+
+            {/* Drag-sortable list */}
+            <DndContext
+              sensors={useSensors(
+                useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+                useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+                useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+              )}
+              collisionDetection={closestCenter}
+              onDragEnd={({ active, over }) => {
+                if (over && active.id !== over.id) reorderWidgets(String(active.id), String(over.id));
+              }}
+            >
+              <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+                <div className="overflow-y-auto max-h-[60vh] px-4 py-3 space-y-1.5">
+                  {widgetOrder.map(id => {
+                    const widget = WIDGET_LIST.find(w => w.id === id);
+                    if (!widget) return null;
+                    return (
+                      <SortableWidgetItem
+                        key={id}
+                        widget={widget}
+                        hidden={isHidden(id)}
+                        size={getWidgetSize(id)}
+                        onToggle={toggleWidget}
+                        onCycleSize={cycleWidgetSize}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            <div className="px-6 py-3 border-t border-white/8 flex gap-2">
+              <button onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
+                className="flex-1 py-2.5 text-xs font-bold text-indigo-400 bg-indigo-600/10 rounded-xl active:opacity-60">
+                Mostrar todos
+              </button>
+              <button onClick={() => {
+                setWidgetOrder(WIDGET_LIST.map(w => w.id));
+                localStorage.removeItem(WIDGET_ORDER_KEY);
+                haptic(8);
+              }} className="flex-1 py-2.5 text-xs font-bold text-zinc-500 bg-zinc-900/60 rounded-xl active:opacity-60">
+                Orden original
+              </button>
             </div>
-            {hiddenWidgets.size > 0 && (
-              <div className="px-6 pt-3 border-t border-white/8">
-                <button onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
-                  className="w-full py-3 text-xs font-bold text-indigo-400 active:opacity-60">
-                  Mostrar todos los widgets
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
