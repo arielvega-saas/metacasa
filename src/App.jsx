@@ -2607,6 +2607,34 @@ export default function App() {
     }));
   }, [chartData, transactions, currentDate]);
 
+  const yearHeatmap = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const dayMap = {};
+    transactions.forEach(t => {
+      if (t.type !== 'GASTO') return;
+      const d = new Date(t.date + 'T12:00:00');
+      if (d.getFullYear() !== year) return;
+      const key = t.date.slice(0, 10);
+      dayMap[key] = (dayMap[key] || 0) + Number(t.amount);
+    });
+    const values = Object.values(dayMap);
+    if (values.length === 0) return null;
+    const maxVal = Math.max(...values);
+    const jan1 = new Date(year, 0, 1);
+    const startOffset = jan1.getDay(); // 0=Dom
+    const cells = Array.from({ length: 53 * 7 }, (_, i) => {
+      const dayNum = i - startOffset;
+      if (dayNum < 0) return null;
+      const d = new Date(year, 0, 1 + dayNum);
+      if (d.getFullYear() !== year) return null;
+      const key = d.toISOString().slice(0, 10);
+      const val = dayMap[key] || 0;
+      const today = new Date().toISOString().slice(0, 10);
+      return { key, val, isToday: key === today };
+    });
+    return { cells, maxVal };
+  }, [transactions, currentDate]);
+
   const yearStats = useMemo(() => {
     const year = currentDate.getFullYear();
     const ytx = transactions.filter(t => new Date(t.date).getFullYear() === year);
@@ -2962,6 +2990,42 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Barra de presupuesto global */}
+                {stats.totalBudgetsAssigned > 0 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    {(() => {
+                      const spent = stats.expenses;
+                      const total = stats.totalBudgetsAssigned;
+                      const pct = Math.round((spent / total) * 100);
+                      const isOver = spent > total;
+                      const barColor = isOver ? '#f43f5e' : pct >= 90 ? '#f59e0b' : pct >= 70 ? '#6366f1' : '#10b981';
+                      return (
+                        <>
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm font-bold text-zinc-300">Presupuesto mensual</p>
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-full ${isOver ? 'bg-rose-500/15 text-rose-400' : pct >= 90 ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                              {pct}%
+                            </span>
+                          </div>
+                          <div className="h-2.5 bg-black/40 rounded-full overflow-hidden mb-2">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }}/>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-400 font-bold">${formatNumber(spent)}</span>
+                            <span className="text-zinc-600">de ${formatNumber(total)}</span>
+                          </div>
+                          {isOver && (
+                            <p className="text-[10px] text-rose-400 font-semibold mt-1.5">
+                              Excediste el presupuesto en ${formatNumber(spent - total)}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {/* Tendencia de categorías */}
                 {catTrends && catTrends.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -3096,6 +3160,57 @@ export default function App() {
                           Mejor: <span className="text-zinc-400 font-bold">{MONTHS[yearStats.bestMonth.m]}</span>
                         </span>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mapa de calor anual */}
+                {yearHeatmap && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Gastos {currentDate.getFullYear()}</p>
+                      <button onClick={() => setShowAnnualModal(true)}
+                        className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                        Detalle →
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto no-scrollbar">
+                      <svg viewBox="0 0 371 58" className="w-full min-w-[320px]">
+                        {/* Etiquetas de mes */}
+                        {[0,1,2,3,4,5,6,7,8,9,10,11].map(m => {
+                          const d = new Date(currentDate.getFullYear(), m, 1);
+                          const weekIdx = Math.floor((d - new Date(currentDate.getFullYear(), 0, 1) + d.getDay() * 86400000) / (7 * 86400000));
+                          return <text key={m} x={weekIdx * 7 + 1} y="7" fontSize="4.5" fill="#52525b" fontWeight="600">{MONTHS[m].slice(0,3)}</text>;
+                        })}
+                        {/* Celdas */}
+                        {yearHeatmap.cells.map((cell, i) => {
+                          const col = Math.floor(i / 7);
+                          const row = i % 7;
+                          const x = col * 7 + 1;
+                          const y = row * 7 + 10;
+                          if (!cell) return <rect key={i} x={x} y={y} width="5.5" height="5.5" rx="1" fill="#18181b"/>;
+                          const intensity = yearHeatmap.maxVal > 0 ? cell.val / yearHeatmap.maxVal : 0;
+                          const fill = cell.isToday ? '#6366f1'
+                            : cell.val === 0 ? '#18181b'
+                            : intensity < 0.25 ? '#064e3b'
+                            : intensity < 0.5  ? '#059669'
+                            : intensity < 0.75 ? '#f59e0b'
+                            : '#f43f5e';
+                          return (
+                            <rect key={i} x={x} y={y} width="5.5" height="5.5" rx="1" fill={fill}
+                              onClick={() => cell.val > 0 && goToDate(cell.key)}>
+                            </rect>
+                          );
+                        })}
+                      </svg>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 justify-end">
+                      {[['#18181b','Sin gasto'],['#064e3b','Bajo'],['#059669','Medio'],['#f59e0b','Alto'],['#f43f5e','Pico']].map(([c,l]) => (
+                        <div key={l} className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-sm" style={{backgroundColor:c}}/>
+                          <span className="text-[8px] text-zinc-700">{l}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
