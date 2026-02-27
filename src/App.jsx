@@ -1585,6 +1585,7 @@ export default function App() {
   const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
   const [renamingCat,        setRenamingCat]         = useState(null);
   const [renameValue,        setRenameValue]         = useState('');
+  const [mergingCat,         setMergingCat]          = useState(null);
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
   const [showScrollTop,      setShowScrollTop]       = useState(false);
@@ -2231,6 +2232,14 @@ export default function App() {
       await supabase.from('transactions').update({ category: newName }).eq('user_id', userId).eq('category', clean);
       setRenamingCat(null);
     }
+    else if (action==='MERGE') {
+      // extra = target category name; move all txs from clean → extra, then delete clean
+      const target = extra?.trim();
+      if (!target || target === clean) return;
+      await supabase.from('transactions').update({ category: target }).eq('user_id', userId).eq('category', clean);
+      ['GASTO','INGRESO'].forEach(t => { if (nc[t]) nc[t] = nc[t].filter(c => c !== clean); });
+      setMergingCat(null);
+    }
     // Guardar también catMeta si hay emoji
     let newMeta = { ...catMeta };
     if (action==='EMOJI') { newMeta[clean] = { ...(newMeta[clean]||{}), emoji: extra }; setCatMeta(newMeta); }
@@ -2238,13 +2247,14 @@ export default function App() {
       const newName = extra?.trim();
       if (newName && newMeta[clean]) { newMeta[newName] = newMeta[clean]; delete newMeta[clean]; setCatMeta(newMeta); }
     }
+    if (action==='MERGE') { delete newMeta[clean]; setCatMeta(newMeta); }
     const payload = { ...nc, meta: newMeta };
     const { error } = await supabase.from('categories').upsert({ user_id: userId, data: payload },{ onConflict: 'user_id' });
     if (error) { toast(error.message, 'error'); return; }
     setNewCatName("");
     if (action!=='EMOJI') setCustomCats(nc);
-    if (action==='RENAME') await loadTransactions();
-    toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':action==='RENAME'?'Categoría renombrada':'Emoji actualizado', 'success');
+    if (action==='RENAME' || action==='MERGE') await loadTransactions();
+    toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':action==='RENAME'?'Categoría renombrada':action==='MERGE'?'Categorías fusionadas':'Emoji actualizado', 'success');
   };
 
   // ── RECURRING CRUD ──
@@ -2285,13 +2295,13 @@ export default function App() {
     await loadBudgets();
   };
 
-  const exportExcel = () => {
-    if (transactions.length===0) { toast('Sin movimientos para exportar','info'); return; }
+  const exportExcel = (txList, filename = 'MetaCasa_Finanzas.csv') => {
+    if (!txList || txList.length===0) { toast('Sin movimientos para exportar','info'); return; }
     const headers = ["Fecha","Tipo","Categoria","Monto","Detalle/Nota"];
-    const rows = transactions.map(t => [new Date(t.date).toLocaleDateString(), t.type, t.category, formatNumber(t.amount), `"${(t.note||"").replace(/"/g,'""')}"`]);
+    const rows = txList.map(t => [new Date(t.date).toLocaleDateString(), t.type, t.category, formatNumber(t.amount), `"${(t.note||"").replace(/"/g,'""')}"`]);
     const csv = "\uFEFF"+[headers.join(";"),...rows.map(r=>r.join(";"))].join("\n");
     const url = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-    const a = document.createElement("a"); a.href=url; a.download="MetaCasa_Finanzas.csv"; a.click();
+    const a = document.createElement("a"); a.href=url; a.download=filename; a.click();
   };
 
   // ─────────────────────────────────────────────
@@ -2524,6 +2534,25 @@ export default function App() {
       maxExpDay: maxExpDay ? { date: maxExpDay[0], amount: maxExpDay[1].expense } : null,
     };
   }, [monthTxs, currentDate]);
+
+  // Resumen año a la fecha (YTD)
+  const yearStats = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const ytx = transactions.filter(t => new Date(t.date).getFullYear() === year);
+    if (ytx.length === 0) return null;
+    const income  = ytx.filter(t => t.type==='INGRESO').reduce((a,c) => a+Number(c.amount), 0);
+    const expense = ytx.filter(t => t.type==='GASTO').reduce((a,c) => a+Number(c.amount), 0);
+    const balance = income - expense;
+    const monthData = Array.from({ length: 12 }, (_, m) => {
+      const mTxs = ytx.filter(t => new Date(t.date).getMonth() === m);
+      const mInc = mTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const mExp = mTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      return { m, balance: mInc - mExp, count: mTxs.length };
+    }).filter(r => r.count > 0);
+    const posMonths = monthData.filter(r => r.balance >= 0).length;
+    const bestMonth = monthData.reduce((best, r) => (!best || r.balance > best.balance) ? r : best, null);
+    return { income, expense, balance, posMonths, total: monthData.length, bestMonth };
+  }, [transactions, currentDate]);
 
   // Distribución de gastos por día de la semana (últimos 90 días)
   const weekdaySpending = useMemo(() => {
@@ -2858,6 +2887,45 @@ export default function App() {
                       Pico: <span className="text-rose-400 font-bold">{weekdaySpending.days[weekdaySpending.peakDay]}</span>
                       {' · '}prom. ${formatNumber(weekdaySpending.avgs[weekdaySpending.peakDay])}/movimiento
                     </p>
+                  </div>
+                )}
+
+                {/* Resumen anual (YTD) */}
+                {yearStats && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">{currentDate.getFullYear()} hasta hoy</p>
+                      <button onClick={() => setShowAnnualModal(true)}
+                        className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                        Ver completo →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Ingresos</p>
+                        <p className="text-sm font-black text-emerald-400">${formatNumber(yearStats.income)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Gastos</p>
+                        <p className="text-sm font-black text-rose-400">${formatNumber(yearStats.expense)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Balance</p>
+                        <p className={`text-sm font-black ${yearStats.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                          {yearStats.balance >= 0 ? '+' : ''}{formatNumber(yearStats.balance) === '0' ? '$0' : `$${formatNumber(Math.abs(yearStats.balance))}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-zinc-600">
+                      <span>
+                        <span className="text-emerald-400 font-bold">{yearStats.posMonths}</span>/{yearStats.total} meses positivos
+                      </span>
+                      {yearStats.bestMonth && (
+                        <span>
+                          Mejor: <span className="text-zinc-400 font-bold">{MONTHS[yearStats.bestMonth.m]}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -3426,9 +3494,20 @@ export default function App() {
                   </button>
                 )}
               </div>
-              <button onClick={exportExcel} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar CSV">
-                <FileSpreadsheet className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {hasActiveFilters && filteredTxs.length > 0 && (
+                  <button
+                    onClick={() => exportExcel(filteredTxs, `MetaCasa_Filtrado_${new Date().toISOString().slice(0,10)}.csv`)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 rounded-xl text-xs font-bold text-zinc-400 active:scale-90 transition-transform border border-white/8"
+                    title="Exportar filtrado">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400"/>
+                    {filteredTxs.length}
+                  </button>
+                )}
+                <button onClick={() => exportExcel(transactions)} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar todo">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Barra de búsqueda */}
@@ -3900,7 +3979,7 @@ export default function App() {
                   <span className="text-sm font-semibold text-zinc-300">Email</span>
                   <span className="text-xs text-zinc-600 truncate max-w-[140px]">{session?.user?.email}</span>
                 </div>
-                <button onClick={exportExcel} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                <button onClick={() => exportExcel(transactions)} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <FileSpreadsheet className="w-4 h-4 text-emerald-400"/>
                   <span className="text-sm font-semibold text-zinc-300">Exportar CSV</span>
                 </button>
@@ -4157,9 +4236,13 @@ export default function App() {
                         <span className="text-sm font-semibold text-zinc-200">{c}</span>
                       </div>
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => { setRenamingCat(c); setRenameValue(c); }}
+                        <button onClick={() => { setRenamingCat(c); setRenameValue(c); setMergingCat(null); }}
                           className="p-2 text-zinc-700 active:text-indigo-400 transition-colors" title="Renombrar">
                           <Edit3 className="w-4 h-4"/>
+                        </button>
+                        <button onClick={() => { setMergingCat(mergingCat===c ? null : c); setRenamingCat(null); }}
+                          className={`p-2 transition-colors ${mergingCat===c ? 'text-amber-400' : 'text-zinc-700 active:text-amber-400'}`} title="Fusionar">
+                          <Share2 className="w-4 h-4"/>
                         </button>
                         <button onClick={()=>manageCategory('DELETE',c)} className="p-2 text-zinc-700 active:text-rose-500 transition-colors">
                           <Trash2 className="w-4 h-4"/>
@@ -4181,6 +4264,26 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+                {mergingCat===c && (
+                  <div className="bg-zinc-900/90 rounded-2xl p-3 border border-amber-500/20">
+                    <p className="text-[10px] font-semibold text-amber-500/70 uppercase tracking-wider mb-2 ml-1">
+                      Fusionar "{c}" con…
+                    </p>
+                    <div className="space-y-1">
+                      {(activeCategories[type]||[]).filter(cat => cat !== c).map(target => (
+                        <button key={target}
+                          onClick={() => manageCategory('MERGE', c, target)}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-800 border border-white/8 active:bg-amber-500/15 transition-colors">
+                          <span className="text-base leading-none">{getEmoji(target)}</span>
+                          <span className="text-sm font-semibold text-zinc-300">{target}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setMergingCat(null)} className="w-full mt-2 py-2 text-xs text-zinc-600 active:opacity-60">
+                      Cancelar
+                    </button>
                   </div>
                 )}
               </div>
