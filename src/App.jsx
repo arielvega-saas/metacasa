@@ -127,7 +127,6 @@ const WIDGET_LIST = [
   { id: 'weeklyHeatmap',   label: 'Heatmap semanal',           icon: '🟧' },
   { id: 'liquidityRatio',  label: 'Ratio de liquidez',         icon: '💧' },
   { id: 'categoryLifecycle',label:'Ciclo de categorías',       icon: '🔄' },
-  { id: 'rule503020',       label: 'Regla 50/30/20',           icon: '📐' },
   { id: 'noSpendStreak',    label: 'Racha sin gastos',          icon: '🔥' },
   { id: 'topIncomeMonths',  label: 'Mejores meses de ingreso',  icon: '📊' },
   { id: 'burnRate',         label: 'Velocidad de gasto',        icon: '⚡' },
@@ -148,6 +147,9 @@ const WIDGET_LIST = [
   { id: 'achievements',     label: 'Logros desbloqueados',      icon: '🏅' },
   { id: 'incomeByDow',      label: 'Ingresos por día de semana',icon: '📗' },
   { id: 'stabilityIndex',   label: 'Índice de estabilidad',     icon: '🧭' },
+  { id: 'recurringFixed', label: 'Gastos fijos recurrentes', icon: '📌' },
+  { id: 'gastosHoy',      label: 'Gasto de hoy',            icon: '📅' },
+  { id: 'monthStats',     label: 'Mini estadísticas',        icon: '📊' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4912,7 +4914,7 @@ export default function App() {
                 </div>
 
                 {/* ── Plan del mes ── */}
-                {(planMes.targetIncome > 0 || planMes.targetExpense > 0 || showPlanEditor) ? (
+                {!isHidden('planMes') && (planMes.targetIncome > 0 || planMes.targetExpense > 0 || showPlanEditor) ? (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 space-y-3">
                     <div className="flex justify-between items-center">
                       <p className="text-sm font-bold text-zinc-300">Plan de {MONTHS[currentDate.getMonth()]}</p>
@@ -4968,7 +4970,7 @@ export default function App() {
                 )}
 
                 {/* ── Gastos fijos comprometidos ── */}
-                {recurringFixed && (
+                {!isHidden('recurringFixed') && recurringFixed && (
                   <button onClick={()=>setShowRecurringModal(true)}
                     className="flex items-center gap-3 w-full px-4 py-3 bg-zinc-900/30 rounded-2xl border border-white/5 active:bg-zinc-900/50 transition-colors">
                     <span className="text-base leading-none flex-shrink-0">📌</span>
@@ -5080,7 +5082,7 @@ export default function App() {
                 )}
 
                 {/* ── Gasto de hoy ── */}
-                {gastosHoy && (
+                {!isHidden('gastosHoy') && gastosHoy && (
                   <button onClick={() => { goToDate(new Date().toISOString().slice(0,10)); setActiveTab('history'); }}
                     className="w-full bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-4 active:bg-zinc-900/70 transition-colors">
                     <div className="w-10 h-10 bg-indigo-600/15 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -5134,7 +5136,7 @@ export default function App() {
                 )}
 
                 {/* ── Micro-estadísticas del mes ── */}
-                {monthStats && (
+                {!isHidden('monthStats') && monthStats && (
                   <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
                     <div className="flex gap-2.5" style={{minWidth:'max-content'}}>
                       {[
