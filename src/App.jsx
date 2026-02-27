@@ -99,6 +99,8 @@ const WIDGET_LIST = [
   { id: 'registroStreak',   label: 'Racha de registro',         icon: '📝' },
   { id: 'rule503020',       label: 'Regla 50/30/20',            icon: '⚖️' },
   { id: 'yearProgress',     label: 'Progreso del año',          icon: '📆' },
+  { id: 'yoyAnalysis',      label: 'Inflación personal',        icon: '📉' },
+  { id: 'nextMonthForecast',label: 'Proyección próximo mes',    icon: '🔮' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -3770,6 +3772,83 @@ export default function App() {
     return result;
   }, [transactions, activeCategories]);
 
+  // ── INFLACIÓN PERSONAL (YoY) ──
+  const yoyAnalysis = useMemo(() => {
+    const now = new Date();
+    const curYear  = now.getFullYear();
+    const lastYear = curYear - 1;
+    const maxMonth = now.getMonth(); // 0-based, inclusive
+    const catChanges = activeCategories.GASTO.map(cat => {
+      const sum = (y) => {
+        let total = 0, months = 0;
+        for (let m = 0; m <= maxMonth; m++) {
+          const s = transactions
+            .filter(t => { const d = new Date(t.date); return t.type==='GASTO' && t.category===cat && d.getFullYear()===y && d.getMonth()===m; })
+            .reduce((a, c) => a + Number(c.amount), 0);
+          if (s > 0) { total += s; months++; }
+        }
+        return months > 0 ? Math.round(total / months) : 0;
+      };
+      const curAvg  = sum(curYear);
+      const prevAvg = sum(lastYear);
+      if (curAvg === 0 || prevAvg === 0) return null;
+      const pct = Math.round(((curAvg - prevAvg) / prevAvg) * 100);
+      return { cat, curAvg, prevAvg, pct };
+    }).filter(Boolean);
+    if (catChanges.length < 2) return null;
+    const totalCur  = catChanges.reduce((a, c) => a + c.curAvg,  0);
+    const totalPrev = catChanges.reduce((a, c) => a + c.prevAvg, 0);
+    const totalPct  = totalPrev > 0 ? Math.round(((totalCur - totalPrev) / totalPrev) * 100) : null;
+    const sorted = [...catChanges].sort((a, b) => b.pct - a.pct);
+    return { categories: sorted, totalCur, totalPrev, totalPct, curYear, lastYear };
+  }, [transactions, activeCategories]);
+
+  // ── PROYECCIÓN DEL PRÓXIMO MES (recurrentes) ──
+  const nextMonthForecast = useMemo(() => {
+    const active = recurring.filter(r => r.active);
+    if (active.length === 0) return null;
+    const getMonthlyAmt = (r) => {
+      const n = Number(r.amount);
+      if (r.frequency === 'monthly') return n;
+      if (r.frequency === 'weekly')  return Math.round(n * 52 / 12);
+      if (r.frequency === 'daily')   return Math.round(n * 30);
+      if (r.frequency === 'yearly')  return Math.round(n / 12);
+      return n;
+    };
+    const now = new Date();
+    const nextM = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const applicable = active.filter(r => {
+      if (r.frequency === 'yearly') {
+        const nd = new Date(r.next_date);
+        return nd.getFullYear() === nextM.getFullYear() && nd.getMonth() === nextM.getMonth();
+      }
+      return true;
+    });
+    if (applicable.length === 0) return null;
+    const income  = applicable.filter(r => r.type === 'INGRESO').reduce((a, r) => a + getMonthlyAmt(r), 0);
+    const expense = applicable.filter(r => r.type === 'GASTO').reduce((a, r) => a + getMonthlyAmt(r), 0);
+    const balance = income - expense;
+    return { income, expense, balance, monthLabel: MONTHS[nextM.getMonth()], count: applicable.length };
+  }, [recurring]);
+
+  // ── GASTOS FIJOS (% comprometido en recurrentes) ──
+  const recurringFixed = useMemo(() => {
+    const active = recurring.filter(r => r.active && r.type === 'GASTO');
+    if (active.length === 0) return null;
+    const getAmt = (r) => {
+      const n = Number(r.amount);
+      if (r.frequency === 'monthly') return n;
+      if (r.frequency === 'weekly')  return Math.round(n * 52 / 12);
+      if (r.frequency === 'daily')   return Math.round(n * 30);
+      if (r.frequency === 'yearly')  return Math.round(n / 12);
+      return n;
+    };
+    const fixedExpense = active.reduce((a, r) => a + getAmt(r), 0);
+    const base = stats.income > 0 ? stats.income : (planMes.targetIncome > 0 ? planMes.targetIncome : 0);
+    const pct  = base > 0 ? Math.round((fixedExpense / base) * 100) : null;
+    return { fixedExpense, pct, count: active.length };
+  }, [recurring, stats, planMes]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3924,6 +4003,27 @@ export default function App() {
                   <button onClick={() => setShowPlanEditor(true)}
                     className="w-full py-3 bg-zinc-900/20 border border-dashed border-white/10 rounded-[1.5rem] text-xs font-bold text-zinc-600 active:text-zinc-400 active:border-white/20 transition-all flex items-center justify-center gap-2">
                     <span>📋</span> Establecer plan para {MONTHS[currentDate.getMonth()]}
+                  </button>
+                )}
+
+                {/* ── Gastos fijos comprometidos ── */}
+                {recurringFixed && (
+                  <button onClick={()=>setShowRecurringModal(true)}
+                    className="flex items-center gap-3 w-full px-4 py-3 bg-zinc-900/30 rounded-2xl border border-white/5 active:bg-zinc-900/50 transition-colors">
+                    <span className="text-base leading-none flex-shrink-0">📌</span>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-bold text-zinc-400">
+                        Gastos fijos recurrentes · {recurringFixed.count} ítem{recurringFixed.count!==1?'s':''}
+                      </p>
+                      {recurringFixed.pct !== null && (
+                        <p className="text-[10px] text-zinc-600 mt-0.5">
+                          {recurringFixed.pct}% de los ingresos comprometido
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-sm font-black text-amber-400 flex-shrink-0">
+                      ${priv(formatNumber(recurringFixed.fixedExpense))}/mes
+                    </p>
                   </button>
                 )}
 
@@ -4949,6 +5049,79 @@ export default function App() {
                         <p className="text-xs font-black text-rose-400">−${priv(formatNumber(yearProgress.totalExpense))}</p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ── Proyección próximo mes ── */}
+                {!isHidden('nextMonthForecast') && nextMonthForecast && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🔮</span>
+                      <p className="text-xs font-bold text-zinc-300">Proyección {nextMonthForecast.monthLabel} (recurrentes)</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">{nextMonthForecast.count} activos</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-emerald-500/8 rounded-2xl p-3 text-center">
+                        <p className="text-[9px] text-zinc-600 mb-1">Ingresos</p>
+                        <p className="text-sm font-black text-emerald-400">+${priv(formatNumber(nextMonthForecast.income))}</p>
+                      </div>
+                      <div className="bg-rose-500/8 rounded-2xl p-3 text-center">
+                        <p className="text-[9px] text-zinc-600 mb-1">Gastos</p>
+                        <p className="text-sm font-black text-rose-400">−${priv(formatNumber(nextMonthForecast.expense))}</p>
+                      </div>
+                      <div className={`${nextMonthForecast.balance >= 0 ? 'bg-indigo-500/8' : 'bg-rose-500/8'} rounded-2xl p-3 text-center`}>
+                        <p className="text-[9px] text-zinc-600 mb-1">Balance</p>
+                        <p className={`text-sm font-black ${nextMonthForecast.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                          {nextMonthForecast.balance >= 0 ? '+' : ''}${priv(formatNumber(nextMonthForecast.balance))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Inflación personal (YoY) ── */}
+                {!isHidden('yoyAnalysis') && yoyAnalysis && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base leading-none">📉</span>
+                        <p className="text-xs font-bold text-zinc-300">Inflación personal</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-zinc-600">{yoyAnalysis.lastYear} → {yoyAnalysis.curYear}</span>
+                        {yoyAnalysis.totalPct !== null && (
+                          <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${yoyAnalysis.totalPct > 0 ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                            {yoyAnalysis.totalPct > 0 ? '+' : ''}{yoyAnalysis.totalPct}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {yoyAnalysis.categories.slice(0,5).map(({ cat, curAvg, prevAvg, pct }) => {
+                        const barW = Math.min(100, Math.abs(pct));
+                        const isUp = pct > 0;
+                        return (
+                          <div key={cat} className="flex items-center gap-2">
+                            <span className="text-sm leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[11px] text-zinc-500 truncate">{cat}</span>
+                                <span className={`text-[11px] font-black ml-2 flex-shrink-0 ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                  {isUp ? '+' : ''}{pct}%
+                                </span>
+                              </div>
+                              <div className="h-1 bg-black/40 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${isUp ? 'bg-rose-500/60' : 'bg-emerald-500/60'}`}
+                                  style={{width:`${barW}%`}}/>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-2.5">
+                      Promedio mensual comparado con mismo período de {yoyAnalysis.lastYear}
+                    </p>
                   </div>
                 )}
 
