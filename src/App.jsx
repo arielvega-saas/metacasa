@@ -2173,6 +2173,18 @@ export default function App() {
   const voiceSupported = typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
+  // VOZ DICTADO — Home FAB
+  const [showVoiceDictado, setShowVoiceDictado] = useState(false);
+  const [voiceTranscript,  setVoiceTranscript]  = useState('');
+  const [voiceInterim,     setVoiceInterim]     = useState('');
+  const [voiceDraft,       setVoiceDraft]       = useState({
+    type: 'GASTO', amount: '', category: '', note: '',
+    date: new Date().toISOString().slice(0, 10),
+  });
+  const [isDictandoHome,   setIsDictandoHome]   = useState(false);
+  const [voiceDraftSaving, setVoiceDraftSaving] = useState(false);
+  const homeRecRef = useRef(null);
+
   // METAS DE AHORRO (localStorage)
   const [goals,           setGoals]           = useState(() => {
     try { return JSON.parse(localStorage.getItem(GOALS_KEY) || '[]'); } catch { return []; }
@@ -2534,6 +2546,117 @@ export default function App() {
     recognitionRef.current?.stop();
     setIsListening(false);
   }, []);
+
+  // ── VOZ DICTADO HELPERS (Home FAB) ──
+  const parseVoiceType = (text) => {
+    const lower = text.toLowerCase();
+    return ['cobré','ingresé','recibí','gané','sueldo','salario','ingreso']
+      .some(k => lower.includes(k)) ? 'INGRESO' : 'GASTO';
+  };
+
+  const parseVoiceCategory = useCallback((text, type) => {
+    const lower = text.toLowerCase();
+    for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+      if (kws.some(k => lower.includes(k))) return cat;
+    }
+    return activeCategories[type]?.[0] || '';
+  }, [activeCategories]);
+
+  const parseVoiceDate = (text) => {
+    const today = new Date();
+    const lower = text.toLowerCase();
+    if (lower.includes('ayer')) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    }
+    const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    for (let i = 0; i < days.length; i++) {
+      if (lower.includes(days[i])) {
+        const d = new Date(today);
+        const diff = (today.getDay() - i + 7) % 7 || 7;
+        d.setDate(d.getDate() - diff);
+        return d.toISOString().slice(0, 10);
+      }
+    }
+    return today.toISOString().slice(0, 10);
+  };
+
+  const startHomeDictado = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast('Tu dispositivo no soporta dictado', 'error'); return; }
+    setVoiceTranscript('');
+    setVoiceInterim('');
+    const rec = new SR();
+    homeRecRef.current = rec;
+    rec.lang = 'es-AR';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onstart = () => setIsDictandoHome(true);
+    rec.onend   = () => setIsDictandoHome(false);
+    rec.onerror = (e) => {
+      setIsDictandoHome(false);
+      if (e.error === 'not-allowed') {
+        toast('Permiso de micrófono denegado. Habilitalo en Configuración > Safari/Chrome > Micrófono', 'error');
+      } else if (e.error !== 'aborted') {
+        toast('Error de voz: ' + e.error, 'error');
+      }
+    };
+    rec.onresult = (e) => {
+      let interim = '', finalText = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      setVoiceInterim(interim);
+      if (finalText) {
+        setVoiceTranscript(prev => {
+          const full = (prev + finalText).trim();
+          const type = parseVoiceType(full);
+          const amount = String(parseVoiceAmount(full) || '');
+          const category = parseVoiceCategory(full, type);
+          const date = parseVoiceDate(full);
+          setVoiceDraft({ type, amount, category, note: full, date });
+          return full;
+        });
+      }
+    };
+    rec.start();
+  }, [toast, parseVoiceCategory]);
+
+  const stopHomeDictado = useCallback(() => {
+    homeRecRef.current?.stop();
+    setIsDictandoHome(false);
+  }, []);
+
+  const saveVoiceDraft = useCallback(async () => {
+    if (!userId || !voiceDraft.amount || !voiceDraft.category) return;
+    setVoiceDraftSaving(true);
+    const payload = {
+      user_id: userId,
+      amount: parseInt(voiceDraft.amount),
+      category: voiceDraft.category,
+      type: voiceDraft.type,
+      note: voiceDraft.note,
+      date: new Date(voiceDraft.date + 'T12:00:00').toISOString(),
+    };
+    const { error } = await supabase.from('transactions').insert(payload);
+    setVoiceDraftSaving(false);
+    if (error) { toast(error.message, 'error'); return; }
+    setShowVoiceDictado(false);
+    stopHomeDictado();
+    setVoiceTranscript('');
+    setVoiceDraft({
+      type: 'GASTO', amount: '', category: '', note: '',
+      date: new Date().toISOString().slice(0, 10),
+    });
+    await loadTransactions();
+    haptic(20);
+    toast(
+      `Listo ✅ ${voiceDraft.type === 'GASTO' ? 'Gasto' : 'Ingreso'} de $${formatNumber(parseInt(voiceDraft.amount))} cargado`,
+      'success'
+    );
+  }, [userId, voiceDraft, stopHomeDictado, loadTransactions, toast, haptic, formatNumber]);
 
   // ── METAS CRUD (localStorage + cloud sync) ──
   const persistGoals = (list) => {
@@ -9438,6 +9561,17 @@ export default function App() {
         </button>
       )}
 
+      {/* ════════════════════════════════
+          FAB — Dictado por voz (solo Home)
+      ════════════════════════════════ */}
+      {activeTab === 'home' && voiceSupported && (
+        <button
+          onClick={() => { setShowVoiceDictado(true); setTimeout(startHomeDictado, 300); haptic(10); }}
+          className="fixed z-[85] right-[calc(1.25rem+3.5rem+0.75rem)] bottom-[calc(env(safe-area-inset-bottom)+72px)] w-14 h-14 bg-violet-700 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30">
+          <Mic className="w-6 h-6 text-white"/>
+        </button>
+      )}
+
       {/* Scroll to top */}
       {activeTab === 'history' && showScrollTop && (
         <button
@@ -10288,6 +10422,132 @@ export default function App() {
                 Orden original
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Dictado por voz (Home)
+      ════════════════════════════════ */}
+      {showVoiceDictado && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center md:items-center">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => { setShowVoiceDictado(false); stopHomeDictado(); }}
+          />
+          <div className="relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] md:rounded-[2rem] border border-white/8 p-6 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6 mx-auto">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl transition-all ${isDictandoHome ? 'bg-rose-600 animate-pulse' : 'bg-indigo-600/30'}`}>
+                  {isDictandoHome
+                    ? <Mic className="w-5 h-5 text-white"/>
+                    : <MicOff className="w-5 h-5 text-indigo-400"/>
+                  }
+                </div>
+                <div>
+                  <p className="font-black text-white text-base">{isDictandoHome ? 'Escuchando…' : 'Dictado'}</p>
+                  <p className="text-xs text-zinc-500">{isDictandoHome ? 'Hablá ahora' : 'Tocá para dictar'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowVoiceDictado(false); stopHomeDictado(); }}
+                className="p-2 bg-zinc-900 rounded-xl active:opacity-60">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+
+            {/* Live transcript */}
+            <div className="min-h-[60px] bg-black/40 rounded-2xl p-4 mb-4 border border-white/5">
+              {voiceTranscript || voiceInterim ? (
+                <p className="text-sm text-zinc-200 leading-relaxed">
+                  {voiceTranscript}
+                  <span className="text-zinc-500 italic">{voiceInterim}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-600 italic">
+                  Dictá el movimiento, ej: "Gasté dos mil pesos en supermercado ayer"
+                </p>
+              )}
+            </div>
+
+            {/* Start / Stop */}
+            <button
+              onClick={isDictandoHome ? stopHomeDictado : startHomeDictado}
+              className={`w-full py-3 rounded-2xl text-sm font-bold mb-4 transition-all active:scale-[0.97]
+                ${isDictandoHome
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-zinc-800 text-zinc-300 border border-white/8'}`}>
+              {isDictandoHome ? '⏹ Detener' : '🎤 Dictar'}
+            </button>
+
+            {/* Auto-parsed form — editable */}
+            <div className="space-y-3 mb-5">
+              {/* Type toggle */}
+              <div className="flex gap-2">
+                {['GASTO', 'INGRESO'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setVoiceDraft(d => ({
+                      ...d, type: t,
+                      category: activeCategories[t]?.[0] || '',
+                    }))}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                      ${voiceDraft.type === t
+                        ? (t === 'GASTO' ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white')
+                        : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                    {t === 'GASTO' ? '↗ Gasto' : '↙ Ingreso'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Amount */}
+              <div className="flex items-center gap-3 bg-zinc-900/60 rounded-2xl px-4 py-3 border border-white/8">
+                <span className="text-zinc-500 text-sm font-bold">$</span>
+                <input
+                  type="number"
+                  value={voiceDraft.amount}
+                  onChange={e => setVoiceDraft(d => ({ ...d, amount: e.target.value }))}
+                  placeholder="Monto"
+                  className="flex-1 bg-transparent text-white text-lg font-black placeholder-zinc-600 outline-none min-w-0"
+                />
+              </div>
+
+              {/* Category */}
+              <select
+                value={voiceDraft.category}
+                onChange={e => setVoiceDraft(d => ({ ...d, category: e.target.value }))}
+                className="w-full bg-zinc-900/60 text-zinc-200 text-sm font-semibold rounded-2xl px-4 py-3 border border-white/8 outline-none">
+                {(activeCategories[voiceDraft.type] || []).map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+
+              {/* Date */}
+              <input
+                type="date"
+                value={voiceDraft.date}
+                onChange={e => setVoiceDraft(d => ({ ...d, date: e.target.value }))}
+                className="w-full bg-zinc-900/60 text-zinc-200 text-sm rounded-2xl px-4 py-3 border border-white/8 outline-none"
+              />
+
+              {/* Note */}
+              <input
+                value={voiceDraft.note}
+                onChange={e => setVoiceDraft(d => ({ ...d, note: e.target.value }))}
+                placeholder="Nota (auto-completada)"
+                className="w-full bg-zinc-900/60 text-zinc-200 text-sm rounded-2xl px-4 py-3 border border-white/8 outline-none placeholder-zinc-600"
+              />
+            </div>
+
+            {/* Save */}
+            <button
+              onClick={saveVoiceDraft}
+              disabled={voiceDraftSaving || !voiceDraft.amount || !voiceDraft.category}
+              className="w-full py-4 bg-indigo-600 rounded-2xl text-base font-black text-white active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              {voiceDraftSaving ? 'Guardando…' : 'Guardar movimiento ✅'}
+            </button>
           </div>
         </div>
       )}
