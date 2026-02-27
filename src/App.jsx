@@ -112,6 +112,9 @@ const WIDGET_LIST = [
   { id: 'quincenal',        label: 'Análisis quincena',         icon: '🗓️' },
   { id: 'usdSavings',       label: 'Ahorro en USD',             icon: '💵' },
   { id: 'topSpenderDay',    label: 'Días costosos del mes',     icon: '📆' },
+  { id: 'nextPayments',     label: 'Próximos pagos 14 días',    icon: '💳' },
+  { id: 'monthlyPattern',   label: 'Patrón estacional',         icon: '🌡️' },
+  { id: 'largestTx',        label: 'Mayor gasto del mes',       icon: '💸' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4067,6 +4070,64 @@ export default function App() {
     return { days, maxAvg };
   }, [transactions]);
 
+  // ── PRÓXIMOS PAGOS (14 días) ──
+  const nextPayments = useMemo(() => {
+    const now = new Date(); now.setHours(0,0,0,0);
+    const cutoff = new Date(now.getTime() + 14 * 86400000);
+    const payments = [];
+    bills.filter(b => b.status === 'pending').forEach(b => {
+      const d = new Date(b.due_date + 'T12:00:00');
+      if (d >= now && d <= cutoff) {
+        const days = Math.ceil((d - now) / 86400000);
+        payments.push({ id: `bill-${b.id}`, label: b.title, amount: Number(b.amount)||0, date: b.due_date, days, isIncome: false, emoji: '📅' });
+      }
+    });
+    recurring.filter(r => r.active && r.next_date).forEach(r => {
+      const d = new Date(r.next_date + 'T12:00:00');
+      if (d >= now && d <= cutoff) {
+        const days = Math.ceil((d - now) / 86400000);
+        payments.push({ id: `rec-${r.id}`, label: r.name, amount: Number(r.amount)||0, date: r.next_date, days, isIncome: r.type==='INGRESO', emoji: r.type==='INGRESO' ? '💰' : '🔄' });
+      }
+    });
+    if (payments.length === 0) return null;
+    const sorted = payments.sort((a,b) => a.date.localeCompare(b.date));
+    const totalOut = sorted.filter(p=>!p.isIncome).reduce((a,p)=>a+p.amount, 0);
+    return { payments: sorted, totalOut };
+  }, [bills, recurring]);
+
+  // ── PATRÓN ESTACIONAL DE GASTOS ──
+  const monthlyPattern = useMemo(() => {
+    const gasto = transactions.filter(t => t.type === 'GASTO');
+    if (gasto.length < 15) return null;
+    const byYM = {};
+    gasto.forEach(t => {
+      const key = t.date.slice(0,7);
+      if (!byYM[key]) byYM[key] = { m: parseInt(key.slice(5,7))-1, total: 0 };
+      byYM[key].total += Number(t.amount);
+    });
+    const sums = Array(12).fill(0), cnts = Array(12).fill(0);
+    Object.values(byYM).forEach(({ m, total }) => { sums[m] += total; cnts[m]++; });
+    const avgs = sums.map((s,i) => cnts[i] > 0 ? Math.round(s / cnts[i]) : null);
+    const valid = avgs.filter(v => v !== null);
+    if (valid.length < 3) return null;
+    const maxAvg = Math.max(...valid);
+    const peakMonth = avgs.indexOf(maxAvg);
+    const overallAvg = Math.round(valid.reduce((a,v)=>a+v,0)/valid.length);
+    return { avgs, maxAvg, peakMonth, overallAvg };
+  }, [transactions]);
+
+  // ── MAYOR GASTO DEL MES ──
+  const largestTx = useMemo(() => {
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const monthExp = transactions.filter(t => { const d = new Date(t.date); return t.type==='GASTO' && d.getMonth()===m && d.getFullYear()===y; });
+    if (monthExp.length === 0) return null;
+    const largest = [...monthExp].sort((a,b) => Number(b.amount)-Number(a.amount))[0];
+    const total   = monthExp.reduce((a,c)=>a+Number(c.amount),0);
+    const pct     = total > 0 ? Math.round((Number(largest.amount)/total)*100) : 0;
+    const dateLabel = new Date(largest.date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    return { tx: largest, pct, dateLabel, total };
+  }, [transactions, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -5766,6 +5827,108 @@ export default function App() {
                     </div>
                     <p className="text-[10px] text-zinc-700 mt-3 text-center">Promedio de gasto histórico por día del mes</p>
                   </div>
+                )}
+
+                {/* ── Próximos pagos 14 días ── */}
+                {!isHidden('nextPayments') && nextPayments && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">💳</span>
+                      <p className="text-xs font-bold text-zinc-300">Próximos 14 días</p>
+                      {nextPayments.totalOut > 0 && (
+                        <span className="ml-auto text-xs font-black text-rose-400">${priv(formatNumber(nextPayments.totalOut))}</span>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {nextPayments.payments.map(p => (
+                        <div key={p.id} className="flex items-center gap-2.5">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0
+                            ${p.days === 0 ? 'bg-rose-500/20' : p.days <= 3 ? 'bg-amber-500/15' : 'bg-zinc-800/60'}`}>
+                            {p.emoji}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-zinc-200 truncate">{p.label}</p>
+                            <p className={`text-[10px] font-semibold ${p.days === 0 ? 'text-rose-400' : p.days <= 3 ? 'text-amber-400' : 'text-zinc-600'}`}>
+                              {p.days === 0 ? 'Hoy' : p.days === 1 ? 'Mañana' : `en ${p.days} días`}
+                            </p>
+                          </div>
+                          <p className={`text-xs font-black flex-shrink-0 ${p.isIncome ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                            {p.isIncome ? '+' : '−'}${priv(formatNumber(p.amount))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Patrón estacional ── */}
+                {!isHidden('monthlyPattern') && monthlyPattern && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🌡️</span>
+                      <p className="text-xs font-bold text-zinc-300">Patrón estacional</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">
+                        Pico: {MONTHS[monthlyPattern.peakMonth].slice(0,3)}
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-0.5 h-14">
+                      {monthlyPattern.avgs.map((avg, i) => {
+                        const h = avg !== null ? Math.round((avg / monthlyPattern.maxAvg) * 100) : 0;
+                        const isPeak = i === monthlyPattern.peakMonth;
+                        const isCur = i === currentDate.getMonth();
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                            <div className="w-full rounded-t-sm transition-all"
+                              style={{
+                                height: `${h}%`,
+                                minHeight: avg !== null ? '2px' : '0',
+                                backgroundColor: isPeak ? 'rgba(239,68,68,0.7)' : isCur ? 'rgba(99,102,241,0.8)' : avg !== null ? 'rgba(113,113,122,0.5)' : 'transparent',
+                              }}/>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      {['E','F','M','A','M','J','J','A','S','O','N','D'].map((l,i) => (
+                        <span key={i} className={`text-[8px] flex-1 text-center font-bold
+                          ${i === monthlyPattern.peakMonth ? 'text-rose-400' : i === currentDate.getMonth() ? 'text-indigo-400' : 'text-zinc-700'}`}>
+                          {l}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-center gap-4 mt-2 text-[9px] text-zinc-600">
+                      <span><span className="text-rose-400">■</span> Pico histórico</span>
+                      <span><span className="text-indigo-400">■</span> Mes actual</span>
+                      <span>Prom. ${priv(formatNumber(monthlyPattern.overallAvg))}/mes</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Mayor gasto del mes ── */}
+                {!isHidden('largestTx') && largestTx && (
+                  <button onClick={() => setEditingTx(largestTx.tx)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base leading-none">💸</span>
+                        <p className="text-xs font-bold text-zinc-300">Mayor gasto del mes</p>
+                        <span className="ml-auto text-[10px] text-zinc-600">Editar →</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-rose-500/15 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                          {getEmoji(largestTx.tx.category)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white">{largestTx.tx.category}</p>
+                          {largestTx.tx.note && <p className="text-[11px] text-zinc-500 truncate italic mt-0.5">"{largestTx.tx.note}"</p>}
+                          <p className="text-[10px] text-zinc-600 mt-0.5">{largestTx.dateLabel}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-black text-white">${priv(formatNumber(largestTx.tx.amount))}</p>
+                          <p className="text-[10px] text-rose-400 font-semibold">{largestTx.pct}% del total</p>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
                 )}
 
                 {/* ── Patrimonio acumulado ── */}
