@@ -5057,13 +5057,13 @@ export default function App() {
       <GlobalStyles />
 
       {/* ── TAB CONTENT ── */}
-      <div className="max-w-md md:max-w-2xl mx-auto pb-28 md:pb-10">
+      <div className="max-w-md sm:max-w-xl md:max-w-3xl xl:max-w-5xl mx-auto pb-28 md:pb-10">
 
         {/* ════════════════════════════════
             TAB: INICIO (Dashboard)
         ════════════════════════════════ */}
         {activeTab==='home' && (
-          <div className="px-5 pt-5 flex flex-col gap-5 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
+          <div className="px-4 md:px-6 pt-5 flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5 md:items-start">
             {/* Header */}
             <header style={{order: -2}} className="md:col-span-2 lg:col-span-3 flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -9556,7 +9556,7 @@ export default function App() {
       {(activeTab === 'home' || activeTab === 'history') && (
         <button
           onClick={() => { setActiveTab('add'); haptic(12); }}
-          className="fixed z-[85] right-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-14 h-14 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-indigo-400/30">
+          className="fixed z-[85] right-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-8 md:right-8 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-indigo-400/30">
           <Plus className="w-7 h-7 text-white"/>
         </button>
       )}
@@ -9567,7 +9567,7 @@ export default function App() {
       {activeTab === 'home' && voiceSupported && (
         <button
           onClick={() => { setShowVoiceDictado(true); setTimeout(startHomeDictado, 300); haptic(10); }}
-          className="fixed z-[85] right-[calc(1.25rem+3.5rem+0.75rem)] bottom-[calc(env(safe-area-inset-bottom)+72px)] w-14 h-14 bg-violet-700 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30">
+          className="fixed z-[85] right-[calc(1.25rem+3.5rem+0.75rem)] bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-8 md:right-28 w-14 h-14 bg-violet-700 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30">
           <Mic className="w-6 h-6 text-white"/>
         </button>
       )}
@@ -9612,7 +9612,7 @@ export default function App() {
           BOTTOM TAB BAR (iOS-style)
       ════════════════════════════════ */}
       <div className="fixed bottom-0 left-0 right-0 z-[90] bg-black/90 backdrop-blur-xl border-t border-white/8 pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-lg mx-auto flex">
+        <div className="max-w-lg md:max-w-xl lg:max-w-2xl mx-auto flex">
           {[
             { id:'home',    icon: Home,      label: 'Inicio'   },
             { id:'add',     icon: Plus,      label: 'Registrar'},
