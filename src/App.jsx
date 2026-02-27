@@ -106,6 +106,9 @@ const WIDGET_LIST = [
   { id: 'unbudgetedCats',   label: 'Cats sin presupuesto',      icon: '⚠️' },
   { id: 'surplusAllocation',label: 'Distribuir superávit',      icon: '🎯' },
   { id: 'debtPayoff',       label: 'Plan de pago deudas',       icon: '🤝' },
+  { id: 'microSpends',      label: 'Gastos hormiga',            icon: '🐜' },
+  { id: 'incomeDiversity',  label: 'Fuentes de ingreso',        icon: '💼' },
+  { id: 'goalETA',          label: 'ETA de meta',               icon: '🎯' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -3942,6 +3945,71 @@ export default function App() {
     return { pending, totalDebt, monthlySavings, monthsToPayoff, topDebt };
   }, [debts, stats]);
 
+  // ── GASTOS HORMIGA ──
+  const microSpends = useMemo(() => {
+    const THRESHOLD = 5000;
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const small = transactions.filter(t => {
+      const d = new Date(t.date);
+      return t.type === 'GASTO' && d.getMonth() === m && d.getFullYear() === y && Number(t.amount) < THRESHOLD;
+    });
+    if (small.length < 3) return null;
+    const catMap = {};
+    small.forEach(t => {
+      if (!catMap[t.category]) catMap[t.category] = { total: 0, count: 0 };
+      catMap[t.category].total += Number(t.amount);
+      catMap[t.category].count++;
+    });
+    const total = small.reduce((a, t) => a + Number(t.amount), 0);
+    if (total < 2000) return null;
+    const items = Object.entries(catMap)
+      .map(([cat, d]) => ({ cat, total: Math.round(d.total), count: d.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 4);
+    return { items, total: Math.round(total), annual: Math.round(total * 12), threshold: THRESHOLD };
+  }, [transactions, currentDate]);
+
+  // ── DIVERSIFICACIÓN DE INGRESOS ──
+  const incomeDiversity = useMemo(() => {
+    if (stats.income === 0) return null;
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const incTxs = transactions.filter(t => {
+      const d = new Date(t.date);
+      return t.type === 'INGRESO' && d.getMonth() === m && d.getFullYear() === y;
+    });
+    if (incTxs.length === 0) return null;
+    const catMap = {};
+    incTxs.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount); });
+    const sources = Object.entries(catMap)
+      .map(([cat, amount]) => ({ cat, amount: Math.round(amount), pct: Math.round((amount / stats.income) * 100) }))
+      .sort((a, b) => b.amount - a.amount);
+    const isConcentrated = sources.length === 1;
+    return { sources, total: stats.income, topSource: sources[0], isConcentrated };
+  }, [transactions, currentDate, stats.income]);
+
+  // ── ETA DE META ──
+  const goalETA = useMemo(() => {
+    const active = goals.filter(g => !g.completed && g.target > 0 && g.current < g.target);
+    if (active.length === 0) return null;
+    const now = new Date();
+    let totalSav = 0, months = 0;
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mo = d.getMonth(), yr = d.getFullYear();
+      const mTxs = transactions.filter(t => { const td = new Date(t.date); return td.getMonth() === mo && td.getFullYear() === yr; });
+      const mInc = mTxs.filter(t => t.type === 'INGRESO').reduce((a, c) => a + Number(c.amount), 0);
+      const mExp = mTxs.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+      if (mInc > 0 || mExp > 0) { totalSav += Math.max(0, mInc - mExp); months++; }
+    }
+    const monthlySavings = months > 0 ? Math.round(totalSav / months) : 0;
+    if (monthlySavings <= 0) return null;
+    const closest = [...active].sort((a, b) => (a.target - a.current) - (b.target - b.current))[0];
+    const remaining = closest.target - closest.current;
+    const monthsLeft = Math.ceil(remaining / monthlySavings);
+    const eta = new Date(now.getFullYear(), now.getMonth() + monthsLeft, 1);
+    return { goal: closest, remaining, monthlySavings, monthsLeft, etaLabel: `${MONTHS[eta.getMonth()]} ${eta.getFullYear()}`, allGoalsCount: active.length };
+  }, [goals, transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -5417,6 +5485,115 @@ export default function App() {
                           </p>
                         </div>
                       </div>
+                    </div>
+                  </button>
+                )}
+
+                {/* ── Gastos hormiga ── */}
+                {!isHidden('microSpends') && microSpends && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🐜</span>
+                      <p className="text-xs font-bold text-zinc-300">Gastos hormiga</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">&lt; ${formatNumber(microSpends.threshold)}/mov.</span>
+                    </div>
+                    <div className="space-y-2.5 mb-3">
+                      {microSpends.items.map(item => (
+                        <div key={item.cat} className="flex items-center gap-2">
+                          <span className="text-sm w-5 text-center flex-shrink-0">{getEmoji(item.cat)}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between text-xs mb-0.5">
+                              <span className="text-zinc-400 truncate">{item.cat}</span>
+                              <span className="text-zinc-200 font-semibold ml-2 flex-shrink-0">${priv(formatNumber(item.total))}</span>
+                            </div>
+                            <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-500/60 rounded-full transition-all"
+                                style={{width:`${Math.round((item.total/microSpends.total)*100)}%`}}/>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-zinc-600 w-6 text-right flex-shrink-0">{item.count}×</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-1 pt-2 border-t border-white/5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-500">Total mensual</span>
+                        <span className="font-bold text-amber-400">${priv(formatNumber(microSpends.total))}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-700">Impacto anual estimado</span>
+                        <span className="font-bold text-rose-400/70">${priv(formatNumber(microSpends.annual))}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Diversificación de ingresos ── */}
+                {!isHidden('incomeDiversity') && incomeDiversity && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">💼</span>
+                      <p className="text-xs font-bold text-zinc-300">Fuentes de ingreso</p>
+                      {incomeDiversity.isConcentrated && (
+                        <span className="ml-auto text-[10px] bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full font-semibold">1 fuente</span>
+                      )}
+                    </div>
+                    <div className="space-y-2.5">
+                      {incomeDiversity.sources.map(s => (
+                        <div key={s.cat}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-sm">{getEmoji(s.cat)}</span>
+                              <span className="text-zinc-300">{s.cat}</span>
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-zinc-500">${priv(formatNumber(s.amount))}</span>
+                              <span className="text-emerald-400 font-bold w-8 text-right">{s.pct}%</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500/50 rounded-full transition-all" style={{width:`${s.pct}%`}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {incomeDiversity.isConcentrated && (
+                      <p className="text-[10px] text-amber-400/70 mt-3 text-center italic">
+                        Diversificar fuentes reduce el riesgo financiero
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* ── ETA de meta ── */}
+                {!isHidden('goalETA') && goalETA && (
+                  <button onClick={() => setShowGoalsModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base leading-none">🎯</span>
+                        <p className="text-xs font-bold text-zinc-300">ETA — Meta más cercana</p>
+                        <span className="ml-auto text-[10px] text-zinc-600">Ver →</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl leading-none flex-shrink-0">{goalETA.goal.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{goalETA.goal.name}</p>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">
+                            Falta ${priv(formatNumber(goalETA.remaining))} · ahorrando ${priv(formatNumber(goalETA.monthlySavings))}/mes
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs font-black text-indigo-300">{goalETA.etaLabel}</p>
+                          <p className="text-[10px] text-zinc-600">
+                            {goalETA.monthsLeft === 1 ? 'en 1 mes' : `en ${goalETA.monthsLeft} meses`}
+                          </p>
+                        </div>
+                      </div>
+                      {goalETA.allGoalsCount > 1 && (
+                        <p className="text-[10px] text-zinc-700 mt-2.5 text-center">
+                          +{goalETA.allGoalsCount - 1} meta{goalETA.allGoalsCount > 2 ? 's' : ''} activa{goalETA.allGoalsCount > 2 ? 's' : ''} más
+                        </p>
+                      )}
                     </div>
                   </button>
                 )}
