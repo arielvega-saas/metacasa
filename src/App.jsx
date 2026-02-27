@@ -1596,6 +1596,8 @@ export default function App() {
   const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
   const [allMonths,        setAllMonths]        = useState(false);   // false = solo mes actual
   const [filterDate,       setFilterDate]       = useState('');      // '' | 'YYYY-MM-DD'
+  const [filterMin,        setFilterMin]        = useState('');      // '' | number string
+  const [filterMax,        setFilterMax]        = useState('');      // '' | number string
   const [monthMemos,       setMonthMemos]       = useState(() => {
     try { return JSON.parse(localStorage.getItem(MEMO_KEY) || '{}'); } catch { return {}; }
   });
@@ -2106,6 +2108,18 @@ export default function App() {
     if (!userId || !amount || !category) return;
     setSavingTx(true);
     const numericAmount = parseFormattedNumber(amount);
+
+    // Alerta de posible duplicado (mismo monto + categoría en las últimas 2 horas)
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const recentDup = transactions.find(t =>
+      t.type === type &&
+      Number(t.amount) === numericAmount &&
+      t.category === category &&
+      t.date > twoHoursAgo
+    );
+    if (recentDup) {
+      setTimeout(() => toast(`⚠️ Posible duplicado: ya registraste $${formatNumber(numericAmount)} en ${category}`, 'info'), 400);
+    }
     const payload = { user_id: userId, amount: numericAmount, category, type, note: note.trim(), date: new Date(txDate).toISOString() };
     const { error } = await supabase.from('transactions').insert(payload);
     setSavingTx(false);
@@ -2359,6 +2373,10 @@ export default function App() {
     // Filtro por fecha específica (drill-down desde el calendario)
     if (filterDate) base = base.filter(t => t.date === filterDate);
 
+    // Filtro por rango de monto
+    if (filterMin !== '') base = base.filter(t => Number(t.amount) >= Number(filterMin));
+    if (filterMax !== '') base = base.filter(t => Number(t.amount) <= Number(filterMax));
+
     // Búsqueda por texto (categoría, nota, monto)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -2377,7 +2395,7 @@ export default function App() {
       if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, searchQuery, sortBy]);
+  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, searchQuery, sortBy]);
 
   // Categorías disponibles según el filtro de tipo actual
   const filterableCats = useMemo(() => {
@@ -2386,11 +2404,11 @@ export default function App() {
     return [...new Set(src.map(t => t.category))].sort();
   }, [transactions, monthTxs, allMonths, filterType]);
 
-  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || sortBy !== 'date_desc' || allMonths;
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || sortBy !== 'date_desc' || allMonths;
 
   const clearFilters = () => {
     setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
-    setFilterDate(''); setSortBy('date_desc'); setAllMonths(false);
+    setFilterDate(''); setFilterMin(''); setFilterMax(''); setSortBy('date_desc'); setAllMonths(false);
   };
 
   // ── RESUMEN DEL FILTRO (historial) ──
@@ -2506,6 +2524,25 @@ export default function App() {
       maxExpDay: maxExpDay ? { date: maxExpDay[0], amount: maxExpDay[1].expense } : null,
     };
   }, [monthTxs, currentDate]);
+
+  // Distribución de gastos por día de la semana (últimos 90 días)
+  const weekdaySpending = useMemo(() => {
+    const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+    const recent = transactions.filter(t => t.type === 'GASTO' && new Date(t.date) >= cutoff);
+    if (recent.length === 0) return null;
+    const totals = Array(7).fill(0);
+    const counts = Array(7).fill(0);
+    recent.forEach(t => {
+      const dow = new Date(t.date + 'T12:00:00').getDay(); // 0=Dom
+      totals[dow] += Number(t.amount);
+      counts[dow]++;
+    });
+    const avgs = totals.map((s, i) => counts[i] > 0 ? Math.round(s / counts[i]) : 0);
+    const max = Math.max(...avgs);
+    const peakDay = avgs.indexOf(max);
+    return { avgs, days: DAYS, max, peakDay };
+  }, [transactions]);
 
   const burnRate = useMemo(() => {
     if (stats.expenses === 0) return null;
@@ -2788,6 +2825,39 @@ export default function App() {
                         </button>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Gasto por día de semana */}
+                {weekdaySpending && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">¿Cuándo gastás más?</p>
+                      <span className="text-[10px] font-bold text-zinc-600">últimos 90 días</span>
+                    </div>
+                    <div className="flex items-end gap-1.5 h-16">
+                      {weekdaySpending.avgs.map((avg, i) => {
+                        const pct = weekdaySpending.max > 0 ? (avg / weekdaySpending.max) * 100 : 0;
+                        const isPeak = i === weekdaySpending.peakDay;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full flex items-end" style={{ height: '44px' }}>
+                              <div
+                                className={`w-full rounded-t-lg transition-all ${isPeak ? 'bg-rose-500' : 'bg-zinc-700'}`}
+                                style={{ height: `${Math.max(pct, 4)}%` }}
+                              />
+                            </div>
+                            <span className={`text-[9px] font-bold ${isPeak ? 'text-rose-400' : 'text-zinc-600'}`}>
+                              {weekdaySpending.days[i]}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-3 text-center">
+                      Pico: <span className="text-rose-400 font-bold">{weekdaySpending.days[weekdaySpending.peakDay]}</span>
+                      {' · '}prom. ${formatNumber(weekdaySpending.avgs[weekdaySpending.peakDay])}/movimiento
+                    </p>
                   </div>
                 )}
 
@@ -3405,6 +3475,17 @@ export default function App() {
                 </button>
                 )}
 
+                {/* Filtro monto chip */}
+                <button
+                  onClick={() => setFilterMin(filterMin === '' && filterMax === '' ? '0' : '')}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                    ${filterMin !== '' || filterMax !== '' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  <SlidersHorizontal className="w-3.5 h-3.5"/>
+                  {filterMin !== '' || filterMax !== ''
+                    ? `$${filterMin||'0'}–${filterMax ? '$'+filterMax : '∞'}`
+                    : 'Monto'}
+                </button>
+
                 {/* Separador */}
                 <div className="w-px bg-white/10 self-stretch my-1"/>
 
@@ -3438,6 +3519,27 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            {/* Filtro por rango de monto */}
+            {(filterMin !== '' || filterMax !== '') ? (
+              <div className="px-5">
+                <div className="flex items-center gap-2 bg-zinc-900/40 rounded-2xl px-4 py-3 border border-white/5">
+                  <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap">Monto</span>
+                  <input type="text" inputMode="numeric" value={filterMin}
+                    onChange={e => setFilterMin(e.target.value.replace(/\D/g,''))}
+                    placeholder="Mín"
+                    className="flex-1 bg-transparent text-xs font-bold text-zinc-300 text-center focus:outline-none placeholder:text-zinc-700 min-w-0"/>
+                  <span className="text-zinc-700">—</span>
+                  <input type="text" inputMode="numeric" value={filterMax}
+                    onChange={e => setFilterMax(e.target.value.replace(/\D/g,''))}
+                    placeholder="Máx"
+                    className="flex-1 bg-transparent text-xs font-bold text-zinc-300 text-center focus:outline-none placeholder:text-zinc-700 min-w-0"/>
+                  <button onClick={()=>{ setFilterMin(''); setFilterMax(''); }} className="p-1 active:opacity-60">
+                    <X className="w-3.5 h-3.5 text-zinc-600"/>
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             {/* Sort + resultado count */}
             <div className="px-5 flex items-center justify-between">
