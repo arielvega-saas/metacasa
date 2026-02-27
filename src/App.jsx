@@ -2896,20 +2896,6 @@ export default function App() {
   };
 
   // ─────────────────────────────────────────────
-  // RENDER: CARGANDO AUTH
-  // ─────────────────────────────────────────────
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl"><img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" /></div>
-          <div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-zinc-700 rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─────────────────────────────────────────────
   // RENDER: APP
   // ─────────────────────────────────────────────
 
@@ -4742,6 +4728,20 @@ export default function App() {
     const color=score>=80?'#10b981':score>=60?'#6366f1':score>=40?'#f59e0b':'#ef4444';
     return{score,level,color,breakdown};
   }, [transactions, liquidityRatio, budgetCoverage, stats, balanceTrend]);
+
+  // ─────────────────────────────────────────────
+  // RENDER: CARGANDO AUTH (must be after all hooks)
+  // ─────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl"><img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" /></div>
+          <div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-zinc-700 rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</div>
+        </div>
+      </div>
+    );
+  }
 
   // ─────────────────────────────────────────────
   // RENDER: LOGIN (must be after all hooks)
