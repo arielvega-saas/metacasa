@@ -1601,6 +1601,8 @@ export default function App() {
   const [filterDate,       setFilterDate]       = useState('');      // '' | 'YYYY-MM-DD'
   const [filterMin,        setFilterMin]        = useState('');      // '' | number string
   const [filterMax,        setFilterMax]        = useState('');      // '' | number string
+  const [filterWeek,       setFilterWeek]       = useState(false);   // true = esta semana
+  const [compactView,      setCompactView]      = useState(false);
   const [monthMemos,       setMonthMemos]       = useState(() => {
     try { return JSON.parse(localStorage.getItem(MEMO_KEY) || '{}'); } catch { return {}; }
   });
@@ -2396,6 +2398,17 @@ export default function App() {
     if (filterMin !== '') base = base.filter(t => Number(t.amount) >= Number(filterMin));
     if (filterMax !== '') base = base.filter(t => Number(t.amount) <= Number(filterMax));
 
+    // Filtro "Esta semana"
+    if (filterWeek) {
+      const now = new Date();
+      const dow = now.getDay(); // 0=Dom
+      const diffToMon = dow === 0 ? 6 : dow - 1; // días hasta el lunes anterior
+      const mon = new Date(now); mon.setDate(now.getDate() - diffToMon); mon.setHours(0,0,0,0);
+      const monStr = mon.toISOString().slice(0, 10);
+      const todayStr2 = now.toISOString().slice(0, 10);
+      base = base.filter(t => t.date.slice(0,10) >= monStr && t.date.slice(0,10) <= todayStr2);
+    }
+
     // Búsqueda por texto (categoría, nota, monto)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -2414,7 +2427,7 @@ export default function App() {
       if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, searchQuery, sortBy]);
+  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, filterWeek, searchQuery, sortBy]);
 
   // Categorías disponibles según el filtro de tipo actual
   const filterableCats = useMemo(() => {
@@ -2423,11 +2436,11 @@ export default function App() {
     return [...new Set(src.map(t => t.category))].sort();
   }, [transactions, monthTxs, allMonths, filterType]);
 
-  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || sortBy !== 'date_desc' || allMonths;
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || filterWeek || sortBy !== 'date_desc' || allMonths;
 
   const clearFilters = () => {
     setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
-    setFilterDate(''); setFilterMin(''); setFilterMax(''); setSortBy('date_desc'); setAllMonths(false);
+    setFilterDate(''); setFilterMin(''); setFilterMax(''); setFilterWeek(false); setSortBy('date_desc'); setAllMonths(false);
   };
 
   // ── RESUMEN DEL FILTRO (historial) ──
@@ -2545,6 +2558,24 @@ export default function App() {
   }, [monthTxs, currentDate]);
 
   // Resumen año a la fecha (YTD)
+  const monthlyAvg = useMemo(() => {
+    if (transactions.length === 0) return null;
+    const byMonth = {};
+    transactions.forEach(t => {
+      const key = t.date.slice(0, 7); // YYYY-MM
+      if (!byMonth[key]) byMonth[key] = { income: 0, expense: 0 };
+      if (t.type === 'INGRESO') byMonth[key].income += Number(t.amount);
+      if (t.type === 'GASTO')   byMonth[key].expense += Number(t.amount);
+    });
+    const months = Object.values(byMonth);
+    if (months.length === 0) return null;
+    const n = months.length;
+    const avgIncome  = Math.round(months.reduce((a, m) => a + m.income, 0)  / n);
+    const avgExpense = Math.round(months.reduce((a, m) => a + m.expense, 0) / n);
+    const avgBalance = avgIncome - avgExpense;
+    return { avgIncome, avgExpense, avgBalance, months: n };
+  }, [transactions]);
+
   const savingsRateData = useMemo(() => {
     if (stats.income === 0) return null;
     const rate = Math.round(((stats.income - stats.expenses) / stats.income) * 100);
@@ -3001,6 +3032,32 @@ export default function App() {
                       Pico: <span className="text-rose-400 font-bold">{weekdaySpending.days[weekdaySpending.peakDay]}</span>
                       {' · '}prom. ${formatNumber(weekdaySpending.avgs[weekdaySpending.peakDay])}/movimiento
                     </p>
+                  </div>
+                )}
+
+                {/* Promedio mensual histórico */}
+                {monthlyAvg && monthlyAvg.months >= 2 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Promedio mensual</p>
+                      <span className="text-[10px] text-zinc-600 font-semibold">{monthlyAvg.months} meses de datos</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Ingresos</p>
+                        <p className="text-sm font-black text-emerald-400">${formatNumber(monthlyAvg.avgIncome)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Gastos</p>
+                        <p className="text-sm font-black text-rose-400">${formatNumber(monthlyAvg.avgExpense)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Balance</p>
+                        <p className={`text-sm font-black ${monthlyAvg.avgBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                          {monthlyAvg.avgBalance >= 0 ? '+' : ''}${formatNumber(Math.abs(monthlyAvg.avgBalance))}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -3618,6 +3675,11 @@ export default function App() {
                     {filteredTxs.length}
                   </button>
                 )}
+                <button onClick={() => { setCompactView(v => !v); haptic(8); }}
+                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${compactView ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}
+                  title={compactView ? 'Vista normal' : 'Vista compacta'}>
+                  <SlidersHorizontal className="w-4 h-4"/>
+                </button>
                 <button onClick={() => exportExcel(transactions)} className="p-2.5 bg-emerald-600 rounded-xl text-white active:scale-90 transition-transform" title="Exportar todo">
                   <FileSpreadsheet className="w-4 h-4" />
                 </button>
@@ -3657,8 +3719,17 @@ export default function App() {
                   </button>
                 )}
 
+                {/* Esta semana */}
+                <button
+                  onClick={() => { setFilterWeek(v => !v); if (!filterWeek) setAllMonths(true); haptic(8); }}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                    ${filterWeek ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  <Clock className="w-3.5 h-3.5"/>
+                  Esta semana
+                </button>
+
                 {/* Toggle mes/todos */}
-                {!filterDate && (
+                {!filterDate && !filterWeek && (
                 <button
                   onClick={()=>setAllMonths(v=>!v)}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
@@ -3879,8 +3950,20 @@ export default function App() {
                             </span>
                           </div>
                           {/* Filas del día */}
-                          <div className="space-y-2">
-                            {txs.map(t=>(
+                          <div className={compactView ? 'space-y-0.5' : 'space-y-2'}>
+                            {txs.map(t=> compactView ? (
+                              /* ── Vista compacta ── */
+                              <button key={t.id} onClick={() => setEditingTx(t)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-zinc-900/40 rounded-xl border border-white/4 active:bg-zinc-800/60 transition-colors">
+                                <span className="text-sm leading-none flex-shrink-0">{getEmoji(t.category)}</span>
+                                <span className="text-xs font-semibold text-zinc-300 flex-1 truncate text-left">{t.category}</span>
+                                {t.note && <span className="text-[10px] text-zinc-600 italic truncate max-w-[80px]">{t.note}</span>}
+                                <span className={`text-xs font-black flex-shrink-0 ${t.type==='INGRESO'?'text-emerald-400':'text-rose-300'}`}>
+                                  {t.type==='GASTO'?'−':'+'}${formatNumber(t.amount)}
+                                </span>
+                              </button>
+                            ) : (
+                              /* ── Vista normal ── */
                               <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
                                 <div className="flex items-center gap-3.5 p-4">
                                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
