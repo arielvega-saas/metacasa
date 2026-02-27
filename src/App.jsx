@@ -1932,6 +1932,8 @@ export default function App() {
   const [showCompareModal,   setShowCompareModal]   = useState(false);
   const [showSearch,         setShowSearch]         = useState(false);
   const [searchQuery,        setSearchQuery]        = useState('');
+  const [calendarView,       setCalendarView]       = useState(false);
+  const [showPlazoFijo,      setShowPlazoFijo]      = useState(false);
   const [hiddenWidgets,      setHiddenWidgets]      = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_WIDGETS_KEY) || '[]')); }
     catch { return new Set(); }
@@ -4007,6 +4009,24 @@ export default function App() {
                     <button onClick={()=>changeMonth(1)} className="p-2 bg-zinc-900/70 rounded-full text-zinc-500 active:scale-90 transition-transform">
                       <ChevronRight className="w-5 h-5" />
                     </button>
+                  </div>
+                  {/* Acceso rápido a meses recientes */}
+                  <div className="overflow-x-auto no-scrollbar -mx-1">
+                    <div className="flex gap-2 px-1" style={{width:'max-content'}}>
+                      {[5,4,3,2,1,0].map(i => {
+                        const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+                        const isSel = d.getFullYear()===currentDate.getFullYear() && d.getMonth()===currentDate.getMonth();
+                        const hasData = transactions.some(t => { const td = new Date(t.date); return td.getFullYear()===d.getFullYear() && td.getMonth()===d.getMonth(); });
+                        if (!hasData && i > 0) return null;
+                        return (
+                          <button key={i} onClick={()=>{ setCurrentDate(new Date(d.getFullYear(),d.getMonth(),1)); haptic(8); }}
+                            className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                              ${isSel ? 'bg-indigo-600 text-white shadow-md' : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                            {MONTHS[d.getMonth()].slice(0,3)}{d.getFullYear()!==new Date().getFullYear()?` ${d.getFullYear()}`:''}
+                          </button>
+                        );
+                      }).filter(Boolean)}
+                    </div>
                   </div>
 
                   <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-7 shadow-2xl relative overflow-hidden">
@@ -6121,6 +6141,11 @@ export default function App() {
                     {filteredTxs.length}
                   </button>
                 )}
+                <button onClick={() => { setCalendarView(v => !v); haptic(8); }}
+                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${calendarView ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}
+                  title={calendarView ? 'Vista lista' : 'Vista calendario'}>
+                  <Calendar className="w-4 h-4"/>
+                </button>
                 <button onClick={() => { setCompactView(v => !v); haptic(8); }}
                   className={`p-2.5 rounded-xl active:scale-90 transition-transform ${compactView ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}
                   title={compactView ? 'Vista normal' : 'Vista compacta'}>
@@ -6379,6 +6404,78 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Vista Calendario */}
+            {calendarView && (() => {
+              const cyear = currentDate.getFullYear(), cmonth = currentDate.getMonth();
+              const firstDow = new Date(cyear, cmonth, 1).getDay();
+              const daysInMon = new Date(cyear, cmonth + 1, 0).getDate();
+              const todayKey  = new Date().toISOString().slice(0, 10);
+              const dayMap = {};
+              filteredTxs.forEach(t => {
+                const k = t.date.slice(0, 10);
+                if (!dayMap[k]) dayMap[k] = { income: 0, expense: 0 };
+                if (t.type === 'INGRESO') dayMap[k].income += Number(t.amount);
+                else dayMap[k].expense += Number(t.amount);
+              });
+              const maxExp = Math.max(...Object.values(dayMap).map(d => d.expense), 1);
+              const DOW = ['D','L','M','M','J','V','S'];
+              const cells = [];
+              for (let i = 0; i < firstDow; i++) cells.push(null);
+              for (let d = 1; d <= daysInMon; d++) cells.push(d);
+              return (
+                <div className="px-5">
+                  <div className="bg-zinc-900/40 rounded-2xl border border-white/5 p-4 space-y-3">
+                    <div className="grid grid-cols-7 gap-1">
+                      {DOW.map((d,i) => (
+                        <div key={i} className="text-center text-[10px] font-bold text-zinc-600 pb-1">{d}</div>
+                      ))}
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={`ep-${i}`}/>;
+                        const key = `${cyear}-${String(cmonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                        const data = dayMap[key];
+                        const isToday    = key === todayKey;
+                        const isSelected = filterDate === key;
+                        const intensity  = data ? Math.min(1, data.expense / maxExp) : 0;
+                        const hasExpense = data?.expense > 0;
+                        const hasIncome  = data?.income > 0 && !hasExpense;
+                        return (
+                          <button key={key}
+                            onClick={() => { setFilterDate(isSelected ? '' : key); if (!isSelected) setAllMonths(true); haptic(8); }}
+                            className={`aspect-square flex flex-col items-center justify-center rounded-xl transition-all active:scale-90
+                              ${isSelected ? 'ring-2 ring-indigo-400' : ''}
+                              ${isToday    ? 'ring-1 ring-white/30'   : ''}`}
+                            style={{ backgroundColor: hasExpense ? `rgba(239,68,68,${0.08+intensity*0.52})` : hasIncome ? 'rgba(52,211,153,0.15)' : 'transparent' }}>
+                            <span className={`text-[11px] font-bold leading-none
+                              ${isSelected ? 'text-white' : isToday ? 'text-indigo-300' : data ? 'text-zinc-200' : 'text-zinc-600'}`}>
+                              {day}
+                            </span>
+                            {data && (
+                              <span className="w-1 h-1 rounded-full mt-0.5"
+                                style={{ backgroundColor: hasExpense ? `rgba(239,68,68,${0.5+intensity*0.5})` : 'rgba(52,211,153,0.7)' }}/>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-600 pt-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-rose-500/40 inline-block"/>Gastos
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/40 inline-block"/>Solo ingresos
+                      </span>
+                      {filterDate && (
+                        <button onClick={()=>{ setFilterDate(''); haptic(8); }}
+                          className="font-bold text-indigo-400 active:opacity-60">
+                          × Limpiar día
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Lista — agrupada por fecha */}
             <div className="px-5">
@@ -6697,6 +6794,10 @@ export default function App() {
                 <button onClick={()=>importFileRef.current?.click()} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <span className="text-base leading-none w-4 text-center">📥</span>
                   <span className="text-sm font-semibold text-zinc-300">Restaurar backup JSON</span>
+                </button>
+                <button onClick={() => setShowPlazoFijo(true)} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none w-4 text-center">🏦</span>
+                  <span className="text-sm font-semibold text-zinc-300">Calculadora plazo fijo</span>
                 </button>
                 <button onClick={signOut} className="flex items-center gap-3 px-5 py-4 w-full active:bg-zinc-900/60 transition-colors">
                   <LogOut className="w-4 h-4 text-rose-400"/>
@@ -7656,6 +7757,11 @@ export default function App() {
         </div>
       )}
 
+      {/* Calculadora Plazo Fijo */}
+      {showPlazoFijo && (
+        <PlazoFijoCalc onClose={() => setShowPlazoFijo(false)} />
+      )}
+
       {/* Input oculto para importar JSON */}
       <input
         ref={importFileRef}
@@ -7664,6 +7770,150 @@ export default function App() {
         className="hidden"
         onChange={importJSON}
       />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PLAZO FIJO CALCULATOR
+// ─────────────────────────────────────────────
+function PlazoFijoCalc({ onClose }) {
+  const [monto, setMonto] = React.useState('');
+  const [tna,   setTna]   = React.useState('');
+  const [dias,  setDias]  = React.useState('30');
+
+  const result = React.useMemo(() => {
+    const m = Number(monto.replace(/\D/g, ''));
+    const t = parseFloat(tna.replace(',', '.'));
+    const d = parseInt(dias);
+    if (!m || !t || !d || m <= 0 || t <= 0 || d <= 0) return null;
+    const interesBruto = m * (t / 100) * (d / 365);
+    const retenciones  = interesBruto * 0.07;
+    const interesNeto  = interesBruto - retenciones;
+    const totalNeto    = m + interesNeto;
+    const tnaEfNeta    = (interesNeto / m) * (365 / d) * 100;
+    return { interesBruto, interesNeto, totalNeto, retenciones, tnaEfNeta };
+  }, [monto, tna, dias]);
+
+  const fmt = (n) => Math.round(n).toLocaleString('es-AR');
+  const montoNum = Number(monto.replace(/\D/g, ''));
+  const tnaNum   = parseFloat(tna.replace(',', '.'));
+
+  return (
+    <div className="fixed inset-0 z-[210] bg-black/95 backdrop-blur-xl flex flex-col">
+      {/* Header */}
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-4 flex items-center justify-between border-b border-white/8">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🏦</span>
+          <div>
+            <h3 className="text-base font-black uppercase tracking-tight">Plazo Fijo</h3>
+            <p className="text-[11px] text-zinc-500">Calculadora de rendimiento</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+          <X className="w-5 h-5"/>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6 space-y-5">
+        {/* Capital */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-zinc-400 ml-1">Capital a invertir ($)</label>
+          <input
+            type="text" inputMode="numeric" value={monto ? Number(monto).toLocaleString('es-AR') : ''}
+            onChange={e => setMonto(e.target.value.replace(/\D/g, ''))}
+            placeholder="0"
+            className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-xl font-black text-white focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-700"/>
+        </div>
+
+        {/* TNA + Días */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-zinc-400 ml-1">TNA (%)</label>
+            <input
+              type="text" inputMode="decimal" value={tna}
+              onChange={e => setTna(e.target.value)}
+              placeholder="100"
+              className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-lg font-black text-white focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-700"/>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-zinc-400 ml-1">Plazo</label>
+            <div className="flex gap-1.5">
+              {['30','60','90'].map(d => (
+                <button key={d} onClick={() => setDias(d)}
+                  className={`flex-1 py-4 rounded-2xl text-xs font-black transition-all active:scale-90
+                    ${dias === d ? 'bg-indigo-600 text-white shadow-lg' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  {d}d
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Resultado */}
+        {result ? (
+          <div className="space-y-3">
+            {/* Bloque interés */}
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Interés bruto</span>
+                <span className="text-base font-black text-emerald-400">+${fmt(result.interesBruto)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-zinc-600">Retenciones (7% ganancias)</span>
+                <span className="text-rose-400 font-semibold">−${fmt(result.retenciones)}</span>
+              </div>
+              <div className="h-px bg-emerald-500/20"/>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Interés neto</span>
+                <span className="text-xl font-black text-emerald-300">+${fmt(result.interesNeto)}</span>
+              </div>
+            </div>
+
+            {/* Total a cobrar */}
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total a cobrar</span>
+                <span className="text-2xl font-black text-white">${fmt(result.totalNeto)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-600">
+                <span>TNA efectiva neta</span>
+                <span className="text-indigo-300 font-bold">{result.tnaEfNeta.toFixed(2)}%</span>
+              </div>
+            </div>
+
+            {/* Comparativa plazos */}
+            {montoNum > 0 && tnaNum > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {['30','60','90'].map(d => {
+                  const di = parseInt(d);
+                  const ib = montoNum * (tnaNum / 100) * (di / 365);
+                  const ni = ib * 0.93;
+                  return (
+                    <div key={d}
+                      className={`rounded-xl p-3 border text-center transition-all
+                        ${d === dias ? 'bg-indigo-600/20 border-indigo-500/30' : 'bg-zinc-900/40 border-white/5'}`}>
+                      <p className="text-[10px] text-zinc-500 font-semibold">{d} días</p>
+                      <p className="text-sm font-black text-white mt-1">+${fmt(ni)}</p>
+                      <p className="text-[9px] text-zinc-600 mt-0.5">neto</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-14 space-y-3">
+            <p className="text-5xl">🏦</p>
+            <p className="text-sm font-semibold text-zinc-500">
+              Ingresá el capital y la TNA<br/>para calcular el rendimiento
+            </p>
+            <p className="text-xs text-zinc-700 max-w-[220px] mx-auto">
+              Se descuenta el 7% de retención de ganancias sobre los intereses (normativa AFIP)
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
