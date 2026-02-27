@@ -127,6 +127,9 @@ const WIDGET_LIST = [
   { id: 'weeklyHeatmap',   label: 'Heatmap semanal',           icon: '🟧' },
   { id: 'liquidityRatio',  label: 'Ratio de liquidez',         icon: '💧' },
   { id: 'categoryLifecycle',label:'Ciclo de categorías',       icon: '🔄' },
+  { id: 'rule503020',       label: 'Regla 50/30/20',           icon: '📐' },
+  { id: 'noSpendStreak',    label: 'Racha sin gastos',          icon: '🔥' },
+  { id: 'topIncomeMonths',  label: 'Mejores meses de ingreso',  icon: '📊' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4375,6 +4378,63 @@ export default function App() {
     return { newCats, activeCats, dormantCats };
   }, [transactions, activeCategories]);
 
+  // rule503020 — regla 50% necesidades / 30% deseos / 20% ahorro
+  const rule503020 = useMemo(() => {
+    if (stats.income === 0) return null;
+    const needs   = activeCategories.GASTO.filter(c=>NEEDS_CATS.has(c)).reduce((a,c)=>a+(stats.expenseByCategory[c]||0),0);
+    const wants   = activeCategories.GASTO.filter(c=>!NEEDS_CATS.has(c)).reduce((a,c)=>a+(stats.expenseByCategory[c]||0),0);
+    const savings = Math.max(0, stats.income - stats.expenses);
+    const needsPct   = Math.round((needs   / stats.income) * 100);
+    const wantsPct   = Math.round((wants   / stats.income) * 100);
+    const savingsPct = Math.round((savings / stats.income) * 100);
+    return {
+      needs:   { amount: Math.round(needs),   actual: needsPct,   target: 50 },
+      wants:   { amount: Math.round(wants),   actual: wantsPct,   target: 30 },
+      savings: { amount: Math.round(savings), actual: savingsPct, target: 20 },
+      income:  stats.income,
+    };
+  }, [stats, activeCategories]);
+
+  // noSpendStreak — racha de días consecutivos sin gastos
+  const noSpendStreak = useMemo(() => {
+    if (transactions.length === 0) return null;
+    const spendDays = new Set(transactions.filter(t=>t.type==='GASTO').map(t=>t.date.slice(0,10)));
+    if (spendDays.size === 0) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    let current = 0;
+    for (let d=new Date(today); current<=365; d.setDate(d.getDate()-1)) {
+      const key=d.toISOString().slice(0,10);
+      if(spendDays.has(key)) break;
+      current++;
+    }
+    const allSpend=[...spendDays].sort();
+    const minDate=new Date(allSpend[0]+'T12:00:00');
+    let record=0, streak=0;
+    for (let d=new Date(minDate); d<=today; d.setDate(d.getDate()+1)) {
+      if(spendDays.has(d.toISOString().slice(0,10))){ if(streak>record)record=streak; streak=0; }
+      else streak++;
+    }
+    if(streak>record) record=streak;
+    if(current===0&&record===0) return null;
+    return { current, record };
+  }, [transactions]);
+
+  // topIncomeMonths — top 3 meses por ingreso en los últimos 12 meses
+  const topIncomeMonths = useMemo(() => {
+    const now=new Date();
+    const months=[];
+    for(let i=0;i<12;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const y=d.getFullYear(), m=d.getMonth();
+      const income=transactions.filter(t=>{const td=new Date(t.date);return t.type==='INGRESO'&&td.getFullYear()===y&&td.getMonth()===m;}).reduce((a,c)=>a+Number(c.amount),0);
+      if(income>0) months.push({label:`${MONTHS[m].slice(0,3)} ${y}`,income,m,y});
+    }
+    if(months.length<2) return null;
+    const avg=Math.round(months.reduce((a,m)=>a+m.income,0)/months.length);
+    const top3=[...months].sort((a,b)=>b.income-a.income).slice(0,3);
+    return { top3, avg, maxIncome: top3[0].income };
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6641,6 +6701,102 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Regla 50/30/20 ── */}
+                {!isHidden('rule503020') && rule503020 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">📐 Regla 50/30/20</p>
+                    {[
+                      { key: 'needs',   label: 'Necesidades', emoji: '🏠', color: '#6366f1' },
+                      { key: 'wants',   label: 'Deseos',      emoji: '🛍️', color: '#f59e0b' },
+                      { key: 'savings', label: 'Ahorro',      emoji: '💰', color: '#10b981' },
+                    ].map(({ key, label, emoji, color }) => {
+                      const d = rule503020[key];
+                      const diff = d.actual - d.target;
+                      const isOk = key === 'savings' ? diff >= 0 : diff <= 0;
+                      return (
+                        <div key={key} className="mb-3 last:mb-0">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-zinc-400">{emoji} {label}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold" style={{color}}>{d.actual}%</span>
+                              <span className={`text-[10px] ${isOk?'text-emerald-400':'text-rose-400'}`}>
+                                {diff>0?'+':''}{diff}% vs {d.target}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 rounded-full transition-all"
+                              style={{width:`${Math.min(100,d.actual)}%`, background: isOk ? color : '#ef4444'}}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <p className="text-[10px] text-zinc-700 mt-3 text-center">
+                      {priv(`Ingresos: $${formatNumber(rule503020.income)}`)}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Racha sin gastos ── */}
+                {!isHidden('noSpendStreak') && noSpendStreak && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">🔥 Racha sin gastos</p>
+                      {noSpendStreak.record > 0 && (
+                        <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                          🏆 récord: {noSpendStreak.record}d
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-end gap-2 mb-2">
+                      <span className="text-5xl font-black text-white">{noSpendStreak.current}</span>
+                      <span className="text-sm text-zinc-500 mb-2">días seguidos</span>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      {noSpendStreak.current === 0
+                        ? 'Hoy registraste un gasto'
+                        : noSpendStreak.current >= noSpendStreak.record
+                        ? '¡Igualaste o superaste tu récord! 🎉'
+                        : `${noSpendStreak.record - noSpendStreak.current} días para el récord`}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Top 3 meses de ingreso ── */}
+                {!isHidden('topIncomeMonths') && topIncomeMonths && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">📊 Mejores meses de ingreso</p>
+                      <span className="text-[10px] text-zinc-600">últ. 12 meses</span>
+                    </div>
+                    {topIncomeMonths.top3.map((mo, i) => {
+                      const pct    = Math.round((mo.income / topIncomeMonths.maxIncome) * 100);
+                      const vsAvg  = Math.round(((mo.income - topIncomeMonths.avg) / topIncomeMonths.avg) * 100);
+                      const medals = ['🥇','🥈','🥉'];
+                      return (
+                        <div key={i} className="flex items-center gap-3 mb-3 last:mb-0">
+                          <span className="text-lg">{medals[i]}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs text-zinc-400">{mo.label}</span>
+                              <span className="text-xs font-semibold text-zinc-200">{priv(`$${formatNumber(mo.income)}`)}</span>
+                            </div>
+                            <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                              <div className="h-1.5 bg-indigo-500 rounded-full" style={{width:`${pct}%`}}/>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] w-12 text-right ${vsAvg>=0?'text-emerald-400':'text-rose-400'}`}>
+                            {vsAvg>=0?'+':''}{vsAvg}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <p className="text-[10px] text-zinc-700 mt-2 text-center">
+                      Promedio 12m: {priv(`$${formatNumber(topIncomeMonths.avg)}`)}
+                    </p>
                   </div>
                 )}
 
