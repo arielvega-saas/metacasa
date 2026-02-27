@@ -1995,7 +1995,6 @@ export default function App() {
   const [showInstallBanner,  setShowInstallBanner]   = useState(false);
 
   // BÚSQUEDA Y FILTROS (Historial)
-  const [searchQuery,      setSearchQuery]      = useState('');
   const [filterType,       setFilterType]       = useState('ALL');   // ALL | GASTO | INGRESO
   const [filterCategory,   setFilterCategory]   = useState('');      // '' = todas
   const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
@@ -3188,29 +3187,7 @@ export default function App() {
     });
   }, [transactions]);
 
-  // ── ESTADÍSTICAS DEL MES ──
-  const monthStats = useMemo(() => {
-    if (monthTxs.length === 0) return null;
-    const dayMap = {};
-    monthTxs.forEach(t => {
-      const d = t.date.slice(0, 10);
-      if (!dayMap[d]) dayMap[d] = { income: 0, expense: 0 };
-      if (t.type === 'INGRESO') dayMap[d].income += Number(t.amount);
-      if (t.type === 'GASTO')   dayMap[d].expense += Number(t.amount);
-    });
-    const days = Object.entries(dayMap);
-    const activeDays = days.length;
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const expDays = days.filter(([, v]) => v.expense > 0).sort(([, a], [, b]) => b.expense - a.expense);
-    const maxExpDay = expDays[0] || null;
-    const totalExp = monthTxs.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
-    const avgDaily = expDays.length > 0 ? Math.round(totalExp / expDays.length) : 0;
-    const noSpendDays = Math.max(0, daysInMonth - expDays.length);
-    return {
-      activeDays, daysInMonth, avgDaily, noSpendDays,
-      maxExpDay: maxExpDay ? { date: maxExpDay[0], amount: maxExpDay[1].expense } : null,
-    };
-  }, [monthTxs, currentDate]);
+  // ── ESTADÍSTICAS DEL MES (merged into MICRO-ESTADÍSTICAS below) ──
 
   // Resumen año a la fecha (YTD)
   const monthlyAvg = useMemo(() => {
@@ -3329,8 +3306,11 @@ export default function App() {
 
   const burnRate = useMemo(() => {
     if (stats.expenses === 0) return null;
-    const dayOfMonth = currentDate.getDate();
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const now = new Date();
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const daysPassed = (m === now.getMonth() && y === now.getFullYear()) ? now.getDate() : daysInMonth;
+    const dayOfMonth = daysPassed;
     const daysLeft = daysInMonth - dayOfMonth;
     const dailyRate = dayOfMonth > 0 ? stats.expenses / dayOfMonth : 0;
     const projected = Math.round(dailyRate * daysInMonth);
@@ -3338,8 +3318,18 @@ export default function App() {
     const remaining = totalBudget > 0 ? Math.max(0, totalBudget - stats.expenses) : null;
     const safeDaily = (daysLeft > 0 && remaining !== null) ? Math.round(remaining / daysLeft) : null;
     const pct = totalBudget > 0 ? Math.round((projected / totalBudget) * 100) : null;
-    return { dailyRate: Math.round(dailyRate), projected, totalBudget, daysLeft, safeDaily, pct, dayOfMonth, daysInMonth };
-  }, [stats.expenses, budgets, currentDate]);
+    // Historical comparison fields (merged from Phase 51 duplicate)
+    let histTotal = 0, histDays = 0;
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date(y, m - i, 1); const hm = d.getMonth(), hy = d.getFullYear();
+      const hDays = new Date(hy, hm + 1, 0).getDate();
+      const hSpent = transactions.filter(t => { const td = new Date(t.date); return t.type==='GASTO' && td.getMonth()===hm && td.getFullYear()===hy; }).reduce((a, c) => a + Number(c.amount), 0);
+      if (hSpent > 0) { histTotal += hSpent; histDays += hDays; }
+    }
+    const histDailyRate = histDays > 0 ? histTotal / histDays : 0;
+    const changeVsHist = histDailyRate > 0 ? Math.round(((dailyRate - histDailyRate) / histDailyRate) * 100) : null;
+    return { dailyRate: Math.round(dailyRate), projected, totalBudget, daysLeft, safeDaily, pct, dayOfMonth, daysInMonth, daysPassed, totalSpent: Math.round(stats.expenses), histDailyRate: Math.round(histDailyRate), changeVsHist };
+  }, [stats.expenses, budgets, transactions, currentDate]);
 
   // ── BALANCE SEMANAL (últimos 7 días vs 7 anteriores) ──
   const weekBalance = useMemo(() => {
@@ -3731,7 +3721,12 @@ export default function App() {
       const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
       return !byDay[key];
     }).filter(Boolean).length;
-    return { avgDaily, peakLabel, peakAmount: peakDay ? peakDay[1] : 0, daysNoExp, totalTxs: monthTxs.length, daysElapsed, daysInMonth };
+    // Fields for "Este mes en números" widget (merged from first declaration)
+    const expDays = Object.entries(byDay).sort(([, a], [, b]) => b - a);
+    const activeDays = Object.keys(byDay).length;
+    const noSpendDays = Math.max(0, daysInMonth - expDays.length);
+    const maxExpDay = expDays[0] ? { date: expDays[0][0], amount: expDays[0][1] } : null;
+    return { avgDaily, peakLabel, peakAmount: peakDay ? peakDay[1] : 0, daysNoExp, totalTxs: monthTxs.length, daysElapsed, daysInMonth, activeDays, noSpendDays, maxExpDay };
   }, [monthTxs, stats, currentDate]);
 
   // ── DESGLOSE SEMANAL DEL MES ──
@@ -3791,20 +3786,25 @@ export default function App() {
   // ── REGLA 50/30/20 ──
   const rule503020 = useMemo(() => {
     if (stats.income === 0 || stats.expenses === 0) return null;
-    const needs   = activeCategories.GASTO.filter(c => NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
-    const wants   = activeCategories.GASTO.filter(c => !NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
-    const savings = Math.max(0, stats.income - stats.expenses);
-    const base    = stats.income;
-    const needsPct   = Math.round((needs   / base) * 100);
-    const wantsPct   = Math.round((wants   / base) * 100);
-    const savingsPct = Math.round((savings / base) * 100);
-    const getStatus = (val, target) => Math.abs(val - target) <= 10 ? 'ok' : val > target ? 'over' : 'low';
+    const needsAmt   = activeCategories.GASTO.filter(c => NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const wantsAmt   = activeCategories.GASTO.filter(c => !NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const savingsAmt = Math.max(0, stats.income - stats.expenses);
+    const base       = stats.income;
+    const needsPct   = Math.round((needsAmt   / base) * 100);
+    const wantsPct   = Math.round((wantsAmt   / base) * 100);
+    const savingsPct = Math.round((savingsAmt / base) * 100);
+    const getStatus  = (val, target) => Math.abs(val - target) <= 10 ? 'ok' : val > target ? 'over' : 'low';
     return {
-      needs, wants, savings, base,
-      needsPct, wantsPct, savingsPct,
+      // Flat percent/status fields used by first 50/30/20 widget
+      needsPct, wantsPct, savingsPct, base,
       needsStatus:   getStatus(needsPct,   50),
       wantsStatus:   getStatus(wantsPct,   30),
       savingsStatus: getStatus(savingsPct, 20),
+      // Nested amount/actual/target fields used by second 50/30/20 widget (merged from Phase 51)
+      income: stats.income,
+      needs:   { amount: Math.round(needsAmt),   actual: needsPct,   target: 50 },
+      wants:   { amount: Math.round(wantsAmt),   actual: wantsPct,   target: 30 },
+      savings: { amount: Math.round(savingsAmt), actual: savingsPct, target: 20 },
     };
   }, [stats, activeCategories]);
 
@@ -4396,22 +4396,7 @@ export default function App() {
     return { newCats, activeCats, dormantCats };
   }, [transactions, activeCategories]);
 
-  // rule503020 — regla 50% necesidades / 30% deseos / 20% ahorro
-  const rule503020 = useMemo(() => {
-    if (stats.income === 0) return null;
-    const needs   = activeCategories.GASTO.filter(c=>NEEDS_CATS.has(c)).reduce((a,c)=>a+(stats.expenseByCategory[c]||0),0);
-    const wants   = activeCategories.GASTO.filter(c=>!NEEDS_CATS.has(c)).reduce((a,c)=>a+(stats.expenseByCategory[c]||0),0);
-    const savings = Math.max(0, stats.income - stats.expenses);
-    const needsPct   = Math.round((needs   / stats.income) * 100);
-    const wantsPct   = Math.round((wants   / stats.income) * 100);
-    const savingsPct = Math.round((savings / stats.income) * 100);
-    return {
-      needs:   { amount: Math.round(needs),   actual: needsPct,   target: 50 },
-      wants:   { amount: Math.round(wants),   actual: wantsPct,   target: 30 },
-      savings: { amount: Math.round(savings), actual: savingsPct, target: 20 },
-      income:  stats.income,
-    };
-  }, [stats, activeCategories]);
+  // rule503020 duplicate removed — merged into declaration above
 
   // noSpendStreak — racha de días consecutivos sin gastos
   const noSpendStreak = useMemo(() => {
@@ -4453,29 +4438,7 @@ export default function App() {
     return { top3, avg, maxIncome: top3[0].income };
   }, [transactions]);
 
-  // burnRate — gasto diario promedio del mes vs histórico, proyección fin de mes
-  const burnRate = useMemo(() => {
-    const now=new Date();
-    const m=currentDate.getMonth(), y=currentDate.getFullYear();
-    const daysInMonth=new Date(y,m+1,0).getDate();
-    const daysPassed=(m===now.getMonth()&&y===now.getFullYear())?now.getDate():daysInMonth;
-    if(daysPassed===0) return null;
-    const monthExp=transactions.filter(t=>{const d=new Date(t.date);return t.type==='GASTO'&&d.getMonth()===m&&d.getFullYear()===y;});
-    const totalSpent=monthExp.reduce((a,c)=>a+Number(c.amount),0);
-    if(totalSpent===0) return null;
-    const dailyRate=totalSpent/daysPassed;
-    const projected=Math.round(dailyRate*daysInMonth);
-    let histTotal=0, histDays=0;
-    for(let i=1;i<=3;i++){
-      const d=new Date(y,m-i,1); const hm=d.getMonth(), hy=d.getFullYear();
-      const hDays=new Date(hy,hm+1,0).getDate();
-      const hSpent=transactions.filter(t=>{const td=new Date(t.date);return t.type==='GASTO'&&td.getMonth()===hm&&td.getFullYear()===hy;}).reduce((a,c)=>a+Number(c.amount),0);
-      if(hSpent>0){histTotal+=hSpent;histDays+=hDays;}
-    }
-    const histDailyRate=histDays>0?histTotal/histDays:0;
-    const changeVsHist=histDailyRate>0?Math.round(((dailyRate-histDailyRate)/histDailyRate)*100):null;
-    return{dailyRate:Math.round(dailyRate),projected,daysPassed,daysInMonth,totalSpent:Math.round(totalSpent),histDailyRate:Math.round(histDailyRate),changeVsHist};
-  }, [transactions, currentDate]);
+  // burnRate duplicate removed — merged into declaration above
 
   // amountHistogram — distribución de gastos por rango de monto (mes actual)
   const amountHistogram = useMemo(() => {
@@ -4960,39 +4923,41 @@ export default function App() {
                     {showPlanEditor ? (
                       <PlanEditor planMes={planMes} onSave={savePlanMes} onCancel={()=>setShowPlanEditor(false)}/>
                     ) : (
-                      <div className="space-y-2.5">
-                        {planMes.targetIncome > 0 && (
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-zinc-500 font-semibold">Ingreso meta</span>
-                              <span className="font-black text-emerald-400">${priv(formatNumber(stats.income))} / ${formatNumber(planMes.targetIncome)}</span>
+                      <>
+                        <div className="space-y-2.5">
+                          {planMes.targetIncome > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-zinc-500 font-semibold">Ingreso meta</span>
+                                <span className="font-black text-emerald-400">${priv(formatNumber(stats.income))} / ${formatNumber(planMes.targetIncome)}</span>
+                              </div>
+                              <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                                  style={{width:`${Math.min(100,Math.round((stats.income/planMes.targetIncome)*100))}%`}}/>
+                              </div>
                             </div>
-                            <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-emerald-500 transition-all duration-700"
-                                style={{width:`${Math.min(100,Math.round((stats.income/planMes.targetIncome)*100))}%`}}/>
+                          )}
+                          {planMes.targetExpense > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-zinc-500 font-semibold">Gasto límite</span>
+                                <span className={`font-black ${stats.expenses > planMes.targetExpense ? 'text-rose-400' : 'text-indigo-400'}`}>
+                                  ${priv(formatNumber(stats.expenses))} / ${formatNumber(planMes.targetExpense)}
+                                </span>
+                              </div>
+                              <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-700 ${stats.expenses > planMes.targetExpense ? 'bg-rose-500' : 'bg-indigo-500'}`}
+                                  style={{width:`${Math.min(100,Math.round((stats.expenses/planMes.targetExpense)*100))}%`}}/>
+                              </div>
                             </div>
-                          </div>
+                          )}
+                        </div>
+                        {planMes.note && (
+                          <p className="text-xs text-zinc-600 italic mt-2 px-1 border-t border-white/5 pt-2">
+                            💬 {planMes.note}
+                          </p>
                         )}
-                        {planMes.targetExpense > 0 && (
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-zinc-500 font-semibold">Gasto límite</span>
-                              <span className={`font-black ${stats.expenses > planMes.targetExpense ? 'text-rose-400' : 'text-indigo-400'}`}>
-                                ${priv(formatNumber(stats.expenses))} / ${formatNumber(planMes.targetExpense)}
-                              </span>
-                            </div>
-                            <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full transition-all duration-700 ${stats.expenses > planMes.targetExpense ? 'bg-rose-500' : 'bg-indigo-500'}`}
-                                style={{width:`${Math.min(100,Math.round((stats.expenses/planMes.targetExpense)*100))}%`}}/>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      {planMes.note && (
-                        <p className="text-xs text-zinc-600 italic mt-2 px-1 border-t border-white/5 pt-2">
-                          💬 {planMes.note}
-                        </p>
-                      )}
+                      </>
                     )}
                   </div>
                 ) : (
