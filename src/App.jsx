@@ -98,6 +98,7 @@ const WIDGET_LIST = [
   { id: 'healthScore',      label: 'Índice de salud',           icon: '🏥' },
   { id: 'registroStreak',   label: 'Racha de registro',         icon: '📝' },
   { id: 'rule503020',       label: 'Regla 50/30/20',            icon: '⚖️' },
+  { id: 'yearProgress',     label: 'Progreso del año',          icon: '📆' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -1917,6 +1918,8 @@ export default function App() {
   const [selectedCatDetail,  setSelectedCatDetail]  = useState(null);  // catName | null
   const [showWidgetEditor,   setShowWidgetEditor]   = useState(false);
   const [showCompareModal,   setShowCompareModal]   = useState(false);
+  const [showSearch,         setShowSearch]         = useState(false);
+  const [searchQuery,        setSearchQuery]        = useState('');
   const [hiddenWidgets,      setHiddenWidgets]      = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_WIDGETS_KEY) || '[]')); }
     catch { return new Set(); }
@@ -3393,6 +3396,47 @@ export default function App() {
     return { GASTO: top('GASTO'), INGRESO: top('INGRESO') };
   }, [transactions]);
 
+  // ── MONTOS FRECUENTES POR CATEGORÍA ──
+  const frequentAmounts = useMemo(() => {
+    const freq = {};
+    transactions.forEach(t => {
+      const key = `${t.type}::${t.category}`;
+      const amt = Math.round(Number(t.amount));
+      if (amt <= 0) return;
+      if (!freq[key]) freq[key] = {};
+      freq[key][amt] = (freq[key][amt] || 0) + 1;
+    });
+    const result = {};
+    Object.entries(freq).forEach(([key, amtMap]) => {
+      result[key] = Object.entries(amtMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([a]) => Number(a));
+    });
+    return result;
+  }, [transactions]);
+
+  // ── PROGRESO ANUAL ──
+  const yearProgress = useMemo(() => {
+    if (transactions.length === 0) return null;
+    const year = currentDate.getFullYear();
+    const now  = new Date();
+    const maxMonth = now.getFullYear() === year ? now.getMonth() : 11;
+    const months = Array.from({ length: maxMonth + 1 }, (_, m) => {
+      const txs = transactions.filter(t => { const d = new Date(t.date); return d.getFullYear()===year && d.getMonth()===m; });
+      const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      return { m, income, expense, balance: income - expense };
+    });
+    if (months.every(m => m.income===0 && m.expense===0)) return null;
+    const totalBalance = months.reduce((a,m)=>a+m.balance, 0);
+    const totalIncome  = months.reduce((a,m)=>a+m.income,  0);
+    const totalExpense = months.reduce((a,m)=>a+m.expense,  0);
+    const maxVal = Math.max(...months.map(m=>Math.max(m.income,m.expense,1)), 1);
+    const savedMonths = months.filter(m=>m.balance>0).length;
+    return { months, totalBalance, totalIncome, totalExpense, maxVal, year, savedMonths, maxMonth };
+  }, [transactions, currentDate]);
+
   // ── GASTO DE HOY ──
   const gastosHoy = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -3761,6 +3805,10 @@ export default function App() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <button onClick={()=>{ haptic(8); setShowSearch(true); }}
+                  className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Buscar transacciones">
+                  <Search className="w-5 h-5 text-zinc-400"/>
+                </button>
                 <button onClick={()=>{ haptic(8); setShowWidgetEditor(true); }}
                   className={`p-2.5 rounded-xl active:scale-90 transition-transform ${hiddenWidgets.size > 0 ? 'bg-indigo-600/20' : 'bg-zinc-900'}`} title="Personalizar widgets">
                   <LayoutGrid className={`w-5 h-5 ${hiddenWidgets.size > 0 ? 'text-indigo-400' : 'text-zinc-400'}`}/>
@@ -4851,6 +4899,59 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Progreso del año ── */}
+                {!isHidden('yearProgress') && yearProgress && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Balance {yearProgress.year}</p>
+                      <span className={`text-sm font-black ${yearProgress.totalBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {yearProgress.totalBalance >= 0 ? '+' : ''}${priv(formatNumber(yearProgress.totalBalance))}
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-1.5" style={{height:'44px'}}>
+                      {yearProgress.months.map(({ m, income, expense, balance }) => {
+                        const incH = income  > 0 ? Math.max(3, Math.round((income  / yearProgress.maxVal) * 40)) : 0;
+                        const expH = expense > 0 ? Math.max(3, Math.round((expense / yearProgress.maxVal) * 40)) : 0;
+                        const isCur = m === yearProgress.maxMonth;
+                        return (
+                          <div key={m} className="flex-1 flex flex-col items-center gap-0.5">
+                            <div className="w-full flex flex-col-reverse gap-0.5" style={{height:'40px'}}>
+                              {incH > 0 && (
+                                <div className={`w-full rounded-sm ${isCur ? 'bg-emerald-500' : 'bg-emerald-700/50'}`}
+                                  style={{height:`${incH}px`}}/>
+                              )}
+                              {expH > 0 && (
+                                <div className={`w-full rounded-sm ${isCur ? 'bg-rose-500' : 'bg-rose-700/40'}`}
+                                  style={{height:`${expH}px`}}/>
+                              )}
+                              {incH === 0 && expH === 0 && (
+                                <div className="w-full rounded-sm bg-zinc-800/40" style={{height:'3px'}}/>
+                              )}
+                            </div>
+                            <span className={`text-[8px] font-semibold ${isCur ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                              {MONTHS[m].slice(0,3)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between mt-2.5 pt-2 border-t border-white/5">
+                      <div>
+                        <p className="text-[9px] text-zinc-600">Ingresado</p>
+                        <p className="text-xs font-black text-emerald-400">+${priv(formatNumber(yearProgress.totalIncome))}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] text-zinc-600">Meses con ahorro</p>
+                        <p className="text-xs font-black text-indigo-300">{yearProgress.savedMonths}/{yearProgress.months.length}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] text-zinc-600">Gastado</p>
+                        <p className="text-xs font-black text-rose-400">−${priv(formatNumber(yearProgress.totalExpense))}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Patrimonio acumulado ── */}
                 {patrimonioData && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -5327,6 +5428,29 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* Montos frecuentes para la categoría seleccionada */}
+                {category && (() => {
+                  const key = `${type}::${category}`;
+                  const freqs = frequentAmounts[key];
+                  if (!freqs || freqs.length === 0) return null;
+                  return (
+                    <div className="overflow-x-auto no-scrollbar -mx-1">
+                      <div className="flex gap-2 px-1 items-center" style={{width:'max-content'}}>
+                        <span className="text-[10px] text-zinc-700 font-semibold flex-shrink-0">Usados en {category}:</span>
+                        {freqs.map(v=>(
+                          <button key={v} onClick={()=>{ setAmount(String(v)); haptic(8); }}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-95 flex items-center gap-1
+                              ${amount===String(v)
+                                ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
+                                : 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/25'}`}>
+                            <span className="text-[9px]">★</span>${formatNumber(v)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex items-center justify-center gap-3">
                   <p className="text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
@@ -7003,6 +7127,84 @@ export default function App() {
           recurring={recurring}
           onClose={()=>setShowReport(false)}
         />
+      )}
+
+      {/* ════════════════════════════════
+          OVERLAY: Búsqueda rápida
+      ════════════════════════════════ */}
+      {showSearch && (
+        <div className="fixed inset-0 z-[140] bg-black/80 backdrop-blur-sm flex flex-col"
+          onClick={()=>{ setShowSearch(false); setSearchQuery(''); }}>
+          <div className="w-full max-w-md mx-auto"
+            onClick={e=>e.stopPropagation()}>
+            <div className="px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
+              <div className="flex items-center gap-3 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3">
+                <Search className="w-5 h-5 text-zinc-500 flex-shrink-0"/>
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={e=>setSearchQuery(e.target.value)}
+                  placeholder="Buscá por categoría, nota o monto…"
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button onClick={()=>setSearchQuery('')} className="p-1 text-zinc-600 active:text-zinc-300">
+                    <X className="w-4 h-4"/>
+                  </button>
+                )}
+              </div>
+            </div>
+            {(() => {
+              const q = searchQuery.trim().toLowerCase();
+              if (!q) return (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-zinc-600">Escribí para buscar en tus movimientos</p>
+                </div>
+              );
+              const results = transactions
+                .filter(t =>
+                  t.category.toLowerCase().includes(q) ||
+                  (t.note||'').toLowerCase().includes(q) ||
+                  String(Math.round(Number(t.amount))).includes(q)
+                )
+                .sort((a,b)=>new Date(b.date)-new Date(a.date))
+                .slice(0,25);
+              if (results.length === 0) return (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-zinc-600">Sin resultados para "{searchQuery}"</p>
+                </div>
+              );
+              return (
+                <div className="overflow-y-auto max-h-[72vh] pb-8">
+                  <p className="text-[10px] text-zinc-700 px-6 mb-2">{results.length} resultado{results.length!==1?'s':''}</p>
+                  {results.map(t=>(
+                    <button key={t.id} className="w-full flex items-center gap-3 px-5 py-3 border-b border-white/5 active:bg-zinc-900/60"
+                      onClick={()=>{
+                        setShowSearch(false); setSearchQuery('');
+                        goToCategory(t.category, t.type);
+                        haptic(8);
+                      }}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${t.type==='GASTO'?'bg-rose-500/15':'bg-emerald-500/15'}`}>
+                        {getEmoji(t.category)}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-semibold text-zinc-200 truncate">{t.category}</p>
+                        {t.note && <p className="text-[11px] text-zinc-600 truncate">{t.note}</p>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`text-sm font-black ${t.type==='GASTO'?'text-rose-400':'text-emerald-400'}`}>
+                          {t.type==='GASTO'?'−':'+'}${formatNumber(t.amount)}
+                        </p>
+                        <p className="text-[10px] text-zinc-700">{new Date(t.date).toLocaleDateString('es-AR',{day:'2-digit',month:'short'})}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       )}
 
       {/* Input oculto para importar JSON */}
