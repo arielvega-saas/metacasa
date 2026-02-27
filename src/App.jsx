@@ -350,7 +350,7 @@ function BillForm({ bill, categories, onSave, onClose }) {
 // ─────────────────────────────────────────────
 // EDIT TRANSACTION MODAL
 // ─────────────────────────────────────────────
-function EditTransactionModal({ tx, categories, onSave, onClose }) {
+function EditTransactionModal({ tx, categories, onSave, onClose, onDuplicate }) {
   const [amount, setAmount]   = useState(String(tx.amount));
   const [categ,  setCateg]    = useState(tx.category);
   const [note,   setNote]     = useState(tx.note || "");
@@ -393,10 +393,16 @@ function EditTransactionModal({ tx, categories, onSave, onClose }) {
           className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 font-bold text-sm text-white focus:outline-none focus:border-indigo-500/60" />
         <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Detalle..."
           className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 resize-none min-h-[80px] focus:outline-none focus:border-indigo-500/60" />
-        <button onClick={handleSave} disabled={saving}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
-          {saving ? 'Guardando…' : 'Guardar cambios'}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => onDuplicate && onDuplicate(tx)}
+            className="py-4 bg-zinc-900 border border-white/10 rounded-2xl font-bold text-sm text-zinc-400 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <Copy className="w-4 h-4"/>Clonar
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="py-4 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
+            {saving ? '…' : 'Guardar'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1577,6 +1583,8 @@ export default function App() {
   const [showRecurringForm,  setShowRecurringForm]   = useState(false);
   const [editingRecurring,   setEditingRecurring]    = useState(null);
   const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
+  const [renamingCat,        setRenamingCat]         = useState(null);
+  const [renameValue,        setRenameValue]         = useState('');
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
   const [showScrollTop,      setShowScrollTop]       = useState(false);
@@ -2202,15 +2210,27 @@ export default function App() {
     if (!clean) return;
     if (action==='ADD') { if (!nc[type].includes(clean)) nc[type]=[...nc[type],clean]; }
     else if (action==='DELETE') nc[type]=nc[type].filter(c=>c!==clean);
+    else if (action==='RENAME') {
+      const newName = extra?.trim();
+      if (!newName || newName === clean) return;
+      ['GASTO','INGRESO'].forEach(t => { if (nc[t]) nc[t] = nc[t].map(c => c === clean ? newName : c); });
+      await supabase.from('transactions').update({ category: newName }).eq('user_id', userId).eq('category', clean);
+      setRenamingCat(null);
+    }
     // Guardar también catMeta si hay emoji
     let newMeta = { ...catMeta };
     if (action==='EMOJI') { newMeta[clean] = { ...(newMeta[clean]||{}), emoji: extra }; setCatMeta(newMeta); }
+    if (action==='RENAME') {
+      const newName = extra?.trim();
+      if (newName && newMeta[clean]) { newMeta[newName] = newMeta[clean]; delete newMeta[clean]; setCatMeta(newMeta); }
+    }
     const payload = { ...nc, meta: newMeta };
     const { error } = await supabase.from('categories').upsert({ user_id: userId, data: payload },{ onConflict: 'user_id' });
     if (error) { toast(error.message, 'error'); return; }
     setNewCatName("");
     if (action!=='EMOJI') setCustomCats(nc);
-    toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':'Emoji actualizado', 'success');
+    if (action==='RENAME') await loadTransactions();
+    toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':action==='RENAME'?'Categoría renombrada':'Emoji actualizado', 'success');
   };
 
   // ── RECURRING CRUD ──
@@ -2486,6 +2506,20 @@ export default function App() {
       maxExpDay: maxExpDay ? { date: maxExpDay[0], amount: maxExpDay[1].expense } : null,
     };
   }, [monthTxs, currentDate]);
+
+  const burnRate = useMemo(() => {
+    if (stats.expenses === 0) return null;
+    const dayOfMonth = currentDate.getDate();
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const daysLeft = daysInMonth - dayOfMonth;
+    const dailyRate = dayOfMonth > 0 ? stats.expenses / dayOfMonth : 0;
+    const projected = Math.round(dailyRate * daysInMonth);
+    const totalBudget = Object.values(budgets).reduce((a, c) => a + (Number(c.amount) || 0), 0);
+    const remaining = totalBudget > 0 ? Math.max(0, totalBudget - stats.expenses) : null;
+    const safeDaily = (daysLeft > 0 && remaining !== null) ? Math.round(remaining / daysLeft) : null;
+    const pct = totalBudget > 0 ? Math.round((projected / totalBudget) * 100) : null;
+    return { dailyRate: Math.round(dailyRate), projected, totalBudget, daysLeft, safeDaily, pct, dayOfMonth, daysInMonth };
+  }, [stats.expenses, budgets, currentDate]);
 
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
@@ -2932,6 +2966,45 @@ export default function App() {
                     <div className="flex justify-between text-[9px] text-zinc-700 mt-3 pt-2 border-t border-white/5">
                       <span>{MONTHS[currentDate.getMonth()===0?11:currentDate.getMonth()-1]} (ant.)</span>
                       <span>{MONTHS[currentDate.getMonth()]} (actual)</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Velocímetro de gastos */}
+                {burnRate && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Ritmo de gastos</p>
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                        burnRate.pct === null ? 'bg-zinc-800 text-zinc-500'
+                        : burnRate.pct > 110 ? 'bg-rose-500/15 text-rose-400'
+                        : burnRate.pct > 90  ? 'bg-amber-500/15 text-amber-400'
+                        : 'bg-emerald-500/15 text-emerald-400'}`}>
+                        {burnRate.pct !== null ? `${burnRate.pct}% del presup.` : `${burnRate.daysLeft}d restantes`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Prom/día</p>
+                        <p className="text-base font-black text-rose-400">${formatNumber(burnRate.dailyRate)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Proyectado</p>
+                        <p className={`text-base font-black ${burnRate.pct !== null && burnRate.pct > 100 ? 'text-rose-400' : 'text-zinc-200'}`}>
+                          ${formatNumber(burnRate.projected)}
+                        </p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">
+                          {burnRate.safeDaily !== null ? 'Presup./día' : 'Días rest.'}
+                        </p>
+                        <p className={`text-base font-black ${
+                          burnRate.safeDaily !== null
+                            ? (burnRate.dailyRate > burnRate.safeDaily ? 'text-rose-400' : 'text-emerald-400')
+                            : 'text-zinc-400'}`}>
+                          {burnRate.safeDaily !== null ? `$${formatNumber(burnRate.safeDaily)}` : burnRate.daysLeft}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3955,18 +4028,43 @@ export default function App() {
             {activeCategories[type]?.map(c=>(
               <div key={c} className="space-y-2">
                 <div className="flex justify-between items-center bg-zinc-900/40 px-4 py-3.5 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={()=>setShowEmojiPicker(showEmojiPicker===c ? null : c)}
-                      className="w-10 h-10 rounded-xl bg-zinc-800 border border-white/8 flex items-center justify-center text-xl active:scale-90 transition-transform"
-                      title="Cambiar emoji">
-                      {getEmoji(c)}
-                    </button>
-                    <span className="text-sm font-semibold text-zinc-200">{c}</span>
-                  </div>
-                  <button onClick={()=>manageCategory('DELETE',c)} className="p-2 text-zinc-700 active:text-rose-500 transition-colors">
-                    <Trash2 className="w-4 h-4"/>
-                  </button>
+                  {renamingCat === c ? (
+                    <div className="flex items-center gap-2 w-full">
+                      <input autoFocus value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && renameValue.trim()) manageCategory('RENAME', c, renameValue.trim());
+                          if (e.key === 'Escape') setRenamingCat(null);
+                        }}
+                        className="flex-1 bg-zinc-900 rounded-xl px-3 py-2 text-sm text-white focus:outline-none border border-indigo-500/50"
+                      />
+                      <button onClick={() => { if (renameValue.trim()) manageCategory('RENAME', c, renameValue.trim()); else setRenamingCat(null); }}
+                        className="px-3 py-2 bg-indigo-600 rounded-xl text-sm font-bold active:scale-95 transition-transform">OK</button>
+                      <button onClick={() => setRenamingCat(null)}
+                        className="p-2 bg-zinc-800 rounded-xl active:scale-95 transition-transform"><X className="w-4 h-4 text-zinc-500"/></button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={()=>setShowEmojiPicker(showEmojiPicker===c ? null : c)}
+                          className="w-10 h-10 rounded-xl bg-zinc-800 border border-white/8 flex items-center justify-center text-xl active:scale-90 transition-transform"
+                          title="Cambiar emoji">
+                          {getEmoji(c)}
+                        </button>
+                        <span className="text-sm font-semibold text-zinc-200">{c}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <button onClick={() => { setRenamingCat(c); setRenameValue(c); }}
+                          className="p-2 text-zinc-700 active:text-indigo-400 transition-colors" title="Renombrar">
+                          <Edit3 className="w-4 h-4"/>
+                        </button>
+                        <button onClick={()=>manageCategory('DELETE',c)} className="p-2 text-zinc-700 active:text-rose-500 transition-colors">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 {showEmojiPicker===c && (
                   <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
@@ -4158,6 +4256,16 @@ export default function App() {
           categories={activeCategories}
           onSave={loadTransactions}
           onClose={()=>setEditingTx(null)}
+          onDuplicate={(tx) => {
+            setEditingTx(null);
+            setType(tx.type);
+            setAmount(String(tx.amount));
+            setCategory(tx.category);
+            setNote(tx.note || '');
+            setTxDate(new Date().toISOString().slice(0,10));
+            setActiveTab('add');
+            haptic(12);
+          }}
         />
       )}
 
