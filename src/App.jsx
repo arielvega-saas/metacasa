@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
-  Target, Trophy, Wallet, Copy, Lightbulb, Calculator
+  Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -1721,18 +1721,18 @@ export default function App() {
   const [showCuotaForm,   setShowCuotaForm]   = useState(false);
   const [editingCuota,    setEditingCuota]    = useState(null);
 
-  // NOTA DEL MES (localStorage por YYYY-MM)
-  const notaMesKey = `metacasa_nota_${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-  const [notaMes,      setNotaMes]      = useState('');
+  // NOTA DEL MES — expand state para el memo existente (currentMemo / saveMemo)
   const [notaExpanded, setNotaExpanded] = useState(false);
-  useEffect(() => {
-    setNotaMes(localStorage.getItem(notaMesKey) || '');
-  }, [notaMesKey]);
-  const saveNota = (val) => {
-    setNotaMes(val);
-    if (val.trim()) localStorage.setItem(notaMesKey, val);
-    else localStorage.removeItem(notaMesKey);
-  };
+
+  // MODO PRIVACIDAD
+  const [privacyMode, setPrivacyMode] = useState(() => localStorage.getItem('metacasa_privacy') === '1');
+  const togglePrivacy = () => setPrivacyMode(v => {
+    const next = !v;
+    localStorage.setItem('metacasa_privacy', next ? '1' : '0');
+    haptic(12);
+    return next;
+  });
+  const priv = (val) => privacyMode ? '••••' : val;
 
   // CONFIRMACIÓN INLINE DE ELIMINACIÓN
   const [pendingDelete,   setPendingDelete]   = useState(null); // { id, type }
@@ -2828,6 +2828,41 @@ export default function App() {
     return { data, maxVal };
   }, [transactions, currentDate]);
 
+  // ── PATRIMONIO ACUMULADO (balance mensual acumulado, últimos 12 meses) ──
+  const patrimonioData = useMemo(() => {
+    if (transactions.length === 0) return null;
+    const byMonth = {};
+    transactions.forEach(t => {
+      const key = t.date.slice(0, 7);
+      if (!byMonth[key]) byMonth[key] = { income: 0, expense: 0 };
+      if (t.type === 'INGRESO') byMonth[key].income += Number(t.amount);
+      if (t.type === 'GASTO')   byMonth[key].expense += Number(t.amount);
+    });
+    const allMonthsSorted = Object.keys(byMonth).sort();
+    if (allMonthsSorted.length < 2) return null;
+    // Compute running cumulative balance over ALL history, then take last 12 visible points
+    let running = 0;
+    const allPoints = allMonthsSorted.map(key => {
+      const m = byMonth[key];
+      running += (m.income - m.expense);
+      const [y, mo] = key.split('-').map(Number);
+      return { key, value: running, label: MONTHS[mo - 1].slice(0, 3) + ' ' + String(y).slice(2) };
+    });
+    const points = allPoints.slice(-12);
+    const values = points.map(p => p.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const W = 280, H = 60, PAD = 4;
+    const toX = (i) => PAD + (i / (points.length - 1)) * (W - PAD * 2);
+    const toY = (v) => H - PAD - ((v - min) / range) * (H - PAD * 2);
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.value).toFixed(1)}`).join(' ');
+    const areaD = pathD + ` L${toX(points.length-1).toFixed(1)},${H} L${toX(0).toFixed(1)},${H} Z`;
+    const trend = points.length >= 2 ? points[points.length-1].value - points[0].value : 0;
+    const lastVal = points[points.length - 1].value;
+    return { points, pathD, areaD, min, max, W, H, trend, lastVal };
+  }, [transactions]);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2885,6 +2920,9 @@ export default function App() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <button onClick={togglePrivacy} className={`p-2.5 rounded-xl active:scale-90 transition-transform ${privacyMode ? 'bg-amber-500/20' : 'bg-zinc-900'}`} title={privacyMode ? 'Mostrar montos' : 'Ocultar montos'}>
+                  {privacyMode ? <EyeOff className="w-5 h-5 text-amber-400"/> : <Eye className="w-5 h-5 text-zinc-400"/>}
+                </button>
                 <button onClick={handleQuickShare} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Compartir resumen">
                   <Share2 className="w-5 h-5 text-indigo-400" />
                 </button>
@@ -2911,8 +2949,11 @@ export default function App() {
                   <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-7 shadow-2xl relative overflow-hidden">
                     <div className="relative z-10">
                       <p className="text-xs font-semibold text-indigo-200/60 uppercase tracking-wider">Saldo disponible</p>
-                      <SharedSizeText value={stats.available} fontSizeClass="text-5xl" />
-                      {exchangeRate > 0 && (
+                      {privacyMode
+                        ? <p className="text-5xl font-black text-white tracking-tight my-1">••••</p>
+                        : <SharedSizeText value={stats.available} fontSizeClass="text-5xl" />
+                      }
+                      {!privacyMode && exchangeRate > 0 && (
                         <p className="text-sm font-bold text-indigo-300/70 -mt-3">
                           ≈ USD {formatNumber(Math.round(stats.available / exchangeRate))}
                         </p>
@@ -2922,50 +2963,26 @@ export default function App() {
                           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-300 mb-1.5">
                             <ArrowUpRight className="w-3.5 h-3.5" /> Ingresos
                           </span>
-                          <p className="text-xl font-black tracking-tight">${formatNumber(stats.income)}</p>
+                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(stats.income))}</p>
                         </div>
                         <div className="bg-white/8 rounded-2xl p-4">
                           <span className="flex items-center gap-1 text-xs font-semibold text-rose-300 mb-1.5">
                             <ArrowDownLeft className="w-3.5 h-3.5" /> Gastos
                           </span>
-                          <p className="text-xl font-black tracking-tight">${formatNumber(stats.expenses)}</p>
+                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(stats.expenses))}</p>
                         </div>
                         {cuotasMonthly > 0 && (
                           <div className="col-span-2 bg-amber-500/10 rounded-2xl p-3 flex justify-between items-center">
                             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
                               <Wallet className="w-3.5 h-3.5"/> Cuotas del mes
                             </span>
-                            <span className="text-sm font-black text-amber-300">${formatNumber(cuotasMonthly)}</span>
+                            <span className="text-sm font-black text-amber-300">${priv(formatNumber(cuotasMonthly))}</span>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20" />
                   </div>
-                </div>
-
-                {/* ── Nota del mes ── */}
-                <div className={`rounded-[1.5rem] border transition-all ${notaMes.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
-                  <button
-                    onClick={() => { setNotaExpanded(v=>!v); haptic(8); }}
-                    className="w-full flex items-center gap-3 px-5 py-3.5">
-                    <Edit3 className={`w-4 h-4 flex-shrink-0 ${notaMes.trim() ? 'text-amber-400' : 'text-zinc-600'}`}/>
-                    <span className={`text-xs font-bold flex-1 text-left truncate ${notaMes.trim() ? 'text-amber-300' : 'text-zinc-500'}`}>
-                      {notaMes.trim() ? notaMes.split('\n')[0].slice(0,60) : `Nota de ${MONTHS[currentDate.getMonth()]}…`}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-600 transition-transform flex-shrink-0 ${notaExpanded ? 'rotate-180' : ''}`}/>
-                  </button>
-                  {notaExpanded && (
-                    <div className="px-5 pb-4">
-                      <textarea
-                        value={notaMes}
-                        onChange={e=>saveNota(e.target.value)}
-                        placeholder={`Anotá el contexto de ${MONTHS[currentDate.getMonth()]}…\nEj: mes del aguinaldo, vacaciones, sueldo doble…`}
-                        rows={3}
-                        className="w-full bg-black/30 border border-white/8 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-amber-500/40"
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {/* Resumen Ahorro/Inversión */}
@@ -3453,6 +3470,41 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Patrimonio acumulado ── */}
+                {patrimonioData && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Patrimonio acumulado</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-black ${patrimonioData.trend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {patrimonioData.trend >= 0 ? '▲' : '▼'} ${priv(formatNumber(Math.abs(patrimonioData.trend)))}
+                        </span>
+                        <span className="text-[10px] text-zinc-600">último año</span>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden">
+                      <svg viewBox={`0 0 ${patrimonioData.W} ${patrimonioData.H}`} className="w-full h-14" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="patriGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={patrimonioData.lastVal >= 0 ? '#10b981' : '#f43f5e'} stopOpacity="0.3"/>
+                            <stop offset="100%" stopColor={patrimonioData.lastVal >= 0 ? '#10b981' : '#f43f5e'} stopOpacity="0.02"/>
+                          </linearGradient>
+                        </defs>
+                        <path d={patrimonioData.areaD} fill="url(#patriGrad)"/>
+                        <path d={patrimonioData.pathD} fill="none"
+                          stroke={patrimonioData.lastVal >= 0 ? '#10b981' : '#f43f5e'}
+                          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <p className="text-[10px] text-zinc-600">{patrimonioData.points[0]?.label}</p>
+                      <p className={`text-xs font-black ${patrimonioData.lastVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        ${priv(formatNumber(Math.abs(patrimonioData.lastVal)))}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Racha de ahorro */}
                 {savingsStreak >= 1 && (
                   <div className={`rounded-[1.5rem] p-5 border ${savingsStreak >= 6 ? 'bg-amber-500/8 border-amber-500/20' : 'bg-zinc-900/40 border-white/5'}`}>
@@ -3763,18 +3815,27 @@ export default function App() {
                 )}
 
                 {/* Nota del mes */}
-                <div className="bg-amber-500/5 rounded-[1.5rem] border border-amber-500/10 overflow-hidden">
-                  <div className="px-5 pt-4 pb-1 flex items-center gap-2">
-                    <span className="text-base leading-none">📝</span>
-                    <span className="text-sm font-bold text-zinc-400">Nota del mes</span>
-                  </div>
-                  <textarea
-                    value={currentMemo}
-                    onChange={e => saveMemo(e.target.value)}
-                    placeholder="Algo para recordar de este mes…"
-                    rows={2}
-                    className="w-full bg-transparent px-5 pb-4 pt-2 text-sm text-zinc-400 placeholder:text-zinc-700 resize-none focus:outline-none leading-relaxed"
-                  />
+                <div className={`rounded-[1.5rem] border transition-all ${currentMemo.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
+                  <button
+                    onClick={() => { setNotaExpanded(v=>!v); haptic(8); }}
+                    className="w-full flex items-center gap-3 px-5 py-3.5">
+                    <span className="text-base leading-none flex-shrink-0">📝</span>
+                    <span className={`text-xs font-bold flex-1 text-left truncate ${currentMemo.trim() ? 'text-amber-300' : 'text-zinc-500'}`}>
+                      {currentMemo.trim() ? currentMemo.split('\n')[0].slice(0,60) : `Nota de ${MONTHS[currentDate.getMonth()]}…`}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-600 transition-transform flex-shrink-0 ${notaExpanded ? 'rotate-180' : ''}`}/>
+                  </button>
+                  {notaExpanded && (
+                    <div className="px-5 pb-4">
+                      <textarea
+                        value={currentMemo}
+                        onChange={e => saveMemo(e.target.value)}
+                        placeholder={`Anotá el contexto de ${MONTHS[currentDate.getMonth()]}…\nEj: mes del aguinaldo, vacaciones, sueldo doble…`}
+                        rows={3}
+                        className="w-full bg-black/30 border border-white/8 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-amber-500/40"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Empty state */}
