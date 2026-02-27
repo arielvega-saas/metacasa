@@ -2175,6 +2175,10 @@ export default function App() {
   const [savingTx,   setSavingTx]   = useState(false);
   const [savedOk,    setSavedOk]    = useState(false);
   const [isFixed,    setIsFixed]    = useState(false);
+  // mesAsignado: mes en que se contabiliza el movimiento (independiente de txDate)
+  const [mesAsignado, setMesAsignado] = useState(() => ({
+    year: new Date().getFullYear(), month: new Date().getMonth(),
+  }));
   const autoReplicatedRef = useRef(new Set()); // meses ya auto-replicados en esta sesión
 
   // TIPO DE CAMBIO (persiste en localStorage)
@@ -2910,7 +2914,17 @@ export default function App() {
     if (recentDup) {
       setTimeout(() => toast(`⚠️ Posible duplicado: ya registraste $${formatNumber(numericAmount)} en ${category}`, 'info'), 400);
     }
-    const payload = { user_id: userId, amount: numericAmount, category, type, note: note.trim(), date: new Date(txDate).toISOString() };
+    // Si mesAsignado difiere del mes de txDate, almacenar con el día de txDate pero en el mes asignado
+    const txDateObj = new Date(txDate + 'T12:00:00');
+    let storedDate;
+    if (mesAsignado.year !== txDateObj.getFullYear() || mesAsignado.month !== txDateObj.getMonth()) {
+      const maxDay = new Date(mesAsignado.year, mesAsignado.month + 1, 0).getDate();
+      const day = Math.min(txDateObj.getDate(), maxDay);
+      storedDate = new Date(mesAsignado.year, mesAsignado.month, day, 12).toISOString();
+    } else {
+      storedDate = new Date(txDate + 'T12:00:00').toISOString();
+    }
+    const payload = { user_id: userId, amount: numericAmount, category, type, note: note.trim(), date: storedDate };
     const { error } = await supabase.from('transactions').insert(payload);
     setSavingTx(false);
     if (error) { toast(error.message, 'error'); return; }
@@ -2948,6 +2962,7 @@ export default function App() {
     }
 
     setAmount(''); setNote('');
+    setMesAsignado({ year: new Date().getFullYear(), month: new Date().getMonth() });
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 1800);
     haptic(15);
@@ -8560,10 +8575,10 @@ export default function App() {
                 );
               })()}
 
-              {/* Fecha + Período del mes */}
+              {/* Fecha */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <p className="text-xs font-semibold text-zinc-600">Fecha</p>
+                  <p className="text-xs font-semibold text-zinc-600">Fecha del movimiento</p>
                   <div className="flex gap-1.5">
                     {['Hoy', 'Ayer'].map((label, i) => {
                       const d = new Date();
@@ -8581,41 +8596,75 @@ export default function App() {
                     })}
                   </div>
                 </div>
-                <input type="date" value={txDate} onChange={e=>setTxDate(e.target.value)}
-                  className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 font-semibold text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
 
-                {/* Período del mes — para gastos que pertenecen a otro mes */}
-                <div className="pt-1">
-                  <p className="text-[10px] font-semibold text-zinc-600 ml-1 mb-2">Asignar al período de</p>
-                  <div className="flex gap-2">
-                    {[-1, 0, 1].map(offset => {
-                      const d = new Date();
-                      const targetMonth = d.getMonth() + offset;
-                      const targetYear  = d.getFullYear() + (targetMonth < 0 ? -1 : targetMonth > 11 ? 1 : 0);
-                      const m = ((targetMonth % 12) + 12) % 12;
-                      const y = targetYear;
-                      const txD = new Date(txDate + 'T12:00:00');
-                      const isSelected = txD.getFullYear() === y && txD.getMonth() === m;
-                      return (
-                        <button
-                          key={offset}
-                          onClick={() => {
-                            const maxDay = new Date(y, m + 1, 0).getDate();
-                            const day = Math.min(txD.getDate(), maxDay);
-                            setTxDate(new Date(y, m, day).toISOString().slice(0, 10));
-                            haptic(6);
-                          }}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95
-                            ${isSelected
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
-                          {MONTHS[m].slice(0, 3)}
-                          {offset !== 0 && <span className="block text-[9px] opacity-60">{offset < 0 ? 'ant.' : 'próx.'}</span>}
-                        </button>
-                      );
-                    })}
+                {/* Date picker: input nativo invisible sobre display visual — toca para abrir almanaque */}
+                <div className="relative cursor-pointer">
+                  <input
+                    type="date"
+                    value={txDate}
+                    onChange={e => setTxDate(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="w-full bg-black/60 rounded-2xl px-5 py-4 border border-white/10 flex items-center justify-between pointer-events-none select-none">
+                    <div>
+                      <p className="text-white font-bold text-base capitalize">
+                        {new Date(txDate + 'T12:00:00').toLocaleDateString('es-AR', {
+                          weekday: 'long', day: 'numeric', month: 'long',
+                        })}
+                      </p>
+                      <p className="text-zinc-500 text-xs mt-0.5">
+                        {new Date(txDate + 'T12:00:00').getFullYear()}
+                      </p>
+                    </div>
+                    <Calendar className="w-5 h-5 text-indigo-400"/>
                   </div>
                 </div>
+              </div>
+
+              {/* Período del mes — INDEPENDIENTE de la fecha */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between ml-1">
+                  <p className="text-xs font-semibold text-zinc-600">Registrar en el período de</p>
+                  {(mesAsignado.year !== new Date(txDate + 'T12:00:00').getFullYear() ||
+                    mesAsignado.month !== new Date(txDate + 'T12:00:00').getMonth()) && (
+                    <span className="text-[10px] text-amber-400 font-bold">
+                      ≠ fecha real
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {[-1, 0, 1].map(offset => {
+                    const now = new Date();
+                    const rawM = now.getMonth() + offset;
+                    const y = now.getFullYear() + (rawM < 0 ? -1 : rawM > 11 ? 1 : 0);
+                    const m = ((rawM % 12) + 12) % 12;
+                    const isSelected = mesAsignado.year === y && mesAsignado.month === m;
+                    return (
+                      <button
+                        key={offset}
+                        onClick={() => { setMesAsignado({ year: y, month: m }); haptic(6); }}
+                        className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-center
+                          ${isSelected
+                            ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/30'
+                            : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                        <span className="block text-sm">{MONTHS[m].slice(0, 3)}</span>
+                        <span className={`block text-[9px] mt-0.5 ${isSelected ? 'text-indigo-200' : 'text-zinc-700'}`}>
+                          {offset < 0 ? 'anterior' : offset > 0 ? 'próximo' : 'actual'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(mesAsignado.year !== new Date(txDate + 'T12:00:00').getFullYear() ||
+                  mesAsignado.month !== new Date(txDate + 'T12:00:00').getMonth()) && (
+                  <div className="flex items-center gap-2 bg-amber-500/8 rounded-xl px-3 py-2 border border-amber-500/20">
+                    <span className="text-sm">⚠️</span>
+                    <p className="text-[11px] text-amber-300 leading-tight">
+                      La fecha es <strong>{new Date(txDate + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</strong> pero
+                      se registrará en <strong>{MONTHS[mesAsignado.month]} {mesAsignado.year}</strong>
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Nota */}
