@@ -97,7 +97,11 @@ const WIDGET_LIST = [
   { id: 'catVsLastMonth',   label: 'Categorías vs mes ant.',    icon: '↕️' },
   { id: 'healthScore',      label: 'Índice de salud',           icon: '🏥' },
   { id: 'registroStreak',   label: 'Racha de registro',         icon: '📝' },
+  { id: 'rule503020',       label: 'Regla 50/30/20',            icon: '⚖️' },
 ];
+
+// Categorías clasificadas como "necesidades" para regla 50/30/20
+const NEEDS_CATS = new Set(['Vivienda','Transporte','Salud','Servicios','Alimentación']);
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -2052,7 +2056,8 @@ export default function App() {
 
   const toast = useToast();
   const userId = session?.user?.id;
-  const mountedRef = useRef(false);
+  const mountedRef     = useRef(false);
+  const importFileRef  = useRef(null);
 
   // ── AUTH ──
   useEffect(() => {
@@ -2770,6 +2775,57 @@ export default function App() {
     URL.revokeObjectURL(url);
     toast('Backup descargado ✓', 'success');
     haptic(12);
+  };
+
+  const importJSON = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.transactions && !data.budgets) { toast('Archivo inválido o vacío', 'error'); return; }
+      let txCount = 0;
+      // Importar transacciones en lotes de 100
+      if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+        const rows = data.transactions.map(t => ({
+          user_id: userId,
+          amount: Number(t.amount),
+          category: t.category,
+          type: t.type,
+          note: t.note || '',
+          date: t.date,
+          ...(t.id ? { id: t.id } : {}),
+        }));
+        for (let i = 0; i < rows.length; i += 100) {
+          await supabase.from('transactions').upsert(rows.slice(i, i + 100), { onConflict: 'id', ignoreDuplicates: true });
+        }
+        txCount = rows.length;
+      }
+      // Importar presupuestos
+      if (data.budgets && typeof data.budgets === 'object') {
+        const budgetRows = Object.entries(data.budgets)
+          .map(([cat, b]) => ({ user_id: userId, category: cat, amount: Number(b?.amount ?? b ?? 0) }))
+          .filter(r => r.amount > 0);
+        if (budgetRows.length) await supabase.from('budgets').upsert(budgetRows, { onConflict: 'user_id,category' });
+      }
+      // Importar metas, cuotas, deudas
+      const newGoals  = Array.isArray(data.goals)  ? data.goals  : goals;
+      const newCuotas = Array.isArray(data.cuotas) ? data.cuotas : cuotas;
+      const newDebts  = Array.isArray(data.debts)  ? data.debts  : debts;
+      setGoals(newGoals);
+      setCuotas(newCuotas);
+      setDebts(newDebts);
+      localStorage.setItem(GOALS_KEY,  JSON.stringify(newGoals));
+      localStorage.setItem(CUOTAS_KEY, JSON.stringify(newCuotas));
+      await syncExtrasToCloud(newGoals, newCuotas, newDebts);
+      await loadTransactions();
+      await loadBudgets();
+      toast(`✓ Backup restaurado — ${txCount} movimientos importados`, 'success');
+      haptic(20);
+    } catch (err) {
+      toast('Error al leer el archivo: ' + err.message, 'error');
+    }
   };
 
   const exportExcel = (txList, filename = 'MetaCasa_Finanzas.csv') => {
@@ -3632,6 +3688,44 @@ export default function App() {
     return alerts.length > 0 ? alerts : null;
   }, [recurring, monthTxs, currentDate]);
 
+  // ── REGLA 50/30/20 ──
+  const rule503020 = useMemo(() => {
+    if (stats.income === 0 || stats.expenses === 0) return null;
+    const needs   = activeCategories.GASTO.filter(c => NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const wants   = activeCategories.GASTO.filter(c => !NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const savings = Math.max(0, stats.income - stats.expenses);
+    const base    = stats.income;
+    const needsPct   = Math.round((needs   / base) * 100);
+    const wantsPct   = Math.round((wants   / base) * 100);
+    const savingsPct = Math.round((savings / base) * 100);
+    const getStatus = (val, target) => Math.abs(val - target) <= 10 ? 'ok' : val > target ? 'over' : 'low';
+    return {
+      needs, wants, savings, base,
+      needsPct, wantsPct, savingsPct,
+      needsStatus:   getStatus(needsPct,   50),
+      wantsStatus:   getStatus(wantsPct,   30),
+      savingsStatus: getStatus(savingsPct, 20),
+    };
+  }, [stats, activeCategories]);
+
+  // ── SPARKLINES POR CATEGORÍA (3 meses) ──
+  const catSparklines = useMemo(() => {
+    const now = new Date();
+    const result = {};
+    activeCategories.GASTO.forEach(cat => {
+      const vals = [3, 2, 1].map(i => {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear(), m = d.getMonth();
+        return transactions
+          .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+          .reduce((a, c) => a + Number(c.amount), 0);
+      });
+      const maxVal = Math.max(...vals, 1);
+      result[cat] = { vals, maxVal };
+    });
+    return result;
+  }, [transactions, activeCategories]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3805,6 +3899,49 @@ export default function App() {
                       </div>
                     </div>
                   </button>
+                )}
+
+                {/* ── Regla 50/30/20 ── */}
+                {!isHidden('rule503020') && rule503020 && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">⚖️</span>
+                      <p className="text-xs font-bold text-zinc-300">Regla 50 / 30 / 20</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">sobre ingresos del mes</span>
+                    </div>
+                    {[
+                      { label: 'Necesidades', val: rule503020.needsPct,   amount: rule503020.needs,   target: 50, status: rule503020.needsStatus   },
+                      { label: 'Deseos',      val: rule503020.wantsPct,   amount: rule503020.wants,   target: 30, status: rule503020.wantsStatus   },
+                      { label: 'Ahorro',      val: rule503020.savingsPct, amount: rule503020.savings, target: 20, status: rule503020.savingsStatus },
+                    ].map(({ label, val, amount, target, status }) => {
+                      const barColor = status === 'ok' ? '#10b981' : status === 'over' ? '#f43f5e' : '#f59e0b';
+                      const textColor = status === 'ok' ? 'text-emerald-400' : status === 'over' ? 'text-rose-400' : 'text-amber-400';
+                      return (
+                        <div key={label} className="mb-2 last:mb-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-zinc-400">{label}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-zinc-600">meta {target}%</span>
+                              <span className={`text-[11px] font-black ${textColor}`}>{val}%</span>
+                            </div>
+                          </div>
+                          <div className="relative h-1.5 bg-black/40 rounded-full overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+                              style={{ width: `${Math.min(val, 100)}%`, backgroundColor: barColor }}/>
+                            <div className="absolute inset-y-0 w-px bg-white/20"
+                              style={{ left: `${target}%` }}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {rule503020.savingsStatus !== 'ok' && (
+                      <p className="text-[10px] text-zinc-700 mt-2.5">
+                        {rule503020.savingsPct < 20
+                          ? `Ahorrás ${20 - rule503020.savingsPct}pp menos de lo ideal — intentá reducir ${rule503020.needsStatus==='over'?'necesidades':'deseos'}`
+                          : `¡Superás el 20% de ahorro! 🎉`}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* ── Presupuesto diario disponible ── */}
@@ -5822,18 +5959,34 @@ export default function App() {
                 </span>
               </div>
               <div className="bg-zinc-900/40 rounded-[1.75rem] border border-white/5 overflow-hidden">
-                {activeCategories.GASTO.map((cat,i)=>(
-                  <div key={cat} className={`flex items-center justify-between px-5 py-4 ${i<activeCategories.GASTO.length-1?'border-b border-white/5':''}`}>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-lg leading-none">{getEmoji(cat)}</span>
-                      <span className="text-sm font-semibold text-zinc-300">{cat}</span>
+                {activeCategories.GASTO.map((cat,i)=>{
+                  const spark = catSparklines[cat];
+                  return (
+                  <div key={cat} className={`flex items-center gap-3 px-5 py-3.5 ${i<activeCategories.GASTO.length-1?'border-b border-white/5':''}`}>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-lg leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold text-zinc-300 block truncate">{cat}</span>
+                        {spark && spark.vals.some(v=>v>0) && (
+                          <svg width="36" height="14" className="mt-0.5">
+                            {spark.vals.map((v,idx)=>{
+                              const barH = Math.max(2, Math.round((v/spark.maxVal)*12));
+                              const x = idx * 13;
+                              const isCur = idx === 2;
+                              return <rect key={idx} x={x} y={14-barH} width={10} height={barH}
+                                rx="2" fill={isCur ? '#6366f1' : '#3f3f46'}/>;
+                            })}
+                          </svg>
+                        )}
+                      </div>
                     </div>
                     <input type="text" value={formatNumber(budgets[cat]?.amount||0)}
                       onChange={async e=>{ const v=parseFormattedNumber(e.target.value); await updateBudget(cat,v); }}
-                      className="bg-transparent text-right font-bold text-sm w-24 focus:outline-none focus:text-indigo-400 transition-colors"
+                      className="bg-transparent text-right font-bold text-sm w-24 focus:outline-none focus:text-indigo-400 transition-colors flex-shrink-0"
                       inputMode="numeric"/>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <button onClick={suggestBudgets}
                 className="w-full py-3.5 bg-indigo-600/15 border border-indigo-500/25 rounded-2xl text-sm font-semibold text-indigo-400 active:bg-indigo-600/25 transition-colors flex items-center justify-center gap-2">
@@ -5967,6 +6120,10 @@ export default function App() {
                 <button onClick={exportAllJSON} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <span className="text-base leading-none w-4 text-center">📦</span>
                   <span className="text-sm font-semibold text-zinc-300">Backup JSON completo</span>
+                </button>
+                <button onClick={()=>importFileRef.current?.click()} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none w-4 text-center">📥</span>
+                  <span className="text-sm font-semibold text-zinc-300">Restaurar backup JSON</span>
                 </button>
                 <button onClick={signOut} className="flex items-center gap-3 px-5 py-4 w-full active:bg-zinc-900/60 transition-colors">
                   <LogOut className="w-4 h-4 text-rose-400"/>
@@ -6847,6 +7004,15 @@ export default function App() {
           onClose={()=>setShowReport(false)}
         />
       )}
+
+      {/* Input oculto para importar JSON */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={importJSON}
+      />
     </div>
   );
 }
