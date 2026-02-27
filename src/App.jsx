@@ -118,6 +118,9 @@ const WIDGET_LIST = [
   { id: 'threeMonthForecast',label: 'Pronóstico 3 meses',       icon: '🔭' },
   { id: 'budgetWins',       label: 'Victorias de presupuesto',  icon: '🏆' },
   { id: 'balanceTrend',     label: 'Tendencia de balance',      icon: '📊' },
+  { id: 'expenseRatioGauge',label: 'Gauge gasto/ingreso',       icon: '🎯' },
+  { id: 'debtTimeline',     label: 'Timeline de deudas',        icon: '🧱' },
+  { id: 'savingsProjection',label: 'Proyección de ahorro',      icon: '🚀' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4199,6 +4202,51 @@ export default function App() {
     return { months, avg, last, trend, maxAbs };
   }, [transactions]);
 
+  // ── GAUGE RATIO GASTO/INGRESO ──
+  const expenseRatioGauge = useMemo(() => {
+    if (stats.income === 0) return null;
+    const pct = Math.round((stats.expenses / stats.income) * 100);
+    const zone = pct <= 70 ? 'excellent' : pct <= 85 ? 'good' : pct <= 100 ? 'warning' : 'danger';
+    const color = zone === 'excellent' ? '#10b981' : zone === 'good' ? '#6366f1' : zone === 'warning' ? '#f59e0b' : '#ef4444';
+    const msg   = zone === 'excellent' ? `Ahorrás el ${100-Math.min(pct,100)}% de tus ingresos` : zone === 'good' ? 'Gastos bien controlados' : zone === 'warning' ? 'Cerca del límite de ingreso' : 'Gastos superan los ingresos';
+    // Needle angle: 0% → -90° (left), 100% → 0° (top), 150%+ → 90° (right)
+    const clamped = Math.min(pct, 150);
+    const angle = -90 + (clamped / 150) * 180;
+    return { pct, zone, color, msg, angle };
+  }, [stats.income, stats.expenses]);
+
+  // ── TIMELINE DE DEUDAS ──
+  const debtTimeline = useMemo(() => {
+    const pending = debts.filter(d => !d.settled && Number(d.amount) > 0);
+    if (pending.length === 0) return null;
+    const sorted = [...pending].sort((a, b) => Number(a.amount) - Number(b.amount));
+    const maxAmount = Math.max(...sorted.map(d => Number(d.amount)), 1);
+    const totalDebt = sorted.reduce((a, d) => a + Number(d.amount), 0);
+    const monthlySavings = Math.max(0, stats.income - stats.expenses);
+    const debtPayment = monthlySavings > 0 ? monthlySavings * 0.6 : 0;
+    // Estimate months to pay each debt using avalanche method (highest first is standard, but sorted smallest first for visual)
+    let cumulative = 0;
+    const withETA = sorted.map(d => {
+      const amt = Number(d.amount);
+      const monthsFromNow = debtPayment > 0 ? Math.ceil((cumulative + amt) / debtPayment) : null;
+      cumulative += amt;
+      return { ...d, amount: amt, monthsFromNow };
+    });
+    return { debts: withETA, maxAmount, totalDebt, monthlySavings };
+  }, [debts, stats]);
+
+  // ── PROYECCIÓN DE AHORRO ──
+  const savingsProjection = useMemo(() => {
+    if (stats.income === 0) return null;
+    const monthly = Math.max(0, stats.income - stats.expenses);
+    if (monthly === 0) return null;
+    const goalsTotal = goals.filter(g => !g.completed).reduce((a, g) => a + (g.target - Math.min(g.current, g.target)), 0);
+    const milestones = [1, 3, 6, 12].map(m => ({ months: m, amount: Math.round(monthly * m), label: m === 1 ? '1 mes' : m === 3 ? '3 meses' : m === 6 ? '6 meses' : '1 año' }));
+    const yearAmount = milestones[3].amount;
+    const max = yearAmount;
+    return { monthly, milestones, max, goalsTotal };
+  }, [stats.income, stats.expenses, goals]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6119,6 +6167,134 @@ export default function App() {
                         {balanceTrend.avg >= 0 ? '+' : ''}${priv(formatNumber(balanceTrend.avg))}/mes
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* ── Gauge gasto/ingreso ── */}
+                {!isHidden('expenseRatioGauge') && expenseRatioGauge && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base leading-none">🎯</span>
+                      <p className="text-xs font-bold text-zinc-300">Ratio gasto / ingreso</p>
+                    </div>
+                    <div className="flex flex-col items-center py-2">
+                      {/* Semicircle SVG gauge */}
+                      <svg viewBox="0 0 140 78" className="w-40 h-auto">
+                        {/* Background arc segments */}
+                        {[
+                          { start: -180, end: -108, color: 'rgba(16,185,129,0.25)' },
+                          { start: -108, end:  -54, color: 'rgba(99,102,241,0.25)' },
+                          { start:  -54, end:    0, color: 'rgba(245,158,11,0.25)' },
+                          { start:    0, end:   90, color: 'rgba(239,68,68,0.25)'  },
+                        ].map((seg, i) => {
+                          const toRad = (deg) => (deg * Math.PI) / 180;
+                          const cx = 70, cy = 70, r = 52;
+                          const x1 = cx + r * Math.cos(toRad(seg.start));
+                          const y1 = cy + r * Math.sin(toRad(seg.start));
+                          const x2 = cx + r * Math.cos(toRad(seg.end));
+                          const y2 = cy + r * Math.sin(toRad(seg.end));
+                          const large = seg.end - seg.start > 180 ? 1 : 0;
+                          return <path key={i} d={`M ${cx},${cy} L ${x1},${y1} A ${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={seg.color}/>;
+                        })}
+                        {/* Arc outline */}
+                        <path d="M 18,70 A 52,52 0 0,1 122,70" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2"/>
+                        {/* Needle */}
+                        {(() => {
+                          const rad = (expenseRatioGauge.angle * Math.PI) / 180;
+                          const cx = 70, cy = 70, len = 44;
+                          return <line x1={cx} y1={cy} x2={cx + len * Math.cos(rad)} y2={cy + len * Math.sin(rad)}
+                            stroke={expenseRatioGauge.color} strokeWidth="2.5" strokeLinecap="round"/>;
+                        })()}
+                        <circle cx="70" cy="70" r="4" fill={expenseRatioGauge.color}/>
+                        {/* Percentage text */}
+                        <text x="70" y="62" textAnchor="middle" fill="white" fontSize="13" fontWeight="900">
+                          {privacyMode ? '–' : `${expenseRatioGauge.pct}%`}
+                        </text>
+                      </svg>
+                      <p className={`text-xs font-bold mt-1`} style={{color: expenseRatioGauge.color}}>
+                        {expenseRatioGauge.msg}
+                      </p>
+                      <div className="flex items-center gap-4 mt-2 text-[10px] text-zinc-600">
+                        <span><span className="text-emerald-400">■</span> &lt;70%</span>
+                        <span><span className="text-indigo-400">■</span> 70–85%</span>
+                        <span><span className="text-amber-400">■</span> 85–100%</span>
+                        <span><span className="text-rose-400">■</span> &gt;100%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Timeline de deudas ── */}
+                {!isHidden('debtTimeline') && debtTimeline && (
+                  <button onClick={() => setShowDebtsModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base leading-none">🧱</span>
+                        <p className="text-xs font-bold text-zinc-300">Deudas pendientes</p>
+                        <span className="ml-auto text-[10px] text-zinc-600">Ver →</span>
+                      </div>
+                      <div className="space-y-2.5">
+                        {debtTimeline.debts.map((d, i) => (
+                          <div key={d.id || i}>
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-zinc-300 truncate max-w-[140px]">{d.name || d.creditor || `Deuda ${i+1}`}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {d.monthsFromNow !== null && (
+                                  <span className="text-zinc-600">{d.monthsFromNow === 1 ? '~1 mes' : `~${d.monthsFromNow} meses`}</span>
+                                )}
+                                <span className="text-rose-300 font-black">${priv(formatNumber(d.amount))}</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full"
+                                style={{
+                                  width: `${Math.round((d.amount / debtTimeline.maxAmount) * 100)}%`,
+                                  backgroundColor: `rgba(239,68,68,${0.3 + (d.amount/debtTimeline.maxAmount)*0.5})`,
+                                }}/>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5 text-xs">
+                        <span className="text-zinc-500">Total pendiente</span>
+                        <span className="font-black text-rose-400">${priv(formatNumber(debtTimeline.totalDebt))}</span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
+                {/* ── Proyección de ahorro ── */}
+                {!isHidden('savingsProjection') && savingsProjection && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🚀</span>
+                      <p className="text-xs font-bold text-zinc-300">Proyección de ahorro</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">${priv(formatNumber(savingsProjection.monthly))}/mes</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {savingsProjection.milestones.map((m, i) => (
+                        <div key={m.months}
+                          className={`rounded-xl p-2.5 border text-center transition-all
+                            ${i === 3 ? 'bg-indigo-600/15 border-indigo-500/25' : 'bg-zinc-900/60 border-white/5'}`}>
+                          <p className="text-[10px] text-zinc-500 mb-1">{m.label}</p>
+                          <div className="mx-auto mb-1.5 rounded-sm"
+                            style={{
+                              width: '100%',
+                              height: `${Math.round((m.amount / savingsProjection.max) * 32) + 4}px`,
+                              backgroundColor: `rgba(99,102,241,${0.2 + (i / 3) * 0.5})`,
+                            }}/>
+                          <p className={`text-[10px] font-black ${i === 3 ? 'text-indigo-300' : 'text-zinc-300'}`}>
+                            ${priv(formatNumber(m.amount))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {savingsProjection.goalsTotal > 0 && (
+                      <p className="text-[10px] text-zinc-700 mt-2.5 text-center">
+                        Meta total pendiente: ${priv(formatNumber(savingsProjection.goalsTotal))}
+                        {savingsProjection.milestones[3].amount >= savingsProjection.goalsTotal ? ' ✓ alcanzable en 1 año' : ''}
+                      </p>
+                    )}
                   </div>
                 )}
 
