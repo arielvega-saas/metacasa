@@ -121,6 +121,9 @@ const WIDGET_LIST = [
   { id: 'expenseRatioGauge',label: 'Gauge gasto/ingreso',       icon: '🎯' },
   { id: 'debtTimeline',     label: 'Timeline de deudas',        icon: '🧱' },
   { id: 'savingsProjection',label: 'Proyección de ahorro',      icon: '🚀' },
+  { id: 'categoryVariance', label: 'Categorías impredecibles',  icon: '📉' },
+  { id: 'incomeExpectation',label: 'Ingresos esperados',        icon: '📬' },
+  { id: 'paretoExpenses',   label: 'Pareto de gastos',          icon: '🍰' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4247,6 +4250,64 @@ export default function App() {
     return { monthly, milestones, max, goalsTotal };
   }, [stats.income, stats.expenses, goals]);
 
+  // ── VARIANZA POR CATEGORÍA ──
+  const categoryVariance = useMemo(() => {
+    const now = new Date();
+    const results = activeCategories.GASTO.map(cat => {
+      const sums = [];
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear(), m = d.getMonth();
+        const s = transactions.filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; }).reduce((a,c)=>a+Number(c.amount),0);
+        if (s > 0) sums.push(s);
+      }
+      if (sums.length < 3) return null;
+      const avg = sums.reduce((a,v)=>a+v,0) / sums.length;
+      const stdDev = Math.sqrt(sums.reduce((a,v)=>a+Math.pow(v-avg,2),0) / sums.length);
+      const cv = avg > 0 ? Math.round((stdDev / avg) * 100) : 0;
+      return { cat, avg: Math.round(avg), stdDev: Math.round(stdDev), cv };
+    }).filter(Boolean);
+    if (results.length < 2) return null;
+    const top3 = [...results].sort((a,b) => b.cv - a.cv).slice(0,3);
+    return { categories: top3 };
+  }, [transactions, activeCategories]);
+
+  // ── INGRESOS ESPERADOS VS RECIBIDOS ──
+  const incomeExpectation = useMemo(() => {
+    const recInc = recurring.filter(r => r.active && r.type === 'INGRESO');
+    if (recInc.length === 0) return null;
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const getAmt = (r) => { const n=Number(r.amount); if(r.frequency==='monthly')return n; if(r.frequency==='weekly')return Math.round(n*52/12); if(r.frequency==='daily')return Math.round(n*30); if(r.frequency==='yearly')return Math.round(n/12); return n; };
+    const forMonth = recInc.filter(r => r.frequency !== 'yearly' || (new Date(r.next_date).getMonth()===m && new Date(r.next_date).getFullYear()===y));
+    const expected = forMonth.reduce((a,r)=>a+getAmt(r),0);
+    if (expected === 0) return null;
+    const actual    = stats.income;
+    const remaining = Math.max(0, expected - actual);
+    const pct       = Math.min(100, Math.round((actual / expected) * 100));
+    const items     = forMonth.map(r => ({ name: r.name, expected: getAmt(r) }));
+    return { expected, actual, remaining, pct, items: items.slice(0,4), isComplete: actual >= expected };
+  }, [recurring, currentDate, stats.income]);
+
+  // ── PARETO DE GASTOS (80/20) ──
+  const paretoExpenses = useMemo(() => {
+    if (stats.expenses === 0) return null;
+    const cats = activeCategories.GASTO
+      .map(cat => ({ cat, amount: stats.expenseByCategory[cat]||0 }))
+      .filter(c => c.amount > 0)
+      .sort((a,b) => b.amount - a.amount);
+    if (cats.length < 3) return null;
+    let cumulative = 0;
+    const withCum = cats.map(c => {
+      cumulative += c.amount;
+      return { ...c, cumPct: Math.round((cumulative / stats.expenses) * 100) };
+    });
+    const paretoIdx = withCum.findIndex(c => c.cumPct >= 80);
+    const paretoCount = paretoIdx >= 0 ? paretoIdx + 1 : cats.length;
+    const paretoPct   = Math.round((paretoCount / cats.length) * 100);
+    const top = withCum.slice(0, Math.min(paretoCount + 1, 5));
+    return { items: top, paretoCount, paretoPct, totalCats: cats.length };
+  }, [stats, activeCategories]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6295,6 +6356,121 @@ export default function App() {
                         {savingsProjection.milestones[3].amount >= savingsProjection.goalsTotal ? ' ✓ alcanzable en 1 año' : ''}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* ── Categorías impredecibles ── */}
+                {!isHidden('categoryVariance') && categoryVariance && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">📉</span>
+                      <p className="text-xs font-bold text-zinc-300">Categorías impredecibles</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">últimos 6 meses</span>
+                    </div>
+                    <div className="space-y-3">
+                      {categoryVariance.categories.map((c, i) => (
+                        <div key={c.cat}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="flex items-center gap-1.5">
+                              <span>{getEmoji(c.cat)}</span>
+                              <span className="text-zinc-300">{c.cat}</span>
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-zinc-600">prom. ${priv(formatNumber(c.avg))}</span>
+                              <span className={`font-bold w-10 text-right ${c.cv > 50 ? 'text-rose-400' : c.cv > 30 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                                ±{c.cv}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${c.cv > 50 ? 'bg-rose-500/60' : c.cv > 30 ? 'bg-amber-500/50' : 'bg-zinc-500/50'}`}
+                              style={{width:`${Math.min(c.cv, 100)}%`}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-3 text-center">Mayor variación → más difícil de presupuestar</p>
+                  </div>
+                )}
+
+                {/* ── Ingresos esperados ── */}
+                {!isHidden('incomeExpectation') && incomeExpectation && (
+                  <div className={`rounded-[1.5rem] p-4 border ${incomeExpectation.isComplete ? 'bg-emerald-500/6 border-emerald-500/15' : 'bg-zinc-900/40 border-white/5'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">📬</span>
+                      <p className="text-xs font-bold text-zinc-300">Ingresos esperados</p>
+                      <span className={`ml-auto text-xs font-black ${incomeExpectation.isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {incomeExpectation.pct}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-3">
+                      <div className={`h-full rounded-full transition-all ${incomeExpectation.isComplete ? 'bg-emerald-500' : 'bg-amber-500/70'}`}
+                        style={{width:`${incomeExpectation.pct}%`}}/>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-zinc-900/60 rounded-xl px-3 py-2">
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Esperado</p>
+                        <p className="text-sm font-black text-zinc-300">${priv(formatNumber(incomeExpectation.expected))}</p>
+                      </div>
+                      <div className="bg-zinc-900/60 rounded-xl px-3 py-2">
+                        <p className="text-[10px] text-zinc-600 mb-0.5">{incomeExpectation.isComplete ? 'Recibido ✓' : 'Recibido'}</p>
+                        <p className={`text-sm font-black ${incomeExpectation.isComplete ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                          ${priv(formatNumber(incomeExpectation.actual))}
+                        </p>
+                      </div>
+                    </div>
+                    {!incomeExpectation.isComplete && incomeExpectation.remaining > 0 && (
+                      <p className="text-[10px] text-amber-400/80 text-center">
+                        Pendiente de recibir: ${priv(formatNumber(incomeExpectation.remaining))}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Pareto de gastos ── */}
+                {!isHidden('paretoExpenses') && paretoExpenses && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🍰</span>
+                      <p className="text-xs font-bold text-zinc-300">Pareto de gastos</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">
+                        {paretoExpenses.paretoCount}/{paretoExpenses.totalCats} categ. = 80%
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {paretoExpenses.items.map((item, i) => {
+                        const isParetoLine = i === paretoExpenses.paretoCount - 1;
+                        return (
+                          <div key={item.cat}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm w-5 text-center flex-shrink-0">{getEmoji(item.cat)}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full bg-indigo-500/60"
+                                    style={{width:`${Math.round((item.amount/stats.expenses)*100)}%`}}/>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-zinc-400 font-semibold w-8 text-right flex-shrink-0">
+                                {Math.round((item.amount/stats.expenses)*100)}%
+                              </span>
+                              <span className="text-[10px] text-indigo-300 font-bold w-8 text-right flex-shrink-0">
+                                {item.cumPct}%
+                              </span>
+                            </div>
+                            {isParetoLine && i < paretoExpenses.items.length - 1 && (
+                              <div className="flex items-center gap-2 my-1">
+                                <div className="flex-1 h-px bg-indigo-500/30"/>
+                                <span className="text-[9px] text-indigo-400 font-bold">80% acumulado</span>
+                                <div className="flex-1 h-px bg-indigo-500/30"/>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-3 text-center">
+                      El {paretoExpenses.paretoPct}% de tus categorías genera el 80% del gasto
+                    </p>
                   </div>
                 )}
 
