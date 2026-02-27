@@ -3162,6 +3162,13 @@ export default function App() {
     return { rate, prevRate, diff };
   }, [stats, prevMonth]);
 
+  // Donut data (moved here — needed by catTrends below, must come before it)
+  const chartData = activeCategories.GASTO
+    .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
+    .filter(d=>d.spent>0);
+  const totalSpent = chartData.reduce((s,d)=>s+d.spent,0);
+  const { slices } = DonutChart({ data: chartData, total: totalSpent });
+
   const catTrends = useMemo(() => {
     if (chartData.length === 0) return null;
     const months3 = [2, 1, 0].map(offset => {
@@ -4784,13 +4791,6 @@ export default function App() {
       </div>
     );
   }
-
-  // Donut data
-  const chartData = activeCategories.GASTO
-    .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
-    .filter(d=>d.spent>0);
-  const totalSpent = chartData.reduce((s,d)=>s+d.spent,0);
-  const { slices } = DonutChart({ data: chartData, total: totalSpent });
 
   return (
     <div className="min-h-screen bg-black text-white font-sans overflow-x-hidden">
