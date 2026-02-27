@@ -3096,6 +3096,81 @@ export default function App() {
     return { weekday, weekend, wdCount, weCount, wdPct, wePct };
   }, [transactions]);
 
+  // ── PROYECCIÓN FIN DE MES ──
+  const monthProjection = useMemo(() => {
+    const now = new Date();
+    if (currentDate.getFullYear() !== now.getFullYear() || currentDate.getMonth() !== now.getMonth()) return null;
+    const day = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (day < 3 || day >= daysInMonth - 1) return null;
+    if (stats.expenses === 0) return null;
+    const projectedExpense = Math.round((stats.expenses / day) * daysInMonth);
+    const projectedIncome  = stats.income > 0 ? Math.round((stats.income  / day) * daysInMonth) : 0;
+    const projectedBalance = projectedIncome - projectedExpense;
+    const daysLeft = daysInMonth - day;
+    let vsLimit = null;
+    if (planMes.targetExpense > 0) {
+      vsLimit = { over: projectedExpense > planMes.targetExpense, diff: Math.abs(projectedExpense - planMes.targetExpense) };
+    }
+    return { projectedExpense, projectedIncome, projectedBalance, daysLeft, day, daysInMonth, vsLimit };
+  }, [stats, currentDate, planMes]);
+
+  // ── ALERTAS DE GASTO INUSUAL ──
+  const spendingAlerts = useMemo(() => {
+    const now = new Date();
+    if (currentDate.getFullYear() !== now.getFullYear() || currentDate.getMonth() !== now.getMonth()) return null;
+    const alerts = [];
+    activeCategories.GASTO.forEach(cat => {
+      const cur = stats.expenseByCategory[cat] || 0;
+      if (cur === 0) return;
+      const prevAmounts = [];
+      for (let i = 1; i <= 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const pY = d.getFullYear(), pM = d.getMonth();
+        const prev = transactions
+          .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===pY && td.getMonth()===pM; })
+          .reduce((a, c) => a + Number(c.amount), 0);
+        if (prev > 0) prevAmounts.push(prev);
+      }
+      if (prevAmounts.length < 1) return;
+      const avg = prevAmounts.reduce((a, b) => a + b, 0) / prevAmounts.length;
+      const ratio = cur / avg;
+      if (ratio >= 1.5 && avg >= 1000) alerts.push({ cat, cur, avg: Math.round(avg), ratio: Math.round(ratio * 10) / 10 });
+    });
+    return alerts.length > 0 ? alerts.sort((a, b) => b.ratio - a.ratio).slice(0, 4) : null;
+  }, [stats, activeCategories, transactions, currentDate]);
+
+  // ── CATEGORÍAS VS MES ANTERIOR ──
+  const catVsLastMonth = useMemo(() => {
+    if (stats.expenses === 0) return null;
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const pY = prev.getFullYear(), pM = prev.getMonth();
+    const prevByCat = {};
+    transactions.forEach(t => {
+      const d = new Date(t.date);
+      if (t.type==='GASTO' && d.getFullYear()===pY && d.getMonth()===pM) {
+        prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount);
+      }
+    });
+    if (Object.keys(prevByCat).length === 0) return null;
+    const changes = activeCategories.GASTO
+      .map(cat => {
+        const cur = stats.expenseByCategory[cat] || 0;
+        const prv = prevByCat[cat] || 0;
+        if (cur === 0 && prv === 0) return null;
+        const diff = cur - prv;
+        const pct  = prv > 0 ? Math.round((diff / prv) * 100) : null;
+        return { cat, cur, prev: prv, diff, pct };
+      })
+      .filter(Boolean);
+    const withPct = changes.filter(c => c.pct !== null && c.prev > 0);
+    const increases = [...withPct].sort((a, b) => b.pct - a.pct).slice(0, 3).filter(c => c.pct > 0);
+    const decreases = [...withPct].sort((a, b) => a.pct - b.pct).slice(0, 3).filter(c => c.pct < 0);
+    if (increases.length === 0 && decreases.length === 0) return null;
+    return { increases, decreases, prevMonthLabel: MONTHS[pM] };
+  }, [stats, activeCategories, transactions, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3261,6 +3336,42 @@ export default function App() {
                       {gastosHoy.income  > 0 && <p className="text-sm font-black text-emerald-400">+${priv(formatNumber(gastosHoy.income))}</p>}
                     </div>
                   </button>
+                )}
+
+                {/* ── Proyección fin de mes ── */}
+                {monthProjection && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Proyección al {monthProjection.daysInMonth}</p>
+                      <span className="text-[10px] text-zinc-600 font-semibold">{monthProjection.daysLeft} días restantes</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {monthProjection.projectedIncome > 0 && (
+                        <div className="bg-black/30 rounded-xl p-2.5 text-center">
+                          <p className="text-[10px] text-zinc-600 mb-1">Ingresos est.</p>
+                          <p className="text-xs font-black text-emerald-400">${priv(formatNumber(monthProjection.projectedIncome))}</p>
+                        </div>
+                      )}
+                      <div className="bg-black/30 rounded-xl p-2.5 text-center">
+                        <p className="text-[10px] text-zinc-600 mb-1">Gastos est.</p>
+                        <p className="text-xs font-black text-rose-300">${priv(formatNumber(monthProjection.projectedExpense))}</p>
+                      </div>
+                      <div className={`rounded-xl p-2.5 text-center ${monthProjection.projectedBalance >= 0 ? 'bg-emerald-500/8 border border-emerald-500/15' : 'bg-rose-500/8 border border-rose-500/15'}`}>
+                        <p className="text-[10px] text-zinc-600 mb-1">Balance est.</p>
+                        <p className={`text-xs font-black ${monthProjection.projectedBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {monthProjection.projectedBalance >= 0 ? '+' : ''}{priv(formatNumber(monthProjection.projectedBalance))}
+                        </p>
+                      </div>
+                    </div>
+                    {monthProjection.vsLimit && (
+                      <div className={`flex items-center gap-2 text-[10px] font-bold px-3 py-2 rounded-xl ${monthProjection.vsLimit.over ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                        <span>{monthProjection.vsLimit.over ? '⚠️' : '✅'}</span>
+                        {monthProjection.vsLimit.over
+                          ? `Proyección supera el límite de gastos por $${formatNumber(monthProjection.vsLimit.diff)}`
+                          : `Proyección ${formatNumber(monthProjection.vsLimit.diff)} bajo el límite de gastos`}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Resumen Ahorro/Inversión */}
@@ -3486,6 +3597,28 @@ export default function App() {
                   </button>
                 )}
 
+                {/* ── Alertas de gasto inusual ── */}
+                {spendingAlerts && (
+                  <div className="bg-amber-500/5 rounded-[1.5rem] p-5 border border-amber-500/15">
+                    <p className="text-sm font-bold text-amber-300 mb-3 flex items-center gap-2">
+                      <span>⚠️</span> Gasto inusual este mes
+                    </p>
+                    <div className="space-y-2">
+                      {spendingAlerts.map(({ cat, cur, avg, ratio }) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="text-sm leading-none w-5 flex-shrink-0">{getEmoji(cat)}</span>
+                          <span className="text-xs text-zinc-400 font-semibold flex-1 truncate">{cat}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[10px] text-zinc-600">${formatNumber(avg)} prom.</span>
+                            <span className="text-[10px] font-black text-amber-400">→ {ratio}×</span>
+                            <span className="text-[10px] font-black text-rose-300">${priv(formatNumber(cur))}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Barra de presupuesto global */}
                 {stats.totalBudgetsAssigned > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -3677,6 +3810,27 @@ export default function App() {
                           <p className={`text-xs font-black ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {diff >= 0 ? '▲' : '▼'} ${priv(formatNumber(Math.abs(diff)))}
                           </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Categorías vs mes anterior ── */}
+                {catVsLastMonth && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">
+                      Categorías vs {catVsLastMonth.prevMonthLabel}
+                    </p>
+                    <div className="space-y-2">
+                      {[...catVsLastMonth.increases, ...catVsLastMonth.decreases].map(({ cat, pct }) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="text-sm leading-none w-5 flex-shrink-0">{getEmoji(cat)}</span>
+                          <span className="text-xs text-zinc-400 font-semibold flex-1 truncate">{cat}</span>
+                          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black flex-shrink-0
+                            ${pct > 0 ? 'bg-rose-500/12 text-rose-400' : 'bg-emerald-500/12 text-emerald-400'}`}>
+                            {pct > 0 ? '▲' : '▼'} {Math.abs(pct)}%
+                          </div>
                         </div>
                       ))}
                     </div>
