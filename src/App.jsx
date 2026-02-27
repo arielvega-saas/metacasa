@@ -139,6 +139,9 @@ const WIDGET_LIST = [
   { id: 'weekOverWeek',     label: 'Semana vs semana',          icon: '🌓' },
   { id: 'savingsMomentum',  label: 'Momentum de ahorro',        icon: '📈' },
   { id: 'surpriseCategory', label: 'Categoría sorpresa',        icon: '🏷️' },
+  { id: 'monthlyTip',       label: 'Consejo del mes',           icon: '💡' },
+  { id: 'txCounter',        label: 'Contador de transacciones', icon: '🔢' },
+  { id: 'worstWeek',        label: 'Peor semana del mes',       icon: '📉' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4611,6 +4614,72 @@ export default function App() {
     return results.sort((a,b)=>b.ratio-a.ratio)[0];
   }, [transactions, currentDate, stats, activeCategories]);
 
+  // monthlyTip — consejo personalizado basado en los datos del mes
+  const monthlyTip = useMemo(() => {
+    if (stats.income === 0) return null;
+    const tips = [];
+    const rate = Math.round(((stats.income - stats.expenses) / stats.income) * 100);
+    if (stats.expenses > stats.income) {
+      const over = Math.round(((stats.expenses - stats.income) / stats.income) * 100);
+      tips.push({ emoji: '🚨', text: `Tus gastos superan tus ingresos en un ${over}%. Revisá en qué podés recortar.`, priority: 10 });
+    } else if (rate < 10) {
+      tips.push({ emoji: '⚠️', text: `Estás ahorrando solo el ${rate}% de tus ingresos. La meta recomendada es al menos el 20%.`, priority: 8 });
+    }
+    if (surpriseCategory) {
+      tips.push({ emoji: '📌', text: `Gastaste ${surpriseCategory.ratio}× más de lo habitual en "${surpriseCategory.cat}" este mes.`, priority: 7 });
+    }
+    if (budgetCoverage && budgetCoverage.pct < 50) {
+      tips.push({ emoji: '🗓️', text: `Solo el ${budgetCoverage.pct}% de tus categorías tiene presupuesto. Asignar límites te ayuda a controlar mejor.`, priority: 6 });
+    }
+    if (noSpendStreak && noSpendStreak.current >= 3) {
+      tips.push({ emoji: '🔥', text: `¡Llevas ${noSpendStreak.current} días seguidos sin gastar! Seguí así.`, priority: 5 });
+    }
+    if (rate >= 20) {
+      tips.push({ emoji: '✅', text: `¡Excelente! Estás ahorrando el ${rate}% de tus ingresos este mes, por encima del 20% recomendado.`, priority: 4 });
+    }
+    if (tips.length === 0) return null;
+    return tips.sort((a, b) => b.priority - a.priority)[0];
+  }, [stats, surpriseCategory, budgetCoverage, noSpendStreak]);
+
+  // txCounter — cantidad de transacciones del mes, comparativa vs mes anterior
+  const txCounter = useMemo(() => {
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const monthTxs=transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===m&&d.getFullYear()===y;});
+    if(monthTxs.length===0) return null;
+    const incCount=monthTxs.filter(t=>t.type==='INGRESO').length;
+    const expCount=monthTxs.filter(t=>t.type==='GASTO').length;
+    const prevD=new Date(y,m-1,1);
+    const prevCount=transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===prevD.getMonth()&&d.getFullYear()===prevD.getFullYear();}).length;
+    const countChange=prevCount>0?Math.round(((monthTxs.length-prevCount)/prevCount)*100):null;
+    const now=new Date();
+    const daysPassed=(m===now.getMonth()&&y===now.getFullYear())?now.getDate():new Date(y,m+1,0).getDate();
+    const avgPerDay=Math.round((monthTxs.length/daysPassed)*10)/10;
+    return{total:monthTxs.length,incCount,expCount,prevCount,countChange,avgPerDay};
+  }, [transactions, currentDate]);
+
+  // worstWeek — semana del mes con mayor gasto total + top 2 categorías
+  const worstWeek = useMemo(() => {
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const monthExp=transactions.filter(t=>{const d=new Date(t.date);return t.type==='GASTO'&&d.getMonth()===m&&d.getFullYear()===y;});
+    if(monthExp.length<3) return null;
+    const weeks=[[],[],[],[],[]];
+    monthExp.forEach(t=>{const day=parseInt(t.date.slice(8,10));weeks[Math.min(4,Math.floor((day-1)/7))].push(t);});
+    const weekData=weeks.map((wTxs,i)=>{
+      const total=wTxs.reduce((a,c)=>a+Number(c.amount),0);
+      if(total===0) return null;
+      const catMap={};
+      wTxs.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+Number(t.amount);});
+      const top2=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([cat,amt])=>({cat,amt:Math.round(amt)}));
+      const startDay=i*7+1;
+      const endDay=Math.min(i===4?99:(i+1)*7,daysInMonth);
+      return{week:i+1,label:`${startDay}–${endDay}`,total:Math.round(total),top2};
+    }).filter(Boolean);
+    if(weekData.length<2) return null;
+    const worst=[...weekData].sort((a,b)=>b.total-a.total)[0];
+    return{worst,weeks:weekData,maxTotal:worst.total};
+  }, [transactions, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -7241,6 +7310,87 @@ export default function App() {
                         <p className="text-sm font-bold text-zinc-400">{priv(`$${formatNumber(surpriseCategory.avg)}`)}</p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ── Consejo del mes ── */}
+                {!isHidden('monthlyTip') && monthlyTip && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">💡 Consejo del mes</p>
+                    <div className="flex gap-3 items-start">
+                      <span className="text-2xl shrink-0">{monthlyTip.emoji}</span>
+                      <p className="text-sm text-zinc-400 leading-relaxed">{monthlyTip.text}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Contador de transacciones ── */}
+                {!isHidden('txCounter') && txCounter && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">🔢 Transacciones del mes</p>
+                      {txCounter.countChange !== null && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${txCounter.countChange > 0 ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                          {txCounter.countChange > 0 ? '▲' : '▼'} {Math.abs(txCounter.countChange)}% vs mes ant.
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-end gap-2 mb-3">
+                      <span className="text-4xl font-black text-white">{txCounter.total}</span>
+                      <span className="text-xs text-zinc-500 mb-1.5">operaciones</span>
+                    </div>
+                    <div className="flex gap-3 mb-3">
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"/>
+                        <span className="text-xs text-zinc-400">{txCounter.incCount} ingresos</span>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-rose-500 shrink-0"/>
+                        <span className="text-xs text-zinc-400">{txCounter.expCount} gastos</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 text-center">
+                      Promedio: {txCounter.avgPerDay} operaciones/día
+                      {txCounter.prevCount > 0 && ` · mes anterior: ${txCounter.prevCount}`}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Peor semana del mes ── */}
+                {!isHidden('worstWeek') && worstWeek && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">📉 Peor semana del mes</p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-xs text-zinc-500 bg-zinc-800 px-2.5 py-1 rounded-full">
+                        días {worstWeek.worst.label}
+                      </span>
+                      <span className="text-lg font-black text-rose-400">{priv(`$${formatNumber(worstWeek.worst.total)}`)}</span>
+                    </div>
+                    <div className="flex gap-1.5 items-end mb-3">
+                      {worstWeek.weeks.map((w, i) => {
+                        const h = Math.max(6, Math.round((w.total / worstWeek.maxTotal) * 48));
+                        const isWorst = w.week === worstWeek.worst.week;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                            <div className={`w-full rounded-md ${isWorst ? 'bg-rose-500' : 'bg-zinc-700'}`} style={{height:`${h}px`}}/>
+                            <span className={`text-[9px] ${isWorst ? 'text-rose-400' : 'text-zinc-600'}`}>S{w.week}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {worstWeek.worst.top2.length > 0 && (
+                      <div>
+                        <p className="text-[10px] text-zinc-600 mb-1.5">Categorías que más aportaron:</p>
+                        <div className="flex gap-2">
+                          {worstWeek.worst.top2.map((c, i) => (
+                            <div key={i} className="flex-1 bg-zinc-800 rounded-xl p-2.5">
+                              <p className="text-[10px] text-zinc-400 truncate">{c.cat}</p>
+                              <p className="text-xs font-semibold text-zinc-300">{priv(`$${formatNumber(c.amt)}`)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
