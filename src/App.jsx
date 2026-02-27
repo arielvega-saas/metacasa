@@ -82,6 +82,8 @@ const CUOTAS_KEY    = 'metacasa_cuotas';
 const MEMO_KEY      = 'metacasa_memos';
 const TEMPLATES_KEY = 'metacasa_templates';
 const HIDDEN_WIDGETS_KEY = 'metacasa_hidden_widgets';
+const WIDGET_ORDER_KEY   = 'metacasa_widget_order';
+const WIDGET_SIZES_KEY   = 'metacasa_widget_sizes';
 const WIDGET_LIST = [
   { id: 'planMes',          label: 'Plan del mes',              icon: '📋' },
   { id: 'dailyBudget',      label: 'Presupuesto diario',        icon: '💰' },
@@ -150,6 +152,29 @@ const WIDGET_LIST = [
   { id: 'recurringFixed', label: 'Gastos fijos recurrentes', icon: '📌' },
   { id: 'gastosHoy',      label: 'Gasto de hoy',            icon: '📅' },
   { id: 'monthStats',     label: 'Mini estadísticas',        icon: '📊' },
+  // Secciones hardcodeadas — ahora configurables
+  { id: 'savings',        label: 'Ahorro e inversión',       icon: '🐷' },
+  { id: 'donutChart',     label: 'Distribución de gastos',   icon: '🥧' },
+  { id: 'insights',       label: 'Insights dinámicos',       icon: '💡' },
+  { id: 'spendingCal',    label: 'Calendario de gastos',     icon: '📅' },
+  { id: 'sparkline7d',    label: 'Últimos 7 días',           icon: '📊' },
+  { id: 'esteMesGrid',    label: 'Este mes en números',      icon: '🔢' },
+  { id: 'savingsRate',    label: 'Tasa de ahorro',           icon: '💚' },
+  { id: 'globalBudget',   label: 'Barra de presupuesto',     icon: '📏' },
+  { id: 'catTrends3m',    label: 'Top categorías 3 meses',   icon: '📈' },
+  { id: 'weekdayChart',   label: '¿Cuándo gastás más?',      icon: '📆' },
+  { id: 'monthlyAvg',     label: 'Promedio mensual',         icon: '📉' },
+  { id: 'ytdSummary',     label: 'Resumen anual (YTD)',      icon: '🗃️' },
+  { id: 'yearAgoComp',    label: 'vs Año anterior',          icon: '⏮️' },
+  { id: 'goalsWidget',    label: 'Metas de ahorro',          icon: '🎯' },
+  { id: 'cuotasWidget',   label: 'Cuotas activas',           icon: '💳' },
+  { id: 'debtsWidget',    label: 'Deudas',                   icon: '🤝' },
+  { id: 'trends6m',       label: 'Tendencias 6 meses',       icon: '〰️' },
+  { id: 'vsLastMonth',    label: 'Este mes vs anterior',     icon: '↔️' },
+  { id: 'ritmoGastos',    label: 'Velocímetro de gastos',    icon: '⚡' },
+  { id: 'projection2',    label: 'Proyección fin de mes',    icon: '🔮' },
+  { id: 'patrimonio',     label: 'Patrimonio neto',          icon: '🏦' },
+  { id: 'vencimientos',   label: 'Vencimientos próximos',    icon: '🔔' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -1992,6 +2017,22 @@ export default function App() {
       haptic(8);
       return next;
     });
+  };
+  // widgetOrder + widgetSizes — stubs replaced in commit 2
+  // eslint-disable-next-line no-unused-vars
+  const getOrder = (_id) => 0;
+  // eslint-disable-next-line no-unused-vars
+  const getWidgetSize = (_id) => 'M';
+  // ww() = widget wrapper: aplica isHidden, CSS order y size
+  const ww = (id, content) => {
+    if (isHidden(id)) return null;
+    const size = getWidgetSize(id);
+    return (
+      <div key={id} style={{ order: getOrder(id) }} className={
+        size === 'L' ? 'md:col-span-2' :
+        size === 'S' ? 'max-h-[76px] overflow-hidden relative after:content-[\'\'] after:absolute after:bottom-0 after:inset-x-0 after:h-5 after:bg-gradient-to-t after:from-black after:to-transparent' : ''
+      }>{content}</div>
+    );
   };
   const [showScrollTop,      setShowScrollTop]       = useState(false);
   const [deferredInstall,    setDeferredInstall]     = useState(null);
@@ -4806,9 +4847,9 @@ export default function App() {
             TAB: INICIO (Dashboard)
         ════════════════════════════════ */}
         {activeTab==='home' && (
-          <div className="px-5 pt-5 space-y-5 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
+          <div className="px-5 pt-5 flex flex-col gap-5 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
             {/* Header */}
-            <header className="flex justify-between items-center">
+            <header style={{order: -2}} className="md:col-span-2 lg:col-span-3 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10">
                   <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" />
@@ -4846,7 +4887,7 @@ export default function App() {
             {/* Balance Card */}
             {loadingData ? <LoadingSkeleton /> : (
               <>
-                <div className="space-y-3">
+                <div style={{order: -1, gridColumn: '1 / -1'}} className="space-y-3">
                   <div className="flex items-center justify-between px-1">
                     <button onClick={()=>changeMonth(-1)} className="p-2 bg-zinc-900/70 rounded-full text-zinc-500 active:scale-90 transition-transform">
                       <ChevronLeft className="w-5 h-5" />
@@ -5183,7 +5224,7 @@ export default function App() {
                 )}
 
                 {/* Resumen Ahorro/Inversión */}
-                {(strategy.savingsPercent > 0 || strategy.investmentPercent > 0) && (
+                {ww('savings', (strategy.savingsPercent > 0 || strategy.investmentPercent > 0) && (
                   <div className="grid grid-cols-2 gap-3">
                     {strategy.savingsPercent>0 && (
                       <div className="bg-zinc-900/60 rounded-2xl p-4 border border-white/5">
@@ -5200,7 +5241,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                )}
+                ))}
 
                 {/* ── Desglose fuentes de ingreso ── */}
                 {incomeSourceBreakdown && (
@@ -5230,7 +5271,7 @@ export default function App() {
                 )}
 
                 {/* Distribución de gastos — donut + leyenda interactiva */}
-                {chartData.length > 0 && (
+                {ww('donutChart', chartData.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-zinc-300">Distribución de gastos</p>
@@ -5267,10 +5308,10 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Insights dinámicos */}
-                {insights.length > 0 && (
+                {ww('insights', insights.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 flex items-center gap-2 mb-3">
                       <Lightbulb className="w-4 h-4 text-amber-400"/> Insights
@@ -5284,20 +5325,20 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Calendario de gastos del mes */}
-                {monthTxs.filter(t=>t.type==='GASTO').length > 0 && (
+                {ww('spendingCal', monthTxs.filter(t=>t.type==='GASTO').length > 0 && (
                   <SpendingCalendar
                     transactions={transactions}
                     year={currentDate.getFullYear()}
                     month={currentDate.getMonth()}
                     onDayPress={goToDate}
                   />
-                )}
+                ))}
 
                 {/* Sparkline — últimos 7 días de gasto */}
-                {last7DaysData.some(d => d.expense > 0) && (() => {
+                {ww('sparkline7d', last7DaysData.some(d => d.expense > 0) && (() => {
                   const maxD = Math.max(...last7DaysData.map(d => d.expense));
                   return (
                     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -5328,10 +5369,10 @@ export default function App() {
                       </div>
                     </div>
                   );
-                })()}
+                })())}
 
                 {/* Este mes en números */}
-                {monthStats && (
+                {ww('esteMesGrid', monthStats && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Este mes en números</p>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -5366,10 +5407,10 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Tasa de ahorro */}
-                {savingsRateData && (
+                {ww('savingsRate', savingsRateData && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex items-center gap-5">
                       {/* Arc SVG */}
@@ -5400,7 +5441,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* ── Semáforo de presupuestos ── */}
                 {!isHidden('semaforo') && budgetSemaforo && (
@@ -5455,7 +5496,7 @@ export default function App() {
                 )}
 
                 {/* Barra de presupuesto global */}
-                {stats.totalBudgetsAssigned > 0 && (
+                {ww('globalBudget', stats.totalBudgetsAssigned > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     {(() => {
                       const spent = stats.expenses;
@@ -5488,10 +5529,10 @@ export default function App() {
                       );
                     })()}
                   </div>
-                )}
+                ))}
 
                 {/* Tendencia de categorías */}
-                {catTrends && catTrends.length > 0 && (
+                {ww('catTrends3m', catTrends && catTrends.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-4">Top categorías · 3 meses</p>
                     <div className="space-y-3.5">
@@ -5528,10 +5569,10 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Gasto por día de semana */}
-                {weekdaySpending && (
+                {ww('weekdayChart', weekdaySpending && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-zinc-300">¿Cuándo gastás más?</p>
@@ -5561,10 +5602,10 @@ export default function App() {
                       {' · '}prom. ${formatNumber(weekdaySpending.avgs[weekdaySpending.peakDay])}/movimiento
                     </p>
                   </div>
-                )}
+                ))}
 
                 {/* Promedio mensual histórico */}
-                {monthlyAvg && monthlyAvg.months >= 2 && (
+                {ww('monthlyAvg', monthlyAvg && monthlyAvg.months >= 2 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Promedio mensual</p>
@@ -5587,10 +5628,10 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Resumen anual (YTD) */}
-                {yearStats && (
+                {ww('ytdSummary', yearStats && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">{currentDate.getFullYear()} hasta hoy</p>
@@ -5626,10 +5667,10 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* ── Comparativa año anterior ── */}
-                {yearAgoComparison && (
+                {ww('yearAgoComp', yearAgoComparison && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">
                       vs {MONTHS[currentDate.getMonth()]} {yearAgoComparison.prevYear}
@@ -5649,7 +5690,7 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* ── Categorías vs mes anterior ── */}
                 {!isHidden('catVsLastMonth') && catVsLastMonth && (
@@ -7059,42 +7100,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ── Regla 50/30/20 ── */}
-                {!isHidden('rule503020') && rule503020 && (
-                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
-                    <p className="text-sm font-bold text-zinc-300 mb-4">📐 Regla 50/30/20</p>
-                    {[
-                      { key: 'needs',   label: 'Necesidades', emoji: '🏠', color: '#6366f1' },
-                      { key: 'wants',   label: 'Deseos',      emoji: '🛍️', color: '#f59e0b' },
-                      { key: 'savings', label: 'Ahorro',      emoji: '💰', color: '#10b981' },
-                    ].map(({ key, label, emoji, color }) => {
-                      const d = rule503020[key];
-                      const diff = d.actual - d.target;
-                      const isOk = key === 'savings' ? diff >= 0 : diff <= 0;
-                      return (
-                        <div key={key} className="mb-3 last:mb-0">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-zinc-400">{emoji} {label}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold" style={{color}}>{d.actual}%</span>
-                              <span className={`text-[10px] ${isOk?'text-emerald-400':'text-rose-400'}`}>
-                                {diff>0?'+':''}{diff}% vs {d.target}%
-                              </span>
-                            </div>
-                          </div>
-                          <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                            <div className="h-1.5 rounded-full transition-all"
-                              style={{width:`${Math.min(100,d.actual)}%`, background: isOk ? color : '#ef4444'}}/>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <p className="text-[10px] text-zinc-700 mt-3 text-center">
-                      {priv(`Ingresos: $${formatNumber(rule503020.income)}`)}
-                    </p>
-                  </div>
-                )}
-
                 {/* ── Racha sin gastos ── */}
                 {!isHidden('noSpendStreak') && noSpendStreak && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -7757,7 +7762,7 @@ export default function App() {
                 )}
 
                 {/* Metas de ahorro — preview en Home */}
-                {goals.filter(g=>!g.completed).length > 0 && (
+                {ww('goalsWidget', goals.filter(g=>!g.completed).length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-zinc-300 flex items-center gap-2">
@@ -7785,10 +7790,10 @@ export default function App() {
                       })}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Cuotas activas — preview en Home */}
-                {activeCuotas.length > 0 && (
+                {ww('cuotasWidget', activeCuotas.length > 0 && (
                   <button onClick={()=>setShowCuotasModal(true)} className="w-full text-left">
                     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                       <div className="flex justify-between items-center mb-3">
@@ -7816,10 +7821,10 @@ export default function App() {
                       </div>
                     </div>
                   </button>
-                )}
+                ))}
 
                 {/* Deudas — preview en Home */}
-                {pendingDebts.length > 0 && (
+                {ww('debtsWidget', pendingDebts.length > 0 && (
                   <button onClick={()=>setShowDebtsModal(true)} className="w-full text-left">
                     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                       <div className="flex justify-between items-center mb-3">
@@ -7857,10 +7862,10 @@ export default function App() {
                       </div>
                     </div>
                   </button>
-                )}
+                ))}
 
                 {/* Tendencias 6 meses */}
-                {transactions.length > 0 && (
+                {ww('trends6m', transactions.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Últimos 6 meses</p>
@@ -7880,10 +7885,10 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                )}
+                ))}
 
                 {/* Comparador: este mes vs mes anterior */}
-                {(prevMonth.income > 0 || prevMonth.expense > 0) && (
+                {ww('vsLastMonth', (prevMonth.income > 0 || prevMonth.expense > 0) && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-4">Este mes vs anterior</p>
                     {[
@@ -7913,10 +7918,10 @@ export default function App() {
                       <span>{MONTHS[currentDate.getMonth()]} (actual)</span>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Velocímetro de gastos */}
-                {burnRate && (
+                {ww('ritmoGastos', burnRate && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Ritmo de gastos</p>
@@ -7952,10 +7957,10 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Proyección fin de mes */}
-                {projection && (
+                {ww('projection2', projection && (
                   <div className="bg-zinc-900/40 rounded-2xl p-5 border border-white/5">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -7979,10 +7984,10 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Patrimonio Neto */}
-                {(patrimonioNeto.activos > 0 || patrimonioNeto.pasivos > 0) && (
+                {ww('patrimonio', (patrimonioNeto.activos > 0 || patrimonioNeto.pasivos > 0) && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-zinc-300">Patrimonio neto</p>
@@ -8011,10 +8016,10 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                )}
+                ))}
 
                 {/* Vencimientos urgentes en Home */}
-                {(billsDue.overdue.length > 0 || billsDue.today.length > 0 || billsDue.soon.length > 0) && (
+                {ww('vencimientos', (billsDue.overdue.length > 0 || billsDue.today.length > 0 || billsDue.soon.length > 0) && (
                   <button onClick={()=>setShowBillsModal(true)} className="w-full text-left">
                     <div className="bg-amber-500/8 border border-amber-500/20 rounded-[1.5rem] p-5">
                       <div className="flex items-center justify-between mb-3">
@@ -8043,7 +8048,7 @@ export default function App() {
                       </div>
                     </div>
                   </button>
-                )}
+                ))}
 
                 {/* Nota del mes */}
                 <div className={`rounded-[1.5rem] border transition-all ${currentMemo.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
@@ -8068,6 +8073,20 @@ export default function App() {
                     </div>
                   )}
                 </div>
+
+                {/* ── Empty state: all widgets hidden ── */}
+                {WIDGET_LIST.every(w => isHidden(w.id)) && (
+                  <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
+                    <span className="text-5xl mb-4">📦</span>
+                    <p className="text-zinc-300 font-black text-lg mb-1">Home vacío</p>
+                    <p className="text-zinc-600 text-sm mb-6">Ocultaste todos los widgets</p>
+                    <button
+                      onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
+                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-sm font-bold text-white active:scale-95 transition-all">
+                      ✨ Mostrar todos los widgets
+                    </button>
+                  </div>
+                )}
 
                 {/* Empty state */}
                 {monthTxs.length===0 && (
