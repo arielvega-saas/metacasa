@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
-  Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff
+  Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff, LayoutGrid
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -81,6 +81,23 @@ const GOALS_KEY     = 'metacasa_goals';
 const CUOTAS_KEY    = 'metacasa_cuotas';
 const MEMO_KEY      = 'metacasa_memos';
 const TEMPLATES_KEY = 'metacasa_templates';
+const HIDDEN_WIDGETS_KEY = 'metacasa_hidden_widgets';
+const WIDGET_LIST = [
+  { id: 'planMes',          label: 'Plan del mes',              icon: '📋' },
+  { id: 'dailyBudget',      label: 'Presupuesto diario',        icon: '💰' },
+  { id: 'topTxs',           label: 'Top gastos del mes',        icon: '🏆' },
+  { id: 'monthProjection',  label: 'Proyección fin de mes',     icon: '📈' },
+  { id: 'recurringAlerts',  label: 'Recordatorio recurrentes',  icon: '🔔' },
+  { id: 'semaforo',         label: 'Semáforo presupuestos',     icon: '🚦' },
+  { id: 'spendingAlerts',   label: 'Alertas gasto inusual',     icon: '⚠️' },
+  { id: 'weekBalance',      label: 'Balance semanal',           icon: '📅' },
+  { id: 'weekendAnalysis',  label: 'Análisis fin de semana',    icon: '🏖️' },
+  { id: 'runningBalance',   label: 'Balance acumulado',         icon: '〰️' },
+  { id: 'weeklyBreakdown',  label: 'Desglose semanal',          icon: '🗓️' },
+  { id: 'catVsLastMonth',   label: 'Categorías vs mes ant.',    icon: '↕️' },
+  { id: 'healthScore',      label: 'Índice de salud',           icon: '🏥' },
+  { id: 'registroStreak',   label: 'Racha de registro',         icon: '📝' },
+];
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -1796,6 +1813,21 @@ export default function App() {
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
   const [selectedCatDetail,  setSelectedCatDetail]  = useState(null);  // catName | null
+  const [showWidgetEditor,   setShowWidgetEditor]   = useState(false);
+  const [hiddenWidgets,      setHiddenWidgets]      = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_WIDGETS_KEY) || '[]')); }
+    catch { return new Set(); }
+  });
+  const isHidden   = (id) => hiddenWidgets.has(id);
+  const toggleWidget = (id) => {
+    setHiddenWidgets(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem(HIDDEN_WIDGETS_KEY, JSON.stringify([...next]));
+      haptic(8);
+      return next;
+    });
+  };
   const [showScrollTop,      setShowScrollTop]       = useState(false);
   const [deferredInstall,    setDeferredInstall]     = useState(null);
   const [showInstallBanner,  setShowInstallBanner]   = useState(false);
@@ -3422,6 +3454,36 @@ export default function App() {
     return { weeks, maxVal };
   }, [monthTxs, currentDate]);
 
+  // ── TENDENCIA DE SALUD (últimos 5 meses cerrados) ──
+  const healthTrend = useMemo(() => {
+    if (transactions.length === 0) return null;
+    const now = new Date();
+    const months = Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const y = d.getFullYear(), m = d.getMonth();
+      const txs = transactions.filter(t => { const td = new Date(t.date); return td.getFullYear()===y && td.getMonth()===m; });
+      if (txs.length === 0) return null;
+      const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      if (income === 0 && expense === 0) return null;
+      const rate = income > 0 ? ((income - expense) / income) * 100 : -100;
+      const score = rate >= 20 ? 80 : rate >= 10 ? 65 : rate >= 5 ? 50 : rate >= 0 ? 35 : 15;
+      const color = score >= 65 ? '#10b981' : score >= 50 ? '#6366f1' : score >= 35 ? '#f59e0b' : '#f43f5e';
+      return { label: MONTHS[m].slice(0,3), score, color };
+    }).filter(Boolean);
+    return months.length >= 2 ? months : null;
+  }, [transactions]);
+
+  // ── RECORDATORIO DE RECURRENTES SIN REGISTRAR ──
+  const recurringAlerts = useMemo(() => {
+    const now = new Date();
+    if (currentDate.getFullYear() !== now.getFullYear() || currentDate.getMonth() !== now.getMonth()) return null;
+    const active = recurring.filter(r => r.active);
+    if (active.length === 0) return null;
+    const alerts = active.filter(r => !monthTxs.some(t => t.type===r.type && t.category===r.category)).slice(0, 4);
+    return alerts.length > 0 ? alerts : null;
+  }, [recurring, monthTxs, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3457,6 +3519,10 @@ export default function App() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <button onClick={()=>{ haptic(8); setShowWidgetEditor(true); }}
+                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${hiddenWidgets.size > 0 ? 'bg-indigo-600/20' : 'bg-zinc-900'}`} title="Personalizar widgets">
+                  <LayoutGrid className={`w-5 h-5 ${hiddenWidgets.size > 0 ? 'text-indigo-400' : 'text-zinc-400'}`}/>
+                </button>
                 <button onClick={togglePrivacy} className={`p-2.5 rounded-xl active:scale-90 transition-transform ${privacyMode ? 'bg-amber-500/20' : 'bg-zinc-900'}`} title={privacyMode ? 'Mostrar montos' : 'Ocultar montos'}>
                   {privacyMode ? <EyeOff className="w-5 h-5 text-amber-400"/> : <Eye className="w-5 h-5 text-zinc-400"/>}
                 </button>
@@ -3571,8 +3637,30 @@ export default function App() {
                   </button>
                 )}
 
+                {/* ── Recordatorio de recurrentes ── */}
+                {!isHidden('recurringAlerts') && recurringAlerts && (
+                  <button onClick={()=>setShowRecurringModal(true)} className="w-full text-left">
+                    <div className="bg-violet-500/6 rounded-[1.5rem] p-4 border border-violet-500/15">
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <span className="text-base leading-none">🔔</span>
+                        <p className="text-xs font-bold text-violet-300">Recurrentes sin registrar este mes</p>
+                        <span className="ml-auto text-[10px] text-zinc-600">Ver →</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {recurringAlerts.map(r => (
+                          <span key={r.id} className="flex items-center gap-1.5 bg-zinc-900/60 rounded-xl px-3 py-1.5 text-[10px] font-semibold text-zinc-300">
+                            <span className="leading-none">{getEmoji(r.category)}</span>
+                            {r.category}
+                            {r.amount > 0 && <span className="text-violet-400 font-black">${formatNumber(r.amount)}</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* ── Presupuesto diario disponible ── */}
-                {dailyBudget && (
+                {!isHidden('dailyBudget') && dailyBudget && (
                   <div className={`rounded-[1.5rem] p-4 border flex items-center gap-4
                     ${dailyBudget.isOver ? 'bg-rose-500/8 border-rose-500/20' : dailyBudget.pct >= 85 ? 'bg-amber-500/8 border-amber-500/15' : 'bg-zinc-900/40 border-white/5'}`}>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl leading-none"
@@ -3616,7 +3704,7 @@ export default function App() {
                 )}
 
                 {/* ── Proyección fin de mes ── */}
-                {monthProjection && (
+                {!isHidden('monthProjection') && monthProjection && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Proyección al {monthProjection.daysInMonth}</p>
@@ -3673,7 +3761,7 @@ export default function App() {
                 )}
 
                 {/* ── Top gastos del mes ── */}
-                {topTxs && (
+                {!isHidden('topTxs') && topTxs && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Top gastos del mes</p>
                     <div className="space-y-2">
@@ -3918,7 +4006,7 @@ export default function App() {
                 )}
 
                 {/* ── Semáforo de presupuestos ── */}
-                {budgetSemaforo && (
+                {!isHidden('semaforo') && budgetSemaforo && (
                   <button onClick={() => setShowBudgetModal(true)} className="w-full text-left">
                     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                       <div className="flex justify-between items-center mb-3">
@@ -3948,7 +4036,7 @@ export default function App() {
                 )}
 
                 {/* ── Alertas de gasto inusual ── */}
-                {spendingAlerts && (
+                {!isHidden('spendingAlerts') && spendingAlerts && (
                   <div className="bg-amber-500/5 rounded-[1.5rem] p-5 border border-amber-500/15">
                     <p className="text-sm font-bold text-amber-300 mb-3 flex items-center gap-2">
                       <span>⚠️</span> Gasto inusual este mes
@@ -4167,7 +4255,7 @@ export default function App() {
                 )}
 
                 {/* ── Categorías vs mes anterior ── */}
-                {catVsLastMonth && (
+                {!isHidden('catVsLastMonth') && catVsLastMonth && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">
                       Categorías vs {catVsLastMonth.prevMonthLabel}
@@ -4188,7 +4276,7 @@ export default function App() {
                 )}
 
                 {/* ── Índice de salud financiera ── */}
-                {healthScore && (
+                {!isHidden('healthScore') && healthScore && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-sm font-bold text-zinc-300">Salud financiera</p>
@@ -4220,6 +4308,23 @@ export default function App() {
                       </div>
                     </div>
                     <p className={`text-xs font-bold text-center ${healthScore.color}`}>{healthScore.label}</p>
+                    {healthTrend && (
+                      <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-white/5">
+                        <span className="text-[9px] text-zinc-700 mr-1">Tendencia</span>
+                        {healthTrend.map((m, i) => (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <div className="w-3 h-3 rounded-full border-2" style={{backgroundColor: m.color, borderColor: m.color + '40'}}/>
+                            <span className="text-[8px] text-zinc-700">{m.label}</span>
+                          </div>
+                        ))}
+                        <div className="flex flex-col items-center gap-1 ml-1">
+                          <div className="w-3 h-3 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/40"/>
+                          </div>
+                          <span className="text-[8px] text-zinc-500 font-bold">hoy</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -4275,7 +4380,7 @@ export default function App() {
                 )}
 
                 {/* ── Balance semanal ── */}
-                {weekBalance && (
+                {!isHidden('weekBalance') && weekBalance && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Balance semanal</p>
                     <div className="grid grid-cols-2 gap-3">
@@ -4303,7 +4408,7 @@ export default function App() {
                 )}
 
                 {/* ── Fin de semana vs días laborables ── */}
-                {weekendAnalysis && (
+                {!isHidden('weekendAnalysis') && weekendAnalysis && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Gastos últimos 30 días</p>
                     <div className="flex items-center gap-2 mb-3">
@@ -4362,7 +4467,7 @@ export default function App() {
                 )}
 
                 {/* ── Balance acumulado del mes ── */}
-                {runningBalance && (
+                {!isHidden('runningBalance') && runningBalance && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Balance acumulado — día {runningBalance.day}</p>
@@ -4436,7 +4541,7 @@ export default function App() {
                 )}
 
                 {/* ── Desglose semanal del mes ── */}
-                {weeklyBreakdown && (
+                {!isHidden('weeklyBreakdown') && weeklyBreakdown && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Por semana — {MONTHS[currentDate.getMonth()]}</p>
                     <div className="space-y-2">
@@ -4517,7 +4622,7 @@ export default function App() {
                 )}
 
                 {/* ── Racha de registro ── */}
-                {registroStreak >= 2 && (
+                {!isHidden('registroStreak') && registroStreak >= 2 && (
                   <div className={`rounded-[1.5rem] p-4 border flex items-center gap-3
                     ${registroStreak >= 14 ? 'bg-violet-500/8 border-violet-500/20' : registroStreak >= 7 ? 'bg-indigo-500/8 border-indigo-500/15' : 'bg-zinc-900/30 border-white/5'}`}>
                     <span className="text-2xl leading-none flex-shrink-0">
@@ -6505,6 +6610,53 @@ export default function App() {
           onClose={() => setSelectedCatDetail(null)}
           onGoToHistory={() => { setSelectedCatDetail(null); goToCategory(selectedCatDetail, 'GASTO'); }}
         />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Editor de widgets
+      ════════════════════════════════ */}
+      {showWidgetEditor && (
+        <div className="fixed inset-0 z-[130] flex items-end" onClick={()=>setShowWidgetEditor(false)}>
+          <div className="w-full max-w-md mx-auto bg-zinc-950 rounded-t-[2rem] border-t border-white/8 pb-[calc(env(safe-area-inset-bottom)+16px)]"
+            onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                  <LayoutGrid className="w-5 h-5 text-indigo-400"/> Personalizar Home
+                </h3>
+                <p className="text-xs text-zinc-600 mt-0.5">Ocultá los widgets que no usás</p>
+              </div>
+              <button onClick={()=>setShowWidgetEditor(false)} className="p-2 bg-zinc-900 rounded-xl">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[60vh] px-6 py-4 space-y-2">
+              {WIDGET_LIST.map(({ id, label, icon }) => {
+                const hidden = isHidden(id);
+                return (
+                  <button key={id} onClick={()=>toggleWidget(id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-95
+                      ${hidden ? 'bg-zinc-900/30 border-white/5 opacity-50' : 'bg-zinc-900/50 border-white/8'}`}>
+                    <span className="text-lg leading-none flex-shrink-0">{icon}</span>
+                    <span className={`text-sm font-semibold flex-1 text-left ${hidden ? 'text-zinc-600' : 'text-zinc-300'}`}>{label}</span>
+                    <div className={`w-10 h-5 rounded-full transition-all flex-shrink-0 flex items-center px-0.5
+                      ${hidden ? 'bg-zinc-800 justify-start' : 'bg-indigo-600 justify-end'}`}>
+                      <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {hiddenWidgets.size > 0 && (
+              <div className="px-6 pt-3 border-t border-white/8">
+                <button onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
+                  className="w-full py-3 text-xs font-bold text-indigo-400 active:opacity-60">
+                  Mostrar todos los widgets
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ════════════════════════════════
