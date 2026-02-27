@@ -124,6 +124,9 @@ const WIDGET_LIST = [
   { id: 'categoryVariance', label: 'Categorías impredecibles',  icon: '📉' },
   { id: 'incomeExpectation',label: 'Ingresos esperados',        icon: '📬' },
   { id: 'paretoExpenses',   label: 'Pareto de gastos',          icon: '🍰' },
+  { id: 'weeklyHeatmap',   label: 'Heatmap semanal',           icon: '🟧' },
+  { id: 'liquidityRatio',  label: 'Ratio de liquidez',         icon: '💧' },
+  { id: 'categoryLifecycle',label:'Ciclo de categorías',       icon: '🔄' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4308,6 +4311,70 @@ export default function App() {
     return { items: top, paretoCount, paretoPct, totalCats: cats.length };
   }, [stats, activeCategories]);
 
+  // weeklyHeatmap — promedio de gasto por día de la semana (últimas 8 semanas)
+  const weeklyHeatmap = useMemo(() => {
+    const gasto = transactions.filter(t => t.type === 'GASTO');
+    if (gasto.length < 7) return null;
+    const now = new Date(); now.setHours(0,0,0,0);
+    const cutoff = new Date(now.getTime() - 8 * 7 * 86400000);
+    const recent = gasto.filter(t => { const d=new Date(t.date+'T12:00:00'); return d>=cutoff&&d<=now; });
+    if (recent.length < 5) return null;
+    const dowTotals = Array(7).fill(0);
+    recent.forEach(t => { const d=new Date(t.date+'T12:00:00'); dowTotals[d.getDay()]+=Number(t.amount); });
+    const avgs = dowTotals.map(s => Math.round(s / 8));
+    const maxAvg = Math.max(...avgs, 1);
+    const peakDow = avgs.indexOf(Math.max(...avgs));
+    const DOW_LABELS = ['D','L','M','X','J','V','S'];
+    return { avgs, maxAvg, peakDow, labels: DOW_LABELS };
+  }, [transactions]);
+
+  // liquidityRatio — meses de reserva: balance acumulado / gasto mensual promedio
+  const liquidityRatio = useMemo(() => {
+    if (transactions.length < 10) return null;
+    const now = new Date();
+    let totalExp = 0, monthCount = 0;
+    for (let i = 1; i <= 3; i++) {
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const m=d.getMonth(), y=d.getFullYear();
+      const mExp=transactions.filter(t=>{const td=new Date(t.date);return t.type==='GASTO'&&td.getMonth()===m&&td.getFullYear()===y;}).reduce((a,c)=>a+Number(c.amount),0);
+      if (mExp > 0) { totalExp+=mExp; monthCount++; }
+    }
+    if (monthCount === 0) return null;
+    const avgMonthlyExp = Math.round(totalExp / monthCount);
+    if (avgMonthlyExp === 0) return null;
+    const totalNet = transactions.reduce((a,t)=>t.type==='INGRESO'?a+Number(t.amount):a-Number(t.amount),0);
+    const ratio = totalNet > 0 ? totalNet / avgMonthlyExp : 0;
+    const zone = ratio >= 6 ? 'excellent' : ratio >= 3 ? 'good' : ratio >= 1 ? 'warning' : 'danger';
+    const msg = zone==='excellent'?'Reserva sólida':zone==='good'?'Colchón saludable':zone==='warning'?'Reserva ajustada':'Sin colchón';
+    const color = zone==='excellent'?'#10b981':zone==='good'?'#6366f1':zone==='warning'?'#f59e0b':'#ef4444';
+    return { ratio: Math.round(ratio * 10) / 10, zone, avgMonthlyExp, totalNet: Math.round(totalNet), msg, color };
+  }, [transactions]);
+
+  // categoryLifecycle — nueva / activa / dormida por actividad últimos 6 meses
+  const categoryLifecycle = useMemo(() => {
+    const now = new Date();
+    const months6 = Array.from({length:6},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return`${d.getFullYear()}-${d.getMonth()}`;});
+    const catActivity = {};
+    transactions.filter(t=>t.type==='GASTO').forEach(t=>{
+      const td=new Date(t.date); const key=`${td.getFullYear()}-${td.getMonth()}`;
+      if(!catActivity[t.category])catActivity[t.category]=new Set();
+      catActivity[t.category].add(key);
+    });
+    const recentKeys = months6.slice(0,2);
+    const olderKeys  = months6.slice(2);
+    const newCats=[], activeCats=[], dormantCats=[];
+    activeCategories.GASTO.forEach(cat=>{
+      const actv=catActivity[cat]||new Set();
+      const hasRecent=recentKeys.some(k=>actv.has(k));
+      const hasOlder =olderKeys.some(k=>actv.has(k));
+      if(hasRecent&&!hasOlder) newCats.push(cat);
+      else if(hasRecent&&hasOlder) activeCats.push(cat);
+      else if(!hasRecent&&hasOlder) dormantCats.push(cat);
+    });
+    if(newCats.length===0&&dormantCats.length===0) return null;
+    return { newCats, activeCats, dormantCats };
+  }, [transactions, activeCategories]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6471,6 +6538,109 @@ export default function App() {
                     <p className="text-[10px] text-zinc-700 mt-3 text-center">
                       El {paretoExpenses.paretoPct}% de tus categorías genera el 80% del gasto
                     </p>
+                  </div>
+                )}
+
+                {/* ── Heatmap semanal ── */}
+                {!isHidden('weeklyHeatmap') && weeklyHeatmap && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">🟧 Heatmap semanal</p>
+                      <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">últ. 8 semanas</span>
+                    </div>
+                    <div className="flex gap-2 items-end justify-between">
+                      {weeklyHeatmap.avgs.map((avg, i) => {
+                        const intensity = Math.round((avg / weeklyHeatmap.maxAvg) * 100);
+                        const isPeak = i === weeklyHeatmap.peakDow;
+                        const bg = isPeak
+                          ? 'bg-orange-500'
+                          : intensity >= 70 ? 'bg-orange-400/70'
+                          : intensity >= 40 ? 'bg-orange-400/40'
+                          : intensity >= 15 ? 'bg-orange-400/20'
+                          : 'bg-zinc-800';
+                        const h = Math.max(8, Math.round((avg / weeklyHeatmap.maxAvg) * 56));
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className={`w-full rounded-lg ${bg} transition-all`} style={{height:`${h}px`}}/>
+                            <span className={`text-[10px] font-semibold ${isPeak?'text-orange-400':'text-zinc-500'}`}>
+                              {weeklyHeatmap.labels[i]}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-3 text-center">
+                      Día pico: <span className="text-orange-400 font-semibold">{['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][weeklyHeatmap.peakDow]}</span>
+                      {' · '}prom. <span className="text-zinc-400">{priv(`$${formatNumber(weeklyHeatmap.avgs[weeklyHeatmap.peakDow])}`)}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Ratio de liquidez ── */}
+                {!isHidden('liquidityRatio') && liquidityRatio && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">💧 Ratio de liquidez</p>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                        style={{background:`${liquidityRatio.color}22`,color:liquidityRatio.color}}>
+                        {liquidityRatio.msg}
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-3 mb-3">
+                      <span className="text-4xl font-black" style={{color:liquidityRatio.color}}>
+                        {priv(`${liquidityRatio.ratio}×`)}
+                      </span>
+                      <span className="text-xs text-zinc-500 mb-1.5">meses de reserva</span>
+                    </div>
+                    <div className="w-full bg-zinc-800 rounded-full h-2 mb-3 overflow-hidden">
+                      <div className="h-2 rounded-full transition-all"
+                        style={{width:`${Math.min(100, Math.round((liquidityRatio.ratio/6)*100))}%`, background:liquidityRatio.color}}/>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-zinc-600">
+                      <span>Balance: <span className="text-zinc-400">{priv(`$${formatNumber(liquidityRatio.totalNet)}`)}</span></span>
+                      <span>Gasto/mes: <span className="text-zinc-400">{priv(`$${formatNumber(liquidityRatio.avgMonthlyExp)}`)}</span></span>
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-2 text-center">Objetivo saludable: 3–6 meses</p>
+                  </div>
+                )}
+
+                {/* ── Ciclo de categorías ── */}
+                {!isHidden('categoryLifecycle') && categoryLifecycle && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">🔄 Ciclo de categorías</p>
+                    {categoryLifecycle.newCats.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide mb-1.5">🆕 Emergentes</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {categoryLifecycle.newCats.map(cat => (
+                            <span key={cat} className="text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">{cat}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {categoryLifecycle.activeCats.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide mb-1.5">✅ Activas ({categoryLifecycle.activeCats.length})</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {categoryLifecycle.activeCats.slice(0,5).map(cat => (
+                            <span key={cat} className="text-[11px] bg-indigo-500/10 text-indigo-400/80 border border-indigo-500/15 px-2 py-0.5 rounded-full">{cat}</span>
+                          ))}
+                          {categoryLifecycle.activeCats.length > 5 && (
+                            <span className="text-[11px] text-zinc-600">+{categoryLifecycle.activeCats.length-5} más</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {categoryLifecycle.dormantCats.length > 0 && (
+                      <div>
+                        <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide mb-1.5">💤 Dormidas</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {categoryLifecycle.dormantCats.map(cat => (
+                            <span key={cat} className="text-[11px] bg-zinc-800 text-zinc-600 border border-zinc-700/50 px-2 py-0.5 rounded-full">{cat}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
