@@ -145,6 +145,9 @@ const WIDGET_LIST = [
   { id: 'monthlySavingsGoal',label:'Meta de ahorro mensual',   icon: '💰' },
   { id: 'quarterSummary',   label: 'Resumen trimestral',        icon: '🗃️' },
   { id: 'healthCheckList',  label: 'Chequeo financiero',        icon: '📋' },
+  { id: 'achievements',     label: 'Logros desbloqueados',      icon: '🏅' },
+  { id: 'incomeByDow',      label: 'Ingresos por día de semana',icon: '📗' },
+  { id: 'stabilityIndex',   label: 'Índice de estabilidad',     icon: '🧭' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4739,6 +4742,86 @@ export default function App() {
     ];
   }, [transactions, goals, budgetCoverage, stats, debts]);
 
+  // achievements — logros desbloqueados basados en datos reales
+  const achievements = useMemo(() => {
+    const all = [];
+    if (stats.income > 0 && stats.income > stats.expenses)
+      all.push({ emoji:'🥇', label:'Mes positivo',          desc:'Ingresos superan los gastos este mes' });
+    if (noSpendStreak && noSpendStreak.record >= 7)
+      all.push({ emoji:'🔥', label:`Racha ${noSpendStreak.record}d`,  desc:`Récord de ${noSpendStreak.record} días sin gastar` });
+    const completedGoals = goals.filter(g => g.completed).length;
+    if (completedGoals > 0)
+      all.push({ emoji:'🎯', label:`${completedGoals} meta${completedGoals>1?'s':''} ✓`, desc:'Alcanzaste tu objetivo de ahorro' });
+    const now2 = new Date(); let consec = 0;
+    for (let i=1;i<=6;i++){
+      const d=new Date(now2.getFullYear(),now2.getMonth()-i,1);
+      const txs=transactions.filter(t=>{const td=new Date(t.date);return td.getMonth()===d.getMonth()&&td.getFullYear()===d.getFullYear();});
+      const inc=txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const exp=txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      if(inc>exp) consec++; else break;
+    }
+    if (consec >= 3)
+      all.push({ emoji:'📈', label:`${consec} meses ↑`,   desc:`Ahorraste ${consec} meses consecutivos` });
+    if (budgetCoverage && budgetCoverage.pct === 100)
+      all.push({ emoji:'🧩', label:'Presupuesto 100%',     desc:'Todas las categorías tienen presupuesto' });
+    if (liquidityRatio && liquidityRatio.ratio >= 3)
+      all.push({ emoji:'💧', label:`Colchón ${liquidityRatio.ratio}×`, desc:`${liquidityRatio.ratio} meses de reserva` });
+    if (debts.length > 0 && !debts.some(d => !d.settled))
+      all.push({ emoji:'🏆', label:'¡Sin deudas!',         desc:'Todas las deudas están saldadas' });
+    return all.length > 0 ? all : null;
+  }, [stats, noSpendStreak, goals, transactions, budgetCoverage, liquidityRatio, debts]);
+
+  // incomeByDow — ingreso promedio por día de la semana (últimas 8 semanas)
+  const incomeByDow = useMemo(() => {
+    const ingreso = transactions.filter(t => t.type === 'INGRESO');
+    if (ingreso.length < 4) return null;
+    const now=new Date(); now.setHours(0,0,0,0);
+    const cutoff=new Date(now.getTime()-8*7*86400000);
+    const recent=ingreso.filter(t=>{const d=new Date(t.date+'T12:00:00');return d>=cutoff&&d<=now;});
+    if (recent.length < 2) return null;
+    const dowTotals=Array(7).fill(0);
+    recent.forEach(t=>{const d=new Date(t.date+'T12:00:00');dowTotals[d.getDay()]+=Number(t.amount);});
+    const avgs=dowTotals.map(s=>Math.round(s/8));
+    const maxAvg=Math.max(...avgs,1);
+    const peakDow=avgs.indexOf(Math.max(...avgs));
+    if(avgs[peakDow]===0) return null;
+    const DOW_LABELS=['D','L','M','X','J','V','S'];
+    return{avgs,maxAvg,peakDow,labels:DOW_LABELS};
+  }, [transactions]);
+
+  // stabilityIndex — score 0–100 de estabilidad financiera en 5 dimensiones
+  const stabilityIndex = useMemo(() => {
+    if (transactions.length < 10) return null;
+    let score = 0;
+    const breakdown = [];
+    const add = (label, pts, max) => { score += pts; breakdown.push({ label, pts, max }); };
+    if (liquidityRatio) {
+      add('Liquidez', liquidityRatio.ratio>=6?20:liquidityRatio.ratio>=3?15:liquidityRatio.ratio>=1?8:2, 20);
+    } else { add('Liquidez', 0, 20); }
+    if (budgetCoverage) {
+      add('Presupuesto', budgetCoverage.pct>=100?20:budgetCoverage.pct>=80?15:budgetCoverage.pct>=50?10:5, 20);
+    } else { add('Presupuesto', 0, 20); }
+    if (stats.income > 0) {
+      const rate=(stats.income-stats.expenses)/stats.income;
+      add('Ahorro', rate>=0.2?20:rate>=0.1?12:rate>=0?5:0, 20);
+    } else { add('Ahorro', 0, 20); }
+    if (balanceTrend) {
+      add('Tendencia', balanceTrend.trend==='up'?20:balanceTrend.trend==='flat'?10:2, 20);
+    } else { add('Tendencia', 0, 20); }
+    const now3=new Date(); let greenM=0;
+    for(let i=1;i<=6;i++){
+      const d=new Date(now3.getFullYear(),now3.getMonth()-i,1);
+      const txs=transactions.filter(t=>{const td=new Date(t.date);return td.getMonth()===d.getMonth()&&td.getFullYear()===d.getFullYear();});
+      const inc=txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const exp=txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      if((inc>0||exp>0)&&inc>=exp) greenM++;
+    }
+    add('Historial', greenM>=6?20:greenM>=4?15:greenM>=2?8:greenM>=1?3:0, 20);
+    const level=score>=80?'Excelente':score>=60?'Bueno':score>=40?'Regular':'Crítico';
+    const color=score>=80?'#10b981':score>=60?'#6366f1':score>=40?'#f59e0b':'#ef4444';
+    return{score,level,color,breakdown};
+  }, [transactions, liquidityRatio, budgetCoverage, stats, balanceTrend]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -7531,6 +7614,98 @@ export default function App() {
                             {item.ok ? '✓' : '×'}
                           </div>
                           <span className={`text-xs ${item.ok ? 'text-zinc-300' : 'text-zinc-600'}`}>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Logros desbloqueados ── */}
+                {!isHidden('achievements') && achievements && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">🏅 Logros desbloqueados</p>
+                      <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                        {achievements.length} logro{achievements.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {achievements.map((a, i) => (
+                        <div key={i} className="flex items-center gap-1.5 bg-zinc-800 border border-white/8 rounded-xl px-3 py-2">
+                          <span className="text-base">{a.emoji}</span>
+                          <div>
+                            <p className="text-[11px] font-semibold text-zinc-200 leading-tight">{a.label}</p>
+                            <p className="text-[9px] text-zinc-500 leading-tight">{a.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Ingresos por día de semana ── */}
+                {!isHidden('incomeByDow') && incomeByDow && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">📗 Ingresos por día</p>
+                      <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">últ. 8 semanas</span>
+                    </div>
+                    <div className="flex gap-2 items-end justify-between">
+                      {incomeByDow.avgs.map((avg, i) => {
+                        const intensity = Math.round((avg / incomeByDow.maxAvg) * 100);
+                        const isPeak = i === incomeByDow.peakDow;
+                        const bg = isPeak ? 'bg-emerald-500'
+                          : intensity >= 70 ? 'bg-emerald-400/60'
+                          : intensity >= 30 ? 'bg-emerald-400/30'
+                          : avg > 0 ? 'bg-emerald-400/15' : 'bg-zinc-800';
+                        const h = avg > 0 ? Math.max(8, Math.round((avg / incomeByDow.maxAvg) * 56)) : 6;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className={`w-full rounded-lg ${bg}`} style={{height:`${h}px`}}/>
+                            <span className={`text-[10px] font-semibold ${isPeak ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                              {incomeByDow.labels[i]}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-3 text-center">
+                      Día pico: <span className="text-emerald-400 font-semibold">{['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][incomeByDow.peakDow]}</span>
+                      {' · '}<span className="text-zinc-400">{priv(`$${formatNumber(incomeByDow.avgs[incomeByDow.peakDow])}`)}</span> prom.
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Índice de estabilidad ── */}
+                {!isHidden('stabilityIndex') && stabilityIndex && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">🧭 Índice de estabilidad</p>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="relative w-16 h-16 shrink-0">
+                        <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                          <circle cx="32" cy="32" r="26" fill="none" stroke="#27272a" strokeWidth="8"/>
+                          <circle cx="32" cy="32" r="26" fill="none" strokeWidth="8"
+                            stroke={stabilityIndex.color}
+                            strokeDasharray={`${Math.round((stabilityIndex.score/100)*163.4)} 163.4`}
+                            strokeLinecap="round"/>
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-sm font-black" style={{color:stabilityIndex.color}}>
+                          {stabilityIndex.score}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-lg font-black" style={{color:stabilityIndex.color}}>{stabilityIndex.level}</p>
+                        <p className="text-xs text-zinc-500">sobre 100 puntos</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {stabilityIndex.breakdown.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[10px] text-zinc-500 w-20 shrink-0">{d.label}</span>
+                          <div className="flex-1 bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 rounded-full" style={{width:`${Math.round((d.pts/d.max)*100)}%`, background:stabilityIndex.color}}/>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 w-8 text-right">{d.pts}/{d.max}</span>
                         </div>
                       ))}
                     </div>
