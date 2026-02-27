@@ -109,6 +109,9 @@ const WIDGET_LIST = [
   { id: 'microSpends',      label: 'Gastos hormiga',            icon: '🐜' },
   { id: 'incomeDiversity',  label: 'Fuentes de ingreso',        icon: '💼' },
   { id: 'goalETA',          label: 'ETA de meta',               icon: '🎯' },
+  { id: 'quincenal',        label: 'Análisis quincena',         icon: '🗓️' },
+  { id: 'usdSavings',       label: 'Ahorro en USD',             icon: '💵' },
+  { id: 'topSpenderDay',    label: 'Días costosos del mes',     icon: '📆' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4010,6 +4013,60 @@ export default function App() {
     return { goal: closest, remaining, monthlySavings, monthsLeft, etaLabel: `${MONTHS[eta.getMonth()]} ${eta.getFullYear()}`, allGoalsCount: active.length };
   }, [goals, transactions]);
 
+  // ── ANÁLISIS QUINCENA ──
+  const quincenal = useMemo(() => {
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const monthTxs = transactions.filter(t => { const d = new Date(t.date); return d.getMonth() === m && d.getFullYear() === y; });
+    if (monthTxs.length === 0) return null;
+    const first  = monthTxs.filter(t => parseInt(t.date.slice(8,10)) <= 15);
+    const second = monthTxs.filter(t => parseInt(t.date.slice(8,10)) >  15);
+    if (first.length === 0 || second.length === 0) return null;
+    const half = (txs) => {
+      const inc = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const exp = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      return { income: inc, expense: exp, balance: inc - exp };
+    };
+    const h1 = half(first), h2 = half(second);
+    if (h1.income === 0 && h1.expense === 0) return null;
+    const heavierHalf = h1.expense >= h2.expense ? '1ª' : '2ª';
+    const maxExp = Math.max(h1.expense, h2.expense, 1);
+    return { h1, h2, heavierHalf, maxExp };
+  }, [transactions, currentDate]);
+
+  // ── AHORRO EN USD ──
+  const usdSavings = useMemo(() => {
+    if (!exchangeRate || exchangeRate <= 0 || stats.income === 0) return null;
+    const balance = stats.income - stats.expenses;
+    const fmt2 = (n) => (Math.round(n * 100) / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const balUSD  = balance / exchangeRate;
+    const incUSD  = stats.income  / exchangeRate;
+    const expUSD  = stats.expenses / exchangeRate;
+    const annualUSD = balUSD * 12;
+    return { balance, balUSD, incUSD, expUSD, annualUSD, rate: exchangeRate, fmt2, isPositive: balance >= 0 };
+  }, [stats.income, stats.expenses, exchangeRate]);
+
+  // ── DÍAS MÁS COSTOSOS ──
+  const topSpenderDay = useMemo(() => {
+    const gasto = transactions.filter(t => t.type === 'GASTO');
+    if (gasto.length < 10) return null;
+    const dayMap = {};
+    gasto.forEach(t => {
+      const day = parseInt(t.date.slice(8,10));
+      const mon = t.date.slice(0,7);
+      if (!dayMap[day]) dayMap[day] = { total: 0, months: new Set() };
+      dayMap[day].total += Number(t.amount);
+      dayMap[day].months.add(mon);
+    });
+    const days = Object.entries(dayMap)
+      .filter(([,d]) => d.months.size >= 2)
+      .map(([day, d]) => ({ day: parseInt(day), avg: Math.round(d.total / d.months.size), months: d.months.size }))
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 3);
+    if (days.length === 0) return null;
+    const maxAvg = days[0].avg;
+    return { days, maxAvg };
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -5596,6 +5653,119 @@ export default function App() {
                       )}
                     </div>
                   </button>
+                )}
+
+                {/* ── Análisis quincena ── */}
+                {!isHidden('quincenal') && quincenal && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🗓️</span>
+                      <p className="text-xs font-bold text-zinc-300">Análisis quincena</p>
+                      <span className="ml-auto text-[10px] text-rose-400/70 font-semibold">
+                        Más gasto: {quincenal.heavierHalf} quincena
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {[
+                        { label: '1–15', data: quincenal.h1 },
+                        { label: '16–fin', data: quincenal.h2 },
+                      ].map(({ label, data }) => (
+                        <div key={label}
+                          className={`rounded-xl p-3 border ${data.expense === quincenal.maxExp ? 'bg-rose-500/8 border-rose-500/20' : 'bg-zinc-900/60 border-white/5'}`}>
+                          <p className="text-[10px] font-bold text-zinc-500 mb-2">{label}</p>
+                          <div className="space-y-1">
+                            {data.income > 0 && (
+                              <div className="flex justify-between text-xs">
+                                <span className="text-zinc-600">Ing.</span>
+                                <span className="text-emerald-400 font-semibold">${priv(formatNumber(data.income))}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-600">Gasto</span>
+                              <span className="text-rose-300 font-semibold">${priv(formatNumber(data.expense))}</span>
+                            </div>
+                            <div className="h-px bg-white/5 my-1"/>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-600">Balance</span>
+                              <span className={`font-black ${data.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                                {data.balance >= 0 ? '+' : ''}${priv(formatNumber(data.balance))}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-rose-500/60 rounded-full"
+                              style={{width:`${Math.round((data.expense / quincenal.maxExp) * 100)}%`}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Ahorro en USD ── */}
+                {!isHidden('usdSavings') && usdSavings && (
+                  <div className={`rounded-[1.5rem] p-4 border ${usdSavings.isPositive ? 'bg-emerald-500/6 border-emerald-500/15' : 'bg-rose-500/6 border-rose-500/15'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">💵</span>
+                      <p className="text-xs font-bold text-zinc-300">Balance en USD</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">1 USD = ${formatNumber(usdSavings.rate)}</span>
+                    </div>
+                    <div className="flex items-end justify-between mb-3">
+                      <div>
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Este mes</p>
+                        <p className={`text-3xl font-black tabular-nums ${usdSavings.isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {usdSavings.isPositive ? '+' : ''}USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.balUSD)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-600">Proyección anual</p>
+                        <p className={`text-sm font-black ${usdSavings.annualUSD >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
+                          {usdSavings.annualUSD >= 0 ? '+' : ''}USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.annualUSD)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-black/20 rounded-xl px-3 py-2">
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Ingresos</p>
+                        <p className="font-bold text-zinc-300">USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.incUSD)}</p>
+                      </div>
+                      <div className="bg-black/20 rounded-xl px-3 py-2">
+                        <p className="text-[10px] text-zinc-600 mb-0.5">Gastos</p>
+                        <p className="font-bold text-zinc-300">USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.expUSD)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Días más costosos ── */}
+                {!isHidden('topSpenderDay') && topSpenderDay && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">📆</span>
+                      <p className="text-xs font-bold text-zinc-300">Días más costosos del mes</p>
+                    </div>
+                    <div className="space-y-2.5">
+                      {topSpenderDay.days.map((d, i) => (
+                        <div key={d.day} className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0
+                            ${i === 0 ? 'bg-rose-500/20 text-rose-300' : i === 1 ? 'bg-amber-500/15 text-amber-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                            {d.day}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${i === 0 ? 'bg-rose-500/70' : i === 1 ? 'bg-amber-500/60' : 'bg-zinc-600/60'}`}
+                                style={{width:`${Math.round((d.avg / topSpenderDay.maxAvg) * 100)}%`}}/>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs font-black text-zinc-200">${priv(formatNumber(d.avg))}</p>
+                            <p className="text-[9px] text-zinc-600">prom. {d.months} meses</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-3 text-center">Promedio de gasto histórico por día del mes</p>
+                  </div>
                 )}
 
                 {/* ── Patrimonio acumulado ── */}
