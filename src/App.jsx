@@ -185,7 +185,14 @@ const WIDGET_LIST = [
   { id: 'ritmoGastos',    label: 'Velocímetro de gastos',    icon: '⚡' },
   { id: 'projection2',    label: 'Proyección fin de mes',    icon: '🔮' },
   { id: 'patrimonio',     label: 'Patrimonio neto',          icon: '🏦' },
-  { id: 'vencimientos',   label: 'Vencimientos próximos',    icon: '🔔' },
+  { id: 'vencimientos',          label: 'Vencimientos próximos',    icon: '🔔' },
+  // Secciones adicionales sin guard — corregidas
+  { id: 'incomeSourceBreakdown', label: 'Fuentes de ingreso (gráf)', icon: '💼' },
+  { id: 'yearHeatmap',           label: 'Mapa calor anual',          icon: '🗓️' },
+  { id: 'dailyBars',             label: 'Gastos por día (barras)',   icon: '📊' },
+  { id: 'sixMonthBars',          label: 'Ingresos vs Gastos 6m',    icon: '📈' },
+  { id: 'savingsStreak',         label: 'Racha de ahorro',           icon: '🔥' },
+  { id: 'notaDelMes',            label: 'Nota del mes',              icon: '📝' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -5179,7 +5186,7 @@ export default function App() {
                 </div>
 
                 {/* ── Plan del mes ── */}
-                {!isHidden('planMes') && (planMes.targetIncome > 0 || planMes.targetExpense > 0 || showPlanEditor) ? (
+                {!isHidden('planMes') && ((planMes.targetIncome > 0 || planMes.targetExpense > 0 || showPlanEditor) ? (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 space-y-3">
                     <div className="flex justify-between items-center">
                       <p className="text-sm font-bold text-zinc-300">Plan de {MONTHS[currentDate.getMonth()]}</p>
@@ -5232,7 +5239,7 @@ export default function App() {
                     className="w-full py-3 bg-zinc-900/20 border border-dashed border-white/10 rounded-[1.5rem] text-xs font-bold text-zinc-600 active:text-zinc-400 active:border-white/20 transition-all flex items-center justify-center gap-2">
                     <span>📋</span> Establecer plan para {MONTHS[currentDate.getMonth()]}
                   </button>
-                )}
+                ))}
 
                 {/* ── Gastos fijos comprometidos ── */}
                 {!isHidden('recurringFixed') && recurringFixed && (
@@ -5467,7 +5474,7 @@ export default function App() {
                 ))}
 
                 {/* ── Desglose fuentes de ingreso ── */}
-                {incomeSourceBreakdown && (
+                {!isHidden('incomeSourceBreakdown') && incomeSourceBreakdown && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-3">Fuentes de ingreso</p>
                     <div className="space-y-2.5">
@@ -5990,7 +5997,7 @@ export default function App() {
                 )}
 
                 {/* Mapa de calor anual */}
-                {yearHeatmap && (
+                {!isHidden('yearHeatmap') && yearHeatmap && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Gastos {currentDate.getFullYear()}</p>
@@ -6096,7 +6103,7 @@ export default function App() {
                 )}
 
                 {/* ── Barras diarias del mes ── */}
-                {dailyBars && (
+                {!isHidden('dailyBars') && dailyBars && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Gastos por día — {MONTHS[currentDate.getMonth()]}</p>
@@ -6163,7 +6170,7 @@ export default function App() {
                 )}
 
                 {/* ── Gráfico barras 6 meses ── */}
-                {sixMonthBars && (
+                {!isHidden('sixMonthBars') && sixMonthBars && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-4">Ingresos vs Gastos — últimos 6 meses</p>
                     <div className="flex items-end justify-between gap-1.5 h-28">
@@ -7944,7 +7951,7 @@ export default function App() {
                 )}
 
                 {/* Racha de ahorro */}
-                {savingsStreak >= 1 && (
+                {!isHidden('savingsStreak') && savingsStreak >= 1 && (
                   <div className={`rounded-[1.5rem] p-5 border ${savingsStreak >= 6 ? 'bg-amber-500/8 border-amber-500/20' : 'bg-zinc-900/40 border-white/5'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -8274,28 +8281,30 @@ export default function App() {
                 ))}
 
                 {/* Nota del mes */}
-                <div className={`rounded-[1.5rem] border transition-all ${currentMemo.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
-                  <button
-                    onClick={() => { setNotaExpanded(v=>!v); haptic(8); }}
-                    className="w-full flex items-center gap-3 px-5 py-3.5">
-                    <span className="text-base leading-none flex-shrink-0">📝</span>
-                    <span className={`text-xs font-bold flex-1 text-left truncate ${currentMemo.trim() ? 'text-amber-300' : 'text-zinc-500'}`}>
-                      {currentMemo.trim() ? currentMemo.split('\n')[0].slice(0,60) : `Nota de ${MONTHS[currentDate.getMonth()]}…`}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-600 transition-transform flex-shrink-0 ${notaExpanded ? 'rotate-180' : ''}`}/>
-                  </button>
-                  {notaExpanded && (
-                    <div className="px-5 pb-4">
-                      <textarea
-                        value={currentMemo}
-                        onChange={e => saveMemo(e.target.value)}
-                        placeholder={`Anotá el contexto de ${MONTHS[currentDate.getMonth()]}…\nEj: mes del aguinaldo, vacaciones, sueldo doble…`}
-                        rows={3}
-                        className="w-full bg-black/30 border border-white/8 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-amber-500/40"
-                      />
-                    </div>
-                  )}
-                </div>
+                {!isHidden('notaDelMes') && (
+                  <div className={`rounded-[1.5rem] border transition-all ${currentMemo.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
+                    <button
+                      onClick={() => { setNotaExpanded(v=>!v); haptic(8); }}
+                      className="w-full flex items-center gap-3 px-5 py-3.5">
+                      <span className="text-base leading-none flex-shrink-0">📝</span>
+                      <span className={`text-xs font-bold flex-1 text-left truncate ${currentMemo.trim() ? 'text-amber-300' : 'text-zinc-500'}`}>
+                        {currentMemo.trim() ? currentMemo.split('\n')[0].slice(0,60) : `Nota de ${MONTHS[currentDate.getMonth()]}…`}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-zinc-600 transition-transform flex-shrink-0 ${notaExpanded ? 'rotate-180' : ''}`}/>
+                    </button>
+                    {notaExpanded && (
+                      <div className="px-5 pb-4">
+                        <textarea
+                          value={currentMemo}
+                          onChange={e => saveMemo(e.target.value)}
+                          placeholder={`Anotá el contexto de ${MONTHS[currentDate.getMonth()]}…\nEj: mes del aguinaldo, vacaciones, sueldo doble…`}
+                          rows={3}
+                          className="w-full bg-black/30 border border-white/8 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-amber-500/40"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* ── Empty state: all widgets hidden ── */}
                 {WIDGET_LIST.every(w => isHidden(w.id)) && (
