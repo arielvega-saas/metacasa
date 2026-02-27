@@ -1721,6 +1721,19 @@ export default function App() {
   const [showCuotaForm,   setShowCuotaForm]   = useState(false);
   const [editingCuota,    setEditingCuota]    = useState(null);
 
+  // NOTA DEL MES (localStorage por YYYY-MM)
+  const notaMesKey = `metacasa_nota_${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+  const [notaMes,      setNotaMes]      = useState('');
+  const [notaExpanded, setNotaExpanded] = useState(false);
+  useEffect(() => {
+    setNotaMes(localStorage.getItem(notaMesKey) || '');
+  }, [notaMesKey]);
+  const saveNota = (val) => {
+    setNotaMes(val);
+    if (val.trim()) localStorage.setItem(notaMesKey, val);
+    else localStorage.removeItem(notaMesKey);
+  };
+
   // CONFIRMACIÓN INLINE DE ELIMINACIÓN
   const [pendingDelete,   setPendingDelete]   = useState(null); // { id, type }
   const pendingDeleteRef = useRef(null);
@@ -2778,6 +2791,43 @@ export default function App() {
     return { dailyRate: Math.round(dailyRate), projected, totalBudget, daysLeft, safeDaily, pct, dayOfMonth, daysInMonth };
   }, [stats.expenses, budgets, currentDate]);
 
+  // ── BALANCE SEMANAL (últimos 7 días vs 7 anteriores) ──
+  const weekBalance = useMemo(() => {
+    const now = new Date();
+    const ms7  = 7  * 86400000;
+    const ms14 = 14 * 86400000;
+    const cur7Start  = new Date(now - ms7);
+    const prev7Start = new Date(now - ms14);
+    const cur  = transactions.filter(t => { const d = new Date(t.date+'T12:00:00'); return t.type==='GASTO' && d >= cur7Start  && d <= now; }).reduce((a,c)=>a+Number(c.amount),0);
+    const prev = transactions.filter(t => { const d = new Date(t.date+'T12:00:00'); return t.type==='GASTO' && d >= prev7Start && d <  cur7Start; }).reduce((a,c)=>a+Number(c.amount),0);
+    if (cur === 0 && prev === 0) return null;
+    const diff = cur - prev;
+    const pct  = prev > 0 ? Math.round((diff / prev) * 100) : null;
+    return { cur, prev, diff, pct };
+  }, [transactions]);
+
+  // ── GRÁFICO BARRAS 6 MESES (ingresos vs gastos) ──
+  const sixMonthBars = useMemo(() => {
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - i), 1);
+      return { year: d.getFullYear(), month: d.getMonth(), label: MONTHS[d.getMonth()].slice(0, 3) };
+    });
+    const data = months.map(m => {
+      const mTxs = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === m.month && d.getFullYear() === m.year;
+      });
+      return {
+        label: m.label,
+        income:  mTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0),
+        expense: mTxs.filter(t=>t.type==='GASTO'  ).reduce((a,c)=>a+Number(c.amount),0),
+      };
+    });
+    if (data.every(d => d.income === 0 && d.expense === 0)) return null;
+    const maxVal = Math.max(...data.map(d => Math.max(d.income, d.expense)), 1);
+    return { data, maxVal };
+  }, [transactions, currentDate]);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2892,6 +2942,30 @@ export default function App() {
                     </div>
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20" />
                   </div>
+                </div>
+
+                {/* ── Nota del mes ── */}
+                <div className={`rounded-[1.5rem] border transition-all ${notaMes.trim() || notaExpanded ? 'bg-amber-500/5 border-amber-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
+                  <button
+                    onClick={() => { setNotaExpanded(v=>!v); haptic(8); }}
+                    className="w-full flex items-center gap-3 px-5 py-3.5">
+                    <Edit3 className={`w-4 h-4 flex-shrink-0 ${notaMes.trim() ? 'text-amber-400' : 'text-zinc-600'}`}/>
+                    <span className={`text-xs font-bold flex-1 text-left truncate ${notaMes.trim() ? 'text-amber-300' : 'text-zinc-500'}`}>
+                      {notaMes.trim() ? notaMes.split('\n')[0].slice(0,60) : `Nota de ${MONTHS[currentDate.getMonth()]}…`}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-600 transition-transform flex-shrink-0 ${notaExpanded ? 'rotate-180' : ''}`}/>
+                  </button>
+                  {notaExpanded && (
+                    <div className="px-5 pb-4">
+                      <textarea
+                        value={notaMes}
+                        onChange={e=>saveNota(e.target.value)}
+                        placeholder={`Anotá el contexto de ${MONTHS[currentDate.getMonth()]}…\nEj: mes del aguinaldo, vacaciones, sueldo doble…`}
+                        rows={3}
+                        className="w-full bg-black/30 border border-white/8 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-amber-500/40"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Resumen Ahorro/Inversión */}
@@ -3308,6 +3382,73 @@ export default function App() {
                           <span className="text-[8px] text-zinc-700">{l}</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Balance semanal ── */}
+                {weekBalance && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Balance semanal</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Esta semana</p>
+                        <p className="text-sm font-black text-rose-300">${formatNumber(weekBalance.cur)}</p>
+                      </div>
+                      <div className="bg-black/30 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Semana anterior</p>
+                        <p className="text-sm font-black text-zinc-400">${formatNumber(weekBalance.prev)}</p>
+                      </div>
+                    </div>
+                    {weekBalance.pct !== null && (
+                      <div className={`mt-3 flex items-center justify-center gap-2 py-2 rounded-xl ${weekBalance.diff <= 0 ? 'bg-emerald-500/8 border border-emerald-500/15' : 'bg-rose-500/8 border border-rose-500/15'}`}>
+                        <span className={`text-sm ${weekBalance.diff <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {weekBalance.diff <= 0 ? '▼' : '▲'}
+                        </span>
+                        <p className={`text-xs font-bold ${weekBalance.diff <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {Math.abs(weekBalance.pct)}% vs semana pasada
+                          {weekBalance.diff <= 0 ? ' — ¡gastaste menos!' : ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Gráfico barras 6 meses ── */}
+                {sixMonthBars && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">Ingresos vs Gastos — últimos 6 meses</p>
+                    <div className="flex items-end justify-between gap-1.5 h-28">
+                      {sixMonthBars.data.map((m, i) => {
+                        const incH = Math.round((m.income  / sixMonthBars.maxVal) * 88);
+                        const expH = Math.round((m.expense / sixMonthBars.maxVal) * 88);
+                        const isCurrentMonth = i === 5;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="flex items-end gap-0.5 w-full justify-center" style={{height:'88px'}}>
+                              <div
+                                className={`flex-1 rounded-t-md transition-all duration-500 ${isCurrentMonth ? 'bg-emerald-400' : 'bg-emerald-700/60'}`}
+                                style={{height: incH > 0 ? `${incH}px` : '2px'}}
+                              />
+                              <div
+                                className={`flex-1 rounded-t-md transition-all duration-500 ${isCurrentMonth ? 'bg-rose-400' : 'bg-rose-700/60'}`}
+                                style={{height: expH > 0 ? `${expH}px` : '2px'}}
+                              />
+                            </div>
+                            <p className={`text-[9px] font-bold ${isCurrentMonth ? 'text-zinc-300' : 'text-zinc-600'}`}>{m.label}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-end gap-3 mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500"/>
+                        <span className="text-[10px] text-zinc-600 font-semibold">Ingresos</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-rose-500"/>
+                        <span className="text-[10px] text-zinc-600 font-semibold">Gastos</span>
+                      </div>
                     </div>
                   </div>
                 )}
