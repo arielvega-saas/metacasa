@@ -1948,7 +1948,8 @@ export default function App() {
   const [recurring,    setRecurring]    = useState([]);
 
   // NAVIGATION
-  const [activeTab, setActiveTab] = useState('home'); // home | add | history | settings
+  const [activeTab, setActiveTab] = useState('home'); // home | add | history | settings | stats
+  const [statsView, setStatsView] = useState('menu'); // menu | gastos | ingresos | tendencias | salud | presupuesto | ahorro
 
   // PERIOD
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -4799,13 +4800,13 @@ export default function App() {
       <GlobalStyles />
 
       {/* ── TAB CONTENT ── */}
-      <div className="max-w-md mx-auto pb-28">
+      <div className="max-w-md md:max-w-2xl mx-auto pb-28 md:pb-10">
 
         {/* ════════════════════════════════
             TAB: INICIO (Dashboard)
         ════════════════════════════════ */}
         {activeTab==='home' && (
-          <div className="px-5 pt-5 space-y-5">
+          <div className="px-5 pt-5 space-y-5 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 md:items-start">
             {/* Header */}
             <header className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -8847,6 +8848,253 @@ export default function App() {
         )}
 
         {/* ════════════════════════════════
+            TAB: ESTADÍSTICAS
+        ════════════════════════════════ */}
+        {activeTab==='stats' && (
+          <div className="px-5 pt-5 pb-10">
+            {statsView==='menu' ? (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">Estadísticas</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                  </div>
+                </div>
+                <button onClick={()=>setShowReport(true)}
+                  className="w-full bg-indigo-600/15 border border-indigo-500/30 rounded-[1.5rem] p-5 flex items-center gap-4 active:bg-indigo-600/25 transition-colors">
+                  <div className="w-12 h-12 bg-indigo-600/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-2xl">📊</span>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-black text-white">Informe mensual</p>
+                    <p className="text-xs text-indigo-300/70 mt-0.5">Resumen completo · {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-indigo-400 flex-shrink-0"/>
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5">
+                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">Ingresos</p>
+                    <p className="text-lg font-black text-emerald-400">${priv(formatNumber(stats.income))}</p>
+                    {prevMonth && prevMonth.income > 0 && <p className="text-[10px] text-zinc-600 mt-0.5">{stats.income >= prevMonth.income ? '▲' : '▼'} vs mes ant.</p>}
+                  </div>
+                  <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5">
+                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">Gastos</p>
+                    <p className="text-lg font-black text-rose-400">${priv(formatNumber(stats.expenses))}</p>
+                    {prevMonth && prevMonth.expense > 0 && <p className="text-[10px] text-zinc-600 mt-0.5">{stats.expenses <= prevMonth.expense ? '▼' : '▲'} vs mes ant.</p>}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider ml-1 mb-3">Reportes</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id:'gastos',      label:'Gastos',           icon:'🛒', color:'bg-rose-500/10 border-rose-500/20',       badge: stats.expenses > 0 ? '$'+formatNumber(stats.expenses) : null },
+                      { id:'ingresos',    label:'Ingresos',         icon:'💰', color:'bg-emerald-500/10 border-emerald-500/20', badge: stats.income > 0 ? '$'+formatNumber(stats.income) : null },
+                      { id:'tendencias',  label:'Tendencias',       icon:'📈', color:'bg-indigo-500/10 border-indigo-500/20',   badge: null },
+                      { id:'salud',       label:'Salud financiera', icon:'🏥', color:'bg-violet-500/10 border-violet-500/20',   badge: healthScore ? healthScore.grade : null },
+                      { id:'presupuesto', label:'Presupuesto',      icon:'📋', color:'bg-amber-500/10 border-amber-500/20',     badge: budgetCoverage ? budgetCoverage.pct+'%' : null },
+                      { id:'ahorro',      label:'Ahorro y metas',   icon:'🚀', color:'bg-cyan-500/10 border-cyan-500/20',       badge: null },
+                    ].map(cat=>(
+                      <button key={cat.id} onClick={()=>setStatsView(cat.id)}
+                        className={`${cat.color} border rounded-2xl p-4 text-left active:scale-95 transition-all`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-2xl leading-none">{cat.icon}</span>
+                          {cat.badge && <span className="text-[10px] font-black text-zinc-400">{cat.badge}</span>}
+                        </div>
+                        <p className="text-sm font-bold text-white">{cat.label}</p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-0.5">Ver detalle <ChevronRight className="w-3 h-3 inline"/></p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {healthScore && (
+                  <button onClick={()=>setStatsView('salud')}
+                    className="w-full bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-4 active:bg-zinc-900/70 transition-colors">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{background:healthScore.color+'20',border:'1px solid '+healthScore.color+'40'}}>
+                      <span className="text-xl font-black" style={{color:healthScore.color}}>{healthScore.grade}</span>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-bold text-zinc-300">Índice de salud financiera</p>
+                      <p className="text-xs mt-0.5 font-semibold" style={{color:healthScore.color}}>{healthScore.label} · {healthScore.score}/100 pts</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-600 flex-shrink-0"/>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <button onClick={()=>setStatsView('menu')} className="flex items-center gap-2 text-indigo-400 active:opacity-60 py-1">
+                  <ChevronLeft className="w-4 h-4"/>
+                  <span className="text-sm font-semibold">Estadísticas</span>
+                </button>
+                {statsView==='gastos' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">🛒 Gastos</h3>
+                  {burnRate && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-1">Velocidad de gasto</p>
+                    <p className="text-3xl font-black">${priv(formatNumber(burnRate.dailyRate))}<span className="text-sm text-zinc-500 font-semibold">/día</span></p>
+                    <div className="flex gap-4 mt-3 text-xs"><span className="text-zinc-500">Proyectado: <b className="text-white">${priv(formatNumber(burnRate.projected))}</b></span>{burnRate.pct&&<span className="text-amber-400 font-bold">{burnRate.pct}% del presupuesto</span>}</div>
+                    <div className="mt-3 h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-rose-500 rounded-full" style={{width:`${Math.min(100,Math.round((burnRate.daysPassed/burnRate.daysInMonth)*100))}%`}}/></div>
+                    <p className="text-[10px] text-zinc-600 mt-1">Día {burnRate.daysPassed} de {burnRate.daysInMonth}</p>
+                  </div>)}
+                  {topTxs && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Top gastos del mes</p>
+                    {topTxs.slice(0,5).map((t,i)=>(<div key={t.id||i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+                      <span className="text-base leading-none">{getEmoji(t.category)}</span>
+                      <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-zinc-300 truncate">{t.note||t.category}</p><p className="text-[10px] text-zinc-600">{t.category}</p></div>
+                      <p className="text-sm font-black text-rose-300">-${priv(formatNumber(t.amount))}</p>
+                    </div>))}
+                  </div>)}
+                  {worstWeek && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
+                    <span className="text-2xl">📉</span>
+                    <div><p className="text-xs text-zinc-500">Peor semana</p><p className="text-sm font-black text-white">${priv(formatNumber(worstWeek.total))}</p><p className="text-[10px] text-zinc-600">{worstWeek.label}</p></div>
+                  </div>)}
+                  {paretoExpenses && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Pareto de gastos</p>
+                    {paretoExpenses.slice(0,5).map((p,i)=>(<div key={p.cat} className="mb-2"><div className="flex justify-between mb-0.5"><span className="text-xs text-zinc-300">{i+1}. {p.cat}</span><span className="text-xs font-bold text-rose-400">{p.pct}%</span></div><div className="h-1 bg-zinc-800 rounded-full"><div className="h-full bg-rose-500 rounded-full" style={{width:`${p.pct}%`}}/></div></div>))}
+                  </div>)}
+                  {microSpends && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
+                    <span className="text-2xl">🐜</span>
+                    <div className="flex-1"><p className="text-xs text-zinc-500">Gastos hormiga</p><p className="text-sm font-black text-white">${priv(formatNumber(microSpends.total))}</p><p className="text-[10px] text-zinc-600">{microSpends.count} transacciones &lt;${microSpends.threshold}</p></div>
+                  </div>)}
+                </>)}
+                {statsView==='ingresos' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">💰 Ingresos</h3>
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 grid grid-cols-2 gap-4">
+                    <div><p className="text-xs text-zinc-500">Este mes</p><p className="text-2xl font-black text-emerald-400">${priv(formatNumber(stats.income))}</p></div>
+                    {prevMonth&&<div><p className="text-xs text-zinc-500">Mes anterior</p><p className="text-2xl font-black text-zinc-300">${priv(formatNumber(prevMonth.income))}</p></div>}
+                  </div>
+                  {incomeDiversity && incomeDiversity.length > 0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Fuentes de ingreso</p>
+                    {incomeDiversity.map(s=>(<div key={s.cat} className="mb-3"><div className="flex justify-between mb-1"><span className="text-sm text-zinc-300">{s.cat}</span><span className="text-xs font-bold text-emerald-400">{s.pct}%</span></div><div className="h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{width:`${s.pct}%`}}/></div></div>))}
+                  </div>)}
+                  {topIncomeMonths && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Mejores meses de ingreso</p>
+                    {topIncomeMonths.map((m,i)=>(<div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0"><span className="text-xs text-zinc-600 w-4">{i+1}</span><p className="text-sm flex-1 text-zinc-300">{m.label}</p><p className="text-sm font-black text-emerald-400">${priv(formatNumber(m.total))}</p></div>))}
+                  </div>)}
+                  {savingsMomentum && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
+                    <span className="text-2xl">📈</span>
+                    <div><p className="text-xs text-zinc-500">Momentum de ahorro</p><p className={`text-sm font-black ${savingsMomentum.trend==='up'?'text-emerald-400':savingsMomentum.trend==='down'?'text-rose-400':'text-zinc-300'}`}>{savingsMomentum.trend==='up'?'▲ Tendencia positiva':savingsMomentum.trend==='down'?'▼ Tendencia negativa':'→ Estable'}</p></div>
+                  </div>)}
+                  {incomeByDow && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Ingresos por día de la semana</p>
+                    <div className="flex gap-1 items-end h-16">{incomeByDow.avgs.map((v,i)=>{const max=Math.max(...incomeByDow.avgs,1);return(<div key={i} className="flex-1 flex flex-col items-center gap-1"><div className="w-full rounded-t" style={{height:`${Math.round((v/max)*48)+4}px`,background:incomeByDow.peakDow===i?'#10b981':'#27272a'}}/><span className="text-[9px] text-zinc-600">{incomeByDow.labels[i]}</span></div>);})}
+                    </div>
+                  </div>)}
+                </>)}
+                {statsView==='tendencias' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">📈 Tendencias</h3>
+                  {balanceTrend && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-1">Tendencia de balance</p>
+                    <p className={`text-lg font-black ${balanceTrend.trend==='up'?'text-emerald-400':balanceTrend.trend==='down'?'text-rose-400':'text-zinc-300'}`}>{balanceTrend.trend==='up'?'▲ Balance en crecimiento':balanceTrend.trend==='down'?'▼ Balance en descenso':'→ Balance estable'}</p>
+                    {balanceTrend.last3&&balanceTrend.last3.length>0&&<div className="flex gap-2 mt-3">{balanceTrend.last3.map((v,i)=>(<div key={i} className="flex-1 text-center bg-zinc-800/50 rounded-xl py-2"><p className="text-[9px] text-zinc-600 mb-1">M-{2-i}</p><p className={`text-xs font-bold ${v>=0?'text-emerald-400':'text-rose-400'}`}>{v>=0?'+':''}{formatNumber(v)}</p></div>))}</div>}
+                  </div>)}
+                  {weekOverWeek && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Semana vs semana</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><p className="text-[10px] text-zinc-600">Esta semana</p><p className="text-xl font-black text-white">${priv(formatNumber(weekOverWeek.cur))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">Semana anterior</p><p className="text-xl font-black text-zinc-400">${priv(formatNumber(weekOverWeek.prev))}</p></div>
+                    </div>
+                    {weekOverWeek.pct!==null&&<p className={`text-xs mt-2 font-bold ${weekOverWeek.diff>0?'text-rose-400':'text-emerald-400'}`}>{weekOverWeek.diff>0?'▲':'▼'} {Math.abs(weekOverWeek.pct)}% vs semana anterior</p>}
+                  </div>)}
+                  {prevMonthCompare && prevMonthCompare.items && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Comparativa mes anterior</p>
+                    {prevMonthCompare.items.slice(0,6).map(it=>(<div key={it.cat} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0"><span className="text-base leading-none flex-shrink-0">{getEmoji(it.cat)}</span><p className="text-sm flex-1 text-zinc-300">{it.cat}</p><p className={`text-xs font-bold ${it.diff>0?'text-rose-400':'text-emerald-400'}`}>{it.diff>0?'+':''}{formatNumber(it.diff)}</p></div>))}
+                  </div>)}
+                  {weeklyHeatmap && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Heatmap semanal (promedio)</p>
+                    <div className="flex gap-1 items-end h-16">{weeklyHeatmap.avgs.map((v,i)=>{const pct=weeklyHeatmap.maxAvg>0?v/weeklyHeatmap.maxAvg:0;return(<div key={i} className="flex-1 flex flex-col items-center gap-1"><div className="w-full rounded-t" style={{height:`${Math.round(pct*48)+4}px`,background:weeklyHeatmap.peakDow===i?'#f97316':`rgba(249,115,22,${0.15+pct*0.5})`}}/><span className="text-[9px] text-zinc-500">{weeklyHeatmap.labels[i]}</span></div>);})}
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-2">Pico: {weeklyHeatmap.labels[weeklyHeatmap.peakDow]} · ${priv(formatNumber(weeklyHeatmap.avgs[weeklyHeatmap.peakDow]))}/sem</p>
+                  </div>)}
+                  {categoryLifecycle && categoryLifecycle.length>0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Ciclo de categorías</p>
+                    {categoryLifecycle.slice(0,5).map(c=>(<div key={c.cat} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0"><span className="text-base leading-none">{getEmoji(c.cat)}</span><p className="text-sm flex-1 text-zinc-300">{c.cat}</p><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.trend==='growing'?'bg-rose-500/20 text-rose-400':c.trend==='shrinking'?'bg-emerald-500/20 text-emerald-400':'bg-zinc-800 text-zinc-400'}`}>{c.trend==='growing'?'↑ Creciendo':c.trend==='shrinking'?'↓ Bajando':'→ Estable'}</span></div>))}
+                  </div>)}
+                </>)}
+                {statsView==='salud' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">🏥 Salud financiera</h3>
+                  {healthScore && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-6">
+                    <div className="flex items-center gap-4 mb-5">
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{background:healthScore.color+'20'}}>
+                        <span className="text-3xl font-black" style={{color:healthScore.color}}>{healthScore.grade}</span>
+                      </div>
+                      <div>
+                        <p className="text-3xl font-black text-white">{healthScore.score}<span className="text-sm text-zinc-500">/100</span></p>
+                        <p className="text-sm font-bold mt-0.5" style={{color:healthScore.color}}>{healthScore.label}</p>
+                      </div>
+                    </div>
+                    {healthScore.breakdown.map(b=>(<div key={b.label} className="flex items-center gap-3 py-2"><p className="text-xs text-zinc-400 flex-1">{b.label}</p><div className="w-20 h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/></div><p className="text-xs font-bold text-zinc-300 w-10 text-right">{b.pts}/{b.max}</p></div>))}
+                  </div>)}
+                  {stabilityIndex && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-2">Índice de estabilidad</p>
+                    <p className="text-2xl font-black" style={{color:stabilityIndex.color}}>{stabilityIndex.score}<span className="text-sm text-zinc-500 ml-1">/100 · {stabilityIndex.level}</span></p>
+                  </div>)}
+                  {achievements && achievements.length>0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Logros desbloqueados</p>
+                    {achievements.slice(0,5).map(a=>(<div key={a.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0"><span className="text-2xl leading-none">{a.icon}</span><div><p className="text-sm font-bold text-zinc-300">{a.label}</p><p className="text-[10px] text-zinc-600">{a.desc}</p></div></div>))}
+                  </div>)}
+                  {noSpendStreak > 0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3"><span className="text-2xl">🔥</span><div><p className="text-xs text-zinc-500">Racha sin gastos</p><p className="text-lg font-black text-amber-400">{noSpendStreak} mes{noSpendStreak!==1?'es':''} consecutivo{noSpendStreak!==1?'s':''}</p></div></div>)}
+                  {healthCheckList && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Chequeo financiero</p>
+                    {healthCheckList.map(item=>(<div key={item.id} className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0"><span className={`text-base leading-none mt-0.5 ${item.ok?'text-emerald-400':'text-zinc-600'}`}>{item.ok?'✅':'⭕'}</span><div><p className={`text-xs font-semibold ${item.ok?'text-zinc-300':'text-zinc-500'}`}>{item.label}</p>{item.note&&<p className="text-[10px] text-zinc-600 mt-0.5">{item.note}</p>}</div></div>))}
+                  </div>)}
+                </>)}
+                {statsView==='presupuesto' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">📋 Presupuesto</h3>
+                  {budgetCoverage && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-2">Cobertura de presupuesto</p>
+                    <p className={`text-3xl font-black ${budgetCoverage.pct>=100?'text-emerald-400':budgetCoverage.pct>=75?'text-amber-400':'text-rose-400'}`}>{budgetCoverage.pct}%</p>
+                    <div className="mt-2 h-2 bg-zinc-800 rounded-full"><div className={`h-full rounded-full ${budgetCoverage.pct>=100?'bg-emerald-500':budgetCoverage.pct>=75?'bg-amber-500':'bg-rose-500'}`} style={{width:`${Math.min(100,budgetCoverage.pct)}%`}}/></div>
+                    <p className="text-xs text-zinc-600 mt-1">${priv(formatNumber(budgetCoverage.assigned))} asignado de ${priv(formatNumber(budgetCoverage.income))}</p>
+                  </div>)}
+                  {rule503020 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Regla 50/30/20</p>
+                    {[{label:'Necesidades (50%)',val:rule503020.needs,pct:rule503020.needsPct,color:'bg-indigo-500'},{label:'Deseos (30%)',val:rule503020.wants,pct:rule503020.wantsPct,color:'bg-violet-500'},{label:'Ahorro (20%)',val:rule503020.savings,pct:rule503020.savingsPct,color:'bg-emerald-500'}].map(r=>(<div key={r.label} className="mb-3"><div className="flex justify-between text-xs mb-1"><span className="text-zinc-400">{r.label}</span><span className="font-bold text-white">${priv(formatNumber(r.val))}</span></div><div className="h-2 bg-zinc-800 rounded-full"><div className={`h-full ${r.color} rounded-full`} style={{width:`${Math.min(100,r.pct||0)}%`}}/></div></div>))}
+                  </div>)}
+                  {monthProjection && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-1">Proyección fin de mes</p>
+                    <p className="text-2xl font-black text-white">${priv(formatNumber(monthProjection.projected))}</p>
+                    <p className="text-xs text-zinc-500 mt-1">{monthProjection.daysLeft} días restantes</p>
+                  </div>)}
+                  {surplusAllocation && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-1">Superávit para distribuir</p>
+                    <p className="text-2xl font-black text-emerald-400">${priv(formatNumber(surplusAllocation.surplus))}</p>
+                    {surplusAllocation.suggestions && <div className="flex gap-2 mt-3">{surplusAllocation.suggestions.map(s=>(<div key={s.label} className="flex-1 bg-zinc-800/60 rounded-xl p-2 text-center"><p className="text-[10px] text-zinc-500">{s.label}</p><p className="text-xs font-black text-white">${formatNumber(s.amount)}</p></div>))}</div>}
+                  </div>)}
+                </>)}
+                {statsView==='ahorro' && (<>
+                  <h3 className="text-xl font-black uppercase tracking-tight">🚀 Ahorro y metas</h3>
+                  {monthlySavingsGoal && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-2">Meta de ahorro mensual</p>
+                    <div className="flex items-end gap-2"><p className="text-3xl font-black text-emerald-400">${priv(formatNumber(monthlySavingsGoal.actual))}</p><p className="text-sm text-zinc-500 mb-1">de ${priv(formatNumber(monthlySavingsGoal.target))}</p></div>
+                    <div className="mt-2 h-2 bg-zinc-800 rounded-full"><div className={`h-full rounded-full ${monthlySavingsGoal.met?'bg-emerald-500':'bg-amber-500'}`} style={{width:`${Math.min(100,monthlySavingsGoal.pct||0)}%`}}/></div>
+                    <p className={`text-xs mt-1 font-bold ${monthlySavingsGoal.met?'text-emerald-400':'text-amber-400'}`}>{monthlySavingsGoal.pct||0}% {monthlySavingsGoal.met?'✓ Meta alcanzada':'de la meta'}</p>
+                  </div>)}
+                  {quarterSummary && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-3">Resumen trimestral Q{quarterSummary.q} {quarterSummary.year}</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div><p className="text-[10px] text-zinc-600">Ingresos</p><p className="text-base font-black text-emerald-400">${priv(formatNumber(quarterSummary.income))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">Gastos</p><p className="text-base font-black text-rose-400">${priv(formatNumber(quarterSummary.expenses))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">Balance</p><p className={`text-base font-black ${quarterSummary.balance>=0?'text-emerald-400':'text-rose-400'}`}>{quarterSummary.balance>=0?'+':''}{priv(formatNumber(quarterSummary.balance))}</p></div>
+                    </div>
+                  </div>)}
+                  {liquidityRatio && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3"><span className="text-2xl">💧</span><div><p className="text-xs text-zinc-500">Ratio de liquidez</p><p className="text-lg font-black text-white">{liquidityRatio.ratio} mes{liquidityRatio.ratio!==1?'es':''}<span className="text-xs text-zinc-500 font-normal"> cobertura</span></p></div></div>)}
+                  {savingsProjection && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-2">Proyección de ahorro anual</p>
+                    <p className="text-2xl font-black text-emerald-400">${priv(formatNumber(savingsProjection.projected))}</p>
+                    <p className="text-xs text-zinc-600 mt-1">Manteniendo el ritmo actual</p>
+                  </div>)}
+                  {netPosition && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
+                    <p className="text-xs font-bold text-zinc-500 mb-1">Posición neta</p>
+                    <p className={`text-2xl font-black ${netPosition.net>=0?'text-emerald-400':'text-rose-400'}`}>{netPosition.net>=0?'+':''}{priv(formatNumber(netPosition.net))}</p>
+                    <div className="flex gap-4 mt-2 text-xs text-zinc-600"><span>Activos: ${priv(formatNumber(netPosition.assets))}</span><span>Deudas: ${priv(formatNumber(netPosition.liabilities))}</span></div>
+                  </div>)}
+                </>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════
             TAB: AJUSTES
         ════════════════════════════════ */}
         {activeTab==='settings' && (
@@ -9118,12 +9366,13 @@ export default function App() {
           BOTTOM TAB BAR (iOS-style)
       ════════════════════════════════ */}
       <div className="fixed bottom-0 left-0 right-0 z-[90] bg-black/90 backdrop-blur-xl border-t border-white/8 pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-md mx-auto flex">
+        <div className="max-w-lg mx-auto flex">
           {[
-            { id:'home',    icon: Home,    label: 'Inicio'   },
-            { id:'add',     icon: Plus,    label: 'Registrar'},
-            { id:'history', icon: History, label: 'Historial'},
-            { id:'settings',icon: Settings,label: 'Ajustes'  },
+            { id:'home',    icon: Home,      label: 'Inicio'   },
+            { id:'add',     icon: Plus,      label: 'Registrar'},
+            { id:'history', icon: History,   label: 'Historial'},
+            { id:'stats',   icon: BarChart3, label: 'Stats'    },
+            { id:'settings',icon: Settings,  label: 'Ajustes'  },
           ].map(tab=>{
             const Icon = tab.icon;
             const active = activeTab===tab.id;
