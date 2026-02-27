@@ -3171,6 +3171,51 @@ export default function App() {
     return { increases, decreases, prevMonthLabel: MONTHS[pM] };
   }, [stats, activeCategories, transactions, currentDate]);
 
+  // ── BARRAS DIARIAS DEL MES ──
+  const dailyBars = useMemo(() => {
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const d = i + 1;
+      const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const txDay = monthTxs.filter(t => t.date.slice(0,10) === key);
+      const expense = txDay.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+      const income  = txDay.filter(t => t.type === 'INGRESO').reduce((a, c) => a + Number(c.amount), 0);
+      return { d, key, expense, income, isToday: key === todayStr };
+    });
+    if (days.every(d => d.expense === 0 && d.income === 0)) return null;
+    const maxVal = Math.max(...days.map(d => Math.max(d.expense, d.income)), 1);
+    return { days, maxVal, daysInMonth };
+  }, [monthTxs, currentDate]);
+
+  // ── TOP 5 GASTOS INDIVIDUALES ──
+  const topTxs = useMemo(() => {
+    const top = [...monthTxs]
+      .filter(t => t.type === 'GASTO')
+      .sort((a, b) => Number(b.amount) - Number(a.amount))
+      .slice(0, 5);
+    return top.length > 0 ? top : null;
+  }, [monthTxs]);
+
+  // ── RACHA DE REGISTRO ──
+  const registroStreak = useMemo(() => {
+    if (transactions.length === 0) return 0;
+    const daysWithTx = new Set(transactions.map(t => t.date.slice(0, 10)));
+    let streak = 0;
+    const d = new Date();
+    // If nothing today, start checking from yesterday
+    const todayStr = d.toISOString().slice(0, 10);
+    if (!daysWithTx.has(todayStr)) d.setDate(d.getDate() - 1);
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if (!daysWithTx.has(key)) break;
+      streak++;
+      d.setDate(d.getDate() - 1);
+      if (streak > 365) break;
+    }
+    return streak;
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3371,6 +3416,31 @@ export default function App() {
                           : `Proyección ${formatNumber(monthProjection.vsLimit.diff)} bajo el límite de gastos`}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Top gastos del mes ── */}
+                {topTxs && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Top gastos del mes</p>
+                    <div className="space-y-2">
+                      {topTxs.map((t, i) => (
+                        <button key={t.id} onClick={() => setEditingTx(t)}
+                          className="w-full flex items-center gap-3 active:bg-zinc-800/40 rounded-xl px-1 py-0.5 transition-colors">
+                          <span className={`text-[10px] font-black w-4 flex-shrink-0 ${i===0?'text-amber-400':i===1?'text-zinc-400':i===2?'text-orange-700':'text-zinc-700'}`}>
+                            #{i+1}
+                          </span>
+                          <span className="text-sm leading-none flex-shrink-0">{getEmoji(t.category)}</span>
+                          <span className="text-xs text-zinc-400 flex-1 truncate text-left">{t.note || t.category}</span>
+                          <span className="text-xs text-zinc-600 flex-shrink-0 mr-2">
+                            {new Date(t.date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})}
+                          </span>
+                          <span className="text-sm font-black text-white flex-shrink-0">
+                            ${priv(formatNumber(t.amount))}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -3979,6 +4049,38 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Barras diarias del mes ── */}
+                {dailyBars && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Gastos por día — {MONTHS[currentDate.getMonth()]}</p>
+                    </div>
+                    <div className="overflow-x-auto no-scrollbar">
+                      <div className="flex items-end gap-px" style={{minWidth: `${dailyBars.daysInMonth * 14}px`, height: '56px'}}>
+                        {dailyBars.days.map(({ d, expense, income, isToday }) => {
+                          const expH = expense > 0 ? Math.max(3, Math.round((expense / dailyBars.maxVal) * 48)) : 0;
+                          const incH = income  > 0 ? Math.max(3, Math.round((income  / dailyBars.maxVal) * 48)) : 0;
+                          return (
+                            <div key={d} className="flex-1 flex flex-col items-center justify-end gap-px" style={{height:'56px'}}>
+                              {incH > 0 && <div style={{height:`${incH}px`}} className={`w-full rounded-t-sm ${isToday?'bg-emerald-400':'bg-emerald-700/50'}`}/>}
+                              {expH > 0 && <div style={{height:`${expH}px`}} className={`w-full ${incH>0?'':'rounded-t-sm'} ${isToday?'bg-rose-400':'bg-rose-700/50'}`}/>}
+                              {expH === 0 && incH === 0 && <div style={{height:'2px'}} className="w-full bg-zinc-800/60 rounded-full mt-auto"/>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-[9px] text-zinc-700">1</span>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-rose-500/70"/><span className="text-[9px] text-zinc-700">Gasto</span></div>
+                        <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-emerald-500/70"/><span className="text-[9px] text-zinc-700">Ingreso</span></div>
+                      </div>
+                      <span className="text-[9px] text-zinc-700">{dailyBars.daysInMonth}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Gráfico barras 6 meses ── */}
                 {sixMonthBars && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -4070,6 +4172,27 @@ export default function App() {
                         {savingsStreak}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* ── Racha de registro ── */}
+                {registroStreak >= 2 && (
+                  <div className={`rounded-[1.5rem] p-4 border flex items-center gap-3
+                    ${registroStreak >= 14 ? 'bg-violet-500/8 border-violet-500/20' : registroStreak >= 7 ? 'bg-indigo-500/8 border-indigo-500/15' : 'bg-zinc-900/30 border-white/5'}`}>
+                    <span className="text-2xl leading-none flex-shrink-0">
+                      {registroStreak >= 14 ? '💜' : registroStreak >= 7 ? '⚡' : '📝'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white">Racha de registro</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">
+                        {registroStreak >= 14 ? '¡Registrando a diario!' : 'Seguís registrando tus movimientos'}
+                      </p>
+                    </div>
+                    <span className={`text-3xl font-black tabular-nums flex-shrink-0
+                      ${registroStreak >= 14 ? 'text-violet-400' : registroStreak >= 7 ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                      {registroStreak}
+                    </span>
+                    <span className="text-[9px] text-zinc-600 flex-shrink-0 self-end mb-1">días</span>
                   </div>
                 )}
 
