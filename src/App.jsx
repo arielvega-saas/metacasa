@@ -2910,48 +2910,6 @@ export default function App() {
   }
 
   // ─────────────────────────────────────────────
-  // RENDER: LOGIN
-  // ─────────────────────────────────────────────
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-        <GlobalStyles />
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center space-y-4">
-            <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto shadow-2xl border border-white/10">
-              <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter">MetaCasa</h1>
-              <p className="text-sm text-zinc-500 mt-1">Finanzas del hogar</p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/50 rounded-[2rem] p-7 border border-white/5 space-y-5">
-            <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
-              {[{key:"LOGIN",label:"Ingresar"},{key:"SIGNUP",label:"Registrarse"}].map(opt=>(
-                <button key={opt.key} onClick={()=>setAuthMode(opt.key)}
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${authMode===opt.key?'bg-indigo-600 text-white':'text-zinc-500'}`}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email"
-              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
-            <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Contraseña"
-              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
-            <button onClick={authMode==="LOGIN"?signIn:signUp}
-              className="w-full py-5 rounded-2xl font-bold text-sm uppercase tracking-wider bg-indigo-600 active:scale-95 transition-all shadow-lg">
-              {authMode==="LOGIN"?"Ingresar":"Crear cuenta"}
-            </button>
-            {authMode==="SIGNUP"&&<p className="text-xs text-zinc-600 text-center">Revisá spam/promociones si no llega el email de confirmación.</p>}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─────────────────────────────────────────────
   // RENDER: APP
   // ─────────────────────────────────────────────
 
@@ -4784,6 +4742,48 @@ export default function App() {
     const color=score>=80?'#10b981':score>=60?'#6366f1':score>=40?'#f59e0b':'#ef4444';
     return{score,level,color,breakdown};
   }, [transactions, liquidityRatio, budgetCoverage, stats, balanceTrend]);
+
+  // ─────────────────────────────────────────────
+  // RENDER: LOGIN (must be after all hooks)
+  // ─────────────────────────────────────────────
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+        <GlobalStyles />
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center space-y-4">
+            <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto shadow-2xl border border-white/10">
+              <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter">MetaCasa</h1>
+              <p className="text-sm text-zinc-500 mt-1">Finanzas del hogar</p>
+            </div>
+          </div>
+
+          <div className="bg-zinc-900/50 rounded-[2rem] p-7 border border-white/5 space-y-5">
+            <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
+              {[{key:"LOGIN",label:"Ingresar"},{key:"SIGNUP",label:"Registrarse"}].map(opt=>(
+                <button key={opt.key} onClick={()=>setAuthMode(opt.key)}
+                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${authMode===opt.key?'bg-indigo-600 text-white':'text-zinc-500'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email"
+              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
+            <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Contraseña"
+              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
+            <button onClick={authMode==="LOGIN"?signIn:signUp}
+              className="w-full py-5 rounded-2xl font-bold text-sm uppercase tracking-wider bg-indigo-600 active:scale-95 transition-all shadow-lg">
+              {authMode==="LOGIN"?"Ingresar":"Crear cuenta"}
+            </button>
+            {authMode==="SIGNUP"&&<p className="text-xs text-zinc-600 text-center">Revisá spam/promociones si no llega el email de confirmación.</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Donut data
   const chartData = activeCategories.GASTO
