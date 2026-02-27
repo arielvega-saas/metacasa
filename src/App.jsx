@@ -130,6 +130,9 @@ const WIDGET_LIST = [
   { id: 'rule503020',       label: 'Regla 50/30/20',           icon: '📐' },
   { id: 'noSpendStreak',    label: 'Racha sin gastos',          icon: '🔥' },
   { id: 'topIncomeMonths',  label: 'Mejores meses de ingreso',  icon: '📊' },
+  { id: 'burnRate',         label: 'Velocidad de gasto',        icon: '⚡' },
+  { id: 'amountHistogram',  label: 'Histograma de montos',      icon: '🗂️' },
+  { id: 'topDescriptions',  label: 'Notas frecuentes',          icon: '💬' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4435,6 +4438,70 @@ export default function App() {
     return { top3, avg, maxIncome: top3[0].income };
   }, [transactions]);
 
+  // burnRate — gasto diario promedio del mes vs histórico, proyección fin de mes
+  const burnRate = useMemo(() => {
+    const now=new Date();
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const daysPassed=(m===now.getMonth()&&y===now.getFullYear())?now.getDate():daysInMonth;
+    if(daysPassed===0) return null;
+    const monthExp=transactions.filter(t=>{const d=new Date(t.date);return t.type==='GASTO'&&d.getMonth()===m&&d.getFullYear()===y;});
+    const totalSpent=monthExp.reduce((a,c)=>a+Number(c.amount),0);
+    if(totalSpent===0) return null;
+    const dailyRate=totalSpent/daysPassed;
+    const projected=Math.round(dailyRate*daysInMonth);
+    let histTotal=0, histDays=0;
+    for(let i=1;i<=3;i++){
+      const d=new Date(y,m-i,1); const hm=d.getMonth(), hy=d.getFullYear();
+      const hDays=new Date(hy,hm+1,0).getDate();
+      const hSpent=transactions.filter(t=>{const td=new Date(t.date);return t.type==='GASTO'&&td.getMonth()===hm&&td.getFullYear()===hy;}).reduce((a,c)=>a+Number(c.amount),0);
+      if(hSpent>0){histTotal+=hSpent;histDays+=hDays;}
+    }
+    const histDailyRate=histDays>0?histTotal/histDays:0;
+    const changeVsHist=histDailyRate>0?Math.round(((dailyRate-histDailyRate)/histDailyRate)*100):null;
+    return{dailyRate:Math.round(dailyRate),projected,daysPassed,daysInMonth,totalSpent:Math.round(totalSpent),histDailyRate:Math.round(histDailyRate),changeVsHist};
+  }, [transactions, currentDate]);
+
+  // amountHistogram — distribución de gastos por rango de monto (mes actual)
+  const amountHistogram = useMemo(() => {
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const monthExp=transactions.filter(t=>{const d=new Date(t.date);return t.type==='GASTO'&&d.getMonth()===m&&d.getFullYear()===y;});
+    if(monthExp.length<5) return null;
+    const RANGES=[
+      {label:'< $1k',   min:0,     max:1000},
+      {label:'$1k–5k',  min:1000,  max:5000},
+      {label:'$5k–20k', min:5000,  max:20000},
+      {label:'$20k+',   min:20000, max:Infinity},
+    ];
+    const buckets=RANGES.map(r=>{
+      const items=monthExp.filter(t=>Number(t.amount)>=r.min&&Number(t.amount)<r.max);
+      const count=items.length;
+      const total=Math.round(items.reduce((a,c)=>a+Number(c.amount),0));
+      const pct=Math.round((count/monthExp.length)*100);
+      return{label:r.label,count,total,pct};
+    }).filter(b=>b.count>0);
+    if(buckets.length<2) return null;
+    const maxCount=Math.max(...buckets.map(b=>b.count),1);
+    return{buckets,total:monthExp.length,maxCount};
+  }, [transactions, currentDate]);
+
+  // topDescriptions — notas/memos más repetidos del mes actual
+  const topDescriptions = useMemo(() => {
+    const m=currentDate.getMonth(), y=currentDate.getFullYear();
+    const monthTxs=transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===m&&d.getFullYear()===y&&t.note&&t.note.trim().length>1;});
+    if(monthTxs.length<3) return null;
+    const noteMap={};
+    monthTxs.forEach(t=>{
+      const key=t.note.trim().toLowerCase();
+      if(!noteMap[key])noteMap[key]={note:t.note.trim(),count:0,total:0};
+      noteMap[key].count++;
+      noteMap[key].total+=Number(t.amount);
+    });
+    const top5=Object.values(noteMap).filter(n=>n.count>1).sort((a,b)=>b.count-a.count).slice(0,5);
+    if(top5.length===0) return null;
+    return{items:top5,maxCount:top5[0].count};
+  }, [transactions, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6797,6 +6864,79 @@ export default function App() {
                     <p className="text-[10px] text-zinc-700 mt-2 text-center">
                       Promedio 12m: {priv(`$${formatNumber(topIncomeMonths.avg)}`)}
                     </p>
+                  </div>
+                )}
+
+                {/* ── Velocidad de gasto ── */}
+                {!isHidden('burnRate') && burnRate && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">⚡ Velocidad de gasto</p>
+                      <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">
+                        día {burnRate.daysPassed}/{burnRate.daysInMonth}
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-2 mb-3">
+                      <span className="text-3xl font-black text-white">{priv(`$${formatNumber(burnRate.dailyRate)}`)}</span>
+                      <span className="text-xs text-zinc-500 mb-1">/ día</span>
+                    </div>
+                    {burnRate.changeVsHist !== null && (
+                      <p className={`text-xs mb-3 ${burnRate.changeVsHist > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {burnRate.changeVsHist > 0 ? '▲' : '▼'} {Math.abs(burnRate.changeVsHist)}% vs prom. histórico ({priv(`$${formatNumber(burnRate.histDailyRate)}`)} /día)
+                      </p>
+                    )}
+                    <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden mb-3">
+                      <div className="h-1.5 bg-violet-500 rounded-full"
+                        style={{width:`${Math.round((burnRate.daysPassed/burnRate.daysInMonth)*100)}%`}}/>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 text-center">
+                      Proyección fin de mes: {priv(`$${formatNumber(burnRate.projected)}`)}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Histograma de montos ── */}
+                {!isHidden('amountHistogram') && amountHistogram && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-zinc-300">🗂️ Histograma de montos</p>
+                      <span className="text-[10px] text-zinc-600">{amountHistogram.total} gastos</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {amountHistogram.buckets.map((b, i) => (
+                        <div key={i}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-zinc-400">{b.label}</span>
+                            <span className="text-[10px] text-zinc-500">{b.count} op. · {b.pct}%</span>
+                          </div>
+                          <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                            <div className="h-2 bg-indigo-500/70 rounded-full"
+                              style={{width:`${Math.round((b.count/amountHistogram.maxCount)*100)}%`}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Notas frecuentes ── */}
+                {!isHidden('topDescriptions') && topDescriptions && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">💬 Notas frecuentes</p>
+                    <div className="space-y-2">
+                      {topDescriptions.items.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                          <div className="flex-1 bg-zinc-800 rounded-full h-6 overflow-hidden relative">
+                            <div className="h-6 bg-violet-500/25 rounded-full absolute top-0 left-0"
+                              style={{width:`${Math.round((item.count/topDescriptions.maxCount)*100)}%`}}/>
+                            <span className="absolute left-3 top-0 bottom-0 flex items-center text-[11px] text-zinc-300 truncate pr-2">
+                              "{item.note}"
+                            </span>
+                          </div>
+                          <span className="text-xs font-semibold text-zinc-400 w-6 text-right shrink-0">{item.count}×</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
