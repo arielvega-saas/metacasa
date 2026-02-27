@@ -1295,7 +1295,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
 }
 
 // ─────────────────────────────────────────────
-// TRENDS CHART — barras últimos 6 meses
+// TRENDS CHART — área suave + línea últimos 6 meses
 // ─────────────────────────────────────────────
 function TrendsChart({ transactions }) {
   const months = [];
@@ -1314,23 +1314,74 @@ function TrendsChart({ transactions }) {
     const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
     return { label, income, expense };
   });
-  const maxVal = Math.max(...data.map(d=>Math.max(d.income,d.expense)), 1);
-  const W=340, H=120, PB=24, PT=8, groupW=W/6, barW=(groupW-10)/2;
+
+  const W=340, H=130, PL=6, PR=6, PT=12, PB=22;
+  const innerW = W - PL - PR;
   const innerH = H - PT - PB;
+  const n = data.length;
+  const stepX = innerW / Math.max(n - 1, 1);
+  const maxVal = Math.max(...data.map(d => Math.max(d.income, d.expense)), 1);
+  const bottomY = PT + innerH;
+
+  const getX = (i) => PL + i * stepX;
+  const getY = (val) => PT + innerH - (val / maxVal) * innerH;
+
+  const buildArea = (series) => {
+    const pts = data.map((d, i) => ({ x: getX(i), y: getY(d[series]) }));
+    const line = pts.map((p, i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    return line + ` L${pts[n-1].x.toFixed(1)},${bottomY} L${pts[0].x.toFixed(1)},${bottomY} Z`;
+  };
+  const buildLine = (series) => {
+    return data.map((d, i) => `${i===0?'M':'L'}${getX(i).toFixed(1)},${getY(d[series]).toFixed(1)}`).join(' ');
+  };
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      {data.map((d,i)=>{
-        const x = i*groupW;
-        const iH = Math.max((d.income/maxVal)*innerH, d.income>0?2:0);
-        const eH = Math.max((d.expense/maxVal)*innerH, d.expense>0?2:0);
-        return (
-          <g key={i}>
-            <rect x={x+4}        y={PT+innerH-iH} width={barW} height={iH} fill="#10b981" rx={2} opacity="0.85"/>
-            <rect x={x+4+barW+2} y={PT+innerH-eH} width={barW} height={eH} fill="#f43f5e" rx={2} opacity="0.85"/>
-            <text x={x+groupW/2} y={H-6} textAnchor="middle" fill="#52525b" fontSize="9" fontWeight="600">{d.label}</text>
-          </g>
-        );
-      })}
+      <defs>
+        <linearGradient id="tGrad1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#10b981" stopOpacity="0.28"/>
+          <stop offset="100%" stopColor="#10b981" stopOpacity="0.02"/>
+        </linearGradient>
+        <linearGradient id="tGrad2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.22"/>
+          <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.02"/>
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines */}
+      {[0.33, 0.66, 1].map(f => (
+        <line key={f} x1={PL} x2={W-PR}
+          y1={(PT + innerH * (1-f)).toFixed(1)} y2={(PT + innerH * (1-f)).toFixed(1)}
+          stroke="#27272a" strokeWidth="1"/>
+      ))}
+
+      {/* Áreas */}
+      <path d={buildArea('income')}  fill="url(#tGrad1)"/>
+      <path d={buildArea('expense')} fill="url(#tGrad2)"/>
+
+      {/* Líneas */}
+      <path d={buildLine('income')}  fill="none" stroke="#10b981" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"/>
+      <path d={buildLine('expense')} fill="none" stroke="#f43f5e" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"/>
+
+      {/* Puntos */}
+      {data.map((d, i) => d.income > 0 && (
+        <circle key={`i${i}`} cx={getX(i)} cy={getY(d.income)} r="3.5"
+          fill="#10b981" stroke="#000" strokeWidth="1.5"/>
+      ))}
+      {data.map((d, i) => d.expense > 0 && (
+        <circle key={`e${i}`} cx={getX(i)} cy={getY(d.expense)} r="3.5"
+          fill="#f43f5e" stroke="#000" strokeWidth="1.5"/>
+      ))}
+
+      {/* Etiquetas */}
+      {data.map((d, i) => (
+        <text key={i} x={getX(i).toFixed(1)} y={H-5}
+          textAnchor="middle" fill="#52525b" fontSize="8.5" fontWeight="600">
+          {d.label}
+        </text>
+      ))}
     </svg>
   );
 }
@@ -1528,6 +1579,7 @@ export default function App() {
   const [showEmojiPicker,    setShowEmojiPicker]     = useState(null); // catName being edited
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
+  const [showScrollTop,      setShowScrollTop]       = useState(false);
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -1731,6 +1783,13 @@ export default function App() {
   useEffect(() => {
     if (activeCategories[type]?.length > 0) setCategory(activeCategories[type][0]);
   }, [type, activeCategories]);
+
+  // Scroll-to-top tracker
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 250);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // ── STATS ──
   const stats = useMemo(() => {
@@ -2402,6 +2461,30 @@ export default function App() {
     });
   }, [transactions]);
 
+  // ── ESTADÍSTICAS DEL MES ──
+  const monthStats = useMemo(() => {
+    if (monthTxs.length === 0) return null;
+    const dayMap = {};
+    monthTxs.forEach(t => {
+      const d = t.date.slice(0, 10);
+      if (!dayMap[d]) dayMap[d] = { income: 0, expense: 0 };
+      if (t.type === 'INGRESO') dayMap[d].income += Number(t.amount);
+      if (t.type === 'GASTO')   dayMap[d].expense += Number(t.amount);
+    });
+    const days = Object.entries(dayMap);
+    const activeDays = days.length;
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const expDays = days.filter(([, v]) => v.expense > 0).sort(([, a], [, b]) => b.expense - a.expense);
+    const maxExpDay = expDays[0] || null;
+    const totalExp = monthTxs.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+    const avgDaily = expDays.length > 0 ? Math.round(totalExp / expDays.length) : 0;
+    const noSpendDays = Math.max(0, daysInMonth - expDays.length);
+    return {
+      activeDays, daysInMonth, avgDaily, noSpendDays,
+      maxExpDay: maxExpDay ? { date: maxExpDay[0], amount: maxExpDay[1].expense } : null,
+    };
+  }, [monthTxs, currentDate]);
+
   // ── BILLS helpers ──
   const today = new Date(); today.setHours(0,0,0,0);
   const billsDue = useMemo(() => {
@@ -2633,6 +2716,44 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {/* Este mes en números */}
+                {monthStats && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Este mes en números</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="bg-black/30 rounded-2xl p-3.5">
+                        <p className="text-[10px] text-zinc-600 mb-1">Días activos</p>
+                        <p className="text-xl font-black text-white">
+                          {monthStats.activeDays}
+                          <span className="text-xs font-semibold text-zinc-600 ml-1">/ {monthStats.daysInMonth}</span>
+                        </p>
+                      </div>
+                      <div className="bg-black/30 rounded-2xl p-3.5">
+                        <p className="text-[10px] text-zinc-600 mb-1">Días sin gastos</p>
+                        <p className="text-xl font-black text-emerald-400">
+                          {monthStats.noSpendDays}
+                          <span className="text-xs font-semibold text-zinc-600 ml-1">días</span>
+                        </p>
+                      </div>
+                      <div className="bg-black/30 rounded-2xl p-3.5">
+                        <p className="text-[10px] text-zinc-600 mb-1">Promedio por día</p>
+                        <p className="text-base font-black text-white">${formatNumber(monthStats.avgDaily)}</p>
+                      </div>
+                      {monthStats.maxExpDay && (
+                        <button onClick={() => goToDate(monthStats.maxExpDay.date)}
+                          className="bg-black/30 rounded-2xl p-3.5 text-left active:scale-[0.97] transition-transform">
+                          <p className="text-[10px] text-zinc-600 mb-1">Mayor gasto</p>
+                          <p className="text-base font-black text-rose-400">${formatNumber(monthStats.maxExpDay.amount)}</p>
+                          <p className="text-[9px] text-zinc-700 mt-0.5">
+                            {new Date(monthStats.maxExpDay.date + 'T12:00:00')
+                              .toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Racha de ahorro */}
                 {savingsStreak >= 1 && (
@@ -3551,6 +3672,15 @@ export default function App() {
           onClick={() => { setActiveTab('add'); haptic(12); }}
           className="fixed z-[85] right-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-14 h-14 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-indigo-400/30">
           <Plus className="w-7 h-7 text-white"/>
+        </button>
+      )}
+
+      {/* Scroll to top */}
+      {activeTab === 'history' && showScrollTop && (
+        <button
+          onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); haptic(8); }}
+          className="fixed z-[85] left-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-11 h-11 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all border border-white/10">
+          <ChevronLeft className="w-4 h-4 text-zinc-300 -rotate-90"/>
         </button>
       )}
 
