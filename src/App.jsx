@@ -95,6 +95,7 @@ const TEMPLATES_KEY = 'metacasa_templates';
 const HIDDEN_WIDGETS_KEY = 'metacasa_hidden_widgets';
 const WIDGET_ORDER_KEY   = 'metacasa_widget_order';
 const WIDGET_SIZES_KEY   = 'metacasa_widget_sizes';
+const FIXED_TX_KEY       = 'metacasa_fixed_txs';
 const WIDGET_LIST = [
   { id: 'planMes',          label: 'Plan del mes',              icon: '📋' },
   { id: 'dailyBudget',      label: 'Presupuesto diario',        icon: '💰' },
@@ -2173,6 +2174,8 @@ export default function App() {
   const [inlineCatName,  setInlineCatName]  = useState('');
   const [savingTx,   setSavingTx]   = useState(false);
   const [savedOk,    setSavedOk]    = useState(false);
+  const [isFixed,    setIsFixed]    = useState(false);
+  const autoReplicatedRef = useRef(new Set()); // meses ya auto-replicados en esta sesión
 
   // TIPO DE CAMBIO (persiste en localStorage)
   const [exchangeRate, setExchangeRate] = useState(() => {
@@ -2431,6 +2434,53 @@ export default function App() {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  // ── Auto-replicación de gastos/ingresos fijos ──
+  useEffect(() => {
+    if (!userId || !transactions.length) return;
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth();
+    const sessionKey = `${y}-${m}`;
+    if (autoReplicatedRef.current.has(sessionKey)) return;
+    autoReplicatedRef.current.add(sessionKey);
+
+    const templates = JSON.parse(localStorage.getItem(FIXED_TX_KEY) || '[]');
+    if (!templates.length) return;
+
+    const monthTxs = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+
+    const missing = templates.filter(tpl =>
+      !monthTxs.some(t =>
+        t.category === tpl.category &&
+        t.type === tpl.type &&
+        Number(t.amount) === tpl.amount
+      )
+    );
+    if (!missing.length) return;
+
+    (async () => {
+      for (const tpl of missing) {
+        const maxDay = new Date(y, m + 1, 0).getDate();
+        const day = Math.min(tpl.dayOfMonth || 1, maxDay);
+        await supabase.from('transactions').insert({
+          user_id: userId,
+          category: tpl.category,
+          type: tpl.type,
+          amount: tpl.amount,
+          note: (tpl.note || tpl.category) + ' (fijo)',
+          date: new Date(y, m, day, 12).toISOString(),
+        });
+      }
+      await loadTransactions();
+      toast(
+        `📌 ${missing.length} ${missing.length === 1 ? 'movimiento fijo registrado' : 'movimientos fijos registrados'} automáticamente`,
+        'info'
+      );
+    })();
+  }, [userId, currentDate.getFullYear(), currentDate.getMonth(), transactions.length]);
 
   // ── STATS ──
   const stats = useMemo(() => {
@@ -2879,6 +2929,22 @@ export default function App() {
           setTimeout(() => toast(`⚡ ${category} al ${Math.round(newPct)}% del límite`, 'info'), 500);
         }
       }
+    }
+
+    // ── Gasto / Ingreso fijo: guardar template ──
+    if (isFixed) {
+      const templates = JSON.parse(localStorage.getItem(FIXED_TX_KEY) || '[]');
+      const existIdx = templates.findIndex(t => t.category === category && t.type === type);
+      const tpl = {
+        id: existIdx >= 0 ? templates[existIdx].id : Date.now(),
+        category, type,
+        amount: numericAmount,
+        note: note.trim(),
+        dayOfMonth: new Date(txDate + 'T12:00:00').getDate(),
+      };
+      if (existIdx >= 0) templates[existIdx] = tpl; else templates.push(tpl);
+      localStorage.setItem(FIXED_TX_KEY, JSON.stringify(templates));
+      setIsFixed(false);
     }
 
     setAmount(''); setNote('');
@@ -8385,57 +8451,22 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Monto + Voz */}
+              {/* Monto */}
               <div className="space-y-3">
-                <input type="text" value={amount?formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
+                <input type="text" value={amount?'$ '+formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
                   placeholder="$ 0"
-                  className="w-full bg-transparent text-6xl font-black text-center focus:outline-none placeholder:text-zinc-800"
+                  className={`w-full bg-transparent text-6xl font-black text-center focus:outline-none transition-colors
+                    ${amount
+                      ? type==='GASTO' ? 'text-rose-400' : 'text-emerald-400'
+                      : 'placeholder:text-zinc-800'}`}
                   inputMode="numeric"
                   onKeyDown={e => { if (e.key==='Enter' && amount && category && !savingTx) { e.target.blur(); handleSaveTransaction(); } }} />
 
-                {/* Montos rápidos */}
-                <div className="overflow-x-auto no-scrollbar -mx-1">
-                  <div className="flex gap-2 px-1" style={{width:'max-content'}}>
-                    {[100,500,1000,2000,5000,10000,20000,50000].map(v=>(
-                      <button key={v} onClick={()=>setAmount(String(v))}
-                        className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-95
-                          ${amount===String(v)
-                            ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
-                            : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
-                        {v>=1000?`${v/1000}k`:v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Montos frecuentes para la categoría seleccionada */}
-                {category && (() => {
-                  const key = `${type}::${category}`;
-                  const freqs = frequentAmounts[key];
-                  if (!freqs || freqs.length === 0) return null;
-                  return (
-                    <div className="overflow-x-auto no-scrollbar -mx-1">
-                      <div className="flex gap-2 px-1 items-center" style={{width:'max-content'}}>
-                        <span className="text-[10px] text-zinc-700 font-semibold flex-shrink-0">Usados en {category}:</span>
-                        {freqs.map(v=>(
-                          <button key={v} onClick={()=>{ setAmount(String(v)); haptic(8); }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-95 flex items-center gap-1
-                              ${amount===String(v)
-                                ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
-                                : 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/25'}`}>
-                            <span className="text-[9px]">★</span>${formatNumber(v)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="flex items-center justify-center gap-3">
-                  <p className="text-xs text-zinc-600">en {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
-                  {voiceSupported && (
+                {/* Dictado por voz */}
+                {voiceSupported && (
+                  <div className="flex justify-center">
                     <button onClick={isListening ? stopListening : startListening}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
                         ${isListening
                           ? 'bg-rose-600 text-white'
                           : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
@@ -8443,47 +8474,12 @@ export default function App() {
                         ? <><MicOff className="w-3.5 h-3.5"/><span className="animate-pulse">Escuchando…</span></>
                         : <><Mic className="w-3.5 h-3.5"/>Dictado</>}
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Recientes + Categoría — chip grid con emojis */}
+              {/* Categoría */}
               <div className="space-y-3">
-                {recentCategories.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-zinc-600 ml-1">Recientes</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {recentCategories.map(cat=>(
-                        <button key={cat} onClick={()=>setCategory(cat)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
-                            ${category===cat
-                              ? type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'
-                              : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
-                          <span>{getEmoji(cat)}</span>
-                          <span>{cat}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* ── Categorías frecuentes ── */}
-                {frecuentesCats[type]?.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider ml-1">Frecuentes</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {frecuentesCats[type].map(c => (
-                        <button key={c} onClick={() => { setCategory(c); haptic(8); }}
-                          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95
-                            ${category === c
-                              ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg ring-2 ring-rose-400/30' : 'bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400/30'
-                              : type==='GASTO' ? 'bg-rose-600/10 text-rose-300 border border-rose-500/20' : 'bg-emerald-600/10 text-emerald-300 border border-emerald-500/20'}`}>
-                          <span className="text-base leading-none">{getEmoji(c)}</span>
-                          <span>{c}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
                   <div className="flex flex-wrap gap-2">
@@ -8564,8 +8560,8 @@ export default function App() {
                 );
               })()}
 
-              {/* Fecha */}
-              <div className="space-y-1.5">
+              {/* Fecha + Período del mes */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
                   <p className="text-xs font-semibold text-zinc-600">Fecha</p>
                   <div className="flex gap-1.5">
@@ -8587,11 +8583,44 @@ export default function App() {
                 </div>
                 <input type="date" value={txDate} onChange={e=>setTxDate(e.target.value)}
                   className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 font-semibold text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+
+                {/* Período del mes — para gastos que pertenecen a otro mes */}
+                <div className="pt-1">
+                  <p className="text-[10px] font-semibold text-zinc-600 ml-1 mb-2">Asignar al período de</p>
+                  <div className="flex gap-2">
+                    {[-1, 0, 1].map(offset => {
+                      const d = new Date();
+                      const targetMonth = d.getMonth() + offset;
+                      const targetYear  = d.getFullYear() + (targetMonth < 0 ? -1 : targetMonth > 11 ? 1 : 0);
+                      const m = ((targetMonth % 12) + 12) % 12;
+                      const y = targetYear;
+                      const txD = new Date(txDate + 'T12:00:00');
+                      const isSelected = txD.getFullYear() === y && txD.getMonth() === m;
+                      return (
+                        <button
+                          key={offset}
+                          onClick={() => {
+                            const maxDay = new Date(y, m + 1, 0).getDate();
+                            const day = Math.min(txD.getDate(), maxDay);
+                            setTxDate(new Date(y, m, day).toISOString().slice(0, 10));
+                            haptic(6);
+                          }}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                            ${isSelected
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                          {MONTHS[m].slice(0, 3)}
+                          {offset !== 0 && <span className="block text-[9px] opacity-60">{offset < 0 ? 'ant.' : 'próx.'}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Nota */}
               <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Detalle opcional del movimiento…"
-                className="w-full bg-black/40 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 min-h-[90px] resize-none focus:outline-none focus:border-indigo-500/40 transition-colors" />
+                className="w-full bg-black/40 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 min-h-[80px] resize-none focus:outline-none focus:border-indigo-500/40 transition-colors" />
 
               {/* Auto-sugerencia de categoría */}
               {catSuggestion && (
@@ -8604,6 +8633,27 @@ export default function App() {
                   <span className="text-xs text-indigo-500 font-bold flex-shrink-0">Aplicar →</span>
                 </button>
               )}
+
+              {/* Toggle: Gasto / Ingreso fijo mensual */}
+              <button
+                onClick={() => { setIsFixed(v => !v); haptic(6); }}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98]
+                  ${isFixed
+                    ? 'bg-amber-500/10 border-amber-500/30'
+                    : 'bg-zinc-900/40 border-white/8'}`}>
+                <span className="text-lg leading-none">📌</span>
+                <div className="flex-1 text-left">
+                  <p className={`text-sm font-bold ${isFixed ? 'text-amber-300' : 'text-zinc-400'}`}>
+                    {type === 'GASTO' ? 'Gasto fijo mensual' : 'Ingreso fijo mensual'}
+                  </p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5">
+                    {isFixed ? 'Se registrará automáticamente cada mes' : 'Activar para replicar cada mes'}
+                  </p>
+                </div>
+                <div className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all flex-shrink-0 ${isFixed ? 'bg-amber-500 justify-end' : 'bg-zinc-700 justify-start'}`}>
+                  <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
+                </div>
+              </button>
 
               {/* Botón guardar */}
               <button onClick={handleSaveTransaction} disabled={!amount||!category||savingTx}
