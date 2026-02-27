@@ -3346,6 +3346,82 @@ export default function App() {
     return sources.length >= 2 ? sources : null;
   }, [stats, activeCategories, monthTxs]);
 
+  // ── BALANCE ACUMULADO DEL MES ──
+  const runningBalance = useMemo(() => {
+    const now = new Date();
+    if (currentDate.getFullYear() !== now.getFullYear() || currentDate.getMonth() !== now.getMonth()) return null;
+    const day = now.getDate();
+    if (day < 3) return null;
+    let cumulative = 0;
+    const points = [];
+    for (let d = 1; d <= day; d++) {
+      const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayTxs = monthTxs.filter(t => t.date.slice(0,10) === key);
+      cumulative += dayTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0)
+                  - dayTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      points.push({ d, balance: cumulative });
+    }
+    if (points.length < 3) return null;
+    const values = points.map(p => p.balance);
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, 1);
+    const range = max - min || 1;
+    const W = 280, H = 56, PAD = 4;
+    const toX = (i) => PAD + (i / Math.max(points.length - 1, 1)) * (W - PAD * 2);
+    const toY = (v) => H - PAD - ((v - min) / range) * (H - PAD * 2);
+    const pathD = points.map((p, i) => `${i===0?'M':'L'}${toX(i).toFixed(1)},${toY(p.balance).toFixed(1)}`).join(' ');
+    const zeroY = toY(0).toFixed(1);
+    const areaD = pathD + ` L${toX(points.length-1).toFixed(1)},${H} L${toX(0).toFixed(1)},${H} Z`;
+    const lastVal = points[points.length-1].balance;
+    const trend = lastVal - points[0].balance;
+    return { points, pathD, areaD, W, H, zeroY, lastVal, trend, day };
+  }, [monthTxs, currentDate]);
+
+  // ── MICRO-ESTADÍSTICAS DEL MES ──
+  const monthStats = useMemo(() => {
+    if (monthTxs.length === 0) return null;
+    const now = new Date();
+    const daysElapsed = (currentDate.getFullYear() === now.getFullYear() && currentDate.getMonth() === now.getMonth())
+      ? now.getDate() : new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const avgDaily = daysElapsed > 0 ? Math.round(stats.expenses / daysElapsed) : 0;
+    // Day with most expense
+    const byDay = {};
+    monthTxs.forEach(t => { if (t.type==='GASTO') byDay[t.date.slice(0,10)] = (byDay[t.date.slice(0,10)]||0) + Number(t.amount); });
+    const peakDay = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+    const peakLabel = peakDay ? new Date(peakDay[0]+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'}) : null;
+    // Days with no expense
+    const daysNoExp = Array.from({length:daysElapsed},(_,i)=>{
+      const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
+      return !byDay[key];
+    }).filter(Boolean).length;
+    return { avgDaily, peakLabel, peakAmount: peakDay ? peakDay[1] : 0, daysNoExp, totalTxs: monthTxs.length, daysElapsed, daysInMonth };
+  }, [monthTxs, stats, currentDate]);
+
+  // ── DESGLOSE SEMANAL DEL MES ──
+  const weeklyBreakdown = useMemo(() => {
+    if (monthTxs.length === 0) return null;
+    const weeks = [];
+    let weekStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    let wNum = 1;
+    while (weekStart <= monthEnd) {
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+      if (weekEnd > monthEnd) weekEnd.setDate(monthEnd.getDate());
+      const s = weekStart.toISOString().slice(0,10), e = weekEnd.toISOString().slice(0,10);
+      const wTxs = monthTxs.filter(t => t.date.slice(0,10) >= s && t.date.slice(0,10) <= e);
+      const expense = wTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      const income  = wTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const startD = weekStart.getDate(), endD = weekEnd.getDate();
+      weeks.push({ wNum, label: `${startD}–${endD}`, expense, income });
+      weekStart = new Date(weekEnd); weekStart.setDate(weekStart.getDate() + 1);
+      wNum++;
+    }
+    if (weeks.every(w => w.expense === 0 && w.income === 0)) return null;
+    const maxVal = Math.max(...weeks.map(w => Math.max(w.expense, w.income)), 1);
+    return { weeks, maxVal };
+  }, [monthTxs, currentDate]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3572,6 +3648,27 @@ export default function App() {
                           : `Proyección ${formatNumber(monthProjection.vsLimit.diff)} bajo el límite de gastos`}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Micro-estadísticas del mes ── */}
+                {monthStats && (
+                  <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+                    <div className="flex gap-2.5" style={{minWidth:'max-content'}}>
+                      {[
+                        { icon:'📊', label:'Prom. diario', val:`$${priv(formatNumber(monthStats.avgDaily))}` },
+                        { icon:'🔢', label:'Movimientos', val:String(monthStats.totalTxs) },
+                        { icon:'🕊️', label:'Días en cero', val:`${monthStats.daysNoExp} de ${monthStats.daysElapsed}` },
+                        ...(monthStats.peakLabel ? [{ icon:'📍', label:`Pico ${monthStats.peakLabel}`, val:`$${priv(formatNumber(monthStats.peakAmount))}` }] : []),
+                      ].map(({ icon, label, val }) => (
+                        <div key={label} className="bg-zinc-900/50 border border-white/6 rounded-2xl px-4 py-3 flex-shrink-0">
+                          <p className="text-[9px] text-zinc-600 font-semibold mb-0.5 flex items-center gap-1">
+                            <span>{icon}</span>{label}
+                          </p>
+                          <p className="text-sm font-black text-white">{val}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -4264,6 +4361,41 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Balance acumulado del mes ── */}
+                {runningBalance && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">Balance acumulado — día {runningBalance.day}</p>
+                      <span className={`text-xs font-black px-2 py-0.5 rounded-full ${runningBalance.lastVal >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`}>
+                        {runningBalance.lastVal >= 0 ? '+' : ''}{priv(formatNumber(runningBalance.lastVal))}
+                      </span>
+                    </div>
+                    <svg viewBox={`0 0 ${runningBalance.W} ${runningBalance.H}`} className="w-full h-14" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="rbGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={runningBalance.lastVal >= 0 ? '#10b981' : '#f43f5e'} stopOpacity="0.25"/>
+                          <stop offset="100%" stopColor={runningBalance.lastVal >= 0 ? '#10b981' : '#f43f5e'} stopOpacity="0.02"/>
+                        </linearGradient>
+                      </defs>
+                      {/* Zero line */}
+                      {runningBalance.min < 0 && runningBalance.max > 0 && (
+                        <line x1={String(4)} y1={runningBalance.zeroY} x2={String(runningBalance.W - 4)} y2={runningBalance.zeroY}
+                          stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="3,3"/>
+                      )}
+                      <path d={runningBalance.areaD} fill="url(#rbGrad)"/>
+                      <path d={runningBalance.pathD} fill="none"
+                        stroke={runningBalance.lastVal >= 0 ? '#10b981' : '#f43f5e'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[9px] text-zinc-700">1</span>
+                      <span className={`text-[9px] font-bold ${runningBalance.trend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {runningBalance.trend >= 0 ? '▲' : '▼'} tendencia
+                      </span>
+                      <span className="text-[9px] text-zinc-700">hoy</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Gráfico barras 6 meses ── */}
                 {sixMonthBars && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -4299,6 +4431,32 @@ export default function App() {
                         <div className="w-2.5 h-2.5 rounded-sm bg-rose-500"/>
                         <span className="text-[10px] text-zinc-600 font-semibold">Gastos</span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Desglose semanal del mes ── */}
+                {weeklyBreakdown && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Por semana — {MONTHS[currentDate.getMonth()]}</p>
+                    <div className="space-y-2">
+                      {weeklyBreakdown.weeks.map(({ wNum, label, expense, income }) => {
+                        const expW = expense > 0 ? Math.max(4, Math.round((expense / weeklyBreakdown.maxVal) * 100)) : 0;
+                        const incW = income  > 0 ? Math.max(4, Math.round((income  / weeklyBreakdown.maxVal) * 100)) : 0;
+                        return (
+                          <div key={wNum} className="flex items-center gap-3">
+                            <span className="text-[10px] text-zinc-600 font-semibold w-10 flex-shrink-0">Sem {wNum}</span>
+                            <div className="flex-1 space-y-1">
+                              {incW > 0 && <div className="h-1.5 bg-emerald-600/50 rounded-full" style={{width:`${incW}%`}}/>}
+                              {expW > 0 && <div className="h-1.5 bg-rose-600/50 rounded-full"    style={{width:`${expW}%`}}/>}
+                            </div>
+                            <div className="text-right flex-shrink-0 w-20">
+                              {expense > 0 && <p className="text-[10px] font-black text-rose-300">−${priv(formatNumber(expense))}</p>}
+                              {income  > 0 && <p className="text-[10px] font-black text-emerald-400">+${priv(formatNumber(income))}</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
