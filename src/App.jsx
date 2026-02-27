@@ -142,6 +142,9 @@ const WIDGET_LIST = [
   { id: 'monthlyTip',       label: 'Consejo del mes',           icon: '💡' },
   { id: 'txCounter',        label: 'Contador de transacciones', icon: '🔢' },
   { id: 'worstWeek',        label: 'Peor semana del mes',       icon: '📉' },
+  { id: 'monthlySavingsGoal',label:'Meta de ahorro mensual',   icon: '💰' },
+  { id: 'quarterSummary',   label: 'Resumen trimestral',        icon: '🗃️' },
+  { id: 'healthCheckList',  label: 'Chequeo financiero',        icon: '📋' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4680,6 +4683,62 @@ export default function App() {
     return{worst,weeks:weekData,maxTotal:worst.total};
   }, [transactions, currentDate]);
 
+  // monthlySavingsGoal — ahorro necesario/mes para alcanzar todas las metas activas en 12 meses
+  const monthlySavingsGoal = useMemo(() => {
+    const activeGoals = goals.filter(g => !g.completed && g.target > 0 && g.current < g.target);
+    if (activeGoals.length === 0 || stats.income === 0) return null;
+    const totalRemaining = activeGoals.reduce((a, g) => a + (g.target - Math.min(g.current, g.target)), 0);
+    const requiredMonthly = Math.round(totalRemaining / 12);
+    const monthly = Math.max(0, stats.income - stats.expenses);
+    const pct = requiredMonthly > 0 ? Math.min(100, Math.round((monthly / requiredMonthly) * 100)) : 100;
+    const isOnTrack = monthly >= requiredMonthly;
+    return { monthly, requiredMonthly, totalRemaining, pct, isOnTrack, goalsCount: activeGoals.length };
+  }, [goals, stats]);
+
+  // quarterSummary — ingresos, gastos y ahorro acumulado del trimestre actual vs anterior
+  const quarterSummary = useMemo(() => {
+    const now = new Date();
+    const cy = currentDate.getFullYear(), cm = currentDate.getMonth();
+    const currentQ = Math.floor(cm / 3);
+    const getQData = (year, q) => {
+      const months = [q*3, q*3+1, q*3+2];
+      let income=0, expense=0;
+      months.forEach(m => {
+        transactions.filter(t => { const d=new Date(t.date); return d.getMonth()===m&&d.getFullYear()===year; }).forEach(t => {
+          if(t.type==='INGRESO') income+=Number(t.amount);
+          else expense+=Number(t.amount);
+        });
+      });
+      return{income:Math.round(income), expense:Math.round(expense), balance:Math.round(income-expense)};
+    };
+    const prevQ = currentQ === 0 ? 3 : currentQ - 1;
+    const prevY = currentQ === 0 ? cy - 1 : cy;
+    const curr = getQData(cy, currentQ);
+    const prev = getQData(prevY, prevQ);
+    if (curr.income === 0 && curr.expense === 0) return null;
+    const pctChg = (c, p) => p !== 0 ? Math.round(((c-p)/Math.abs(p))*100) : null;
+    const QNAMES = ['Q1 (Ene–Mar)','Q2 (Abr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dic)'];
+    return{curr:{...curr, label:QNAMES[currentQ]}, prev:{...prev, label:QNAMES[prevQ]}, incChange:pctChg(curr.income,prev.income), expChange:pctChg(curr.expense,prev.expense), balChange:pctChg(curr.balance,prev.balance)};
+  }, [transactions, currentDate]);
+
+  // healthCheckList — 5 checks de salud financiera rápidos
+  const healthCheckList = useMemo(() => {
+    const now = new Date(); now.setHours(0,0,0,0);
+    const weekAgo = new Date(now.getTime() - 7*86400000);
+    const hasRecentTx = transactions.some(t => new Date(t.date+'T12:00:00') >= weekAgo);
+    const hasActiveGoals = goals.some(g => !g.completed);
+    const allBudgetsCovered = budgetCoverage ? budgetCoverage.pct >= 80 : false;
+    const positiveBalance = stats.income > 0 && stats.income > stats.expenses;
+    const noPendingDebts = !debts.some(d => !d.settled);
+    return [
+      { label: 'Movimientos esta semana', ok: hasRecentTx },
+      { label: 'Metas de ahorro activas', ok: hasActiveGoals },
+      { label: 'Presupuestos cubiertos (≥80%)', ok: allBudgetsCovered },
+      { label: 'Balance mensual positivo', ok: positiveBalance },
+      { label: 'Sin deudas pendientes', ok: noPendingDebts },
+    ];
+  }, [transactions, goals, budgetCoverage, stats, debts]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -7391,6 +7450,90 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Meta de ahorro mensual ── */}
+                {!isHidden('monthlySavingsGoal') && monthlySavingsGoal && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">💰 Meta de ahorro mensual</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${monthlySavingsGoal.isOnTrack ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                        {monthlySavingsGoal.isOnTrack ? '✓ En camino' : 'Por debajo'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-end mb-2">
+                      <div>
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Ahorrando este mes</p>
+                        <p className="text-xl font-black text-white">{priv(`$${formatNumber(monthlySavingsGoal.monthly)}`)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Necesario para metas</p>
+                        <p className="text-xl font-black text-zinc-400">{priv(`$${formatNumber(monthlySavingsGoal.requiredMonthly)}`)}</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden mb-2">
+                      <div className="h-2.5 rounded-full transition-all"
+                        style={{width:`${monthlySavingsGoal.pct}%`, background: monthlySavingsGoal.isOnTrack ? '#10b981' : '#f59e0b'}}/>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 text-center">
+                      {monthlySavingsGoal.pct}% del objetivo · {monthlySavingsGoal.goalsCount} meta{monthlySavingsGoal.goalsCount !== 1 ? 's' : ''} activa{monthlySavingsGoal.goalsCount !== 1 ? 's' : ''} · total pendiente {priv(`$${formatNumber(monthlySavingsGoal.totalRemaining)}`)}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Resumen trimestral ── */}
+                {!isHidden('quarterSummary') && quarterSummary && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">🗃️ Resumen trimestral</p>
+                    <div className="grid grid-cols-3 gap-1 text-center mb-2">
+                      <div/>
+                      <div className="text-[10px] text-zinc-500 font-semibold">{quarterSummary.prev.label}</div>
+                      <div className="text-[10px] text-indigo-400 font-semibold">{quarterSummary.curr.label}</div>
+                    </div>
+                    {[
+                      { label: 'Ingresos', prevVal: quarterSummary.prev.income,  currVal: quarterSummary.curr.income,  chg: quarterSummary.incChange, goodIfUp: true  },
+                      { label: 'Gastos',   prevVal: quarterSummary.prev.expense, currVal: quarterSummary.curr.expense, chg: quarterSummary.expChange, goodIfUp: false },
+                      { label: 'Balance',  prevVal: quarterSummary.prev.balance, currVal: quarterSummary.curr.balance, chg: quarterSummary.balChange, goodIfUp: true  },
+                    ].map(row => {
+                      const isGood = row.chg !== null && (row.goodIfUp ? row.chg >= 0 : row.chg <= 0);
+                      return (
+                        <div key={row.label} className="grid grid-cols-3 gap-1 items-center py-2 border-b border-white/5 last:border-0">
+                          <span className="text-[11px] text-zinc-500">{row.label}</span>
+                          <span className="text-[11px] text-zinc-400 text-center">{priv(`$${formatNumber(row.prevVal)}`)}</span>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[11px] font-semibold text-zinc-200">{priv(`$${formatNumber(row.currVal)}`)}</span>
+                            {row.chg !== null && (
+                              <span className={`text-[9px] font-bold ${isGood ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {row.chg > 0 ? '▲' : '▼'}{Math.abs(row.chg)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Chequeo financiero ── */}
+                {!isHidden('healthCheckList') && healthCheckList && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">📋 Chequeo financiero</p>
+                      <span className="text-[10px] text-zinc-500">
+                        {healthCheckList.filter(c => c.ok).length}/{healthCheckList.length} OK
+                      </span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {healthCheckList.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black ${item.ok ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-600'}`}>
+                            {item.ok ? '✓' : '×'}
+                          </div>
+                          <span className={`text-xs ${item.ok ? 'text-zinc-300' : 'text-zinc-600'}`}>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
