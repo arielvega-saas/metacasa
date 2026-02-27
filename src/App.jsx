@@ -1598,7 +1598,9 @@ export default function App() {
   const [category,   setCategory]   = useState("");
   const [note,       setNote]       = useState("");
   const [txDate,     setTxDate]     = useState(new Date().toISOString().slice(0,10));
-  const [newCatName, setNewCatName] = useState("");
+  const [newCatName,     setNewCatName]     = useState("");
+  const [showInlineCat,  setShowInlineCat]  = useState(false);
+  const [inlineCatName,  setInlineCatName]  = useState('');
   const [savingTx,   setSavingTx]   = useState(false);
   const [savedOk,    setSavedOk]    = useState(false);
 
@@ -2901,6 +2903,39 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Comparador: este mes vs mes anterior */}
+                {(prevMonth.income > 0 || prevMonth.expense > 0) && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">Este mes vs anterior</p>
+                    {[
+                      { label: 'Ingresos', cur: stats.income,    prev: prevMonth.income,   betterIfHigher: true  },
+                      { label: 'Gastos',   cur: stats.expenses,  prev: prevMonth.expense,  betterIfHigher: false },
+                      { label: 'Balance',  cur: stats.available, prev: prevMonth.income - prevMonth.expense, betterIfHigher: true },
+                    ].map(row => {
+                      const diff = row.prev > 0 ? Math.round(((row.cur - row.prev) / row.prev) * 100) : null;
+                      const isUp = diff !== null && diff > 0;
+                      const goodChange = row.betterIfHigher ? isUp : !isUp;
+                      const trendColor = diff === null ? 'text-zinc-600'
+                        : diff === 0 ? 'text-zinc-500'
+                        : goodChange ? 'text-emerald-400' : 'text-rose-400';
+                      return (
+                        <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/4 last:border-0">
+                          <span className="text-xs font-semibold text-zinc-500 w-14">{row.label}</span>
+                          <span className="text-xs text-zinc-600 flex-1 text-right">${formatNumber(row.prev)}</span>
+                          <span className={`text-[10px] font-black mx-3 tabular-nums ${trendColor}`}>
+                            {diff === null ? '—' : diff === 0 ? '=' : (isUp ? '▲' : '▼') + Math.abs(diff) + '%'}
+                          </span>
+                          <span className="text-sm font-black text-white w-20 text-right">${formatNumber(row.cur)}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between text-[9px] text-zinc-700 mt-3 pt-2 border-t border-white/5">
+                      <span>{MONTHS[currentDate.getMonth()===0?11:currentDate.getMonth()-1]} (ant.)</span>
+                      <span>{MONTHS[currentDate.getMonth()]} (actual)</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Proyección fin de mes */}
                 {projection && (
                   <div className="bg-zinc-900/40 rounded-2xl p-5 border border-white/5">
@@ -3113,6 +3148,46 @@ export default function App() {
                         <span>{c}</span>
                       </button>
                     ))}
+                    {/* Nueva categoría inline */}
+                    {showInlineCat ? (
+                      <div className="flex items-center gap-1.5 w-full mt-1">
+                        <input
+                          autoFocus
+                          value={inlineCatName}
+                          onChange={e => setInlineCatName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && inlineCatName.trim()) {
+                              manageCategory('ADD', inlineCatName.trim());
+                              setCategory(inlineCatName.trim());
+                              setInlineCatName(''); setShowInlineCat(false);
+                            }
+                            if (e.key === 'Escape') { setShowInlineCat(false); setInlineCatName(''); }
+                          }}
+                          placeholder="Nombre de la categoría…"
+                          className="flex-1 bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/40 transition-colors placeholder:text-zinc-700"
+                        />
+                        <button
+                          onClick={() => {
+                            if (inlineCatName.trim()) {
+                              manageCategory('ADD', inlineCatName.trim());
+                              setCategory(inlineCatName.trim());
+                            }
+                            setInlineCatName(''); setShowInlineCat(false);
+                          }}
+                          className="px-3 py-2 bg-indigo-600 rounded-xl text-sm font-bold active:scale-95 transition-all">
+                          OK
+                        </button>
+                        <button onClick={() => { setShowInlineCat(false); setInlineCatName(''); }}
+                          className="p-2 bg-zinc-900/80 rounded-xl active:scale-95">
+                          <X className="w-4 h-4 text-zinc-500"/>
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowInlineCat(true)}
+                        className="flex items-center gap-1 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-zinc-600 bg-zinc-900/60 border border-dashed border-white/10 active:scale-95 transition-all">
+                        <Plus className="w-3.5 h-3.5"/><span>Nueva</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
