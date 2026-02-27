@@ -115,6 +115,9 @@ const WIDGET_LIST = [
   { id: 'nextPayments',     label: 'Próximos pagos 14 días',    icon: '💳' },
   { id: 'monthlyPattern',   label: 'Patrón estacional',         icon: '🌡️' },
   { id: 'largestTx',        label: 'Mayor gasto del mes',       icon: '💸' },
+  { id: 'threeMonthForecast',label: 'Pronóstico 3 meses',       icon: '🔭' },
+  { id: 'budgetWins',       label: 'Victorias de presupuesto',  icon: '🏆' },
+  { id: 'balanceTrend',     label: 'Tendencia de balance',      icon: '📊' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4128,6 +4131,74 @@ export default function App() {
     return { tx: largest, pct, dateLabel, total };
   }, [transactions, currentDate]);
 
+  // ── PRONÓSTICO 3 MESES (recurrentes) ──
+  const threeMonthForecast = useMemo(() => {
+    const active = recurring.filter(r => r.active);
+    if (active.length < 2) return null;
+    const getAmt = (r) => {
+      const n = Number(r.amount);
+      if (r.frequency === 'monthly') return n;
+      if (r.frequency === 'weekly')  return Math.round(n * 52/12);
+      if (r.frequency === 'daily')   return Math.round(n * 30);
+      if (r.frequency === 'yearly')  return Math.round(n/12);
+      return n;
+    };
+    const now = new Date();
+    const months = Array.from({length: 3}, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + 1 + i, 1);
+      const mo = d.getMonth(), yr = d.getFullYear();
+      const forMonth = active.filter(r => r.frequency !== 'yearly' || (new Date(r.next_date).getMonth() === mo && new Date(r.next_date).getFullYear() === yr));
+      const income  = forMonth.filter(r => r.type==='INGRESO').reduce((a,r)=>a+getAmt(r),0);
+      const expense = forMonth.filter(r => r.type==='GASTO').reduce((a,r)=>a+getAmt(r),0);
+      return { label: MONTHS[mo].slice(0,3), income, expense, balance: income - expense };
+    });
+    if (months.every(m => m.income===0 && m.expense===0)) return null;
+    const maxVal = Math.max(...months.map(m => Math.max(m.income, m.expense)), 1);
+    return { months, maxVal };
+  }, [recurring]);
+
+  // ── VICTORIAS DE PRESUPUESTO ──
+  const budgetWins = useMemo(() => {
+    const budgeted = activeCategories.GASTO.filter(cat => (budgets[cat]?.amount||0) > 0);
+    if (budgeted.length === 0) return null;
+    const wins = budgeted
+      .map(cat => {
+        const budget = Number(budgets[cat].amount);
+        const spent  = stats.expenseByCategory[cat] || 0;
+        const saved  = budget - spent;
+        const pct    = Math.round((saved / budget) * 100);
+        return { cat, budget, spent, saved, pct };
+      })
+      .filter(w => w.saved > 0 && w.pct >= 10)
+      .sort((a, b) => b.saved - a.saved)
+      .slice(0, 4);
+    if (wins.length === 0) return null;
+    const totalSaved = wins.reduce((a, w) => a + w.saved, 0);
+    return { wins, totalSaved };
+  }, [activeCategories, budgets, stats]);
+
+  // ── TENDENCIA DE BALANCE 6 MESES ──
+  const balanceTrend = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({length: 6}, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const y = d.getFullYear(), m = d.getMonth();
+      const txs = transactions.filter(t => { const td = new Date(t.date); return td.getFullYear()===y && td.getMonth()===m; });
+      const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+      const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+      const balance = income - expense;
+      return { label: MONTHS[m].slice(0,3), balance, hasData: income>0||expense>0 };
+    });
+    const withData = months.filter(m => m.hasData);
+    if (withData.length < 2) return null;
+    const avg = Math.round(withData.reduce((a,m)=>a+m.balance,0) / withData.length);
+    const last  = withData[withData.length-1].balance;
+    const prev  = withData[withData.length-2].balance;
+    const trend = last > prev ? 'up' : last < prev ? 'down' : 'flat';
+    const maxAbs = Math.max(...months.map(m => Math.abs(m.balance)), 1);
+    return { months, avg, last, trend, maxAbs };
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -5929,6 +6000,126 @@ export default function App() {
                       </div>
                     </div>
                   </button>
+                )}
+
+                {/* ── Pronóstico 3 meses ── */}
+                {!isHidden('threeMonthForecast') && threeMonthForecast && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🔭</span>
+                      <p className="text-xs font-bold text-zinc-300">Pronóstico 3 meses</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">basado en recurrentes</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {threeMonthForecast.months.map((m, i) => (
+                        <div key={i} className={`rounded-xl p-3 border ${m.balance >= 0 ? 'bg-indigo-500/6 border-indigo-500/15' : 'bg-rose-500/6 border-rose-500/15'}`}>
+                          <p className="text-[10px] font-bold text-zinc-500 mb-2 text-center">{m.label}</p>
+                          {m.income > 0 && (
+                            <div className="flex justify-between text-[10px] mb-1">
+                              <span className="text-zinc-700">Ing</span>
+                              <span className="text-emerald-400 font-semibold">${priv(formatNumber(m.income))}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[10px] mb-1.5">
+                            <span className="text-zinc-700">Gas</span>
+                            <span className="text-rose-400 font-semibold">${priv(formatNumber(m.expense))}</span>
+                          </div>
+                          <div className="h-px bg-white/5 mb-1.5"/>
+                          <p className={`text-xs font-black text-center ${m.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                            {m.balance >= 0 ? '+' : ''}${priv(formatNumber(m.balance))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Victorias de presupuesto ── */}
+                {!isHidden('budgetWins') && budgetWins && (
+                  <div className="bg-emerald-500/6 rounded-[1.5rem] p-4 border border-emerald-500/15">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🏆</span>
+                      <p className="text-xs font-bold text-zinc-300">Victorias de presupuesto</p>
+                      <span className="ml-auto text-xs font-black text-emerald-400">+${priv(formatNumber(budgetWins.totalSaved))}</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {budgetWins.wins.map(w => (
+                        <div key={w.cat}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="flex items-center gap-1.5">
+                              <span>{getEmoji(w.cat)}</span>
+                              <span className="text-zinc-300">{w.cat}</span>
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-zinc-600">${priv(formatNumber(w.spent))} / ${priv(formatNumber(w.budget))}</span>
+                              <span className="text-emerald-400 font-bold w-8 text-right">−{w.pct}%</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500/50 rounded-full"
+                              style={{width:`${Math.round((w.spent/w.budget)*100)}%`}}/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Tendencia de balance ── */}
+                {!isHidden('balanceTrend') && balanceTrend && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">📊</span>
+                      <p className="text-xs font-bold text-zinc-300">Tendencia de balance</p>
+                      <span className={`ml-auto text-sm font-black ${balanceTrend.trend === 'up' ? 'text-emerald-400' : balanceTrend.trend === 'down' ? 'text-rose-400' : 'text-zinc-500'}`}>
+                        {balanceTrend.trend === 'up' ? '↗' : balanceTrend.trend === 'down' ? '↘' : '→'}
+                      </span>
+                    </div>
+                    {/* SVG sparkline */}
+                    <svg viewBox="0 0 280 52" className="w-full h-14" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="btGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={balanceTrend.avg>=0?'#10b981':'#f43f5e'} stopOpacity="0.25"/>
+                          <stop offset="100%" stopColor={balanceTrend.avg>=0?'#10b981':'#f43f5e'} stopOpacity="0.02"/>
+                        </linearGradient>
+                      </defs>
+                      {/* Zero line */}
+                      <line x1="0" y1="26" x2="280" y2="26" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
+                      {(() => {
+                        const W = 280, H = 52, mid = H/2;
+                        const pts = balanceTrend.months.map((m, i) => {
+                          const x = (i / (balanceTrend.months.length - 1)) * W;
+                          const y = mid - (m.balance / balanceTrend.maxAbs) * (mid - 4);
+                          return `${x},${y}`;
+                        });
+                        const path = `M ${pts.join(' L ')}`;
+                        const area = `M 0,${mid} L ${pts.join(' L ')} L ${W},${mid} Z`;
+                        const color = balanceTrend.avg >= 0 ? '#10b981' : '#f43f5e';
+                        return (
+                          <>
+                            <path d={area} fill="url(#btGrad)"/>
+                            <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            {balanceTrend.months.map((m, i) => {
+                              const x = (i / (balanceTrend.months.length - 1)) * W;
+                              const y = mid - (m.balance / balanceTrend.maxAbs) * (mid - 4);
+                              return m.hasData ? <circle key={i} cx={x} cy={y} r="3" fill={color} opacity="0.8"/> : null;
+                            })}
+                          </>
+                        );
+                      })()}
+                    </svg>
+                    <div className="flex items-center justify-between mt-1.5">
+                      {balanceTrend.months.map((m, i) => (
+                        <span key={i} className={`text-[9px] font-bold flex-1 text-center ${m.hasData ? 'text-zinc-600' : 'text-zinc-800'}`}>{m.label}</span>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-center gap-3 mt-2 text-[10px]">
+                      <span className="text-zinc-600">Promedio</span>
+                      <span className={`font-black ${balanceTrend.avg >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {balanceTrend.avg >= 0 ? '+' : ''}${priv(formatNumber(balanceTrend.avg))}/mes
+                      </span>
+                    </div>
+                  </div>
                 )}
 
                 {/* ── Patrimonio acumulado ── */}
