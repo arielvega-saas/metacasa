@@ -133,6 +133,9 @@ const WIDGET_LIST = [
   { id: 'burnRate',         label: 'Velocidad de gasto',        icon: '⚡' },
   { id: 'amountHistogram',  label: 'Histograma de montos',      icon: '🗂️' },
   { id: 'topDescriptions',  label: 'Notas frecuentes',          icon: '💬' },
+  { id: 'todaySummary',     label: 'Resumen de hoy',            icon: '📅' },
+  { id: 'prevMonthCompare', label: 'Comparativa mes anterior',  icon: '⚖️' },
+  { id: 'budgetCoverage',   label: 'Cobertura de presupuesto',  icon: '🧩' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -4502,6 +4505,44 @@ export default function App() {
     return{items:top5,maxCount:top5[0].count};
   }, [transactions, currentDate]);
 
+  // todaySummary — ingresos, gastos y últimas 3 transacciones del día de hoy
+  const todaySummary = useMemo(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayTxs = transactions.filter(t => t.date.slice(0, 10) === todayKey);
+    if (todayTxs.length === 0) return null;
+    const income  = todayTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const expense = todayTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+    const last3   = [...todayTxs].sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,3);
+    return { income, expense, balance: income - expense, txCount: todayTxs.length, last3 };
+  }, [transactions]);
+
+  // prevMonthCompare — comparativa mes actual vs mes anterior (ingresos, gastos, balance)
+  const prevMonthCompare = useMemo(() => {
+    if (prevMonth.income === 0 && prevMonth.expense === 0) return null;
+    const pctChg = (curr, prev) => prev > 0 ? Math.round(((curr-prev)/prev)*100) : null;
+    const currBal = stats.income - stats.expenses;
+    const prevBal = prevMonth.income - prevMonth.expense;
+    const balChange = prevBal !== 0 ? Math.round(((currBal-prevBal)/Math.abs(prevBal))*100) : null;
+    const prevD = new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1);
+    return {
+      curr: { income: stats.income, expense: stats.expenses, balance: currBal, label: MONTHS[currentDate.getMonth()].slice(0,3) },
+      prev: { income: prevMonth.income, expense: prevMonth.expense, balance: prevBal, label: MONTHS[prevD.getMonth()].slice(0,3) },
+      incChange: pctChg(stats.income, prevMonth.income),
+      expChange: pctChg(stats.expenses, prevMonth.expense),
+      balChange,
+    };
+  }, [stats, prevMonth, currentDate]);
+
+  // budgetCoverage — % de categorías con gasto que tienen presupuesto asignado
+  const budgetCoverage = useMemo(() => {
+    const activeCats = activeCategories.GASTO.filter(cat => (stats.expenseByCategory[cat]||0) > 0);
+    if (activeCats.length === 0) return null;
+    const withBudget = activeCats.filter(cat => Number(budgets[cat]?.amount||0) > 0);
+    const noBudget   = activeCats.filter(cat => !(Number(budgets[cat]?.amount||0) > 0));
+    const pct = Math.round((withBudget.length / activeCats.length) * 100);
+    return { total: activeCats.length, covered: withBudget.length, noBudget, pct };
+  }, [activeCategories, stats, budgets]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -6937,6 +6978,105 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* ── Resumen de hoy ── */}
+                {!isHidden('todaySummary') && todaySummary && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">📅 Hoy</p>
+                      <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">
+                        {todaySummary.txCount} movimiento{todaySummary.txCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex gap-3 mb-3">
+                      {todaySummary.income > 0 && (
+                        <div className="flex-1 bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/15">
+                          <p className="text-[10px] text-emerald-400 mb-0.5">Ingresos</p>
+                          <p className="text-sm font-bold text-emerald-300">{priv(`$${formatNumber(todaySummary.income)}`)}</p>
+                        </div>
+                      )}
+                      {todaySummary.expense > 0 && (
+                        <div className="flex-1 bg-rose-500/10 rounded-xl p-3 border border-rose-500/15">
+                          <p className="text-[10px] text-rose-400 mb-0.5">Gastos</p>
+                          <p className="text-sm font-bold text-rose-300">{priv(`$${formatNumber(todaySummary.expense)}`)}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      {todaySummary.last3.map((t, i) => (
+                        <div key={i} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                          <span className="text-[11px] text-zinc-400 truncate flex-1">{t.note || t.category}</span>
+                          <span className={`text-[11px] font-semibold ml-2 shrink-0 ${t.type==='INGRESO'?'text-emerald-400':'text-rose-400'}`}>
+                            {t.type==='INGRESO'?'+':'-'}{priv(`$${formatNumber(Number(t.amount))}`)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Comparativa mes anterior ── */}
+                {!isHidden('prevMonthCompare') && prevMonthCompare && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-4">⚖️ Comparativa mes anterior</p>
+                    <div className="grid grid-cols-3 gap-1 text-center mb-2">
+                      <div/>
+                      <div className="text-[10px] text-zinc-500 font-semibold uppercase">{prevMonthCompare.prev.label}</div>
+                      <div className="text-[10px] text-indigo-400 font-semibold uppercase">{prevMonthCompare.curr.label}</div>
+                    </div>
+                    {[
+                      { label: 'Ingresos', prev: prevMonthCompare.prev.income,  curr: prevMonthCompare.curr.income,  chg: prevMonthCompare.incChange, goodIfUp: true  },
+                      { label: 'Gastos',   prev: prevMonthCompare.prev.expense, curr: prevMonthCompare.curr.expense, chg: prevMonthCompare.expChange, goodIfUp: false },
+                      { label: 'Balance',  prev: prevMonthCompare.prev.balance, curr: prevMonthCompare.curr.balance, chg: prevMonthCompare.balChange, goodIfUp: true  },
+                    ].map(row => {
+                      const isGood = row.chg !== null && (row.goodIfUp ? row.chg >= 0 : row.chg <= 0);
+                      return (
+                        <div key={row.label} className="grid grid-cols-3 gap-1 items-center py-2 border-b border-white/5 last:border-0">
+                          <span className="text-[11px] text-zinc-500">{row.label}</span>
+                          <span className="text-[11px] text-zinc-400 text-center">{priv(`$${formatNumber(row.prev)}`)}</span>
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[11px] font-semibold text-zinc-200">{priv(`$${formatNumber(row.curr)}`)}</span>
+                            {row.chg !== null && (
+                              <span className={`text-[9px] font-bold ${isGood ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {row.chg > 0 ? '▲' : '▼'}{Math.abs(row.chg)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Cobertura de presupuesto ── */}
+                {!isHidden('budgetCoverage') && budgetCoverage && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-sm font-bold text-zinc-300">🧩 Cobertura de presupuesto</p>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${budgetCoverage.pct >= 80 ? 'bg-emerald-500/15 text-emerald-400' : budgetCoverage.pct >= 50 ? 'bg-amber-500/15 text-amber-400' : 'bg-rose-500/15 text-rose-400'}`}>
+                        {budgetCoverage.pct}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl font-black text-white">{budgetCoverage.covered}</span>
+                      <span className="text-xs text-zinc-500">/ {budgetCoverage.total} categorías con presupuesto</span>
+                    </div>
+                    <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden mb-3">
+                      <div className="h-2 rounded-full transition-all"
+                        style={{width:`${budgetCoverage.pct}%`, background: budgetCoverage.pct >= 80 ? '#10b981' : budgetCoverage.pct >= 50 ? '#f59e0b' : '#ef4444'}}/>
+                    </div>
+                    {budgetCoverage.noBudget.length > 0 && (
+                      <div>
+                        <p className="text-[10px] text-zinc-600 mb-1.5">Sin presupuesto:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {budgetCoverage.noBudget.map(cat => (
+                            <span key={cat} className="text-[11px] bg-zinc-800 text-zinc-500 border border-zinc-700/50 px-2 py-0.5 rounded-full">{cat}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
