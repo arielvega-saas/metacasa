@@ -101,6 +101,8 @@ const WIDGET_LIST = [
   { id: 'yearProgress',     label: 'Progreso del año',          icon: '📆' },
   { id: 'yoyAnalysis',      label: 'Inflación personal',        icon: '📉' },
   { id: 'nextMonthForecast',label: 'Proyección próximo mes',    icon: '🔮' },
+  { id: 'netPosition',      label: 'Posición neta',             icon: '⚡' },
+  { id: 'activityHeatmap',  label: 'Heatmap de actividad',      icon: '🗓️' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -438,8 +440,9 @@ function EditTransactionModal({ tx, categories, onSave, onClose, onDuplicate }) 
 // PLAN EDITOR (inline, no modal)
 // ─────────────────────────────────────────────
 function PlanEditor({ planMes, onSave, onCancel }) {
-  const [inc, setInc] = React.useState(planMes.targetIncome > 0 ? String(planMes.targetIncome) : '');
-  const [exp, setExp] = React.useState(planMes.targetExpense > 0 ? String(planMes.targetExpense) : '');
+  const [inc,  setInc]  = React.useState(planMes.targetIncome  > 0 ? String(planMes.targetIncome)  : '');
+  const [exp,  setExp]  = React.useState(planMes.targetExpense > 0 ? String(planMes.targetExpense) : '');
+  const [note, setNote] = React.useState(planMes.note || '');
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -456,8 +459,12 @@ function PlanEditor({ planMes, onSave, onCancel }) {
             className="w-full bg-zinc-900/60 border border-rose-500/20 rounded-xl px-3 py-2 text-sm font-bold text-rose-300 focus:outline-none focus:border-rose-500/40"/>
         </div>
       </div>
+      <textarea value={note} onChange={e=>setNote(e.target.value)}
+        placeholder="Nota del mes… (mudanza, vacaciones, gasto extra…)"
+        rows={2}
+        className="w-full bg-zinc-900/40 border border-white/8 rounded-xl px-3 py-2 text-xs text-zinc-400 resize-none focus:outline-none focus:border-indigo-500/30 transition-colors placeholder:text-zinc-700"/>
       <div className="flex gap-2">
-        <button onClick={() => onSave({ targetIncome: parseInt(inc)||0, targetExpense: parseInt(exp)||0 })}
+        <button onClick={() => onSave({ targetIncome: parseInt(inc)||0, targetExpense: parseInt(exp)||0, note: note.trim() })}
           className="flex-1 py-2.5 bg-indigo-600 rounded-xl text-xs font-bold active:scale-95 transition-transform">
           Guardar plan
         </button>
@@ -3849,6 +3856,48 @@ export default function App() {
     return { fixedExpense, pct, count: active.length };
   }, [recurring, stats, planMes]);
 
+  // ── POSICIÓN NETA ──
+  const netPosition = useMemo(() => {
+    const goalsAssets = goals.reduce((a, g) => a + (g.current || 0), 0);
+    const monthBalance = Math.max(0, stats.income - stats.expenses);
+    const totalAssets  = goalsAssets + monthBalance;
+    const pendingDebtTotal     = debts.filter(d => !d.settled).reduce((a, d) => a + (Number(d.amount) || 0), 0);
+    const remainingCuotasTotal = activeCuotas.reduce((a, c) => a + (c.totalCuotas - c.paidCuotas) * c.monthlyAmount, 0);
+    const totalLiabilities = pendingDebtTotal + remainingCuotasTotal;
+    if (totalAssets === 0 && totalLiabilities === 0) return null;
+    const netPos = totalAssets - totalLiabilities;
+    const netPct = totalAssets > 0 ? Math.round((netPos / totalAssets) * 100) : null;
+    return { totalAssets, totalLiabilities, netPos, netPct, goalsAssets, monthBalance, pendingDebtTotal, remainingCuotasTotal };
+  }, [goals, stats, debts, activeCuotas]);
+
+  // ── HEATMAP DE ACTIVIDAD (8 semanas) ──
+  const activityHeatmap = useMemo(() => {
+    const WEEKS = 8;
+    const now   = new Date();
+    // alinear al domingo anterior para que la grilla quede en columnas de 7
+    const startDay = new Date(now);
+    startDay.setDate(startDay.getDate() - (WEEKS * 7 - 1));
+    const totalDays = WEEKS * 7;
+    const cells = Array.from({ length: totalDays }, (_, i) => {
+      const d = new Date(startDay);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      const dayTxs  = transactions.filter(t => t.date.slice(0, 10) === key);
+      const expense = dayTxs.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+      const count   = dayTxs.length;
+      const isToday = key === now.toISOString().slice(0, 10);
+      return { key, expense, count, isToday, dayOfWeek: d.getDay() };
+    });
+    if (cells.every(c => c.count === 0)) return null;
+    const maxExpense = Math.max(...cells.map(c => c.expense), 1);
+    // Agrupar en semanas (columnas)
+    const weeks = [];
+    for (let w = 0; w < WEEKS; w++) {
+      weeks.push(cells.slice(w * 7, (w + 1) * 7));
+    }
+    return { weeks, maxExpense, WEEKS };
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3997,6 +4046,11 @@ export default function App() {
                           </div>
                         )}
                       </div>
+                      {planMes.note && (
+                        <p className="text-xs text-zinc-600 italic mt-2 px-1 border-t border-white/5 pt-2">
+                          💬 {planMes.note}
+                        </p>
+                      )}
                     )}
                   </div>
                 ) : (
@@ -5122,6 +5176,96 @@ export default function App() {
                     <p className="text-[10px] text-zinc-700 mt-2.5">
                       Promedio mensual comparado con mismo período de {yoyAnalysis.lastYear}
                     </p>
+                  </div>
+                )}
+
+                {/* ── Posición neta ── */}
+                {!isHidden('netPosition') && netPosition && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base leading-none">⚡</span>
+                        <p className="text-xs font-bold text-zinc-300">Posición neta</p>
+                      </div>
+                      <span className={`text-sm font-black ${netPosition.netPos >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {netPosition.netPos >= 0 ? '+' : ''}${priv(formatNumber(netPosition.netPos))}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="bg-emerald-500/6 rounded-xl p-2.5">
+                        <p className="text-[9px] text-zinc-600 mb-1">Activos</p>
+                        <p className="text-xs font-black text-emerald-400">${priv(formatNumber(netPosition.totalAssets))}</p>
+                        <div className="mt-1 space-y-0.5">
+                          {netPosition.goalsAssets > 0 && (
+                            <p className="text-[9px] text-zinc-700">Metas: ${priv(formatNumber(netPosition.goalsAssets))}</p>
+                          )}
+                          {netPosition.monthBalance > 0 && (
+                            <p className="text-[9px] text-zinc-700">Balance mes: ${priv(formatNumber(netPosition.monthBalance))}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="bg-rose-500/6 rounded-xl p-2.5">
+                        <p className="text-[9px] text-zinc-600 mb-1">Pasivos</p>
+                        <p className="text-xs font-black text-rose-400">${priv(formatNumber(netPosition.totalLiabilities))}</p>
+                        <div className="mt-1 space-y-0.5">
+                          {netPosition.pendingDebtTotal > 0 && (
+                            <p className="text-[9px] text-zinc-700">Deudas: ${priv(formatNumber(netPosition.pendingDebtTotal))}</p>
+                          )}
+                          {netPosition.remainingCuotasTotal > 0 && (
+                            <p className="text-[9px] text-zinc-700">Cuotas: ${priv(formatNumber(netPosition.remainingCuotasTotal))}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {netPosition.netPct !== null && (
+                      <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-700 ${netPosition.netPos >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                          style={{width:`${Math.min(100, Math.abs(netPosition.netPct))}%`}}/>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Heatmap de actividad ── */}
+                {!isHidden('activityHeatmap') && activityHeatmap && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🗓️</span>
+                      <p className="text-xs font-bold text-zinc-300">Actividad — últimas 8 semanas</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {activityHeatmap.weeks.map((week, wi) => (
+                        <div key={wi} className="flex flex-col gap-1 flex-1">
+                          {week.map((cell, di) => {
+                            const intensity = cell.expense > 0
+                              ? Math.max(0.15, cell.expense / activityHeatmap.maxExpense)
+                              : 0;
+                            const bg = intensity > 0
+                              ? `rgba(244, 63, 94, ${intensity.toFixed(2)})`
+                              : cell.count > 0 ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.04)';
+                            return (
+                              <div key={di}
+                                className="rounded-sm aspect-square"
+                                style={{ backgroundColor: bg, outline: cell.isToday ? '1.5px solid rgba(255,255,255,0.4)' : 'none' }}
+                                title={cell.expense > 0 ? `${cell.key}: $${Math.round(cell.expense)}` : cell.key}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor:'rgba(244,63,94,0.15)'}}/>
+                        <span className="text-[9px] text-zinc-700">poco gasto</span>
+                        <div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor:'rgba(244,63,94,0.8)'}}/>
+                        <span className="text-[9px] text-zinc-700">mucho</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-sm outline outline-[1.5px] outline-white/40"/>
+                        <span className="text-[9px] text-zinc-700">hoy</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
