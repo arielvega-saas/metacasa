@@ -103,6 +103,9 @@ const WIDGET_LIST = [
   { id: 'nextMonthForecast',label: 'Proyección próximo mes',    icon: '🔮' },
   { id: 'netPosition',      label: 'Posición neta',             icon: '⚡' },
   { id: 'activityHeatmap',  label: 'Heatmap de actividad',      icon: '🗓️' },
+  { id: 'unbudgetedCats',   label: 'Cats sin presupuesto',      icon: '⚠️' },
+  { id: 'surplusAllocation',label: 'Distribuir superávit',      icon: '🎯' },
+  { id: 'debtPayoff',       label: 'Plan de pago deudas',       icon: '🤝' },
 ];
 
 // Categorías clasificadas como "necesidades" para regla 50/30/20
@@ -3898,6 +3901,45 @@ export default function App() {
     return { weeks, maxExpense, WEEKS };
   }, [transactions]);
 
+  // ── CATEGORÍAS SIN PRESUPUESTO ──
+  const unbudgetedCats = useMemo(() => {
+    if (stats.expenses === 0) return null;
+    const cats = activeCategories.GASTO.filter(cat => {
+      const spent  = stats.expenseByCategory[cat] || 0;
+      const budget = budgets[cat]?.amount || 0;
+      return spent > 0 && budget === 0;
+    });
+    if (cats.length === 0) return null;
+    const totalUnbudgeted = cats.reduce((a, cat) => a + (stats.expenseByCategory[cat] || 0), 0);
+    return { cats, totalUnbudgeted };
+  }, [stats, activeCategories, budgets]);
+
+  // ── DISTRIBUCIÓN DEL SUPERÁVIT EN METAS ──
+  const surplusAllocation = useMemo(() => {
+    const surplus = stats.income - stats.expenses;
+    if (surplus <= 500) return null;
+    const pendingGoals = goals.filter(g => g.current < g.target);
+    if (pendingGoals.length === 0) return null;
+    const totalRemaining = pendingGoals.reduce((a, g) => a + (g.target - g.current), 0);
+    if (totalRemaining === 0) return null;
+    const allocations = pendingGoals
+      .map(g => ({ ...g, suggested: Math.round(((g.target - g.current) / totalRemaining) * surplus) }))
+      .filter(a => a.suggested > 0);
+    return { surplus, allocations };
+  }, [stats, goals]);
+
+  // ── PLAN DE PAGO DE DEUDAS ──
+  const debtPayoff = useMemo(() => {
+    const pending = debts.filter(d => !d.settled && Number(d.amount) > 0);
+    if (pending.length === 0) return null;
+    const totalDebt = pending.reduce((a, d) => a + Number(d.amount), 0);
+    const monthlySavings = Math.max(0, stats.income - stats.expenses);
+    const debtPayment  = monthlySavings > 0 ? Math.min(monthlySavings * 0.6, totalDebt) : 0;
+    const monthsToPayoff = debtPayment > 0 ? Math.ceil(totalDebt / debtPayment) : null;
+    const topDebt = [...pending].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+    return { pending, totalDebt, monthlySavings, monthsToPayoff, topDebt };
+  }, [debts, stats]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -5267,6 +5309,96 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {/* ── Categorías sin presupuesto ── */}
+                {!isHidden('unbudgetedCats') && unbudgetedCats && (
+                  <button onClick={()=>{ setActiveTab('settings'); haptic(8); }}
+                    className="w-full text-left bg-amber-500/6 rounded-[1.5rem] p-4 border border-amber-500/15 active:bg-amber-500/10 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-base leading-none">⚠️</span>
+                      <p className="text-xs font-bold text-amber-300">
+                        {unbudgetedCats.cats.length} categoría{unbudgetedCats.cats.length!==1?'s':''} sin presupuesto
+                      </p>
+                      <span className="ml-auto text-[10px] text-zinc-600">Asignar →</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {unbudgetedCats.cats.slice(0,6).map(cat=>(
+                        <span key={cat} className="flex items-center gap-1 bg-zinc-900/60 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-zinc-400">
+                          <span>{getEmoji(cat)}</span>{cat}
+                          <span className="text-amber-400 font-black">·${formatNumber(stats.expenseByCategory[cat]||0)}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-2">
+                      Total sin controlar este mes: ${priv(formatNumber(unbudgetedCats.totalUnbudgeted))}
+                    </p>
+                  </button>
+                )}
+
+                {/* ── Distribuir superávit en metas ── */}
+                {!isHidden('surplusAllocation') && surplusAllocation && (
+                  <div className="bg-indigo-500/6 rounded-[1.5rem] p-4 border border-indigo-500/15">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base leading-none">🎯</span>
+                      <p className="text-xs font-bold text-indigo-300">Sugerencia de ahorro</p>
+                      <span className="ml-auto text-[10px] text-zinc-600">
+                        Superávit: +${priv(formatNumber(surplusAllocation.surplus))}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {surplusAllocation.allocations.slice(0,4).map(g=>{
+                        const pct = Math.round((g.current / g.target) * 100);
+                        return (
+                          <div key={g.id} className="flex items-center gap-3">
+                            <span className="text-lg leading-none flex-shrink-0">{g.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between text-[10px] mb-0.5">
+                                <span className="text-zinc-400 truncate">{g.name}</span>
+                                <span className="text-zinc-600 ml-1">{pct}%</span>
+                              </div>
+                              <div className="h-1 bg-black/40 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-600/50 rounded-full" style={{width:`${pct}%`}}/>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-indigo-300 flex-shrink-0">
+                              +${priv(formatNumber(g.suggested))}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-zinc-700 mt-2.5">Distribución proporcional según saldo pendiente de cada meta</p>
+                  </div>
+                )}
+
+                {/* ── Plan de pago de deudas ── */}
+                {!isHidden('debtPayoff') && debtPayoff && debtPayoff.monthsToPayoff !== null && (
+                  <button onClick={()=>setShowDebtsModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-4 border border-white/5">
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <span className="text-base leading-none">🤝</span>
+                        <p className="text-xs font-bold text-zinc-300">Plan de pago — deudas</p>
+                        <span className="ml-auto text-[10px] text-zinc-600">Ver →</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-zinc-600">Total pendiente</p>
+                          <p className="text-base font-black text-rose-400">${priv(formatNumber(debtPayoff.totalDebt))}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-zinc-600">Pagando 60% del ahorro</p>
+                          <p className="text-xs font-black text-zinc-400">${priv(formatNumber(Math.min(debtPayoff.monthlySavings * 0.6, debtPayoff.totalDebt)))}/mes</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-zinc-600">Libre en</p>
+                          <p className="text-base font-black text-emerald-400">
+                            {debtPayoff.monthsToPayoff === 1 ? '1 mes' : `${debtPayoff.monthsToPayoff} meses`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
                 )}
 
                 {/* ── Patrimonio acumulado ── */}
