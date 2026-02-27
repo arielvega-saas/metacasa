@@ -77,9 +77,10 @@ const GOAL_EMOJIS = ['🎯','✈️','🏠','🚗','💻','📱','🎓','💍','
 const haptic = (ms = 10) => { try { navigator.vibrate?.(ms); } catch {} };
 
 // Claves localStorage
-const GOALS_KEY  = 'metacasa_goals';
-const CUOTAS_KEY = 'metacasa_cuotas';
-const MEMO_KEY   = 'metacasa_memos';
+const GOALS_KEY     = 'metacasa_goals';
+const CUOTAS_KEY    = 'metacasa_cuotas';
+const MEMO_KEY      = 'metacasa_memos';
+const TEMPLATES_KEY = 'metacasa_templates';
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -1724,6 +1725,24 @@ export default function App() {
   const [showCuotaForm,   setShowCuotaForm]   = useState(false);
   const [editingCuota,    setEditingCuota]    = useState(null);
 
+  // ATAJOS RÁPIDOS (templates de transacciones)
+  const [templates, setTemplates] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); } catch { return []; }
+  });
+  const saveTemplate = (tpl) => {
+    if (templates.length >= 8) { toast('Máximo 8 atajos guardados', 'info'); return; }
+    const list = [...templates, { ...tpl, id: Date.now() }];
+    setTemplates(list);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list));
+    toast('Atajo guardado ✓', 'success');
+    haptic(12);
+  };
+  const deleteTemplate = (id) => {
+    const list = templates.filter(t => t.id !== id);
+    setTemplates(list);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list));
+  };
+
   // NOTA DEL MES — expand state para el memo existente (currentMemo / saveMemo)
   const [notaExpanded, setNotaExpanded] = useState(false);
 
@@ -2921,6 +2940,40 @@ export default function App() {
     return count > 0 ? { income, expense, count } : null;
   }, [transactions]);
 
+  // ── SEMÁFORO DE PRESUPUESTOS ──
+  const budgetSemaforo = useMemo(() => {
+    const items = activeCategories.GASTO
+      .map(cat => {
+        const limit = Number(budgets[cat]?.amount || 0);
+        if (limit <= 0) return null;
+        const spent = stats.expenseByCategory[cat] || 0;
+        const pct = Math.round((spent / limit) * 100);
+        const color = pct >= 100 ? 'red' : pct >= 80 ? 'amber' : 'green';
+        return { cat, spent, limit, pct, color };
+      })
+      .filter(Boolean);
+    return items.length > 0 ? items : null;
+  }, [activeCategories, budgets, stats]);
+
+  // ── FIN DE SEMANA VS DÍAS LABORABLES (últimos 30 días) ──
+  const weekendAnalysis = useMemo(() => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    let weekday = 0, weekend = 0, wdCount = 0, weCount = 0;
+    transactions.forEach(t => {
+      if (t.type !== 'GASTO') return;
+      const d = new Date(t.date + 'T12:00:00');
+      if (d < cutoff) return;
+      const dow = d.getDay(); // 0=Dom, 6=Sáb
+      if (dow === 0 || dow === 6) { weekend += Number(t.amount); weCount++; }
+      else { weekday += Number(t.amount); wdCount++; }
+    });
+    if (weekday === 0 && weekend === 0) return null;
+    const total = weekday + weekend;
+    const wdPct = total > 0 ? Math.round((weekday / total) * 100) : 0;
+    const wePct = 100 - wdPct;
+    return { weekday, weekend, wdCount, weCount, wdPct, wePct };
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3232,6 +3285,36 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Semáforo de presupuestos ── */}
+                {budgetSemaforo && (
+                  <button onClick={() => setShowBudgetModal(true)} className="w-full text-left">
+                    <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-sm font-bold text-zinc-300">Presupuestos por categoría</p>
+                        <span className="text-[10px] text-zinc-600 font-semibold">Ver detalle →</span>
+                      </div>
+                      <div className="space-y-2">
+                        {budgetSemaforo.map(({ cat, pct, color, spent, limit }) => (
+                          <div key={cat} className="flex items-center gap-3">
+                            <span className="text-sm leading-none w-5 flex-shrink-0">{getEmoji(cat)}</span>
+                            <span className="text-xs text-zinc-400 font-semibold w-20 truncate flex-shrink-0">{cat}</span>
+                            <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.min(100, pct)}%`,
+                                  backgroundColor: color==='red'?'#f43f5e':color==='amber'?'#f59e0b':'#10b981'
+                                }}/>
+                            </div>
+                            <span className={`text-[10px] font-black w-8 text-right flex-shrink-0 ${color==='red'?'text-rose-400':color==='amber'?'text-amber-400':'text-emerald-400'}`}>
+                              {pct}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Barra de presupuesto global */}
                 {stats.totalBudgetsAssigned > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -3482,6 +3565,33 @@ export default function App() {
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Fin de semana vs días laborables ── */}
+                {weekendAnalysis && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Gastos últimos 30 días</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex-1 h-3 bg-black/40 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-indigo-500 rounded-l-full transition-all duration-700"
+                          style={{width:`${weekendAnalysis.wdPct}%`}}/>
+                        <div className="h-full bg-violet-400 rounded-r-full transition-all duration-700"
+                          style={{width:`${weekendAnalysis.wePct}%`}}/>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-indigo-500/8 border border-indigo-500/15 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-500 font-semibold mb-1">Lun–Vie</p>
+                        <p className="text-sm font-black text-indigo-300">${priv(formatNumber(weekendAnalysis.weekday))}</p>
+                        <p className="text-[10px] text-zinc-600 mt-0.5">{weekendAnalysis.wdPct}% del gasto</p>
+                      </div>
+                      <div className="bg-violet-500/8 border border-violet-500/15 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-zinc-500 font-semibold mb-1">Sáb–Dom</p>
+                        <p className="text-sm font-black text-violet-300">${priv(formatNumber(weekendAnalysis.weekend))}</p>
+                        <p className="text-[10px] text-zinc-600 mt-0.5">{weekendAnalysis.wePct}% del gasto</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -3914,7 +4024,37 @@ export default function App() {
         ════════════════════════════════ */}
         {activeTab==='add' && (
           <div className="px-5 pt-5 space-y-5">
-            <h2 className="text-xl font-black uppercase tracking-tight">Registrar</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black uppercase tracking-tight">Registrar</h2>
+            </div>
+
+            {/* ── Atajos rápidos ── */}
+            {templates.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider ml-1">Atajos rápidos</p>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {templates.map(tpl => (
+                    <div key={tpl.id} className="relative flex-shrink-0">
+                      <button
+                        onClick={() => { setType(tpl.type); setCategory(tpl.category); setAmount(String(tpl.amount)); setNote(tpl.note||''); haptic(8); }}
+                        className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all active:scale-95
+                          ${tpl.type==='GASTO' ? 'bg-rose-600/10 border-rose-500/20' : 'bg-emerald-600/10 border-emerald-500/20'}`}>
+                        <span className="text-lg leading-none">{getEmoji(tpl.category)}</span>
+                        <span className="text-[10px] font-bold text-zinc-400 max-w-[56px] truncate text-center">{tpl.category}</span>
+                        <span className={`text-[10px] font-black ${tpl.type==='GASTO'?'text-rose-300':'text-emerald-300'}`}>
+                          ${formatNumber(tpl.amount)}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => deleteTemplate(tpl.id)}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-zinc-800 border border-white/10 rounded-full flex items-center justify-center active:bg-rose-900">
+                        <X className="w-2.5 h-2.5 text-zinc-500"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-zinc-900/40 rounded-[2rem] p-6 border border-white/5 space-y-5">
               {/* Tipo GASTO/INGRESO */}
@@ -4131,6 +4271,15 @@ export default function App() {
                   ${savingTx?'opacity-60':''}`}>
                 {savingTx ? 'Guardando…' : savedOk ? '¡Listo! ✓' : 'Confirmar registro'}
               </button>
+
+              {/* Guardar como atajo */}
+              {amount && category && (
+                <button
+                  onClick={() => saveTemplate({ type, category, amount: parseInt(amount)||0, note })}
+                  className="w-full py-2.5 rounded-xl bg-zinc-900/60 border border-white/8 text-xs font-bold text-zinc-500 active:text-zinc-300 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                  ⚡ Guardar como atajo rápido
+                </button>
+              )}
             </div>
           </div>
         )}
