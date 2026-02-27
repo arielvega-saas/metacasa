@@ -2115,6 +2115,13 @@ export default function App() {
     });
   }, []);
 
+  // Sensores DnD — declarados como hooks en el top-level del componente
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   // ww() = widget wrapper: aplica isHidden, CSS order y size
   const ww = useCallback((id, content) => {
     if (isHidden(id)) return null;
@@ -10379,11 +10386,7 @@ export default function App() {
 
             {/* Drag-sortable list */}
             <DndContext
-              sensors={useSensors(
-                useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-                useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-                useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-              )}
+              sensors={dndSensors}
               collisionDetection={closestCenter}
               onDragEnd={({ active, over }) => {
                 if (over && active.id !== over.id) reorderWidgets(String(active.id), String(over.id));
