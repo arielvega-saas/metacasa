@@ -1668,6 +1668,9 @@ export default function App() {
   const [filterMin,        setFilterMin]        = useState('');      // '' | number string
   const [filterMax,        setFilterMax]        = useState('');      // '' | number string
   const [filterWeek,       setFilterWeek]       = useState(false);   // true = esta semana
+  const [filterDateFrom,   setFilterDateFrom]   = useState('');      // '' | 'YYYY-MM-DD'
+  const [filterDateTo,     setFilterDateTo]     = useState('');      // '' | 'YYYY-MM-DD'
+  const [showRangeFilter,  setShowRangeFilter]  = useState(false);
   const [compactView,      setCompactView]      = useState(false);
   const [monthMemos,       setMonthMemos]       = useState(() => {
     try { return JSON.parse(localStorage.getItem(MEMO_KEY) || '{}'); } catch { return {}; }
@@ -2514,6 +2517,10 @@ export default function App() {
       base = base.filter(t => t.date.slice(0,10) >= monStr && t.date.slice(0,10) <= todayStr2);
     }
 
+    // Filtro por rango de fechas personalizado
+    if (filterDateFrom) base = base.filter(t => t.date.slice(0,10) >= filterDateFrom);
+    if (filterDateTo)   base = base.filter(t => t.date.slice(0,10) <= filterDateTo);
+
     // Búsqueda por texto (categoría, nota, monto)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -2532,7 +2539,7 @@ export default function App() {
       if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, filterWeek, searchQuery, sortBy]);
+  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, filterWeek, filterDateFrom, filterDateTo, searchQuery, sortBy]);
 
   // Categorías disponibles según el filtro de tipo actual
   const filterableCats = useMemo(() => {
@@ -2541,11 +2548,13 @@ export default function App() {
     return [...new Set(src.map(t => t.category))].sort();
   }, [transactions, monthTxs, allMonths, filterType]);
 
-  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || filterWeek || sortBy !== 'date_desc' || allMonths;
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || filterWeek || filterDateFrom || filterDateTo || sortBy !== 'date_desc' || allMonths;
 
   const clearFilters = () => {
     setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
-    setFilterDate(''); setFilterMin(''); setFilterMax(''); setFilterWeek(false); setSortBy('date_desc'); setAllMonths(false);
+    setFilterDate(''); setFilterMin(''); setFilterMax(''); setFilterWeek(false);
+    setFilterDateFrom(''); setFilterDateTo(''); setShowRangeFilter(false);
+    setSortBy('date_desc'); setAllMonths(false);
   };
 
   // ── RESUMEN DEL FILTRO (historial) ──
@@ -2885,6 +2894,33 @@ export default function App() {
     return { label: `En ${diff}d`, color: 'text-zinc-500' };
   };
 
+  // ── CATEGORÍAS FRECUENTES (últimos 30 días, por tipo) ──
+  const frecuentesCats = useMemo(() => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    const freq = {};
+    transactions.forEach(t => {
+      if (new Date(t.date + 'T12:00:00') < cutoff) return;
+      const key = `${t.type}::${t.category}`;
+      freq[key] = (freq[key] || 0) + 1;
+    });
+    const top = (type) => Object.entries(freq)
+      .filter(([k]) => k.startsWith(type + '::'))
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k]) => k.split('::')[1]);
+    return { GASTO: top('GASTO'), INGRESO: top('INGRESO') };
+  }, [transactions]);
+
+  // ── GASTO DE HOY ──
+  const gastosHoy = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hoy = transactions.filter(t => t.date.slice(0, 10) === todayStr);
+    const income  = hoy.filter(t => t.type === 'INGRESO').reduce((a, c) => a + Number(c.amount), 0);
+    const expense = hoy.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+    const count   = hoy.length;
+    return count > 0 ? { income, expense, count } : null;
+  }, [transactions]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -2984,6 +3020,24 @@ export default function App() {
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20" />
                   </div>
                 </div>
+
+                {/* ── Gasto de hoy ── */}
+                {gastosHoy && (
+                  <button onClick={() => { goToDate(new Date().toISOString().slice(0,10)); setActiveTab('history'); }}
+                    className="w-full bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-4 active:bg-zinc-900/70 transition-colors">
+                    <div className="w-10 h-10 bg-indigo-600/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg leading-none">📅</span>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-xs font-bold text-zinc-400">Hoy — {new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'short'})}</p>
+                      <p className="text-xs text-zinc-600 mt-0.5">{gastosHoy.count} movimiento{gastosHoy.count!==1?'s':''}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {gastosHoy.expense > 0 && <p className="text-sm font-black text-rose-300">−${priv(formatNumber(gastosHoy.expense))}</p>}
+                      {gastosHoy.income  > 0 && <p className="text-sm font-black text-emerald-400">+${priv(formatNumber(gastosHoy.income))}</p>}
+                    </div>
+                  </button>
+                )}
 
                 {/* Resumen Ahorro/Inversión */}
                 {(strategy.savingsPercent > 0 || strategy.investmentPercent > 0) && (
@@ -3931,6 +3985,24 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {/* ── Categorías frecuentes ── */}
+                {frecuentesCats[type]?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider ml-1">Frecuentes</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {frecuentesCats[type].map(c => (
+                        <button key={c} onClick={() => { setCategory(c); haptic(8); }}
+                          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95
+                            ${category === c
+                              ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg ring-2 ring-rose-400/30' : 'bg-emerald-600 text-white shadow-lg ring-2 ring-emerald-400/30'
+                              : type==='GASTO' ? 'bg-rose-600/10 text-rose-300 border border-rose-500/20' : 'bg-emerald-600/10 text-emerald-300 border border-emerald-500/20'}`}>
+                          <span className="text-base leading-none">{getEmoji(c)}</span>
+                          <span>{c}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
                   <div className="flex flex-wrap gap-2">
@@ -4142,8 +4214,17 @@ export default function App() {
                   Esta semana
                 </button>
 
+                {/* Rango de fechas */}
+                <button
+                  onClick={() => { setShowRangeFilter(v=>!v); haptic(8); }}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                    ${(filterDateFrom || filterDateTo) ? 'bg-violet-600 text-white' : showRangeFilter ? 'bg-zinc-800 text-zinc-300 border border-white/20' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  <Calendar className="w-3.5 h-3.5"/>
+                  {(filterDateFrom || filterDateTo) ? 'Rango activo' : 'Rango'}
+                </button>
+
                 {/* Toggle mes/todos */}
-                {!filterDate && !filterWeek && (
+                {!filterDate && !filterWeek && !(filterDateFrom || filterDateTo) && (
                 <button
                   onClick={()=>setAllMonths(v=>!v)}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
@@ -4197,6 +4278,35 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            {/* Filtro por rango de fechas */}
+            {showRangeFilter && (
+              <div className="px-5">
+                <div className="bg-violet-600/8 border border-violet-500/20 rounded-2xl px-4 py-3 space-y-2.5">
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">Rango personalizado</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">Desde</p>
+                      <input type="date" value={filterDateFrom}
+                        onChange={e => { setFilterDateFrom(e.target.value); setAllMonths(true); }}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-zinc-200 focus:outline-none focus:border-violet-500/40"/>
+                    </div>
+                    <span className="text-zinc-600 text-sm mt-4">→</span>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">Hasta</p>
+                      <input type="date" value={filterDateTo}
+                        onChange={e => { setFilterDateTo(e.target.value); setAllMonths(true); }}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-zinc-200 focus:outline-none focus:border-violet-500/40"/>
+                    </div>
+                    {(filterDateFrom || filterDateTo) && (
+                      <button onClick={()=>{ setFilterDateFrom(''); setFilterDateTo(''); }} className="p-1.5 mt-4 active:opacity-60">
+                        <X className="w-3.5 h-3.5 text-zinc-600"/>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Filtro por rango de monto */}
             {(filterMin !== '' || filterMax !== '') ? (
