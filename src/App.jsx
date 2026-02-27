@@ -8,7 +8,7 @@ import {
   Search, SlidersHorizontal, ArrowUpDown, XCircle,
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
-  Target, Trophy, Wallet, Copy, Lightbulb
+  Target, Trophy, Wallet, Copy, Lightbulb, Calculator
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -411,12 +411,20 @@ function EditTransactionModal({ tx, categories, onSave, onClose, onDuplicate }) 
 // ─────────────────────────────────────────────
 // GOAL CARD
 // ─────────────────────────────────────────────
-function GoalCard({ goal, onContribute, onDelete }) {
+function GoalCard({ goal, onContribute, onDelete, estimate }) {
   const pct = goal.target > 0 ? Math.min(100, Math.round((goal.current/goal.target)*100)) : 0;
   const daysLeft = goal.deadline
     ? Math.ceil((new Date(goal.deadline) - new Date()) / 86400000)
     : null;
   const done = pct >= 100;
+  // ── Estimador ──
+  const estimatorMonths = (!done && estimate > 0)
+    ? Math.ceil((goal.target - goal.current) / estimate)
+    : null;
+  const estimatorDate = estimatorMonths ? (() => {
+    const d = new Date(); d.setMonth(d.getMonth() + estimatorMonths);
+    return d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+  })() : null;
   return (
     <div className={`rounded-2xl p-5 border space-y-3.5 ${done ? 'bg-emerald-500/8 border-emerald-500/20' : 'bg-zinc-900/60 border-white/8'}`}>
       <div className="flex justify-between items-start">
@@ -449,6 +457,16 @@ function GoalCard({ goal, onContribute, onDelete }) {
         <p className="text-xs text-zinc-700">
           {done ? '🎉 ¡Meta alcanzada!' : `Falta $${formatNumber(goal.target - goal.current)}`}
         </p>
+        {estimatorMonths && (
+          <div className="flex items-center gap-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-xl px-3 py-2 mt-1">
+            <TrendingUp className="w-3 h-3 text-indigo-400 flex-shrink-0"/>
+            <p className="text-[10px] font-bold text-indigo-300">
+              A este ritmo llegás en{' '}
+              <span className="text-white">{estimatorMonths === 1 ? '1 mes' : `${estimatorMonths} meses`}</span>
+              {' '}·{' '}<span className="text-indigo-400">{estimatorDate}</span>
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -763,40 +781,88 @@ function CuotaForm({ cuota, onSave, onClose }) {
 function DebtCard({ debt, onSettle, onEdit, onDelete }) {
   const isMine = debt.direction === 'i_owe';
   const settled = debt.settled;
+  const [showCalc, setShowCalc] = React.useState(false);
+  const [monthlyPay, setMonthlyPay] = React.useState('');
+
+  const calcMonths = (() => {
+    const pay = parseInt(monthlyPay.replace(/\D/g,'')) || 0;
+    if (pay <= 0 || debt.amount <= 0) return null;
+    const months = Math.ceil(debt.amount / pay);
+    const d = new Date(); d.setMonth(d.getMonth() + months);
+    const dateStr = d.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+    return { months, dateStr };
+  })();
+
   return (
-    <div className={`rounded-2xl border p-4 flex items-center gap-3 transition-all
+    <div className={`rounded-2xl border transition-all
       ${settled ? 'bg-zinc-900/30 border-white/5 opacity-55'
         : isMine ? 'bg-rose-500/5 border-rose-500/15'
         : 'bg-emerald-500/5 border-emerald-500/15'}`}>
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
-        ${settled ? 'bg-zinc-800' : isMine ? 'bg-rose-500/15' : 'bg-emerald-500/15'}`}>
-        {debt.emoji || (isMine ? '💸' : '🤝')}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-bold truncate ${settled ? 'text-zinc-500 line-through' : 'text-white'}`}>{debt.name}</p>
-        <p className={`text-xs font-semibold mt-0.5 ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
-          {settled ? 'Saldada' : isMine ? 'Le debo' : 'Me debe'}
-        </p>
-        {debt.note ? <p className="text-xs text-zinc-600 italic truncate mt-0.5">"{debt.note}"</p> : null}
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <p className={`text-base font-black ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
-          ${formatNumber(debt.amount)}
-        </p>
-        <div className="flex flex-col gap-0.5">
-          {!settled && (
-            <button onClick={()=>onSettle(debt.id)} className="p-1 text-zinc-600 active:text-emerald-400 transition-colors" title="Marcar saldada">
-              <Check className="w-3.5 h-3.5"/>
+      <div className="p-4 flex items-center gap-3">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+          ${settled ? 'bg-zinc-800' : isMine ? 'bg-rose-500/15' : 'bg-emerald-500/15'}`}>
+          {debt.emoji || (isMine ? '💸' : '🤝')}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-bold truncate ${settled ? 'text-zinc-500 line-through' : 'text-white'}`}>{debt.name}</p>
+          <p className={`text-xs font-semibold mt-0.5 ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {settled ? 'Saldada' : isMine ? 'Le debo' : 'Me debe'}
+          </p>
+          {debt.note ? <p className="text-xs text-zinc-600 italic truncate mt-0.5">"{debt.note}"</p> : null}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <p className={`text-base font-black ${settled ? 'text-zinc-600' : isMine ? 'text-rose-400' : 'text-emerald-400'}`}>
+            ${formatNumber(debt.amount)}
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {!settled && (
+              <button onClick={()=>onSettle(debt.id)} className="p-1 text-zinc-600 active:text-emerald-400 transition-colors" title="Marcar saldada">
+                <Check className="w-3.5 h-3.5"/>
+              </button>
+            )}
+            {isMine && !settled && (
+              <button onClick={()=>setShowCalc(v=>!v)} className={`p-1 transition-colors ${showCalc ? 'text-amber-400' : 'text-zinc-700 active:text-amber-400'}`} title="Calculadora de pago">
+                <Calculator className="w-3.5 h-3.5"/>
+              </button>
+            )}
+            <button onClick={()=>onEdit(debt)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
+              <Edit3 className="w-3.5 h-3.5"/>
             </button>
-          )}
-          <button onClick={()=>onEdit(debt)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
-            <Edit3 className="w-3.5 h-3.5"/>
-          </button>
-          <button onClick={()=>onDelete(debt.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
-            <Trash2 className="w-3.5 h-3.5"/>
-          </button>
+            <button onClick={()=>onDelete(debt.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
+              <Trash2 className="w-3.5 h-3.5"/>
+            </button>
+          </div>
         </div>
       </div>
+      {/* ── Calculadora de pago ── */}
+      {showCalc && (
+        <div className="px-4 pb-4 pt-0">
+          <div className="bg-black/30 rounded-xl p-3 space-y-2.5 border border-amber-500/15">
+            <p className="text-[10px] font-bold text-amber-400/80 uppercase tracking-wider">Calculadora de pago</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 font-semibold flex-shrink-0">Cuota mensual $</span>
+              <input
+                type="number" inputMode="numeric"
+                value={monthlyPay}
+                onChange={e=>setMonthlyPay(e.target.value)}
+                placeholder="0"
+                className="flex-1 bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm font-bold text-white text-right focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            {calcMonths ? (
+              <div className="flex items-center gap-1.5 bg-amber-500/8 rounded-lg px-3 py-2">
+                <span className="text-sm">📅</span>
+                <p className="text-xs font-bold text-amber-300">
+                  Terminás en <span className="text-white">{calcMonths.months === 1 ? '1 mes' : `${calcMonths.months} meses`}</span>
+                  {' '}·{' '}<span className="text-amber-400">{calcMonths.dateStr}</span>
+                </p>
+              </div>
+            ) : (
+              <p className="text-[10px] text-zinc-700 text-center">Ingresá una cuota para ver el estimado</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2171,6 +2237,32 @@ export default function App() {
 
   const changeMonth = (offset) => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth()+offset, 1));
 
+  // ── COMPARTIR RESUMEN MENSUAL ──
+  const handleQuickShare = async () => {
+    haptic(12);
+    const mes = MONTHS[currentDate.getMonth()];
+    const anio = currentDate.getFullYear();
+    const balance = stats.income - stats.expenses;
+    const topCat = Object.entries(stats.expenseByCategory).sort((a,b)=>b[1]-a[1])[0];
+    const lines = [
+      `📊 MetaCasa — ${mes} ${anio}`,
+      `─────────────────────`,
+      `💰 Ingresos:  $${formatNumber(stats.income)}`,
+      `💸 Gastos:    $${formatNumber(stats.expenses)}`,
+      `📈 Balance:   ${balance >= 0 ? '+' : ''}$${formatNumber(balance)}`,
+      stats.savingsAmount > 0 ? `🐷 Ahorro:    $${formatNumber(stats.savingsAmount)}` : null,
+      topCat ? `🏆 Top gasto: ${topCat[0]} ($${formatNumber(topCat[1])})` : null,
+      monthlyAvg?.months >= 2 ? `📅 Prom. mensual: $${formatNumber(monthlyAvg.avgBalance)} balance` : null,
+      `─────────────────────`,
+      `Generado con MetaCasa 🏠`,
+    ].filter(Boolean).join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: `MetaCasa — ${mes} ${anio}`, text: lines }); return; } catch {}
+    }
+    await navigator.clipboard?.writeText(lines);
+    toast('Resumen copiado al portapapeles', 'success');
+  };
+
   const deleteTransaction = async (id) => {
     if (!userId) return;
     const { error } = await supabase.from('transactions').delete().eq('id', id);
@@ -2742,9 +2834,14 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <button onClick={signOut} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Cerrar sesión">
-                <LogOut className="w-5 h-5 text-zinc-400" />
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleQuickShare} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Compartir resumen">
+                  <Share2 className="w-5 h-5 text-indigo-400" />
+                </button>
+                <button onClick={signOut} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Cerrar sesión">
+                  <LogOut className="w-5 h-5 text-zinc-400" />
+                </button>
+              </div>
             </header>
 
             {/* Balance Card */}
@@ -4955,6 +5052,7 @@ export default function App() {
                   <GoalCard key={g.id} goal={g}
                     onContribute={(goal)=>setContributeGoal(goal)}
                     onDelete={deleteGoal}
+                    estimate={monthlyAvg?.avgBalance > 0 ? monthlyAvg.avgBalance : 0}
                   />
                 ))}
               </>
