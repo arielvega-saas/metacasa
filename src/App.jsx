@@ -1496,6 +1496,110 @@ function TrendsChart({ transactions }) {
 }
 
 // ─────────────────────────────────────────────
+// CATEGORY DETAIL MODAL
+// ─────────────────────────────────────────────
+function CategoryDetailModal({ cat, transactions, currentDate, getEmoji, formatNumber, MONTHS, onClose, onGoToHistory }) {
+  const sixMonths = React.useMemo(() => Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - i), 1);
+    const y = d.getFullYear(), m = d.getMonth();
+    const amount = transactions
+      .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+      .reduce((a, c) => a + Number(c.amount), 0);
+    return { label: MONTHS[m].slice(0,3), amount, isCurrent: y===currentDate.getFullYear() && m===currentDate.getMonth() };
+  }), [transactions, cat, currentDate]);
+
+  const maxVal = Math.max(...sixMonths.map(m => m.amount), 1);
+  const prevMonths = sixMonths.slice(0, 5).filter(m => m.amount > 0);
+  const avg = prevMonths.length > 0 ? Math.round(prevMonths.reduce((a,c)=>a+c.amount,0) / prevMonths.length) : 0;
+
+  const currentMonthTxs = React.useMemo(() => transactions
+    .filter(t => { const d = new Date(t.date); return t.type==='GASTO' && t.category===cat && d.getFullYear()===currentDate.getFullYear() && d.getMonth()===currentDate.getMonth(); })
+    .sort((a,b) => Number(b.amount) - Number(a.amount)), [transactions, cat, currentDate]);
+
+  const currentTotal = currentMonthTxs.reduce((a,c)=>a+Number(c.amount),0);
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-black flex flex-col">
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl leading-none">{getEmoji(cat)}</span>
+          <div>
+            <h3 className="text-xl font-black uppercase tracking-tight">{cat}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        {/* Total del mes + promedio */}
+        <div className="bg-zinc-900/40 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-zinc-600 font-semibold mb-0.5">Este mes</p>
+            <p className="text-2xl font-black text-white">${formatNumber(currentTotal)}</p>
+          </div>
+          {avg > 0 && (
+            <div className="text-right">
+              <p className="text-[10px] text-zinc-600 font-semibold mb-0.5">Promedio mensual</p>
+              <p className={`text-lg font-black ${currentTotal > avg * 1.5 ? 'text-rose-400' : currentTotal > avg ? 'text-amber-400' : 'text-emerald-400'}`}>
+                ${formatNumber(avg)}
+              </p>
+              {avg > 0 && (
+                <p className={`text-[9px] font-bold mt-0.5 ${currentTotal > avg ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {currentTotal > avg ? `+${formatNumber(currentTotal - avg)} vs prom.` : `−${formatNumber(avg - currentTotal)} vs prom.`}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        {/* 6-month bars */}
+        <div className="bg-zinc-900/40 rounded-2xl p-4">
+          <p className="text-xs font-bold text-zinc-400 mb-3">Últimos 6 meses</p>
+          <div className="flex items-end gap-1.5 h-20">
+            {sixMonths.map((m, i) => {
+              const barH = m.amount > 0 ? Math.max(4, Math.round((m.amount / maxVal) * 64)) : 0;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5">
+                  <div className={`w-full rounded-t-md transition-all duration-500 ${m.isCurrent ? 'bg-rose-400' : 'bg-rose-800/60'}`}
+                    style={{height: barH > 0 ? `${barH}px` : '2px'}}/>
+                  <span className="text-[9px] text-zinc-600">{m.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* Transacciones del mes */}
+        {currentMonthTxs.length > 0 ? (
+          <div>
+            <p className="text-xs font-bold text-zinc-400 mb-3">{currentMonthTxs.length} movimiento{currentMonthTxs.length!==1?'s':''} este mes</p>
+            <div className="space-y-2">
+              {currentMonthTxs.slice(0, 12).map(t => (
+                <div key={t.id} className="flex items-center gap-3 bg-zinc-900/40 rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">{t.note || cat}</p>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">
+                      {new Date(t.date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})}
+                    </p>
+                  </div>
+                  <p className="text-sm font-black text-white">${formatNumber(t.amount)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-sm text-zinc-600 py-6">Sin gastos este mes</p>
+        )}
+      </div>
+      <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 border-t border-white/8">
+        <button onClick={onGoToHistory}
+          className="w-full py-3.5 bg-indigo-600 rounded-2xl text-sm font-bold active:scale-95 transition-transform">
+          Ver todos en historial →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // RECURRING CARD
 // ─────────────────────────────────────────────
 function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
@@ -1691,6 +1795,7 @@ export default function App() {
   const [mergingCat,         setMergingCat]          = useState(null);
   const [showAnnualModal,    setShowAnnualModal]     = useState(false);
   const [showConfetti,       setShowConfetti]        = useState(false);
+  const [selectedCatDetail,  setSelectedCatDetail]  = useState(null);  // catName | null
   const [showScrollTop,      setShowScrollTop]       = useState(false);
   const [deferredInstall,    setDeferredInstall]     = useState(null);
   const [showInstallBanner,  setShowInstallBanner]   = useState(false);
@@ -3216,6 +3321,31 @@ export default function App() {
     return streak;
   }, [transactions]);
 
+  // ── PRESUPUESTO DIARIO DISPONIBLE ──
+  const dailyBudget = useMemo(() => {
+    const now = new Date();
+    if (currentDate.getFullYear() !== now.getFullYear() || currentDate.getMonth() !== now.getMonth()) return null;
+    const totalBudget = planMes.targetExpense > 0 ? planMes.targetExpense : stats.totalBudgetsAssigned;
+    if (totalBudget <= 0) return null;
+    const day = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = daysInMonth - day + 1;
+    const remaining = totalBudget - stats.expenses;
+    const daily = remaining > 0 ? Math.round(remaining / daysLeft) : 0;
+    const pct = Math.min(100, Math.round((stats.expenses / totalBudget) * 100));
+    return { daily, remaining, totalBudget, daysLeft, pct, isOver: remaining < 0 };
+  }, [stats, currentDate, planMes]);
+
+  // ── DESGLOSE FUENTES DE INGRESO ──
+  const incomeSourceBreakdown = useMemo(() => {
+    if (stats.income === 0) return null;
+    const sources = (activeCategories.INGRESO || [])
+      .map(cat => ({ cat, amount: monthTxs.filter(t => t.type==='INGRESO' && t.category===cat).reduce((a,c)=>a+Number(c.amount),0) }))
+      .filter(s => s.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+    return sources.length >= 2 ? sources : null;
+  }, [stats, activeCategories, monthTxs]);
+
   // Donut data
   const chartData = activeCategories.GASTO
     .map((cat,i)=>({cat,spent:stats.expenseByCategory[cat]||0,color:CHART_COLORS[i%CHART_COLORS.length]}))
@@ -3365,6 +3495,32 @@ export default function App() {
                   </button>
                 )}
 
+                {/* ── Presupuesto diario disponible ── */}
+                {dailyBudget && (
+                  <div className={`rounded-[1.5rem] p-4 border flex items-center gap-4
+                    ${dailyBudget.isOver ? 'bg-rose-500/8 border-rose-500/20' : dailyBudget.pct >= 85 ? 'bg-amber-500/8 border-amber-500/15' : 'bg-zinc-900/40 border-white/5'}`}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl leading-none"
+                      style={{background: dailyBudget.isOver ? 'rgba(244,63,94,0.12)' : 'rgba(99,102,241,0.12)'}}>
+                      {dailyBudget.isOver ? '🚨' : dailyBudget.pct >= 85 ? '⚠️' : '💰'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-zinc-400">
+                        {dailyBudget.isOver ? 'Presupuesto excedido' : `Disponible por día — ${dailyBudget.daysLeft} días`}
+                      </p>
+                      <div className="w-full h-1 bg-black/40 rounded-full mt-1.5 overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-700 ${dailyBudget.isOver ? 'bg-rose-500' : dailyBudget.pct >= 85 ? 'bg-amber-400' : 'bg-indigo-500'}`}
+                          style={{width:`${dailyBudget.pct}%`}}/>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-base font-black ${dailyBudget.isOver ? 'text-rose-400' : dailyBudget.pct >= 85 ? 'text-amber-400' : 'text-indigo-300'}`}>
+                        {dailyBudget.isOver ? `−${priv(formatNumber(Math.abs(dailyBudget.remaining)))}` : `$${priv(formatNumber(dailyBudget.daily))}`}
+                      </p>
+                      <p className="text-[9px] text-zinc-600 mt-0.5">{dailyBudget.pct}% del presupuesto</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Gasto de hoy ── */}
                 {gastosHoy && (
                   <button onClick={() => { goToDate(new Date().toISOString().slice(0,10)); setActiveTab('history'); }}
@@ -3464,6 +3620,33 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── Desglose fuentes de ingreso ── */}
+                {incomeSourceBreakdown && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">Fuentes de ingreso</p>
+                    <div className="space-y-2.5">
+                      {incomeSourceBreakdown.map(({ cat, amount }) => {
+                        const pct = Math.round((amount / stats.income) * 100);
+                        return (
+                          <div key={cat} className="flex items-center gap-3">
+                            <span className="text-sm leading-none w-5 flex-shrink-0">{getEmoji(cat)}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs text-zinc-400 font-semibold truncate">{cat}</span>
+                                <span className="text-[10px] font-black text-emerald-400 ml-2">${priv(formatNumber(amount))}</span>
+                              </div>
+                              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500/60 rounded-full transition-all duration-500" style={{width:`${pct}%`}}/>
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-zinc-600 font-semibold w-8 text-right flex-shrink-0">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Distribución de gastos — donut + leyenda interactiva */}
                 {chartData.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
@@ -3490,7 +3673,7 @@ export default function App() {
                       {/* Leyenda clickeable */}
                       <div className="flex-1 space-y-2">
                         {[...chartData].sort((a,b)=>b.spent-a.spent).slice(0,5).map((d,i)=>(
-                          <button key={i} onClick={()=>goToCategory(d.cat,'GASTO')}
+                          <button key={i} onClick={()=>{ haptic(8); setSelectedCatDetail(d.cat); }}
                             className="w-full flex items-center gap-2 active:opacity-60 transition-opacity">
                             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:d.color}}/>
                             <span className="text-xs text-zinc-300 truncate flex-1 text-left">{d.cat}</span>
@@ -6147,6 +6330,22 @@ export default function App() {
           transactions={transactions}
           year={currentDate.getFullYear()}
           onClose={()=>setShowAnnualModal(false)}
+        />
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Detalle de categoría
+      ════════════════════════════════ */}
+      {selectedCatDetail && (
+        <CategoryDetailModal
+          cat={selectedCatDetail}
+          transactions={transactions}
+          currentDate={currentDate}
+          getEmoji={getEmoji}
+          formatNumber={formatNumber}
+          MONTHS={MONTHS}
+          onClose={() => setSelectedCatDetail(null)}
+          onGoToHistory={() => { setSelectedCatDetail(null); goToCategory(selectedCatDetail, 'GASTO'); }}
         />
       )}
 
