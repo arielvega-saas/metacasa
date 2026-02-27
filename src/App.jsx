@@ -410,6 +410,42 @@ function EditTransactionModal({ tx, categories, onSave, onClose, onDuplicate }) 
 }
 
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// PLAN EDITOR (inline, no modal)
+// ─────────────────────────────────────────────
+function PlanEditor({ planMes, onSave, onCancel }) {
+  const [inc, setInc] = React.useState(planMes.targetIncome > 0 ? String(planMes.targetIncome) : '');
+  const [exp, setExp] = React.useState(planMes.targetExpense > 0 ? String(planMes.targetExpense) : '');
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-[10px] text-zinc-600 font-semibold mb-1">Meta de ingreso</p>
+          <input type="number" inputMode="numeric" value={inc} onChange={e=>setInc(e.target.value)}
+            placeholder="$0"
+            className="w-full bg-zinc-900/60 border border-emerald-500/20 rounded-xl px-3 py-2 text-sm font-bold text-emerald-300 focus:outline-none focus:border-emerald-500/40"/>
+        </div>
+        <div>
+          <p className="text-[10px] text-zinc-600 font-semibold mb-1">Límite de gasto</p>
+          <input type="number" inputMode="numeric" value={exp} onChange={e=>setExp(e.target.value)}
+            placeholder="$0"
+            className="w-full bg-zinc-900/60 border border-rose-500/20 rounded-xl px-3 py-2 text-sm font-bold text-rose-300 focus:outline-none focus:border-rose-500/40"/>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => onSave({ targetIncome: parseInt(inc)||0, targetExpense: parseInt(exp)||0 })}
+          className="flex-1 py-2.5 bg-indigo-600 rounded-xl text-xs font-bold active:scale-95 transition-transform">
+          Guardar plan
+        </button>
+        <button onClick={onCancel} className="px-4 py-2.5 bg-zinc-900 rounded-xl text-xs font-bold text-zinc-500 active:scale-95 transition-transform">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // GOAL CARD
 // ─────────────────────────────────────────────
 function GoalCard({ goal, onContribute, onDelete, estimate }) {
@@ -1756,6 +1792,24 @@ export default function App() {
   });
   const priv = (val) => privacyMode ? '••••' : val;
 
+  // PLANIFICADOR DE MES (localStorage por YYYY-MM)
+  const planMesKey = `metacasa_plan_${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+  const [planMes,         setPlanMes]         = useState({ targetIncome: 0, targetExpense: 0 });
+  const [showPlanEditor,  setShowPlanEditor]  = useState(false);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(planMesKey) || 'null');
+      setPlanMes(stored || { targetIncome: 0, targetExpense: 0 });
+    } catch { setPlanMes({ targetIncome: 0, targetExpense: 0 }); }
+  }, [planMesKey]);
+  const savePlanMes = (plan) => {
+    setPlanMes(plan);
+    localStorage.setItem(planMesKey, JSON.stringify(plan));
+    setShowPlanEditor(false);
+    toast('Plan del mes guardado ✓', 'success');
+    haptic(12);
+  };
+
   // CONFIRMACIÓN INLINE DE ELIMINACIÓN
   const [pendingDelete,   setPendingDelete]   = useState(null); // { id, type }
   const pendingDeleteRef = useRef(null);
@@ -2614,6 +2668,74 @@ export default function App() {
     return streak;
   }, [transactions]);
 
+  // ── ÍNDICE DE SALUD FINANCIERA ──
+  const healthScore = useMemo(() => {
+    if (stats.income === 0 && stats.expenses === 0) return null;
+    let score = 0;
+    const breakdown = [];
+
+    // 1. Tasa de ahorro (0-35 pts)
+    const rate = stats.income > 0 ? ((stats.income - stats.expenses) / stats.income) * 100 : -100;
+    const savPts = rate >= 20 ? 35 : rate >= 10 ? 25 : rate >= 5 ? 15 : rate >= 0 ? 5 : 0;
+    score += savPts;
+    breakdown.push({ label: 'Tasa de ahorro', pts: savPts, max: 35, detail: `${Math.round(rate)}%` });
+
+    // 2. Presupuestos respetados (0-25 pts)
+    const budgetItems = activeCategories.GASTO
+      .filter(cat => Number(budgets[cat]?.amount || 0) > 0);
+    const budgetPts = budgetItems.length > 0 ? (() => {
+      const greenCount = budgetItems.filter(cat => {
+        const pct = (stats.expenseByCategory[cat] || 0) / Number(budgets[cat].amount);
+        return pct < 0.9;
+      }).length;
+      return Math.round((greenCount / budgetItems.length) * 25);
+    })() : 12; // Sin presupuestos: 12 pts (neutral)
+    score += budgetPts;
+    breakdown.push({ label: 'Presupuestos', pts: budgetPts, max: 25, detail: budgetItems.length > 0 ? `${budgetItems.length} categ.` : 'Sin límites' });
+
+    // 3. Balance positivo este mes (0-15 pts)
+    const balPts = stats.income > stats.expenses ? 15 : 0;
+    score += balPts;
+    breakdown.push({ label: 'Balance del mes', pts: balPts, max: 15, detail: balPts ? 'Positivo ✓' : 'Negativo' });
+
+    // 4. Racha de ahorro (0-15 pts)
+    const streakPts = savingsStreak >= 6 ? 15 : savingsStreak >= 3 ? 10 : savingsStreak >= 1 ? 5 : 0;
+    score += streakPts;
+    breakdown.push({ label: 'Racha', pts: streakPts, max: 15, detail: savingsStreak > 0 ? `${savingsStreak} meses` : 'Sin racha' });
+
+    // 5. Metas activas con progreso (0-10 pts)
+    const activeGoals = goals.filter(g => !g.completed && g.current > 0);
+    const goalPts = activeGoals.length > 0 ? 10 : goals.length > 0 ? 5 : 0;
+    score += goalPts;
+    breakdown.push({ label: 'Metas', pts: goalPts, max: 10, detail: goals.length > 0 ? `${goals.length} meta${goals.length!==1?'s':''}` : 'Sin metas' });
+
+    const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : score >= 50 ? 'D' : 'F';
+    const color = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-indigo-400' : score >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const label = score >= 80 ? 'Excelente' : score >= 60 ? 'Buena' : score >= 40 ? 'Regular' : 'Crítica';
+    return { score, grade, color, label, breakdown };
+  }, [stats, budgets, activeCategories, savingsStreak, goals]);
+
+  // ── COMPARATIVA AÑO ANTERIOR ──
+  const yearAgoComparison = useMemo(() => {
+    const prevYear = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1);
+    const pY = prevYear.getFullYear(), pM = prevYear.getMonth();
+    const prevTxs = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === pY && d.getMonth() === pM;
+    });
+    if (prevTxs.length === 0) return null;
+    const prevIncome  = prevTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const prevExpense = prevTxs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
+    const curIncome   = stats.income;
+    const curExpense  = stats.expenses;
+    const incDiff  = curIncome  - prevIncome;
+    const expDiff  = curExpense - prevExpense;
+    const balCur   = curIncome  - curExpense;
+    const balPrev  = prevIncome - prevExpense;
+    const balDiff  = balCur - balPrev;
+    return { prevIncome, prevExpense, incDiff, expDiff, balDiff, prevYear: pY };
+  }, [transactions, currentDate, stats]);
+
   // ── DRILL-THROUGH A HISTORIAL POR CATEGORÍA ──
   const goToCategory = useCallback((cat, txType = 'GASTO') => {
     setFilterCategory(cat);
@@ -3074,6 +3196,55 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* ── Plan del mes ── */}
+                {(planMes.targetIncome > 0 || planMes.targetExpense > 0 || showPlanEditor) ? (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-bold text-zinc-300">Plan de {MONTHS[currentDate.getMonth()]}</p>
+                      <button onClick={() => setShowPlanEditor(v=>!v)} className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                        {showPlanEditor ? 'Cerrar' : 'Editar →'}
+                      </button>
+                    </div>
+                    {showPlanEditor ? (
+                      <PlanEditor planMes={planMes} onSave={savePlanMes} onCancel={()=>setShowPlanEditor(false)}/>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {planMes.targetIncome > 0 && (
+                          <div>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-zinc-500 font-semibold">Ingreso meta</span>
+                              <span className="font-black text-emerald-400">${priv(formatNumber(stats.income))} / ${formatNumber(planMes.targetIncome)}</span>
+                            </div>
+                            <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                                style={{width:`${Math.min(100,Math.round((stats.income/planMes.targetIncome)*100))}%`}}/>
+                            </div>
+                          </div>
+                        )}
+                        {planMes.targetExpense > 0 && (
+                          <div>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-zinc-500 font-semibold">Gasto límite</span>
+                              <span className={`font-black ${stats.expenses > planMes.targetExpense ? 'text-rose-400' : 'text-indigo-400'}`}>
+                                ${priv(formatNumber(stats.expenses))} / ${formatNumber(planMes.targetExpense)}
+                              </span>
+                            </div>
+                            <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-700 ${stats.expenses > planMes.targetExpense ? 'bg-rose-500' : 'bg-indigo-500'}`}
+                                style={{width:`${Math.min(100,Math.round((stats.expenses/planMes.targetExpense)*100))}%`}}/>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={() => setShowPlanEditor(true)}
+                    className="w-full py-3 bg-zinc-900/20 border border-dashed border-white/10 rounded-[1.5rem] text-xs font-bold text-zinc-600 active:text-zinc-400 active:border-white/20 transition-all flex items-center justify-center gap-2">
+                    <span>📋</span> Establecer plan para {MONTHS[currentDate.getMonth()]}
+                  </button>
+                )}
+
                 {/* ── Gasto de hoy ── */}
                 {gastosHoy && (
                   <button onClick={() => { goToDate(new Date().toISOString().slice(0,10)); setActiveTab('history'); }}
@@ -3486,6 +3657,65 @@ export default function App() {
                         </span>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* ── Comparativa año anterior ── */}
+                {yearAgoComparison && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <p className="text-sm font-bold text-zinc-300 mb-3">
+                      vs {MONTHS[currentDate.getMonth()]} {yearAgoComparison.prevYear}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label:'Ingresos', diff: yearAgoComparison.incDiff,  positive: yearAgoComparison.incDiff >= 0 },
+                        { label:'Gastos',   diff: yearAgoComparison.expDiff,  positive: yearAgoComparison.expDiff <= 0 },
+                        { label:'Balance',  diff: yearAgoComparison.balDiff,  positive: yearAgoComparison.balDiff >= 0 },
+                      ].map(({ label, diff, positive }) => (
+                        <div key={label} className="bg-black/30 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-zinc-600 font-semibold mb-1">{label}</p>
+                          <p className={`text-xs font-black ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {diff >= 0 ? '▲' : '▼'} ${priv(formatNumber(Math.abs(diff)))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Índice de salud financiera ── */}
+                {healthScore && (
+                  <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm font-bold text-zinc-300">Salud financiera</p>
+                      <span className={`text-2xl font-black ${healthScore.color}`}>{healthScore.grade}</span>
+                    </div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="relative w-16 h-16 flex-shrink-0">
+                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="#27272a" strokeWidth="12"/>
+                          <circle cx="50" cy="50" r="40" fill="none"
+                            stroke={healthScore.score>=80?'#10b981':healthScore.score>=60?'#6366f1':healthScore.score>=40?'#f59e0b':'#f43f5e'}
+                            strokeWidth="12" strokeLinecap="round"
+                            strokeDasharray={`${healthScore.score * 2.513} 251.3`}/>
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className={`text-base font-black ${healthScore.color}`}>{healthScore.score}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        {healthScore.breakdown.map(b => (
+                          <div key={b.label} className="flex items-center gap-2">
+                            <div className="flex-1 h-1 bg-black/40 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/>
+                            </div>
+                            <span className="text-[10px] text-zinc-500 w-20 truncate">{b.label}</span>
+                            <span className="text-[10px] font-bold text-zinc-400 w-8 text-right">{b.pts}/{b.max}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <p className={`text-xs font-bold text-center ${healthScore.color}`}>{healthScore.label}</p>
                   </div>
                 )}
 
