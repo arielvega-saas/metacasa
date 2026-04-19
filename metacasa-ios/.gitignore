@@ -1,0 +1,33 @@
+# Xcode generated
+*.xcodeproj/
+*.xcworkspace/
+!default.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# CocoaPods (not used but in case)
+Pods/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# macOS
+.DS_Store
+
+# Secrets / local
+*.p12
+*.mobileprovision
+secrets.plist
+Config.local.swift

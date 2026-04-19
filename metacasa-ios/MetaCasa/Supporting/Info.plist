@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>es</string>
+    <key>CFBundleDisplayName</key>
+    <string>Home Finance</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+    <key>UILaunchScreen</key>
+    <dict>
+        <key>UIColorName</key>
+        <string></string>
+        <key>UIImageName</key>
+        <string></string>
+    </dict>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- Supabase config -->
+    <key>SUPABASE_URL</key>
+    <string>https://rgslvrxdppphzvqgcwbx.supabase.co</string>
+    <key>SUPABASE_ANON_KEY</key>
+    <string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnc2x2cnhkcHBwaHp2cWdjd2J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NjU0NTIsImV4cCI6MjA4NzM0MTQ1Mn0.P8GFzmmj4sAIpWjyjJFSWhhlM5LqP2BBFflOGfUmfhk</string>
+
+    <!-- Face ID / Touch ID usage description (requerido por iOS) -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>Usamos Face ID para proteger tu información financiera. Solo el dueño del dispositivo puede abrir la app.</string>
+
+    <!-- App Transport Security: forzamos HTTPS -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+    </dict>
+
+    <!-- Privacy - Microphone (para futura voice input) -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Opcional: usamos el micrófono para dictar movimientos por voz.</string>
+
+    <!-- Privacy - Speech Recognition (para futura voice input) -->
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Opcional: reconocemos tu voz para registrar movimientos rápido.</string>
+</dict>
+</plist>
