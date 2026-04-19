@@ -35,9 +35,11 @@ struct AddAccountView: View {
                             Label(t.label, systemImage: t.systemIcon).tag(t)
                         }
                     }
-                    TextField("Moneda (ISO)", text: $currency)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
+                    HStack {
+                        Text("Moneda")
+                        Spacer()
+                        CurrencyPickerButton(selectedCode: $currency, label: "")
+                    }
                 }
 
                 Section("Opcional") {
@@ -79,6 +81,12 @@ struct AddAccountView: View {
                     .disabled(isLoading || !isValid)
                 }
             }
+            .onAppear {
+                if currency == "USD", let hid = appState.currentHouseholdId,
+                   let h = appState.households.first(where: { $0.id == hid }) {
+                    currency = h.defaultCurrency
+                }
+            }
         }
     }
 
@@ -100,7 +108,6 @@ struct AddAccountView: View {
         defer { isLoading = false }
 
         do {
-            // Siempre creamos la cuenta primero
             let account = try await AccountService.shared.create(
                 householdId: hid,
                 name: name,
@@ -110,7 +117,6 @@ struct AddAccountView: View {
                 institution: institution.isEmpty ? nil : institution
             )
 
-            // Si es tarjeta, agregamos los detalles
             if isCreditCard {
                 let details = CreditCardDetails(
                     accountId: account.id,

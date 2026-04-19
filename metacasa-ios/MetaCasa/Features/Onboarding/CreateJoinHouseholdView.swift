@@ -4,7 +4,7 @@ struct CreateJoinHouseholdView: View {
     @Environment(AppState.self) private var appState
     @State private var mode: Mode = .create
     @State private var householdName = "Mi Hogar"
-    @State private var currency = "USD"
+    @State private var currency = localeCurrency()
     @State private var inviteToken = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -30,6 +30,7 @@ struct CreateJoinHouseholdView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 40)
+                    .padding(.bottom, 40)
                 }
             }
         }
@@ -39,12 +40,12 @@ struct CreateJoinHouseholdView: View {
         VStack(spacing: 12) {
             Image("LogoMetacasa")
                 .resizable().scaledToFit()
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            Text("Tu hogar")
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+            Text("Home Finance")
                 .font(.mcH1)
                 .foregroundStyle(Color.textPrimary)
-            Text("Creá uno nuevo o unite a uno existente con un invite.")
+            Text("Creá un hogar nuevo o unite a uno con invite.")
                 .font(.mcBody).multilineTextAlignment(.center)
                 .foregroundStyle(Color.textMuted)
         }
@@ -61,7 +62,11 @@ struct CreateJoinHouseholdView: View {
     private var createForm: some View {
         VStack(spacing: 16) {
             MCTextField(title: "Nombre del hogar", text: $householdName, autocapitalize: .words)
-            MCTextField(title: "Moneda principal (ISO)", text: $currency, autocapitalize: .characters)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("MONEDA PRINCIPAL").font(.mcLabel).foregroundStyle(Color.textMuted)
+                CurrencyPickerButton(selectedCode: $currency, label: "Moneda del hogar")
+            }
 
             if let msg = errorMessage {
                 Text(msg).font(.mcCaption).foregroundStyle(Color.brandDanger)
@@ -73,6 +78,12 @@ struct CreateJoinHouseholdView: View {
             }
             .buttonStyle(MCPrimaryButton())
             .disabled(isLoading || householdName.isEmpty)
+
+            Text("Vas a poder agregar otras monedas y cambiar esta después.")
+                .font(.mcCaption)
+                .foregroundStyle(Color.textDim)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
         }
     }
 
@@ -126,5 +137,12 @@ struct CreateJoinHouseholdView: View {
         } catch {
             errorMessage = "No se pudo aceptar: \(error.localizedDescription)"
         }
+    }
+
+    /// Adivina la moneda según el locale del device (ARS, USD, EUR, BRL, MXN, etc).
+    /// Si no podemos mapear, USD como default.
+    static func localeCurrency() -> String {
+        let code = Locale.current.currency?.identifier.uppercased() ?? "USD"
+        return CurrenciesCatalog.info(for: code) != nil ? code : "USD"
     }
 }
