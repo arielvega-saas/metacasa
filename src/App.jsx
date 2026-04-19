@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import logoMetacasa from './assets/logo-metacasa.jpg';
+import logoMP    from './assets/logos/mercadopago.jpg';
+import logoPP    from './assets/logos/paypal.jpg';
+import logoUala  from './assets/logos/uala.jpg';
+import logoBru   from './assets/logos/brubank.jpg';
+import logoNX    from './assets/logos/naranjax.jpg';
 import {
   Settings, Trash2, X, Plus, Minus, History, TrendingUp, PiggyBank,
   BarChart3, PieChart, ArrowUpRight, ArrowDownLeft, FileSpreadsheet,
@@ -9,7 +14,7 @@ import {
   Bell, BellRing, Clock, CheckCheck, RefreshCw, ChevronDown,
   Mic, MicOff, Share2, FileText, Sparkles,
   Target, Trophy, Wallet, Copy, Lightbulb, Calculator, Eye, EyeOff, LayoutGrid,
-  GripVertical
+  GripVertical, BookOpen, MessageCircle, Send
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import {
@@ -96,6 +101,755 @@ const HIDDEN_WIDGETS_KEY = 'metacasa_hidden_widgets';
 const WIDGET_ORDER_KEY   = 'metacasa_widget_order';
 const WIDGET_SIZES_KEY   = 'metacasa_widget_sizes';
 const FIXED_TX_KEY       = 'metacasa_fixed_txs';
+const BUDGET_MODE_KEY    = 'metacasa_budget_modes';
+const ACCOUNTS_KEY       = 'metacasa_accounts';
+const ACCOUNT_TYPES_KEY  = 'metacasa_account_types';
+const ALLOCATIONS_KEY    = 'metacasa_allocations';
+const SAVINGS_ACCOUNT_KEY = 'metacasa_savings_account';
+const CURRENCY_KEY       = 'metacasa_currency';
+const LANG_KEY           = 'metacasa_lang';
+const NEEDS_CATS_KEY     = 'metacasa_needs_cats';
+const THEME_KEY          = 'metacasa_theme';
+const AI_CONFIG_KEY      = 'metacasa_ai_config';
+
+// ─── Monedas disponibles ───────────────────────────────────────────────────
+const ACTIVE_CURRENCIES_KEY = 'metacasa_active_currencies';
+const DEFAULT_ACTIVE_CURRENCIES = ['ARS', 'USD', 'EUR'];
+
+// Catálogo completo de monedas (lookup table)
+const CURRENCIES = {
+  // América Latina
+  ARS: { symbol: '$',    name: 'Peso Argentino',    shortName: 'Peso ARS',  article: 'el', flag: '🇦🇷' },
+  BRL: { symbol: 'R$',   name: 'Real Brasileño',    shortName: 'Real',      article: 'el', flag: '🇧🇷' },
+  CLP: { symbol: 'CL$',  name: 'Peso Chileno',      shortName: 'Peso CLP',  article: 'el', flag: '🇨🇱' },
+  COP: { symbol: 'CO$',  name: 'Peso Colombiano',   shortName: 'Peso COP',  article: 'el', flag: '🇨🇴' },
+  MXN: { symbol: 'MX$',  name: 'Peso Mexicano',     shortName: 'Peso MXN',  article: 'el', flag: '🇲🇽' },
+  PEN: { symbol: 'S/.',  name: 'Sol Peruano',       shortName: 'Sol',       article: 'el', flag: '🇵🇪' },
+  UYU: { symbol: '$U',   name: 'Peso Uruguayo',     shortName: 'Peso UYU',  article: 'el', flag: '🇺🇾' },
+  PYG: { symbol: '₲',    name: 'Guaraní',           shortName: 'Guaraní',   article: 'el', flag: '🇵🇾' },
+  BOB: { symbol: 'Bs.',  name: 'Boliviano',         shortName: 'Boliviano', article: 'el', flag: '🇧🇴' },
+  VES: { symbol: 'Bs.S', name: 'Bolívar Venezolano',shortName: 'Bolívar',   article: 'el', flag: '🇻🇪' },
+  // Norte América
+  USD: { symbol: 'U$S',  name: 'Dólar Estadounidense', shortName: 'Dólar',  article: 'el', flag: '🇺🇸' },
+  CAD: { symbol: 'CA$',  name: 'Dólar Canadiense',     shortName: 'Dólar CA',article: 'el', flag: '🇨🇦' },
+  // Europa
+  EUR: { symbol: '€',    name: 'Euro',              shortName: 'Euro',      article: 'el', flag: '🇪🇺' },
+  GBP: { symbol: '£',    name: 'Libra Esterlina',   shortName: 'Libra',     article: 'la', flag: '🇬🇧' },
+  CHF: { symbol: 'Fr.',  name: 'Franco Suizo',      shortName: 'Franco',    article: 'el', flag: '🇨🇭' },
+  SEK: { symbol: 'kr',   name: 'Corona Sueca',      shortName: 'Corona SE', article: 'la', flag: '🇸🇪' },
+  NOK: { symbol: 'kr',   name: 'Corona Noruega',    shortName: 'Corona NO', article: 'la', flag: '🇳🇴' },
+  DKK: { symbol: 'kr',   name: 'Corona Danesa',     shortName: 'Corona DK', article: 'la', flag: '🇩🇰' },
+  PLN: { symbol: 'zł',   name: 'Złoty Polaco',      shortName: 'Złoty',     article: 'el', flag: '🇵🇱' },
+  // Asia / Pacífico
+  JPY: { symbol: '¥',    name: 'Yen Japonés',       shortName: 'Yen',       article: 'el', flag: '🇯🇵' },
+  CNY: { symbol: 'CN¥',  name: 'Yuan Chino',        shortName: 'Yuan',      article: 'el', flag: '🇨🇳' },
+  KRW: { symbol: '₩',    name: 'Won Surcoreano',    shortName: 'Won',       article: 'el', flag: '🇰🇷' },
+  INR: { symbol: '₹',    name: 'Rupia India',       shortName: 'Rupia',     article: 'la', flag: '🇮🇳' },
+  AUD: { symbol: 'A$',   name: 'Dólar Australiano', shortName: 'Dólar AU',  article: 'el', flag: '🇦🇺' },
+  NZD: { symbol: 'NZ$',  name: 'Dólar Neozelandés', shortName: 'Dólar NZ',  article: 'el', flag: '🇳🇿' },
+  SGD: { symbol: 'S$',   name: 'Dólar Singapurense',shortName: 'Dólar SG',  article: 'el', flag: '🇸🇬' },
+  HKD: { symbol: 'HK$',  name: 'Dólar de Hong Kong',shortName: 'Dólar HK',  article: 'el', flag: '🇭🇰' },
+  // Medio Oriente / África
+  AED: { symbol: 'د.إ',  name: 'Dírham Emiratí',   shortName: 'Dírham',    article: 'el', flag: '🇦🇪' },
+  ILS: { symbol: '₪',    name: 'Séquel Israelí',   shortName: 'Séquel',    article: 'el', flag: '🇮🇱' },
+  ZAR: { symbol: 'R',    name: 'Rand Sudafricano',  shortName: 'Rand',      article: 'el', flag: '🇿🇦' },
+};
+// Helper: nombre corto de la moneda para UI copy
+const getCurrencyShortName = (code) => CURRENCIES[code]?.shortName ?? code;
+const getCurrencyArticle   = (code) => CURRENCIES[code]?.article   ?? 'el';
+
+// ═══════════════════════════════════════════════════════
+// PSP / BILLETERAS — Wallet Provider Registry
+// ═══════════════════════════════════════════════════════
+const WALLET_PROVIDERS = {
+  mercadopago: {
+    id: 'mercadopago',
+    name: 'Mercado Pago',
+    emoji: '🔵',
+    bgClass: 'bg-sky-500/10',
+    borderClass: 'border-sky-500/30',
+    textClass: 'text-sky-400',
+    fields: [{ key: 'access_token', label: 'Access Token', type: 'password', placeholder: 'APP_USR-...' }],
+    helpUrl: 'https://www.mercadopago.com.ar/developers/panel/app',
+    helpText: 'Obtené tu Access Token en el panel de desarrolladores de Mercado Pago → Credenciales de producción',
+  },
+  paypal: {
+    id: 'paypal',
+    name: 'PayPal',
+    emoji: '💙',
+    bgClass: 'bg-blue-500/10',
+    borderClass: 'border-blue-500/30',
+    textClass: 'text-blue-400',
+    fields: [
+      { key: 'client_id', label: 'Client ID', type: 'text', placeholder: 'AX...' },
+      { key: 'client_secret', label: 'Client Secret', type: 'password', placeholder: 'EC...' },
+    ],
+    helpUrl: 'https://developer.paypal.com/dashboard/',
+    helpText: 'Obtené tus credenciales en el dashboard de PayPal Developers',
+  },
+  uala: {
+    id: 'uala',
+    name: 'Ualá',
+    emoji: '💜',
+    bgClass: 'bg-purple-500/10',
+    borderClass: 'border-purple-500/30',
+    textClass: 'text-purple-400',
+    fields: [],
+    comingSoon: true,
+  },
+  brubank: {
+    id: 'brubank',
+    name: 'Brubank',
+    emoji: '🟠',
+    bgClass: 'bg-orange-500/10',
+    borderClass: 'border-orange-500/30',
+    textClass: 'text-orange-400',
+    fields: [],
+    comingSoon: true,
+  },
+  naranja_x: {
+    id: 'naranja_x',
+    name: 'Naranja X',
+    emoji: '🟡',
+    bgClass: 'bg-amber-500/10',
+    borderClass: 'border-amber-500/30',
+    textClass: 'text-amber-400',
+    fields: [],
+    comingSoon: true,
+  },
+  manual: {
+    id: 'manual',
+    name: 'Cuenta manual',
+    emoji: '💵',
+    bgClass: 'bg-emerald-500/10',
+    borderClass: 'border-emerald-500/30',
+    textClass: 'text-emerald-400',
+    fields: [
+      { key: 'name_override', label: 'Nombre de la cuenta', type: 'text', placeholder: 'Ej: Efectivo, Ahorros...' },
+    ],
+    helpText: 'Registrá el saldo de cualquier cuenta o efectivo de forma manual',
+  },
+};
+
+// ─── AI Providers ───────────────────────────────────────────────────────────
+// SVG icon components for AI providers
+const AiIconOpenAI = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" fill="currentColor"/>
+  </svg>
+);
+const AiIconGemini = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M12 24C12 24 12 12 0 12C12 12 12 0 12 0C12 0 12 12 24 12C12 12 12 24 12 24Z" fill="url(#gemini_grad)"/>
+    <defs><linearGradient id="gemini_grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#4285F4"/><stop offset="0.5" stopColor="#9B72CB"/><stop offset="1" stopColor="#D96570"/>
+    </linearGradient></defs>
+  </svg>
+);
+const AiIconClaude = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M16.009 8.754L11.998 21 7.972 8.754h8.037z" fill="#D97757"/>
+    <path d="M7.972 8.754L12 3l4.009 5.754H7.972z" fill="#D97757"/>
+    <path d="M3 15.163L7.972 8.754h0L12 21l-9-5.837z" fill="#D97757"/>
+    <path d="M3 15.163L7.241 3l.731 5.754L3 15.163z" fill="#D97757"/>
+    <path d="M21 15.163L16.009 8.754h0L12 21l9-5.837z" fill="#D97757"/>
+    <path d="M21 15.163L16.759 3l-.75 5.754L21 15.163z" fill="#D97757"/>
+  </svg>
+);
+const AiIconCustom = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
+
+const AI_PROVIDERS = {
+  openai: {
+    id: 'openai', name: 'OpenAI', Icon: AiIconOpenAI,
+    iconColor: 'text-white',
+    defaultModel: 'gpt-4o-mini', placeholder: 'sk-...',
+    helpUrl: 'https://platform.openai.com/api-keys',
+    helpText: { es: 'Obtené tu API key en platform.openai.com', en: 'Get your API key at platform.openai.com' },
+  },
+  gemini: {
+    id: 'gemini', name: 'Google Gemini', Icon: AiIconGemini,
+    iconColor: '',
+    defaultModel: 'gemini-2.0-flash', placeholder: 'AIza...',
+    helpUrl: 'https://aistudio.google.com/apikey',
+    helpText: { es: 'Obtené tu API key en Google AI Studio', en: 'Get your API key at Google AI Studio' },
+  },
+  anthropic: {
+    id: 'anthropic', name: 'Anthropic Claude', Icon: AiIconClaude,
+    iconColor: '',
+    defaultModel: 'claude-sonnet-4-20250514', placeholder: 'sk-ant-...',
+    helpUrl: 'https://console.anthropic.com/settings/keys',
+    helpText: { es: 'Obtené tu API key en console.anthropic.com', en: 'Get your API key at console.anthropic.com' },
+  },
+  custom: {
+    id: 'custom', name: 'Custom', Icon: AiIconCustom,
+    iconColor: 'text-zinc-400',
+    defaultModel: '', placeholder: 'your-api-key',
+    helpUrl: '',
+    helpText: { es: 'Endpoint compatible con la API de OpenAI', en: 'OpenAI-compatible API endpoint' },
+  },
+};
+
+// PSP adapter factory — returns provider-specific API methods
+// Note: direct browser calls to MP/PayPal APIs require a CORS proxy (Supabase Edge Function).
+// The wallet-proxy Edge Function at functions.supabase.co/wallet-proxy handles this.
+const WALLET_PROXY = `https://rgslvrxdppphzvqgcwbx.functions.supabase.co/wallet-proxy`;
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnc2x2cnhkcHBwaHp2cWdjd2J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NjU0NTIsImV4cCI6MjA4NzM0MTQ1Mn0.P8GFzmmj4sAIpWjyjJFSWhhlM5LqP2BBFflOGfUmfhk';
+
+// ── Mercado Pago OAuth ─────────────────────────────────────────────────────
+// Client ID es público (va en la URL de redirección del browser).
+// Client Secret NUNCA va en el frontend — vive en la Edge Function como env var.
+const MP_OAUTH_CLIENT_ID = '2693470312497962';
+const MP_OAUTH_REDIRECT  = typeof window !== 'undefined' ? window.location.origin : 'https://metacasa-app-cf592.web.app';
+
+const createWalletAdapter = (provider, config) => {
+  if (provider === 'mercadopago') {
+    const walletId = config.wallet_id;
+    const proxyFetch = async (path) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return fetch(`${WALLET_PROXY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ provider: 'mercadopago', path, wallet_id: walletId }),
+      });
+    };
+    return {
+      async testConnection() {
+        try { const r = await proxyFetch('/users/me'); return r.ok; } catch { return false; }
+      },
+      async getBalance() {
+        // La API pública de MP no expone el saldo de billetera personal.
+        // Retornamos null para que la UI use el saldo manual guardado en Supabase.
+        return null;
+      },
+      async getTransactions(limit = 50) {
+        // Traer el ID del usuario en MP para saber si es pagador o cobrador
+        let mpUserId = null;
+        try {
+          const meR = await proxyFetch('/users/me');
+          if (meR.ok) { const me = await meR.json(); mpUserId = String(me.id); }
+        } catch {}
+
+        const r = await proxyFetch(`/v1/payments/search?sort=date_created&criteria=desc&limit=${limit}`);
+        if (!r.ok) return [];
+        const d = await r.json();
+
+        // Caché de nombres de usuarios MP para no repetir llamadas
+        const userCache = {};
+        const getMPUserName = async (uid) => {
+          if (!uid || String(uid) === mpUserId) return null;
+          if (userCache[uid]) return userCache[uid];
+          try {
+            const ur = await proxyFetch(`/users/${uid}`);
+            if (ur.ok) {
+              const u = await ur.json();
+              const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.nickname || null;
+              userCache[uid] = name;
+              return name;
+            }
+          } catch {}
+          return null;
+        };
+
+        const results = await Promise.all((d.results ?? []).map(async t => {
+          const collectorId = String(t.collector?.id || t.collector_id || '');
+          const payerId     = String(t.payer?.id || '');
+          const isIngreso   = mpUserId && collectorId === mpUserId;
+
+          // Descripción: intentar mostrar nombre real de quien pagó o cobró
+          let desc = t.description || t.statement_descriptor || '';
+
+          // Para P2P "Varios" intentar obtener el nombre del otro usuario
+          if ((!desc || desc === 'Varios') && isIngreso && payerId && payerId !== mpUserId) {
+            const name = await getMPUserName(payerId);
+            if (name) desc = `Transferencia de ${name}`;
+            else desc = 'Transferencia recibida';
+          } else if ((!desc || desc === 'Varios') && !isIngreso && collectorId && collectorId !== mpUserId) {
+            const name = await getMPUserName(collectorId);
+            if (name) desc = `Transferencia a ${name}`;
+            else desc = 'Transferencia enviada';
+          }
+
+          // Nombres amigables para operaciones de sistema
+          if (!desc || desc === 'null') {
+            const opNames = {
+              account_fund: isIngreso ? 'Depósito bancario' : 'Fondeo de cuenta',
+              investment:   isIngreso ? 'Rendimiento MP'    : 'Inversión MP',
+              money_transfer: isIngreso ? 'Transferencia recibida' : 'Transferencia enviada',
+            };
+            desc = opNames[t.operation_type] || t.operation_type || 'Movimiento MP';
+          }
+
+          return {
+            external_id: String(t.id),
+            date:        t.date_created,
+            amount:      Math.abs(t.transaction_amount ?? 0),
+            type:        isIngreso ? 'INGRESO' : 'GASTO',
+            description: desc,
+            currency:    t.currency_id ?? 'ARS',
+            status:      t.status ?? 'approved',
+            raw:         t,
+          };
+        }));
+
+        return results;
+      },
+    };
+  }
+  if (provider === 'manual') {
+    return {
+      async testConnection() { return true; },
+      async getBalance() { return { available: 0, total: 0, currency: 'ARS' }; },
+      async getTransactions() { return []; },
+    };
+  }
+  return null;
+};
+
+// ─── FX Service ──────────────────────────────────────────────────────────────
+// Cache: { 'USD:ARS:2026-02-28': { rate: 1050, source: 'AUTO', status: 'FINAL' } }
+const _fxCache = {};
+
+/**
+ * Get exchange rate from `from` currency to ARS.
+ * - If from === 'ARS': returns { rate: 1, source: 'MANUAL', status: 'FINAL' }
+ * - If dateStr is today: try frankfurter.app (doesn't support ARS, so we skip for ARS pairs)
+ * - Fallback: use manualRate from user settings
+ * @param {string} from  - source currency code (e.g. 'USD', 'EUR')
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {number} manualRate - user's manually entered rate for `from`→ARS
+ */
+async function fxGetRate(from, dateStr, manualRate) {
+  if (from === 'ARS') return { rate: 1, source: 'MANUAL', status: 'FINAL' };
+  const cacheKey = `${from}:ARS:${dateStr}`;
+  if (_fxCache[cacheKey]) return _fxCache[cacheKey];
+
+  // ARS is not supported by frankfurter.app → always use manual
+  // Try frankfurter.app for non-ARS pairs only (i.e., never for us since to=ARS)
+  // For now always use manual rate (common for apps in Argentina)
+  if (manualRate && manualRate > 0) {
+    const result = { rate: manualRate, source: 'MANUAL', status: 'FINAL' };
+    _fxCache[cacheKey] = result;
+    return result;
+  }
+  // Return estimated if no manual rate
+  return { rate: 0, source: 'MANUAL', status: 'ESTIMATED' };
+}
+
+// ─── Traducciones (i18n básico) ────────────────────────────────────────────
+const TRANSLATIONS = {
+  es: {
+    // Auth / Login
+    loginTab: 'Ingresar', signupTab: 'Registrarse', loginBtn: 'Ingresar',
+    createAccountBtn: 'Crear cuenta', forgotPassword: '¿Olvidaste tu contraseña?',
+    checkSpam: 'Revisá spam/promociones si no llega el email de confirmación.',
+    homeFinance: 'Finanzas del hogar',
+    // Nav tabs
+    home: 'Inicio', add: 'Registrar', history: 'Historial',
+    stats: 'Estadísticas', budget: 'Presupuesto', settings: 'Ajustes',
+    // Common
+    income: 'Ingreso', expense: 'Gasto', available: 'Disponible',
+    save: 'Guardar', cancel: 'Cancelar', delete: 'Eliminar', edit: 'Editar',
+    account: 'Cuenta', subcategory: 'Subcategoría', category: 'Categoría',
+    note: 'Nota', date: 'Fecha', amount: 'Monto', type: 'Tipo',
+    all: 'Todos', noAccount: 'Sin cuenta',
+    language: 'Idioma', currency: 'Moneda',
+    accounts: 'Cuentas', addAccount: 'Agregar cuenta',
+    total: 'Total', average: 'Promedio', balance: 'Balance',
+    loading: 'Cargando…', saving: 'Guardando…', done: '¡Listo! ✓',
+    close: 'Cerrar', confirm: 'Confirmar', apply: 'Aplicar →',
+    movements: 'movimientos', movement: 'movimiento',
+    today: 'Hoy', yesterday: 'Ayer', previous: 'anterior', next: 'próximo', current: 'actual',
+    // Months
+    january: 'Enero', february: 'Febrero', march: 'Marzo', april: 'Abril',
+    may: 'Mayo', june: 'Junio', july: 'Julio', august: 'Agosto',
+    september: 'Septiembre', october: 'Octubre', november: 'Noviembre', december: 'Diciembre',
+    // Add tab
+    quickShortcuts: 'Atajos rápidos',
+    listening: 'Escuchando…', dictate: 'Dictado',
+    transactionDate: 'Fecha del movimiento',
+    registerIn: 'Registrar en el período de',
+    diffFromReal: '≠ fecha real',
+    optionalNote: 'Detalle opcional del movimiento…',
+    suggestedCat: '¿Categoría sugerida',
+    monthlyFixed: 'Gasto fijo mensual', monthlyFixedIncome: 'Ingreso fijo mensual',
+    autoRegisterEachMonth: 'Se registrará automáticamente cada mes',
+    activateToReplicate: 'Activar para replicar cada mes',
+    confirmRegister: 'Confirmar registro',
+    saveAsShortcut: 'Guardar como atajo rápido',
+    noAccountSpecified: 'Sin especificar',
+    general: 'General', newCategory: 'Nueva',
+    // History tab
+    search: 'Buscar por categoría, nota o monto…',
+    thisWeek: 'Esta semana', activeRange: 'Rango activo', range: 'Rango',
+    allMonths: 'Todos los meses',
+    customRange: 'Rango personalizado', from: 'Desde', to: 'Hasta',
+    clear: 'Limpiar', clearDay: '× Limpiar día',
+    mostRecent: 'Más reciente', oldest: 'Más antiguo',
+    highestAmount: 'Mayor monto', lowestAmount: 'Menor monto',
+    noResults: 'Sin resultados para esa búsqueda',
+    noMovementsMonth: 'Sin movimientos este mes',
+    registerOne: '+ Registrar uno',
+    goToToday: 'Ir a hoy →',
+    expenses: 'Gastos', incomes: 'Ingresos',
+    // Stats tab
+    monthlyReport: 'Informe mensual', fullSummary: 'Resumen completo',
+    reports: 'Reportes',
+    financialHealth: 'Índice de salud financiera',
+    spendingSpeed: 'Velocidad de gasto',
+    topExpenses: 'Top gastos del mes', worstWeek: 'Peor semana',
+    savingsMomentum: 'Momentum de ahorro',
+    trends: 'Tendencias', balanceTrend: 'Tendencia de balance',
+    weekVsWeek: 'Semana vs semana', thisWeekLabel: 'Esta semana', prevWeek: 'Semana anterior',
+    vsLastMonth: 'Comparativa mes anterior',
+    weeklyHeatmap: 'Heatmap semanal (promedio)',
+    categoryCycle: 'Ciclo de categorías',
+    achievementsUnlocked: 'Logros desbloqueados',
+    byAccount: '👥 Por cuenta',
+    // Budget tab
+    totalIncome: 'Total ingresado',
+    noIncomeThisPeriod: 'Sin ingresos en este período',
+    budgetedAvailable: 'Disponible presupuestado',
+    accordingToPlan: 'según plan',
+    realAvailable: 'Disponible real',
+    accordingToExpenses: 'según gastos reales',
+    fixedExpenses: 'Gastos fijos',
+    noFixedExpenses: 'Sin gastos fijos configurados',
+    markFixedToAdd: "Marcá 'Fijo' al cargar un gasto para agregarlo aquí",
+    paidFixed: 'Fijos pagados este período',
+    billsAndInstallments: 'Vencimientos y cuotas',
+    noBills: 'Sin vencimientos ni cuotas este período',
+    manageBillsInSettings: 'Gestioná vencimientos en Ajustes',
+    strategy: 'Estrategia',
+    savingsThisPeriod: 'Ahorro este período', investmentThisPeriod: 'Inversión este período',
+    categoryLimits: 'Límites de categorías',
+    suggestFromHistory: 'Sugerir del historial (+5% buffer)',
+    // Settings tab
+    activeInstallments: 'Cuotas en curso', manageInstallments: 'Administrar cuotas',
+    savingsGoals: 'Metas de ahorro', manageSavingsGoals: 'Administrar metas',
+    debtsLoans: 'Deudas y préstamos', manageDebts: 'Administrar deudas',
+    automation: 'Automatización', recurringMovements: 'Movimientos recurrentes',
+    categories: 'Categorías',
+    editCategories: 'Editar categorías →', viewExpenseChart: 'Ver gráfico de gastos →',
+    billsAndAlerts: 'Vencimientos y alertas',
+    exchangeRate: 'Tipo de cambio',
+    exportCsv: 'Exportar CSV', backupJson: 'Backup JSON completo',
+    restoreJson: 'Restaurar backup JSON',
+    signOut: 'Cerrar sesión',
+    fixedTermCalc: 'Calculadora plazo fijo',
+    helpCenter: 'Centro de ayuda',
+    helpTopics: 'Temas',
+    helpSearch: 'Buscar',
+    helpChat: 'Chat IA',
+    helpSearchPlaceholder: 'Buscar en la ayuda...',
+    helpNoResults: 'Sin resultados para esa búsqueda',
+    helpChatPlaceholder: 'Preguntale algo sobre MetaCasa...',
+    helpChatWelcome: '¡Hola! Soy el asistente de MetaCasa. Preguntame lo que quieras sobre la app.',
+    helpChatError: 'Hubo un error. Intentá de nuevo.',
+    helpBackToTopics: '← Volver a temas',
+    helpTipPrefix: 'Tip:',
+    aiConfigTitle: 'Configurar IA',
+    aiSelectProvider: 'Proveedor de IA',
+    aiModel: 'Modelo',
+    aiOptional: 'opcional',
+    aiTestConnection: 'Probar conexión',
+    aiTesting: 'Probando…',
+    aiConnectionOk: 'Conexión exitosa',
+    aiDisconnect: 'Desconectar IA',
+    aiConfigured: 'Configurado',
+    aiNotConfigured: 'IA no configurada',
+    aiSetupPrompt: 'Conectá tu propia API key para activar el chat con IA.',
+    aiSetupButton: 'Configurar IA →',
+    newName: 'Nuevo nombre…',
+    usdToArs: 'USD → ARS', enterDollarValue: 'Ingresá el valor del dólar manualmente',
+    // Budget items
+    dueDay: 'Vence día', monthly: 'Mensual', installment: 'Cuota',
+    day: 'Día',
+    // Common actions
+    editArrow: 'Editar →', seeAll: 'Ver todas →', seeAllArrow: 'Ver →',
+    // Home tab
+    periodBalance: 'Balance del período',
+    availableBalance: 'Saldo disponible',
+    seeDetailByCategory: 'Ver detalle por categoría →',
+    seeDetail: 'Ver detalle →',
+    monthInstallments: 'Cuotas del mes',
+    topExpensesMonth: 'Top gastos del mes',
+    savings: 'Ahorro', investment: 'Inversión',
+    incomeSources: 'Fuentes de ingreso',
+    expenseDistribution: 'Distribución de gastos',
+    expensesLabel: 'gastos',
+    incomesLabel: 'Ingresos', expensesTitle: 'Gastos',
+    prevIncome: 'Ingresos ant.', prevExpenses: 'Gastos ant.',
+    estIncome: 'Ingresos est.', estExpenses: 'Gastos est.',
+    ofIncome: '% ingresos',
+    recurringFixed: 'Gastos fijos recurrentes',
+    expensesMonth: 'Gastos del mes',
+    last6months: 'Ingresos vs Gastos — últimos 6 meses',
+    incomeVsExpenses: 'Ingresos vs Gastos',
+    expectedIncome: 'Ingresos esperados', expected: 'Esperado',
+    received: 'Recibido ✓', pending: 'Pendiente de recibir',
+    incomePerDay: '📗 Ingresos por día', expenseDistDay: 'Gastos por día',
+    antExpenses: 'Gastos ant.', antIncome: 'Ingresos ant.',
+  },
+  en: {
+    // Auth / Login
+    loginTab: 'Sign In', signupTab: 'Sign Up', loginBtn: 'Sign In',
+    createAccountBtn: 'Create Account', forgotPassword: 'Forgot your password?',
+    checkSpam: 'Check spam/promotions if you don\'t receive the confirmation email.',
+    homeFinance: 'Home finances',
+    // Nav tabs
+    home: 'Home', add: 'Add', history: 'History',
+    stats: 'Stats', budget: 'Budget', settings: 'Settings',
+    // Common
+    income: 'Income', expense: 'Expense', available: 'Available',
+    save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit',
+    account: 'Account', subcategory: 'Subcategory', category: 'Category',
+    note: 'Note', date: 'Date', amount: 'Amount', type: 'Type',
+    all: 'All', noAccount: 'No account',
+    language: 'Language', currency: 'Currency',
+    accounts: 'Accounts', addAccount: 'Add account',
+    total: 'Total', average: 'Average', balance: 'Balance',
+    loading: 'Loading…', saving: 'Saving…', done: 'Done! ✓',
+    close: 'Close', confirm: 'Confirm', apply: 'Apply →',
+    movements: 'transactions', movement: 'transaction',
+    today: 'Today', yesterday: 'Yesterday', previous: 'previous', next: 'next', current: 'current',
+    // Months
+    january: 'January', february: 'February', march: 'March', april: 'April',
+    may: 'May', june: 'June', july: 'July', august: 'August',
+    september: 'September', october: 'October', november: 'November', december: 'December',
+    // Add tab
+    quickShortcuts: 'Quick shortcuts',
+    listening: 'Listening…', dictate: 'Dictate',
+    transactionDate: 'Transaction date',
+    registerIn: 'Assign to period',
+    diffFromReal: '≠ real date',
+    optionalNote: 'Optional transaction detail…',
+    suggestedCat: 'Suggested category',
+    monthlyFixed: 'Monthly fixed expense', monthlyFixedIncome: 'Monthly fixed income',
+    autoRegisterEachMonth: 'Will be registered automatically each month',
+    activateToReplicate: 'Activate to replicate each month',
+    confirmRegister: 'Confirm',
+    saveAsShortcut: 'Save as quick shortcut',
+    noAccountSpecified: 'Not specified',
+    general: 'General', newCategory: 'New',
+    // History tab
+    search: 'Search by category, note or amount…',
+    thisWeek: 'This week', activeRange: 'Active range', range: 'Range',
+    allMonths: 'All months',
+    customRange: 'Custom range', from: 'From', to: 'To',
+    clear: 'Clear', clearDay: '× Clear day',
+    mostRecent: 'Most recent', oldest: 'Oldest',
+    highestAmount: 'Highest amount', lowestAmount: 'Lowest amount',
+    noResults: 'No results for that search',
+    noMovementsMonth: 'No movements this month',
+    registerOne: '+ Add one',
+    goToToday: 'Go to today →',
+    expenses: 'Expenses', incomes: 'Income',
+    // Stats tab
+    monthlyReport: 'Monthly report', fullSummary: 'Full summary',
+    reports: 'Reports',
+    financialHealth: 'Financial health index',
+    spendingSpeed: 'Spending speed',
+    topExpenses: 'Top expenses this month', worstWeek: 'Worst week',
+    savingsMomentum: 'Savings momentum',
+    trends: 'Trends', balanceTrend: 'Balance trend',
+    weekVsWeek: 'Week vs week', thisWeekLabel: 'This week', prevWeek: 'Previous week',
+    vsLastMonth: 'vs last month',
+    weeklyHeatmap: 'Weekly heatmap (average)',
+    categoryCycle: 'Category cycle',
+    achievementsUnlocked: 'Achievements unlocked',
+    byAccount: '👥 By account',
+    // Budget tab
+    totalIncome: 'Total income',
+    noIncomeThisPeriod: 'No income this period',
+    budgetedAvailable: 'Budgeted available',
+    accordingToPlan: 'according to plan',
+    realAvailable: 'Real available',
+    accordingToExpenses: 'according to real expenses',
+    fixedExpenses: 'Fixed expenses',
+    noFixedExpenses: 'No fixed expenses configured',
+    markFixedToAdd: "Mark 'Fixed' when adding an expense to include it here",
+    paidFixed: 'Fixed expenses paid this period',
+    billsAndInstallments: 'Bills and installments',
+    noBills: 'No bills or installments this period',
+    manageBillsInSettings: 'Manage bills in Settings',
+    strategy: 'Strategy',
+    savingsThisPeriod: 'Savings this period', investmentThisPeriod: 'Investment this period',
+    categoryLimits: 'Category limits',
+    suggestFromHistory: 'Suggest from history (+5% buffer)',
+    // Settings tab
+    activeInstallments: 'Active installments', manageInstallments: 'Manage installments',
+    savingsGoals: 'Savings goals', manageSavingsGoals: 'Manage savings goals',
+    debtsLoans: 'Debts & loans', manageDebts: 'Manage debts',
+    automation: 'Automation', recurringMovements: 'Recurring transactions',
+    categories: 'Categories',
+    editCategories: 'Edit categories →', viewExpenseChart: 'View expense chart →',
+    billsAndAlerts: 'Bills and alerts',
+    exchangeRate: 'Exchange rate',
+    exportCsv: 'Export CSV', backupJson: 'Full JSON backup',
+    restoreJson: 'Restore JSON backup',
+    signOut: 'Sign out',
+    fixedTermCalc: 'Fixed term calculator',
+    helpCenter: 'Help Center',
+    helpTopics: 'Topics',
+    helpSearch: 'Search',
+    helpChat: 'AI Chat',
+    helpSearchPlaceholder: 'Search help...',
+    helpNoResults: 'No results for that search',
+    helpChatPlaceholder: 'Ask anything about MetaCasa...',
+    helpChatWelcome: 'Hi! I\'m the MetaCasa assistant. Ask me anything about the app.',
+    helpChatError: 'There was an error. Please try again.',
+    helpBackToTopics: '← Back to topics',
+    helpTipPrefix: 'Tip:',
+    aiConfigTitle: 'Configure AI',
+    aiSelectProvider: 'AI Provider',
+    aiModel: 'Model',
+    aiOptional: 'optional',
+    aiTestConnection: 'Test connection',
+    aiTesting: 'Testing…',
+    aiConnectionOk: 'Connection successful',
+    aiDisconnect: 'Disconnect AI',
+    aiConfigured: 'Configured',
+    aiNotConfigured: 'AI not configured',
+    aiSetupPrompt: 'Connect your own API key to enable the AI chat.',
+    aiSetupButton: 'Configure AI →',
+    newName: 'New name…',
+    usdToArs: 'USD → ARS', enterDollarValue: 'Enter the dollar value manually',
+    // Budget items
+    dueDay: 'Due day', monthly: 'Monthly', installment: 'Installment',
+    day: 'Day',
+    // Common actions
+    editArrow: 'Edit →', seeAll: 'See all →', seeAllArrow: 'See →',
+    // Home tab
+    periodBalance: 'Period balance',
+    availableBalance: 'Available balance',
+    seeDetailByCategory: 'See detail by category →',
+    seeDetail: 'See detail →',
+    monthInstallments: 'Monthly installments',
+    topExpensesMonth: 'Top expenses',
+    savings: 'Savings', investment: 'Investment',
+    incomeSources: 'Income sources',
+    expenseDistribution: 'Expense distribution',
+    expensesLabel: 'expenses',
+    incomesLabel: 'Income', expensesTitle: 'Expenses',
+    prevIncome: 'Prev. income', prevExpenses: 'Prev. expenses',
+    estIncome: 'Est. income', estExpenses: 'Est. expenses',
+    ofIncome: '% of income',
+    recurringFixed: 'Recurring fixed expenses',
+    expensesMonth: 'Monthly expenses',
+    last6months: 'Income vs Expenses — last 6 months',
+    incomeVsExpenses: 'Income vs Expenses',
+    expectedIncome: 'Expected income', expected: 'Expected',
+    received: 'Received ✓', pending: 'Pending receipt',
+    incomePerDay: '📗 Income per day', expenseDistDay: 'Expenses per day',
+    antExpenses: 'Prev. expenses', antIncome: 'Prev. income',
+  },
+};
+// Helper de traducción: t(lang, 'key')
+const t = (lang, key) => TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['es'][key] ?? key;
+
+// ─── Help Center: contenido del manual ──────────────────────────────────────
+const HELP_CONTENT = (lng) => {
+  const es = lng === 'es';
+  return [
+    { id:'dashboard', icon:'🏠', title: es?'Inicio / Dashboard':'Home / Dashboard', subtitle: es?'Balance, widgets y vista general':'Balance, widgets and overview', keywords:['inicio','home','dashboard','balance','saldo','widget','resumen'],
+      sections:[
+        { heading: es?'Vista general':'Overview', body: es?'La pantalla de inicio muestra tu balance del período actual, un resumen de ingresos vs gastos, y widgets personalizables. Podés cambiar el período con las flechas en la parte superior.':'The home screen shows your current period balance, an income vs expenses summary, and customizable widgets. Change the period with the top arrows.' },
+        { heading: es?'Widgets personalizables':'Customizable widgets', body: es?'Tocá el botón de grilla (⊞) para abrir el editor de widgets. Podés mostrar/ocultar cada widget, cambiar su tamaño (S/M/L) y reordenarlos.':'Tap the grid button (⊞) to open the widget editor. Show/hide each widget, change its size (S/M/L) and reorder them.' },
+        { heading: es?'Plan del mes (Waterfall)':'Monthly plan (Waterfall)', body: es?'El widget "Plan del mes" muestra: Ingresos → Gastos fijos → Vencimientos → Ahorro/Inversión → Disponible. Te da una foto clara de cuánto tenés libre.':'The "Monthly plan" widget shows: Income → Fixed expenses → Bills → Savings/Investment → Available. A clear picture of free funds.' },
+      ], tip: es?'Mantené presionado un widget para ver opciones de tamaño.':'Long press a widget to see size options.' },
+    { id:'addTransaction', icon:'➕', title: es?'Registrar movimiento':'Add transaction', subtitle: es?'Gastos, ingresos, voz, atajos rápidos':'Expenses, income, voice, quick shortcuts', keywords:['agregar','registrar','gasto','ingreso','add','transaction','voz','voice','atajo','shortcut','fijo'],
+      sections:[
+        { heading: es?'Registrar un gasto o ingreso':'Add an expense or income', body: es?'Elegí tipo (Gasto/Ingreso), ingresá monto, seleccioná categoría y opcionalmente una nota. Podés asignar cuenta y fecha diferente.':'Choose type (Expense/Income), enter amount, select category and optionally a note. Assign an account and different date.' },
+        { heading: es?'Dictado por voz':'Voice dictation', body: es?'Tocá el ícono de micrófono y dictá "mil pesos en supermercado". La app detecta monto y sugiere categoría.':'Tap the mic icon and say "50 dollars groceries". The app detects the amount and suggests a category.' },
+        { heading: es?'Atajos rápidos':'Quick shortcuts', body: es?'Movimientos frecuentes guardados. Activá "Guardar como atajo rápido" al registrar. Aparecen como botones de un solo toque.':'Saved frequent transactions. Enable "Save as quick shortcut" when registering. They appear as one-tap buttons.' },
+        { heading: es?'Gastos fijos mensuales':'Monthly fixed expenses', body: es?'Activá "Gasto fijo mensual" para crear un template. Cada mes aparece en el presupuesto con un tilde para marcar como pagado.':'Enable "Monthly fixed expense" to create a template. Each month it appears in the budget with a checkbox to mark as paid.' },
+        { heading: es?'Multi-moneda':'Multi-currency', body: es?'Registrá en otra moneda y se convierte automáticamente a tu moneda base con el tipo de cambio de Ajustes.':'Register in another currency and it converts automatically to your base currency with the exchange rate from Settings.' },
+      ], tip: es?'Asigná la cuenta correcta (Personal o Compartida) a cada gasto.':'Assign the correct account (Personal or Shared) to each expense.' },
+    { id:'budget', icon:'🐷', title: es?'Presupuesto':'Budget', subtitle: es?'Waterfall, límites, gastos fijos, estrategia':'Waterfall, limits, fixed expenses, strategy', keywords:['presupuesto','budget','límite','limit','waterfall','cascada','semáforo','disponible'],
+      sections:[
+        { heading: es?'Modelo Waterfall':'Waterfall model', body: es?'Del ingreso total se deducen: 1) gastos fijos, 2) vencimientos/cuotas, 3) ahorro, 4) inversión. El sobrante se distribuye entre cuentas personales.':'From total income: 1) fixed expenses, 2) bills/installments, 3) savings, 4) investment are deducted. Remainder goes to personal accounts.' },
+        { heading: es?'Límites por categoría':'Category limits', body: es?'Asigná un límite en $ o % a cada categoría. Semáforo: verde = OK, amarillo = cerca, rojo = pasado. Solo se muestran categorías con gastos en esa cuenta.':'Set a $ or % limit per category. Traffic light: green = OK, yellow = close, red = over. Only categories with expenses in that account are shown.' },
+        { heading: es?'Gastos fijos en presupuesto':'Fixed expenses in budget', body: es?'Los gastos "fijos" aparecen con tilde para marcar pagado. Al tildar se crea la transacción real en tu saldo.':'Fixed expenses appear with a checkbox to mark paid. Checking creates the real transaction in your balance.' },
+        { heading: es?'Estrategia ahorro/inversión':'Savings/investment strategy', body: es?'Definí % de ingreso para ahorro e inversión. Se deduce automáticamente antes del disponible.':'Set income % for savings and investment. Automatically deducted before available funds.' },
+      ], tip: es?'Tocá "Sugerir del historial" para límites basados en gastos pasados.':'Tap "Suggest from history" for limits based on past spending.' },
+    { id:'accounts', icon:'👥', title: es?'Cuentas (Personal / Compartida)':'Accounts (Personal / Shared)', subtitle: es?'Gestión de cuentas y vista Hogar':'Account management and Home view', keywords:['cuenta','account','personal','compartida','shared','hogar','pareja','couple'],
+      sections:[
+        { heading: es?'Tipos de cuenta':'Account types', body: es?'Personal (ej: "Ariel") para gastos individuales. Compartida (ej: "Casa") para gastos del hogar.':'Personal (e.g. "Ariel") for individual expenses. Shared (e.g. "Home") for household expenses.' },
+        { heading: es?'Vista Hogar':'Household view', body: es?'En Presupuesto, "Hogar" consolida todos los ingresos y muestra el waterfall completo. Vistas personales muestran solo tu porción.':'In Budget, "Household" consolidates all income and shows the full waterfall. Personal views show only your portion.' },
+        { heading: es?'Distribución':'Distribution', body: es?'Elegí: "Igual" (50/50), "Proporcional" (según ingreso de cada uno) o montos fijos.':'Choose: "Equal" (50/50), "Proportional" (by each person\'s income) or custom fixed amounts.' },
+      ], tip: es?'Creá 3 cuentas: una personal por persona + una compartida.':'Create 3 accounts: one personal per person + one shared.' },
+    { id:'bills', icon:'🔔', title: es?'Vencimientos y alertas':'Bills & due dates', subtitle: es?'Vencimientos recurrentes, calendario':'Recurring bills, calendar, alerts', keywords:['vencimiento','bill','alerta','alert','vence','due','calendario','calendar'],
+      sections:[
+        { heading: es?'Agregar vencimientos':'Add bills', body: es?'En Ajustes → Vencimientos y alertas, agregá facturas con fecha y monto. Configurá como mensuales, anuales o únicas.':'In Settings → Bills and alerts, add bills with date and amount. Set as monthly, yearly or one-time.' },
+        { heading: es?'Calendario':'Calendar', body: es?'En Presupuesto, tocá 📅 para ver el calendario visual con vencimientos marcados. Tocá un día para ver detalles.':'In Budget, tap 📅 to see a visual calendar with marked due dates. Tap a day to see details.' },
+        { heading: es?'Indicadores de estado':'Status indicators', body: es?'Normal = gris, próximo (3 días) = amarillo, vencido = rojo.':'Normal = gray, upcoming (3 days) = yellow, overdue = red.' },
+      ], tip: es?'Las cuotas y vencimientos se deducen automáticamente del disponible.':'Installments and bills are auto-deducted from available funds.' },
+    { id:'installments', icon:'💳', title: es?'Cuotas':'Installments', subtitle: es?'Seguimiento de pagos en cuotas':'Installment tracking', keywords:['cuota','installment','pago','payment','tarjeta','card'],
+      sections:[
+        { heading: es?'Registrar cuotas':'Register installments', body: es?'En Ajustes → Cuotas, agregá compras con monto por cuota, total y pagadas. Se calcula cuánto falta.':'In Settings → Installments, add purchases with per-installment amount, total and paid. Remaining is auto-calculated.' },
+        { heading: es?'En el presupuesto':'In the budget', body: es?'Las cuotas activas aparecen en "Vencimientos y cuotas" y se deducen del disponible.':'Active installments appear in "Bills and installments" and are deducted from available funds.' },
+      ], tip: es?'La barra de progreso muestra cuántas cuotas faltan.':'The progress bar shows how many installments remain.' },
+    { id:'goals', icon:'🎯', title: es?'Metas de ahorro':'Savings goals', subtitle: es?'Objetivos y progreso':'Targets and progress', keywords:['meta','goal','ahorro','saving','objetivo','target','progreso'],
+      sections:[
+        { heading: es?'Crear y gestionar metas':'Create and manage goals', body: es?'En Ajustes → Metas de ahorro, creá metas con nombre, monto objetivo y fecha opcional. Registrá contribuciones parciales.':'In Settings → Savings goals, create goals with name, target amount and optional deadline. Register partial contributions.' },
+      ], tip: es?'Las metas aparecen como widget en el Dashboard.':'Goals appear as a widget on the Dashboard.' },
+    { id:'debts', icon:'🤝', title: es?'Deudas y préstamos':'Debts & loans', subtitle: es?'Quién le debe a quién':'Track who owes whom', keywords:['deuda','debt','préstamo','loan','debe','owe','cobrar'],
+      sections:[
+        { heading: es?'Registrar deudas':'Register debts', body: es?'En Ajustes → Deudas, registrá lo que te deben o lo que debés. Marcá pagos parciales y seguí el saldo pendiente.':'In Settings → Debts, register what is owed to you or what you owe. Mark partial payments and track pending balance.' },
+      ], tip: es?'Las deudas pendientes aparecen como widget en el Home.':'Pending debts appear as a widget on the Home screen.' },
+    { id:'recurring', icon:'🔄', title: es?'Movimientos recurrentes':'Recurring transactions', subtitle: es?'Templates automáticos':'Automatic templates', keywords:['recurrente','recurring','automático','repetir','frecuencia'],
+      sections:[
+        { heading: es?'Configurar recurrentes':'Set up recurring', body: es?'En Ajustes → Recurrentes, creá templates automáticos (diario, semanal, mensual, anual). Ideal para sueldos, alquileres, suscripciones.':'In Settings → Recurring, create auto templates (daily, weekly, monthly, yearly). Ideal for salaries, rent, subscriptions.' },
+      ], tip: es?'El widget "Recordatorio recurrentes" avisa cuando hay pendientes.':'The "Recurring reminders" widget alerts when there are pending items.' },
+    { id:'fixedExpenses', icon:'📌', title: es?'Gastos fijos':'Fixed expenses', subtitle: es?'Templates mensuales, control de pago':'Monthly templates, payment tracking', keywords:['fijo','fixed','mensual','monthly','template','pagado','tilde'],
+      sections:[
+        { heading: es?'Cómo funcionan':'How they work', body: es?'Al registrar un gasto, activá "Gasto fijo mensual". Cada mes aparece en el presupuesto de la cuenta asignada con tilde para marcar pagado.':'When registering, enable "Monthly fixed expense". Each month it appears in the assigned account\'s budget with a checkbox to mark paid.' },
+        { heading: es?'Asignación a cuenta':'Account assignment', body: es?'Los gastos fijos se asocian a la cuenta donde los registraste. Si lo registrás en "Casa", aparece en el presupuesto de "Casa".':'Fixed expenses are linked to the account where you registered them. If registered in "Home", it appears in "Home" budget.' },
+      ], tip: es?'Al tildar como pagado se crea automáticamente la transacción real.':'Marking as paid automatically creates the real transaction.' },
+    { id:'stats', icon:'📊', title: es?'Estadísticas y reportes':'Analytics & reports', subtitle: es?'Salud financiera, Pareto, tendencias':'Financial health, Pareto, trends', keywords:['estadísticas','stats','analytics','reporte','report','salud','health','tendencia','trend','pareto'],
+      sections:[
+        { heading: es?'Índice de salud financiera':'Financial health index', body: es?'Score 0-100: relación ingreso/gasto, constancia de registro, diversificación y cumplimiento de presupuesto. Calificación A-F.':'Score 0-100: income/expense ratio, registration consistency, diversification and budget compliance. Letter grade A-F.' },
+        { heading: es?'Reportes mensuales':'Monthly reports', body: es?'Informe con top gastos, velocidad de gasto, Pareto (80/20) y comparativa con meses anteriores.':'Report with top expenses, spending speed, Pareto (80/20) and comparison with previous months.' },
+        { heading: es?'Tendencias':'Trends', body: es?'Evolución de balance, semana a semana, heatmap de gastos y ciclo de categorías.':'Balance evolution, week-to-week, spending heatmap and category cycle.' },
+      ], tip: es?'En Ajustes accedé al reporte mensual y vista anual.':'In Settings access the monthly report and annual view.' },
+    { id:'wallets', icon:'💼', title: es?'Billeteras':'Wallets', subtitle: es?'Mercado Pago, PayPal, saldo manual':'Mercado Pago, PayPal, manual balance', keywords:['billetera','wallet','mercadopago','paypal','saldo','balance','conectar','sincronizar'],
+      sections:[
+        { heading: es?'Conectar billeteras':'Connect wallets', body: es?'En Billeteras, conectá Mercado Pago (OAuth o token), PayPal u otras. Sincronización automática.':'In Wallets, connect Mercado Pago (OAuth or token), PayPal or others. Automatic sync.' },
+        { heading: es?'Saldo manual':'Manual balance', body: es?'Creá billeteras manuales para efectivo o cuentas sin integración.':'Create manual wallets for cash or accounts without integration.' },
+      ], tip: es?'Importá movimientos individuales tocando "Importar →".':'Import individual transactions by tapping "Import →".' },
+    { id:'exportImport', icon:'📦', title: es?'Exportar e importar':'Export & import', subtitle: es?'CSV, backup JSON, restaurar':'CSV, JSON backup, restore', keywords:['exportar','export','importar','import','backup','csv','json','restaurar','restore'],
+      sections:[
+        { heading: es?'Exportar CSV':'Export CSV', body: es?'En Ajustes → Exportar CSV: archivo compatible con Excel/Google Sheets.':'In Settings → Export CSV: file compatible with Excel/Google Sheets.' },
+        { heading: es?'Backup JSON':'JSON backup', body: es?'Incluye todo: movimientos, categorías, metas, deudas, cuotas, cuentas y config. Restaurá en otro dispositivo.':'Includes everything: transactions, categories, goals, debts, installments, accounts and config. Restore on another device.' },
+      ], tip: es?'Hacé backup periódico para proteger tus datos.':'Make periodic backups to protect your data.' },
+    { id:'settings', icon:'⚙️', title: es?'Ajustes generales':'General settings', subtitle: es?'Tema, idioma, moneda':'Theme, language, currency', keywords:['ajustes','settings','tema','theme','idioma','language','moneda','currency','cambio','exchange','oscuro','dark','claro','light'],
+      sections:[
+        { heading: es?'Idioma':'Language', body: es?'Español o English. Cambio instantáneo.':'Español or English. Instant switch.' },
+        { heading: es?'Apariencia':'Appearance', body: es?'Modo Oscuro, Claro o Automático (sigue el sistema).':'Dark, Light or Auto mode (follows system).' },
+        { heading: es?'Moneda y tipo de cambio':'Currency and exchange rate', body: es?'Configurá moneda base y otras activas. Tipos de cambio manuales (blue, oficial, MEP).':'Set base currency and active ones. Manual exchange rates (parallel, official).' },
+      ], tip: es?'Activá múltiples monedas para viajes.':'Enable multiple currencies for travel.' },
+    { id:'waterfall', icon:'🌊', title: es?'Presupuesto para parejas':'Budget for couples', subtitle: es?'Ingresos conjuntos, distribución':'Joint income, distribution', keywords:['pareja','couple','waterfall','conjunto','joint','distribución','compartido'],
+      sections:[
+        { heading: es?'Cómo funciona':'How it works', body: es?'Ambos sueldos entran al pool del hogar. Se deducen gastos fijos compartidos, vencimientos, cuotas, ahorro e inversión. El sobrante se reparte entre cuentas personales.':'Both salaries enter the household pool. Shared fixed expenses, bills, installments, savings and investment are deducted. Remainder is distributed among personal accounts.' },
+        { heading: es?'Configuración':'Setup', body: es?'1. Creá cuentas personales + una compartida. 2. Configurá distribución en Ajustes → Sistema Hogar. 3. Registrá ingresos y gastos con la cuenta correcta.':'1. Create personal accounts + one shared. 2. Configure distribution in Settings → Home System. 3. Register income and expenses with the correct account.' },
+      ], tip: es?'Cada persona ve su disponible personal después de cubrir los gastos compartidos.':'Each person sees their available amount after covering shared expenses.' },
+  ];
+};
+
+// Helper: returns the budget period (year, 0-based month) for a transaction.
+// Uses period_year/period_month when set (cross-month assignment), else falls back to the real date.
+const txBudgetPeriod = (t) => {
+  if (t.period_year != null) return { year: t.period_year, month: t.period_month };
+  const d = new Date(t.date);
+  return { year: d.getFullYear(), month: d.getMonth() };
+};
 const WIDGET_LIST = [
   { id: 'planMes',          label: 'Plan del mes',              icon: '📋' },
   { id: 'dailyBudget',      label: 'Presupuesto diario',        icon: '💰' },
@@ -194,10 +948,63 @@ const WIDGET_LIST = [
   { id: 'sixMonthBars',          label: 'Ingresos vs Gastos 6m',    icon: '📈' },
   { id: 'savingsStreak',         label: 'Racha de ahorro',           icon: '🔥' },
   { id: 'notaDelMes',            label: 'Nota del mes',              icon: '📝' },
+  { id: 'patrimonioAcumulado',   label: 'Patrimonio acumulado',      icon: '🏦' },
 ];
 
-// Categorías clasificadas como "necesidades" para regla 50/30/20
-const NEEDS_CATS = new Set(['Vivienda','Transporte','Salud','Servicios','Alimentación']);
+// Categorías clasificadas como "necesidades" para regla 50/30/20 (configurable)
+const DEFAULT_NEEDS_CATS = ['Vivienda','Transporte','Salud','Servicios','Alimentación','Alquiler','Supermercado','Educacion'];
+const loadNeedsCats = () => {
+  try { return new Set(JSON.parse(localStorage.getItem(NEEDS_CATS_KEY)) || DEFAULT_NEEDS_CATS); }
+  catch { return new Set(DEFAULT_NEEDS_CATS); }
+};
+
+// ─────────────────────────────────────────────
+// WALLET LOGOS — Real app icons (512×512 from App Store)
+// ─────────────────────────────────────────────
+function WalletLogo({ provider, size = 40, className = '' }) {
+  // Logos reales — imports estáticos bundleados por Vite (no requieren public/)
+  const logoMap = {
+    mercadopago: logoMP,
+    paypal:      logoPP,
+    uala:        logoUala,
+    brubank:     logoBru,
+    naranja_x:   logoNX,
+  };
+
+  const r = Math.round(size * 0.22); // border-radius proporcional
+
+  if (logoMap[provider]) {
+    return (
+      <img
+        src={logoMap[provider]}
+        alt={provider}
+        width={size}
+        height={size}
+        className={className}
+        style={{ width: size, height: size, objectFit: 'cover', borderRadius: r, flexShrink: 0, display: 'block' }}
+      />
+    );
+  }
+
+  // Cuenta manual — SVG verde con ícono de billetera
+  return (
+    <svg width={size} height={size} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"
+      className={className} style={{ borderRadius: r, flexShrink: 0 }}>
+      <defs>
+        <linearGradient id="manGrad2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#10B981"/>
+          <stop offset="100%" stopColor="#059669"/>
+        </linearGradient>
+      </defs>
+      <rect width="200" height="200" rx="44" fill="url(#manGrad2)"/>
+      <rect x="32" y="74" width="136" height="90" rx="16" fill="white" fillOpacity="0.95"/>
+      <rect x="32" y="88" width="136" height="20" fill="#059669" fillOpacity="0.25"/>
+      <rect x="122" y="99" width="46" height="40" rx="10" fill="#10B981"/>
+      <circle cx="145" cy="119" r="9" fill="white" fillOpacity="0.9"/>
+      <rect x="48" y="62" width="90" height="22" rx="11" fill="white" fillOpacity="0.65"/>
+    </svg>
+  );
+}
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -207,6 +1014,16 @@ const formatNumber = (num) => {
   const absNum = Math.abs(Math.floor(Number(num)));
   const formatted = absNum.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return Number(num) < 0 ? `-${formatted}` : formatted;
+};
+const formatNumberWithDecimals = (num) => {
+  if (num === undefined || num === null || isNaN(num)) return "0";
+  const n = Number(num);
+  const abs = Math.abs(n);
+  const intPart = Math.floor(abs).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const dec = abs % 1;
+  const decPart = dec ? (',' + abs.toFixed(2).split('.')[1]) : '';
+  const formatted = intPart + decPart;
+  return n < 0 ? `-${formatted}` : formatted;
 };
 const parseFormattedNumber = (val) => {
   if (typeof val === 'number') return val;
@@ -226,7 +1043,7 @@ function ToastProvider({ children }) {
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
   }, []);
-  const iconMap = { success: <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />, error: <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />, info: <Info className="w-5 h-5 text-indigo-400 flex-shrink-0" /> };
+  const iconMap = { success: <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />, error: <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />, info: <Info className="w-5 h-5 text-violet-400 flex-shrink-0" /> };
   return (
     <ToastContext.Provider value={addToast}>
       {children}
@@ -270,7 +1087,8 @@ function LoadingSkeleton() {
 // ─────────────────────────────────────────────
 const COLOR_MAP = {
   emerald: { bg: "bg-emerald-500", bgSoft: "bg-emerald-500/10", text: "text-emerald-500" },
-  indigo:  { bg: "bg-indigo-500",  bgSoft: "bg-indigo-500/10",  text: "text-indigo-500"  }
+  violet:  { bg: "bg-violet-500",  bgSoft: "bg-violet-500/10",  text: "text-violet-500"  },
+  indigo:  { bg: "bg-violet-500",  bgSoft: "bg-violet-500/10",  text: "text-violet-500"  }
 };
 function PrecisionSelector({ label, value, onChange, color, icon: Icon, subtext }) {
   const c = COLOR_MAP[color] || COLOR_MAP.indigo;
@@ -361,7 +1179,7 @@ function BillCard({ bill, onPay, onEdit, onDelete, label }) {
       <div className="flex items-center gap-3 flex-shrink-0">
         <p className={`text-base font-black ${isPaid ? 'text-zinc-600' : 'text-white'}`}>${formatNumber(bill.amount)}</p>
         <div className="flex flex-col gap-0.5">
-          <button onClick={onEdit} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors"><Edit3 className="w-3.5 h-3.5"/></button>
+          <button onClick={onEdit} className="p-1 text-zinc-700 active:text-violet-400 transition-colors"><Edit3 className="w-3.5 h-3.5"/></button>
           <button onClick={() => onDelete(bill.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors"><Trash2 className="w-3.5 h-3.5"/></button>
         </div>
       </div>
@@ -374,7 +1192,14 @@ function BillCard({ bill, onPay, onEdit, onDelete, label }) {
 // ─────────────────────────────────────────────
 function BillForm({ bill, categories, onSave, onClose }) {
   const [title,     setTitle]     = useState(bill?.title || '');
-  const [amount,    setAmount]    = useState(bill ? String(bill.amount) : '');
+  const [amount,    setAmount]    = useState(() => {
+    if (!bill) return '';
+    const n = Number(bill.amount);
+    const int = Math.floor(n);
+    const dec = Math.round((n % 1) * 100);
+    const fmt = String(int).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return dec > 0 ? fmt + ',' + String(dec).padStart(2, '0') : fmt;
+  });
   const [dueDate,   setDueDate]   = useState(bill?.due_date || new Date().toISOString().slice(0,10));
   const [category,  setCategory]  = useState(bill?.category || categories[0] || '');
   const [recur,     setRecur]     = useState(bill?.recurrence_type || '');
@@ -387,7 +1212,7 @@ function BillForm({ bill, categories, onSave, onClose }) {
     await onSave({
       id: bill?.id,
       title: title.trim(),
-      amount: parseFloat(amount.replace(/\./g,'')) || 0,
+      amount: parseFloat((amount || '0').replace(/\./g,'').replace(',','.')) || 0,
       due_date: dueDate,
       category,
       status: bill?.status || 'pending',
@@ -398,27 +1223,39 @@ function BillForm({ bill, categories, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">{bill ? 'Editar' : 'Nuevo'} vencimiento</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
         </div>
 
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Descripción (ej: Alquiler, Internet…)"
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Monto</p>
-            <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
-              placeholder="$ 0" inputMode="numeric"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-zinc-400 text-sm pointer-events-none select-none">$</span>
+              <input value={amount}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^\d,]/g, '');
+                  const ci = raw.indexOf(',');
+                  let intStr, decStr;
+                  if (ci === -1) { intStr = raw; decStr = undefined; }
+                  else { intStr = raw.slice(0, ci); decStr = raw.slice(ci+1).replace(/\D/g,'').slice(0,2); }
+                  const fmt = intStr ? intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+                  setAmount(decStr !== undefined ? fmt + ',' + decStr : fmt);
+                }}
+                placeholder="0" inputMode="decimal"
+                className="w-full bg-zinc-900 rounded-2xl p-4 pl-8 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
+            </div>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Vence el</p>
             <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
         </div>
 
@@ -436,7 +1273,7 @@ function BillForm({ bill, categories, onSave, onClose }) {
             {[{v:'',l:'Única'},{v:'monthly',l:'Mensual'},{v:'yearly',l:'Anual'}].map(opt=>(
               <button key={opt.v} onClick={()=>setRecur(opt.v)}
                 className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all
-                  ${recur===opt.v?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  ${recur===opt.v?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                 {opt.l}
               </button>
             ))}
@@ -457,7 +1294,7 @@ function BillForm({ bill, categories, onSave, onClose }) {
         </div>
 
         <button onClick={handleSave} disabled={saving||!title.trim()||!amount}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          className="w-full py-5 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
           {saving ? 'Guardando…' : bill ? 'Guardar cambios' : 'Agregar vencimiento'}
         </button>
       </div>
@@ -468,56 +1305,217 @@ function BillForm({ bill, categories, onSave, onClose }) {
 // ─────────────────────────────────────────────
 // EDIT TRANSACTION MODAL
 // ─────────────────────────────────────────────
-function EditTransactionModal({ tx, categories, onSave, onClose, onDuplicate }) {
-  const [amount, setAmount]   = useState(String(tx.amount));
-  const [categ,  setCateg]    = useState(tx.category);
-  const [note,   setNote]     = useState(tx.note || "");
-  const [date,   setDate]     = useState(tx.date?.slice(0,10) || new Date().toISOString().slice(0,10));
-  const [saving, setSaving]   = useState(false);
+function EditTransactionModal({ tx, categories, accounts: accs, onSave, onClose, onDuplicate, onFixedTxsChange }) {
+  const txDateStr = tx.date?.slice(0,10) || new Date().toISOString().slice(0,10);
+  const [amount,      setAmount]      = useState(formatNumber(tx.amount));
+  const [categ,       setCateg]       = useState(tx.category);
+  const [subcateg,    setSubcateg]    = useState(tx.subcategory || '');
+  const [acctVal,     setAcctVal]     = useState(tx.account || '');
+  const [note,        setNote]        = useState(tx.note || "");
+  const [date,        setDate]        = useState(txDateStr);
+  const [saving,      setSaving]      = useState(false);
+  const accountList = accs || ['Ariel', 'Yami'];
+  const [isFixed, setIsFixed] = useState(() => {
+    try {
+      const tpls = JSON.parse(localStorage.getItem(FIXED_TX_KEY) || '[]');
+      return tpls.some(t => t.category === tx.category && t.type === tx.type);
+    } catch { return false; }
+  });
+  const [mesAsignado, setMesAsignado] = useState(() => {
+    // If tx was already saved with a period override, restore it; else use real date month
+    if (tx.period_year != null) return { year: tx.period_year, month: tx.period_month };
+    const d = new Date(txDateStr + 'T12:00:00');
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
   const toast = useToast();
 
   const handleSave = async () => {
     setSaving(true);
+    const txDateObj = new Date(date + 'T12:00:00');
+    // Guardar la fecha real; si el período asignado difiere, almacenar en period_year/period_month
+    const realDate = new Date(date + 'T12:00:00').toISOString();
+    const periodDiffers = mesAsignado.year !== txDateObj.getFullYear() || mesAsignado.month !== txDateObj.getMonth();
+    const numericAmount = parseFormattedNumber(amount);
     const { error } = await supabase.from('transactions').update({
-      amount: parseFormattedNumber(amount),
+      amount: numericAmount,
       category: categ,
       note: note.trim(),
-      date: new Date(date).toISOString()
+      date: realDate,
+      period_year:  periodDiffers ? mesAsignado.year  : null,
+      period_month: periodDiffers ? mesAsignado.month : null,
+      account:      acctVal || null,
+      subcategory:  subcateg || null,
     }).eq('id', tx.id);
     setSaving(false);
     if (error) { toast(error.message, 'error'); return; }
+    // Manejar template de gasto fijo
+    const templates = JSON.parse(localStorage.getItem(FIXED_TX_KEY) || '[]');
+    const existIdx = templates.findIndex(t => t.category === categ && t.type === tx.type);
+    if (isFixed) {
+      const tpl = {
+        id: existIdx >= 0 ? templates[existIdx].id : Date.now(),
+        category: categ, type: tx.type,
+        amount: numericAmount,
+        note: note.trim(),
+        dayOfMonth: new Date(date + 'T12:00:00').getDate(),
+      };
+      if (existIdx >= 0) templates[existIdx] = tpl; else templates.push(tpl);
+    } else if (existIdx >= 0) {
+      templates.splice(existIdx, 1);
+    }
+    localStorage.setItem(FIXED_TX_KEY, JSON.stringify(templates));
+    if (onFixedTxsChange) onFixedTxsChange(templates);
     toast('Movimiento actualizado', 'success');
     onSave();
     onClose();
   };
 
   const allCats = [...(categories.GASTO || []), ...(categories.INGRESO || [])];
+  const mesDisferente = mesAsignado.year !== new Date(date+'T12:00:00').getFullYear() ||
+    mesAsignado.month !== new Date(date+'T12:00:00').getMonth();
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-8 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 px-6 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4 overflow-y-auto max-h-[92vh]">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">Editar movimiento</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5" /></button>
         </div>
-        <input type="text" value={amount} onChange={e => setAmount(e.target.value.replace(/\D/g,''))}
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"
+        {/* Monto */}
+        <input type="text" value={amount}
+          onChange={e=>{const raw=e.target.value.replace(/\D/g,'');setAmount(raw?raw.replace(/\B(?=(\d{3})+(?!\d))/g,'.'):'');}}
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-violet-500/60"
           inputMode="numeric" placeholder="$ 0" />
+        {/* Multi-currency info */}
+        {tx.currency_original && tx.currency_original !== 'ARS' && (
+          <div className="flex items-center gap-2 bg-violet-500/8 rounded-xl px-3 py-2.5 border border-violet-500/20">
+            <span className="text-sm">💱</span>
+            <p className="text-xs text-violet-300 leading-tight">
+              Original: <strong>{CURRENCIES[tx.currency_original]?.symbol || tx.currency_original} {formatNumber(tx.amount_original)}</strong>
+              {' · '}Tipo: <strong>1 {tx.currency_original} = ${formatNumber(tx.fx_rate_to_base)} ARS</strong>
+              {tx.fx_status === 'ESTIMATED' && <span className="text-amber-400"> · cotización estimada</span>}
+            </p>
+          </div>
+        )}
+        {/* Categoría */}
         <select value={categ} onChange={e => setCateg(e.target.value)}
           className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 font-bold text-sm text-white appearance-none focus:outline-none">
           {allCats.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        {/* Fecha */}
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 font-bold text-sm text-white focus:outline-none focus:border-indigo-500/60" />
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 font-bold text-sm text-white focus:outline-none focus:border-violet-500/60" />
+        {/* Selector de mes */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wide">Registrar en el período de</p>
+            {mesDisferente && <span className="text-[10px] text-amber-400 font-bold">≠ fecha real</span>}
+          </div>
+          <div className="flex gap-2">
+            {[-1, 0, 1].map(offset => {
+              const now = new Date();
+              const rawM = now.getMonth() + offset;
+              const y = now.getFullYear() + (rawM < 0 ? -1 : rawM > 11 ? 1 : 0);
+              const m = ((rawM % 12) + 12) % 12;
+              const isSel = mesAsignado.year === y && mesAsignado.month === m;
+              return (
+                <button key={offset}
+                  onClick={() => setMesAsignado({ year: y, month: m })}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 text-center border
+                    ${isSel ? 'bg-violet-600 text-white border-violet-500/40 shadow-md' : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                  <span className="block text-sm">{MONTHS[m].slice(0,3)}</span>
+                  <span className={`block text-[9px] mt-0.5 ${isSel?'text-violet-200':'text-zinc-700'}`}>
+                    {offset < 0 ? 'anterior' : offset > 0 ? 'próximo' : 'actual'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {mesDisferente && (
+            <div className="flex items-center gap-2 bg-amber-500/8 rounded-xl px-3 py-2 border border-amber-500/20">
+              <span className="text-sm">⚠️</span>
+              <p className="text-[11px] text-amber-300 leading-tight">
+                La fecha es <strong>{new Date(date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})}</strong> pero
+                se registrará en <strong>{MONTHS[mesAsignado.month]} {mesAsignado.year}</strong>
+              </p>
+            </div>
+          )}
+        </div>
+        {/* Cuenta (quién pagó) */}
+        {accountList.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider">Cuenta</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setAcctVal('')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all
+                  ${!acctVal ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                Sin especificar
+              </button>
+              {accountList.map(a => (
+                <button key={a} onClick={() => setAcctVal(a)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all
+                    ${acctVal === a ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Subcategoría */}
+        {(() => {
+          const catData = JSON.parse(localStorage.getItem('metacasa_categories') || 'null');
+          const subcats = catData?.subcategories?.[categ] || [];
+          if (subcats.length === 0) return null;
+          return (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider">Subcategoría</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setSubcateg('')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all
+                    ${!subcateg ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                  General
+                </button>
+                {subcats.map(sc => (
+                  <button key={sc} onClick={() => setSubcateg(sc)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all
+                      ${subcateg === sc ? 'bg-teal-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                    {sc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+        {/* Nota */}
         <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Detalle..."
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 resize-none min-h-[80px] focus:outline-none focus:border-indigo-500/60" />
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 resize-none min-h-[72px] focus:outline-none focus:border-violet-500/60" />
+        {/* Toggle fijo */}
+        <button
+          onClick={() => setIsFixed(v => !v)}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98]
+            ${isFixed ? 'bg-amber-500/10 border-amber-500/30' : 'bg-zinc-900/40 border-white/8'}`}>
+          <span className="text-lg leading-none">📌</span>
+          <div className="flex-1 text-left">
+            <p className={`text-sm font-bold ${isFixed ? 'text-amber-300' : 'text-zinc-400'}`}>
+              {tx.type === 'GASTO' ? 'Gasto fijo mensual' : 'Ingreso fijo mensual'}
+            </p>
+            <p className="text-[10px] text-zinc-600 mt-0.5">
+              {isFixed ? 'Se registrará automáticamente cada mes' : 'Activar para replicar cada mes'}
+            </p>
+          </div>
+          <div className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all flex-shrink-0
+            ${isFixed ? 'bg-amber-500 justify-end' : 'bg-zinc-700 justify-start'}`}>
+            <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
+          </div>
+        </button>
+        {/* Botones */}
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => onDuplicate && onDuplicate(tx)}
             className="py-4 bg-zinc-900 border border-white/10 rounded-2xl font-bold text-sm text-zinc-400 active:scale-95 transition-all flex items-center justify-center gap-2">
             <Copy className="w-4 h-4"/>Clonar
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="py-4 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
+            className="py-4 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
             {saving ? '…' : 'Guardar'}
           </button>
         </div>
@@ -553,10 +1551,10 @@ function PlanEditor({ planMes, onSave, onCancel }) {
       <textarea value={note} onChange={e=>setNote(e.target.value)}
         placeholder="Nota del mes… (mudanza, vacaciones, gasto extra…)"
         rows={2}
-        className="w-full bg-zinc-900/40 border border-white/8 rounded-xl px-3 py-2 text-xs text-zinc-400 resize-none focus:outline-none focus:border-indigo-500/30 transition-colors placeholder:text-zinc-700"/>
+        className="w-full bg-zinc-900/40 border border-white/8 rounded-xl px-3 py-2 text-xs text-zinc-400 resize-none focus:outline-none focus:border-violet-500/30 transition-colors placeholder:text-zinc-700"/>
       <div className="flex gap-2">
         <button onClick={() => onSave({ targetIncome: parseInt(inc)||0, targetExpense: parseInt(exp)||0, note: note.trim() })}
-          className="flex-1 py-2.5 bg-indigo-600 rounded-xl text-xs font-bold active:scale-95 transition-transform">
+          className="flex-1 py-2.5 bg-violet-600 rounded-xl text-xs font-bold active:scale-95 transition-transform">
           Guardar plan
         </button>
         <button onClick={onCancel} className="px-4 py-2.5 bg-zinc-900 rounded-xl text-xs font-bold text-zinc-500 active:scale-95 transition-transform">
@@ -607,22 +1605,22 @@ function GoalCard({ goal, onContribute, onDelete, estimate }) {
       <div className="space-y-1.5">
         <div className="flex justify-between text-xs">
           <span className="text-zinc-400 font-semibold">${formatNumber(goal.current)} guardado</span>
-          <span className={`font-black ${done ? 'text-emerald-400' : 'text-indigo-400'}`}>{pct}%</span>
+          <span className={`font-black ${done ? 'text-emerald-400' : 'text-violet-400'}`}>{pct}%</span>
         </div>
         <div className="h-3 bg-black/60 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-violet-600'}`}
             style={{width:`${pct}%`}}/>
         </div>
         <p className="text-xs text-zinc-700">
           {done ? '🎉 ¡Meta alcanzada!' : `Falta $${formatNumber(goal.target - goal.current)}`}
         </p>
         {estimatorMonths && (
-          <div className="flex items-center gap-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-xl px-3 py-2 mt-1">
-            <TrendingUp className="w-3 h-3 text-indigo-400 flex-shrink-0"/>
-            <p className="text-[10px] font-bold text-indigo-300">
+          <div className="flex items-center gap-1.5 bg-violet-600/10 border border-violet-500/20 rounded-xl px-3 py-2 mt-1">
+            <TrendingUp className="w-3 h-3 text-violet-400 flex-shrink-0"/>
+            <p className="text-[10px] font-bold text-violet-300">
               A este ritmo llegás en{' '}
               <span className="text-white">{estimatorMonths === 1 ? '1 mes' : `${estimatorMonths} meses`}</span>
-              {' '}·{' '}<span className="text-indigo-400">{estimatorDate}</span>
+              {' '}·{' '}<span className="text-violet-400">{estimatorDate}</span>
             </p>
           </div>
         )}
@@ -631,7 +1629,7 @@ function GoalCard({ goal, onContribute, onDelete, estimate }) {
       <div className="flex gap-2">
         {!done && (
           <button onClick={()=>onContribute(goal)}
-            className="flex-1 py-3 bg-indigo-600/15 border border-indigo-500/25 rounded-xl text-xs font-bold text-indigo-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            className="flex-1 py-3 bg-violet-700/12 border border-violet-500/25 rounded-xl text-xs font-bold text-violet-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
             <Plus className="w-3.5 h-3.5"/> Sumar aporte
           </button>
         )}
@@ -673,8 +1671,8 @@ function GoalForm({ goal, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">{goal ? 'Editar' : 'Nueva'} meta</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
@@ -687,14 +1685,14 @@ function GoalForm({ goal, onSave, onClose }) {
             {emoji}
           </button>
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre de la meta…"
-            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
         </div>
         {showPick && (
           <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
             <div className="grid grid-cols-10 gap-1">
               {GOAL_EMOJIS.map(e=>(
                 <button key={e} onClick={()=>{ setEmoji(e); setShowPick(false); }}
-                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 transition-colors ${emoji===e?'bg-indigo-600':''}`}>
+                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 transition-colors ${emoji===e?'bg-violet-600':''}`}>
                   {e}
                 </button>
               ))}
@@ -707,24 +1705,24 @@ function GoalForm({ goal, onSave, onClose }) {
             <p className="text-xs text-zinc-600 ml-1">Meta ($)</p>
             <input value={target} onChange={e=>setTarget(e.target.value.replace(/\D/g,''))}
               placeholder="0" inputMode="numeric"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Ya tengo ($)</p>
             <input value={current} onChange={e=>setCurrent(e.target.value.replace(/\D/g,''))}
               placeholder="0" inputMode="numeric"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
         </div>
 
         <div className="space-y-1">
           <p className="text-xs text-zinc-600 ml-1">Fecha límite (opcional)</p>
           <input type="date" value={deadline} onChange={e=>setDeadline(e.target.value)}
-            className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+            className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
         </div>
 
         <button onClick={handleSave} disabled={!name.trim()||!target}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          className="w-full py-5 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
           {goal ? 'Guardar cambios' : 'Crear meta'}
         </button>
       </div>
@@ -738,8 +1736,8 @@ function GoalForm({ goal, onSave, onClose }) {
 function ContributeSheet({ goal, onSave, onClose }) {
   const [amount, setAmount] = useState('');
   return (
-    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <span className="text-2xl">{goal.emoji}</span>
@@ -750,7 +1748,7 @@ function ContributeSheet({ goal, onSave, onClose }) {
         <p className="text-sm text-zinc-500">Progreso actual: <strong className="text-white">${formatNumber(goal.current)}</strong> / ${formatNumber(goal.target)}</p>
         <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
           placeholder="$ Monto a sumar" inputMode="numeric"
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-violet-500/60"/>
         <div className="grid grid-cols-4 gap-2">
           {[1000,5000,10000,50000].map(v=>(
             <button key={v} onClick={()=>setAmount(String(amount ? parseInt(amount)+v : v))}
@@ -772,11 +1770,12 @@ function ContributeSheet({ goal, onSave, onClose }) {
 // ─────────────────────────────────────────────
 // CUOTA CARD
 // ─────────────────────────────────────────────
-function CuotaCard({ cuota, onEdit, onDelete, onPay }) {
+function CuotaCard({ cuota, onEdit, onDelete, onPay, baseCurrency }) {
   const remaining = cuota.totalCuotas - cuota.paidCuotas;
   const pct = Math.round((cuota.paidCuotas / cuota.totalCuotas) * 100);
   const done = remaining <= 0;
   const totalLeft = remaining * cuota.monthlyAmount;
+  const sym = CURRENCIES[cuota.currency || baseCurrency]?.symbol || '$';
 
   return (
     <div className={`rounded-2xl border p-4 space-y-3 transition-all ${done ? 'bg-zinc-900/30 border-white/5 opacity-60' : 'bg-zinc-900/60 border-white/8'}`}>
@@ -786,21 +1785,21 @@ function CuotaCard({ cuota, onEdit, onDelete, onPay }) {
           <div className="min-w-0">
             <p className="text-sm font-bold text-white truncate">{cuota.name}</p>
             <p className="text-xs text-zinc-500 mt-0.5">
-              {cuota.paidCuotas}/{cuota.totalCuotas} cuotas · ${formatNumber(cuota.monthlyAmount)}/mes
+              {cuota.paidCuotas}/{cuota.totalCuotas} cuotas · {sym}{formatNumberWithDecimals(cuota.monthlyAmount)}/mes
             </p>
           </div>
         </div>
         <div className="text-right flex-shrink-0 ml-2">
           <p className="text-xs text-zinc-600">Resta</p>
           <p className={`text-sm font-black ${done ? 'text-emerald-400' : 'text-white'}`}>
-            {done ? '¡Listo!' : `$${formatNumber(totalLeft)}`}
+            {done ? '¡Listo!' : `${sym}${formatNumberWithDecimals(totalLeft)}`}
           </p>
         </div>
       </div>
 
       <div className="space-y-1">
         <div className="h-2 bg-black/60 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : pct >= 80 ? 'bg-amber-500' : 'bg-indigo-600'}`}
+          <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : pct >= 80 ? 'bg-amber-500' : 'bg-violet-600'}`}
             style={{width:`${pct}%`}}/>
         </div>
         <div className="flex justify-between text-[10px] text-zinc-600 font-semibold">
@@ -812,7 +1811,7 @@ function CuotaCard({ cuota, onEdit, onDelete, onPay }) {
       <div className="flex gap-2">
         {!done && (
           <button onClick={()=>onPay(cuota.id)}
-            className="flex-1 py-2.5 bg-indigo-600/15 border border-indigo-500/25 rounded-xl text-xs font-bold text-indigo-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            className="flex-1 py-2.5 bg-violet-700/12 border border-violet-500/25 rounded-xl text-xs font-bold text-violet-400 active:scale-95 transition-all flex items-center justify-center gap-1.5">
             <Check className="w-3.5 h-3.5"/> Pagar cuota
           </button>
         )}
@@ -830,34 +1829,65 @@ function CuotaCard({ cuota, onEdit, onDelete, onPay }) {
 // ─────────────────────────────────────────────
 // CUOTA FORM
 // ─────────────────────────────────────────────
-function CuotaForm({ cuota, onSave, onClose }) {
+function CuotaForm({ cuota, onSave, onClose, baseCurrency, activeCurrencies: actCurrs, categories: cats, accounts: accts, getEmoji: gEmoji }) {
   const [name,        setName]        = useState(cuota?.name || '');
   const [emoji,       setEmoji]       = useState(cuota?.emoji || '💳');
-  const [monthly,     setMonthly]     = useState(cuota ? String(cuota.monthlyAmount) : '');
+  const [monthly,     setMonthly]     = useState(() => {
+    if (!cuota) return '';
+    const v = cuota.monthlyAmount;
+    if (!v) return '';
+    const dec = v % 1;
+    if (dec) { const intP = Math.floor(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return intP + ',' + v.toFixed(2).split('.')[1]; }
+    return Math.floor(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  });
+  const [cuotaCurrency, setCuotaCurrency] = useState(cuota?.currency || baseCurrency || 'ARS');
   const [totalCuotas, setTotalCuotas] = useState(cuota ? String(cuota.totalCuotas) : '12');
   const [paidCuotas,  setPaidCuotas]  = useState(cuota ? String(cuota.paidCuotas) : '0');
   const [startDate,   setStartDate]   = useState(cuota?.startDate || new Date().toISOString().slice(0,10));
   const [showPick,    setShowPick]    = useState(false);
+  const [cuotaCategory,    setCuotaCategory]    = useState(cuota?.category || '');
+  const [cuotaSubcategory, setCuotaSubcategory] = useState(cuota?.subcategory || '');
+  const [cuotaAccount,     setCuotaAccount]     = useState(cuota?.account || '');
 
-  const total = (parseInt(monthly||0) * parseInt(totalCuotas||0));
+  const parseMonthly = (str) => {
+    if (!str) return 0;
+    const clean = str.replace(/\./g,'').replace(',','.');
+    return parseFloat(clean) || 0;
+  };
+  const monthlyNum = parseMonthly(monthly);
+  const total = monthlyNum * (parseInt(totalCuotas||0));
+  const sym = CURRENCIES[cuotaCurrency]?.symbol || '$';
+
+  // Subcategorías dinámicas
+  const subcats = (() => {
+    if (!cuotaCategory) return [];
+    try {
+      const catData = JSON.parse(localStorage.getItem('metacasa_categories') || 'null');
+      return catData?.subcategories?.[cuotaCategory] || [];
+    } catch { return []; }
+  })();
 
   const handleSave = () => {
     if (!name.trim() || !monthly || !totalCuotas) return;
     onSave({
       id: cuota?.id || Date.now(),
       name: name.trim(), emoji,
-      monthlyAmount: parseInt(monthly.replace(/\D/g,'')) || 0,
+      monthlyAmount: monthlyNum,
       totalCuotas:   parseInt(totalCuotas) || 1,
       paidCuotas:    Math.min(parseInt(paidCuotas)||0, parseInt(totalCuotas)||1),
       startDate,
+      currency: cuotaCurrency,
+      category: cuotaCategory,
+      subcategory: cuotaSubcategory,
+      account: cuotaAccount,
     });
   };
 
   const CUOTA_EMOJIS = ['💳','📱','💻','🛋️','🚗','📺','🎸','🧳','👕','🏋️','🎮','🛒','✈️','🏠','💊','🎓','🐕','⌚','📷','🍳'];
 
   return (
-    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto no-scrollbar">
+    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto no-scrollbar">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">{cuota ? 'Editar' : 'Nueva'} cuota</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
@@ -868,15 +1898,15 @@ function CuotaForm({ cuota, onSave, onClose }) {
             className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center text-3xl active:scale-90 transition-transform">
             {emoji}
           </button>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre (ej: TV, Celular…)"
-            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre (ej: TV, Celular...)"
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
         </div>
         {showPick && (
           <div className="bg-zinc-900/90 rounded-2xl p-3 border border-white/10">
             <div className="grid grid-cols-10 gap-1">
               {CUOTA_EMOJIS.map(e=>(
                 <button key={e} onClick={()=>{ setEmoji(e); setShowPick(false); }}
-                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 ${emoji===e?'bg-indigo-600':''}`}>
+                  className={`w-8 h-8 flex items-center justify-center text-xl rounded-lg active:bg-white/10 ${emoji===e?'bg-violet-600':''}`}>
                   {e}
                 </button>
               ))}
@@ -884,19 +1914,51 @@ function CuotaForm({ cuota, onSave, onClose }) {
           </div>
         )}
 
+        {/* Currency selector */}
+        {actCurrs && actCurrs.length > 1 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {actCurrs.map(code => {
+              const cfg = CURRENCIES[code];
+              if (!cfg) return null;
+              return (
+                <button key={code} onClick={() => setCuotaCurrency(code)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 border
+                    ${cuotaCurrency === code
+                      ? 'bg-violet-600 text-white border-violet-500/40'
+                      : 'bg-zinc-900/80 text-zinc-500 border-white/8'}`}>
+                  <span>{cfg.flag}</span>
+                  <span>{code}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <p className="text-xs text-zinc-600 ml-1">Valor por cuota ($)</p>
-            <input value={monthly} onChange={e=>setMonthly(e.target.value.replace(/\D/g,''))}
-              placeholder="0" inputMode="numeric"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+            <p className="text-xs text-zinc-600 ml-1">Valor por cuota ({sym})</p>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-500 font-bold">{sym}</span>
+              <input value={monthly}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^\d,]/g, '');
+                  const ci = raw.indexOf(',');
+                  let intStr, decStr;
+                  if (ci === -1) { intStr = raw; decStr = undefined; }
+                  else { intStr = raw.slice(0, ci); decStr = raw.slice(ci+1).replace(/\D/g,'').slice(0,2); }
+                  const fmt = intStr ? intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+                  setMonthly(decStr !== undefined ? fmt + ',' + decStr : fmt);
+                }}
+                placeholder="0" inputMode="decimal"
+                className="w-full bg-zinc-900 rounded-2xl p-4 pl-10 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-violet-500/60"/>
+            </div>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Total cuotas</p>
             <div className="flex gap-2">
               {['3','6','12','18','24'].map(n=>(
                 <button key={n} onClick={()=>setTotalCuotas(n)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${totalCuotas===n?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${totalCuotas===n?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                   {n}
                 </button>
               ))}
@@ -907,26 +1969,87 @@ function CuotaForm({ cuota, onSave, onClose }) {
         {total > 0 && (
           <div className="bg-zinc-900/50 rounded-xl p-3 flex justify-between items-center text-sm">
             <span className="text-zinc-500">Total financiado</span>
-            <span className="font-black text-white">${formatNumber(total)}</span>
+            <span className="font-black text-white">{sym}{formatNumberWithDecimals(total)}</span>
+          </div>
+        )}
+
+        {/* Categoria */}
+        {cats?.GASTO && cats.GASTO.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-zinc-600 ml-1 font-semibold">Categoria</p>
+            <div className="flex flex-wrap gap-2">
+              {cats.GASTO.map(c => (
+                <button key={c} onClick={() => { setCuotaCategory(c); setCuotaSubcategory(''); }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-90
+                    ${cuotaCategory === c
+                      ? 'bg-rose-600 text-white shadow-lg'
+                      : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                  {gEmoji && <span className="text-sm leading-none">{gEmoji(c)}</span>}
+                  <span>{c}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Subcategoria */}
+        {cuotaCategory && subcats.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-zinc-600 ml-1 font-semibold">Subcategoria</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setCuotaSubcategory('')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95
+                  ${!cuotaSubcategory ? 'bg-zinc-700 text-white' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                General
+              </button>
+              {subcats.map(sc => (
+                <button key={sc} onClick={() => setCuotaSubcategory(sc)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95
+                    ${cuotaSubcategory === sc ? 'bg-teal-600 text-white' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                  {sc}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cuenta */}
+        {accts && accts.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-zinc-600 ml-1 font-semibold">Cuenta</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setCuotaAccount('')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95
+                  ${!cuotaAccount ? 'bg-violet-600 text-white shadow-md' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                Sin especificar
+              </button>
+              {accts.map(acc => (
+                <button key={acc} onClick={() => setCuotaAccount(acc)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95
+                    ${cuotaAccount === acc ? 'bg-violet-600 text-white shadow-md' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                  {acc}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <p className="text-xs text-zinc-600 ml-1">Ya pagué</p>
+            <p className="text-xs text-zinc-600 ml-1">Ya pague</p>
             <input value={paidCuotas} onChange={e=>setPaidCuotas(e.target.value.replace(/\D/g,''))}
               placeholder="0" inputMode="numeric"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Inicio</p>
             <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
         </div>
 
         <button onClick={handleSave} disabled={!name.trim()||!monthly||!totalCuotas}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          className="w-full py-5 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
           {cuota ? 'Guardar cambios' : 'Agregar cuota'}
         </button>
       </div>
@@ -984,7 +2107,7 @@ function DebtCard({ debt, onSettle, onEdit, onDelete }) {
                 <Calculator className="w-3.5 h-3.5"/>
               </button>
             )}
-            <button onClick={()=>onEdit(debt)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
+            <button onClick={()=>onEdit(debt)} className="p-1 text-zinc-700 active:text-violet-400 transition-colors">
               <Edit3 className="w-3.5 h-3.5"/>
             </button>
             <button onClick={()=>onDelete(debt.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
@@ -1052,8 +2175,8 @@ function DebtForm({ debt, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">{debt ? 'Editar' : 'Nueva'} deuda</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
@@ -1081,29 +2204,29 @@ function DebtForm({ debt, onSave, onClose }) {
             {DEBT_EMOJIS.map(e=><option key={e} value={e}>{e}</option>)}
           </select>
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre de la persona…"
-            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+            className="flex-1 bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
         </div>
 
         {/* Monto */}
         <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
           placeholder="$ Monto" inputMode="numeric"
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-violet-500/60"/>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Fecha</p>
             <input type="date" value={date} onChange={e=>setDate(e.target.value)}
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-zinc-600 ml-1">Nota (opcional)</p>
             <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Por qué…"
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 focus:outline-none focus:border-violet-500/60"/>
           </div>
         </div>
 
         <button onClick={handleSave} disabled={!name.trim()||!amount}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          className="w-full py-5 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
           {debt ? 'Guardar cambios' : direction==='i_owe' ? 'Registrar que debo' : 'Registrar que me deben'}
         </button>
       </div>
@@ -1159,7 +2282,7 @@ function SpendingCalendar({ transactions, year, month, onDayPress }) {
   return (
     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
       <p className="text-sm font-bold text-zinc-300 mb-3 flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-indigo-400"/>
+        <Calendar className="w-4 h-4 text-violet-400"/>
         Gastos del mes
       </p>
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -1175,9 +2298,9 @@ function SpendingCalendar({ transactions, year, month, onDayPress }) {
             disabled={!day || !dayExpenses[day]}
             className={`aspect-square flex items-center justify-center rounded-lg text-[11px] font-bold border transition-all
               ${day ? getColor(day) : 'border-transparent'}
-              ${isToday(day) ? 'ring-1 ring-indigo-400/70' : ''}
+              ${isToday(day) ? 'ring-1 ring-violet-400/70' : ''}
               ${day && dayExpenses[day] ? 'active:scale-90' : ''}`}>
-            {day ? <span className={isToday(day) ? 'text-indigo-300 font-black' : ''}>{day}</span> : null}
+            {day ? <span className={isToday(day) ? 'text-violet-300 font-black' : ''}>{day}</span> : null}
           </button>
         ))}
       </div>
@@ -1242,8 +2365,8 @@ function AnnualModal({ transactions, year, onClose }) {
   const months = useMemo(() => {
     return Array.from({ length: 12 }, (_, m) => {
       const txs = transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === m && d.getFullYear() === year;
+        const p = txBudgetPeriod(t);
+        return p.month === m && p.year === year;
       });
       const income  = txs.filter(t => t.type==='INGRESO').reduce((a,c) => a+Number(c.amount), 0);
       const expense = txs.filter(t => t.type==='GASTO').reduce((a,c) => a+Number(c.amount), 0);
@@ -1281,9 +2404,9 @@ function AnnualModal({ transactions, year, onClose }) {
             <p className="text-[10px] text-zinc-500 font-semibold mb-1">GASTOS</p>
             <p className="text-base font-black text-rose-400">${formatNumber(totals.expense)}</p>
           </div>
-          <div className={`border rounded-2xl p-4 text-center ${totals.balance>=0?'bg-indigo-500/10 border-indigo-500/20':'bg-zinc-900/60 border-white/5'}`}>
+          <div className={`border rounded-2xl p-4 text-center ${totals.balance>=0?'bg-violet-500/10 border-violet-500/20':'bg-zinc-900/60 border-white/5'}`}>
             <p className="text-[10px] text-zinc-500 font-semibold mb-1">BALANCE</p>
-            <p className={`text-base font-black ${totals.balance>=0?'text-indigo-300':'text-rose-400'}`}>${formatNumber(totals.balance)}</p>
+            <p className={`text-base font-black ${totals.balance>=0?'text-violet-300':'text-rose-400'}`}>${formatNumber(totals.balance)}</p>
           </div>
         </div>
 
@@ -1356,8 +2479,8 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
   const toast = useToast();
   const month = currentDate.getMonth(), year = currentDate.getFullYear();
   const monthTxs = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth()===month && d.getFullYear()===year;
+    const p = txBudgetPeriod(t);
+    return p.month===month && p.year===year;
   });
   const now = new Date();
   const isCurrentMonth = now.getMonth()===month && now.getFullYear()===year;
@@ -1396,7 +2519,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
           <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[month]} {year} · {monthTxs.length} movimientos</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleShare} className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform" title="Compartir">
+          <button onClick={handleShare} className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform" title="Compartir">
             <Share2 className="w-5 h-5"/>
           </button>
           <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
@@ -1411,7 +2534,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
             { label:'Ingresos',  value:stats.income,          color:'text-emerald-400', bg:'bg-emerald-500/10' },
             { label:'Gastos',    value:stats.expenses,         color:'text-rose-400',    bg:'bg-rose-500/10'    },
             { label:'Ahorro',    value:stats.savingsAmount,    color:'text-emerald-400', bg:'bg-zinc-900/60'    },
-            { label:'Inversión', value:stats.investmentAmount, color:'text-indigo-400',  bg:'bg-indigo-500/10'  },
+            { label:'Inversión', value:stats.investmentAmount, color:'text-violet-400',  bg:'bg-violet-500/10'  },
           ].map(item=>(
             <div key={item.label} className={`${item.bg} rounded-2xl p-4 border border-white/5`}>
               <p className="text-xs text-zinc-500 font-semibold">{item.label}</p>
@@ -1421,7 +2544,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
         </div>
 
         {/* Saldo disponible */}
-        <div className={`rounded-2xl p-5 border ${stats.available>=0?'bg-indigo-600/10 border-indigo-500/20':'bg-rose-600/10 border-rose-500/20'}`}>
+        <div className={`rounded-2xl p-5 border ${stats.available>=0?'bg-violet-600/10 border-violet-500/20':'bg-rose-600/10 border-rose-500/20'}`}>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Saldo disponible</p>
           <p className={`text-4xl font-black mt-1 ${stats.available>=0?'text-white':'text-rose-400'}`}>${formatNumber(stats.available)}</p>
         </div>
@@ -1433,7 +2556,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
             <span className="text-xs font-bold text-zinc-400">{daysPassed}/{daysInMonth} días</span>
           </div>
           <div className="h-2 bg-black rounded-full overflow-hidden">
-            <div className="h-full bg-indigo-600 rounded-full" style={{width:`${monthProgress}%`}}/>
+            <div className="h-full bg-violet-600 rounded-full" style={{width:`${monthProgress}%`}}/>
           </div>
           <p className="text-xs text-zinc-700 text-right">{monthProgress}% del mes</p>
         </div>
@@ -1538,8 +2661,8 @@ function TrendsChart({ transactions }) {
   }
   const data = months.map(({ month, year, label }) => {
     const txs = transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth()===month && d.getFullYear()===year;
+      const p = txBudgetPeriod(t);
+      return p.month===month && p.year===year;
     });
     const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
     const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
@@ -1621,83 +2744,132 @@ function TrendsChart({ transactions }) {
 // CATEGORY DETAIL MODAL
 // ─────────────────────────────────────────────
 function CategoryDetailModal({ cat, transactions, currentDate, getEmoji, formatNumber, MONTHS, onClose, onGoToHistory }) {
+  // ── Mes navegable (independiente del mes principal) ──────────────────────
+  const [viewDate, setViewDate] = React.useState({ year: currentDate.getFullYear(), month: currentDate.getMonth() });
+  const changeViewMonth = (offset) => {
+    setViewDate(prev => {
+      const d = new Date(prev.year, prev.month + offset, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+  };
+
   const sixMonths = React.useMemo(() => Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - i), 1);
+    const d = new Date(viewDate.year, viewDate.month - (5 - i), 1);
     const y = d.getFullYear(), m = d.getMonth();
     const amount = transactions
-      .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+      .filter(t => { const p = txBudgetPeriod(t); return t.type==='GASTO' && t.category===cat && p.year===y && p.month===m; })
       .reduce((a, c) => a + Number(c.amount), 0);
-    return { label: MONTHS[m].slice(0,3), amount, isCurrent: y===currentDate.getFullYear() && m===currentDate.getMonth() };
-  }), [transactions, cat, currentDate]);
+    return { label: MONTHS[m].slice(0,3), amount, isCurrent: y===viewDate.year && m===viewDate.month };
+  }), [transactions, cat, viewDate]);
 
   const maxVal = Math.max(...sixMonths.map(m => m.amount), 1);
   const prevMonths = sixMonths.slice(0, 5).filter(m => m.amount > 0);
   const avg = prevMonths.length > 0 ? Math.round(prevMonths.reduce((a,c)=>a+c.amount,0) / prevMonths.length) : 0;
 
-  const currentMonthTxs = React.useMemo(() => transactions
-    .filter(t => { const d = new Date(t.date); return t.type==='GASTO' && t.category===cat && d.getFullYear()===currentDate.getFullYear() && d.getMonth()===currentDate.getMonth(); })
-    .sort((a,b) => Number(b.amount) - Number(a.amount)), [transactions, cat, currentDate]);
+  const viewMonthTxs = React.useMemo(() => transactions
+    .filter(t => { const p = txBudgetPeriod(t); return t.type==='GASTO' && t.category===cat && p.year===viewDate.year && p.month===viewDate.month; })
+    .sort((a,b) => new Date(b.date) - new Date(a.date)), [transactions, cat, viewDate]);
 
-  const currentTotal = currentMonthTxs.reduce((a,c)=>a+Number(c.amount),0);
+  const viewTotal = viewMonthTxs.reduce((a,c)=>a+Number(c.amount),0);
+  const isCurrentMonth = viewDate.year === currentDate.getFullYear() && viewDate.month === currentDate.getMonth();
 
   return (
     <div className="fixed inset-0 z-[120] bg-black flex flex-col">
-      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
+      <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-4 flex justify-between items-center border-b border-white/8">
         <div className="flex items-center gap-3">
           <span className="text-3xl leading-none">{getEmoji(cat)}</span>
           <div>
             <h3 className="text-xl font-black uppercase tracking-tight">{cat}</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[viewDate.month]} {viewDate.year}</p>
           </div>
         </div>
         <button onClick={onClose} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
       </div>
+
+      {/* Navegación de mes */}
+      <div className="px-6 py-3 flex items-center justify-between border-b border-white/5">
+        <button onClick={() => changeViewMonth(-1)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/8 active:scale-95 transition-all">
+          <ChevronLeft className="w-4 h-4 text-zinc-400"/>
+          <span className="text-xs font-semibold text-zinc-400">
+            {MONTHS[new Date(viewDate.year, viewDate.month - 1, 1).getMonth()].slice(0,3)}
+          </span>
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-black text-white">{MONTHS[viewDate.month]} {viewDate.year}</p>
+          {!isCurrentMonth && (
+            <button onClick={() => setViewDate({ year: currentDate.getFullYear(), month: currentDate.getMonth() })}
+              className="text-[10px] text-violet-400 font-semibold mt-0.5">
+              Volver a este mes
+            </button>
+          )}
+        </div>
+        <button onClick={() => changeViewMonth(+1)}
+          disabled={viewDate.year === currentDate.getFullYear() && viewDate.month >= currentDate.getMonth()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/8 active:scale-95 transition-all disabled:opacity-30">
+          <span className="text-xs font-semibold text-zinc-400">
+            {MONTHS[new Date(viewDate.year, viewDate.month + 1, 1).getMonth()].slice(0,3)}
+          </span>
+          <ChevronRight className="w-4 h-4 text-zinc-400"/>
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         {/* Total del mes + promedio */}
         <div className="bg-zinc-900/40 rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-[10px] text-zinc-600 font-semibold mb-0.5">Este mes</p>
-            <p className="text-2xl font-black text-white">${formatNumber(currentTotal)}</p>
+            <p className="text-[10px] text-zinc-600 font-semibold mb-0.5">{isCurrentMonth ? 'Este mes' : MONTHS[viewDate.month] + ' ' + viewDate.year}</p>
+            <p className="text-2xl font-black text-white">${formatNumber(viewTotal)}</p>
+            <p className="text-[10px] text-zinc-600 mt-0.5">{viewMonthTxs.length} movimiento{viewMonthTxs.length!==1?'s':''}</p>
           </div>
           {avg > 0 && (
             <div className="text-right">
               <p className="text-[10px] text-zinc-600 font-semibold mb-0.5">Promedio mensual</p>
-              <p className={`text-lg font-black ${currentTotal > avg * 1.5 ? 'text-rose-400' : currentTotal > avg ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <p className={`text-lg font-black ${viewTotal > avg * 1.5 ? 'text-rose-400' : viewTotal > avg ? 'text-amber-400' : 'text-emerald-400'}`}>
                 ${formatNumber(avg)}
               </p>
-              {avg > 0 && (
-                <p className={`text-[9px] font-bold mt-0.5 ${currentTotal > avg ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {currentTotal > avg ? `+${formatNumber(currentTotal - avg)} vs prom.` : `−${formatNumber(avg - currentTotal)} vs prom.`}
-                </p>
-              )}
+              <p className={`text-[9px] font-bold mt-0.5 ${viewTotal > avg ? 'text-rose-500' : 'text-emerald-500'}`}>
+                {viewTotal > avg ? `+${formatNumber(viewTotal - avg)} vs prom.` : `−${formatNumber(avg - viewTotal)} vs prom.`}
+              </p>
             </div>
           )}
         </div>
-        {/* 6-month bars */}
+        {/* 6-month bars — tappable para navegar */}
         <div className="bg-zinc-900/40 rounded-2xl p-4">
-          <p className="text-xs font-bold text-zinc-400 mb-3">Últimos 6 meses</p>
+          <p className="text-xs font-bold text-zinc-400 mb-3">Histórico mensual (últimos 6)</p>
           <div className="flex items-end gap-1.5 h-20">
             {sixMonths.map((m, i) => {
+              const d = new Date(viewDate.year, viewDate.month - (5 - i), 1);
               const barH = m.amount > 0 ? Math.max(4, Math.round((m.amount / maxVal) * 64)) : 0;
               return (
-                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5">
+                <button key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5 active:opacity-60"
+                  onClick={() => setViewDate({ year: d.getFullYear(), month: d.getMonth() })}>
+                  {m.amount > 0 && !m.isCurrent && (
+                    <span className="text-[8px] text-zinc-600">${formatNumber(m.amount)}</span>
+                  )}
                   <div className={`w-full rounded-t-md transition-all duration-500 ${m.isCurrent ? 'bg-rose-400' : 'bg-rose-800/60'}`}
                     style={{height: barH > 0 ? `${barH}px` : '2px'}}/>
-                  <span className="text-[9px] text-zinc-600">{m.label}</span>
-                </div>
+                  <span className={`text-[9px] ${m.isCurrent ? 'text-rose-400 font-bold' : 'text-zinc-600'}`}>{m.label}</span>
+                </button>
               );
             })}
           </div>
+          <p className="text-[9px] text-zinc-700 mt-2 text-center">Toca una barra para ver ese mes</p>
         </div>
-        {/* Transacciones del mes */}
-        {currentMonthTxs.length > 0 ? (
+
+        {/* Transacciones del mes seleccionado */}
+        {viewMonthTxs.length > 0 ? (
           <div>
-            <p className="text-xs font-bold text-zinc-400 mb-3">{currentMonthTxs.length} movimiento{currentMonthTxs.length!==1?'s':''} este mes</p>
+            <p className="text-xs font-bold text-zinc-400 mb-3">{viewMonthTxs.length} movimiento{viewMonthTxs.length!==1?'s':''}</p>
             <div className="space-y-2">
-              {currentMonthTxs.slice(0, 12).map(t => (
+              {viewMonthTxs.map(t => (
                 <div key={t.id} className="flex items-center gap-3 bg-zinc-900/40 rounded-xl px-4 py-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-zinc-300 truncate">{t.note || cat}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-zinc-300 truncate">{t.note || cat}</p>
+                      {t.subcategory && <span className="text-[9px] bg-teal-500/15 text-teal-400 px-1.5 rounded-md">{t.subcategory}</span>}
+                      {t.account && <span className="text-[9px] bg-violet-500/15 text-violet-400 px-1.5 rounded-md">{t.account}</span>}
+                    </div>
                     <p className="text-[10px] text-zinc-600 mt-0.5">
                       {new Date(t.date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})}
                     </p>
@@ -1708,12 +2880,12 @@ function CategoryDetailModal({ cat, transactions, currentDate, getEmoji, formatN
             </div>
           </div>
         ) : (
-          <p className="text-center text-sm text-zinc-600 py-6">Sin gastos este mes</p>
+          <p className="text-center text-sm text-zinc-600 py-6">Sin gastos en {MONTHS[viewDate.month]} {viewDate.year}</p>
         )}
       </div>
       <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 border-t border-white/8">
         <button onClick={onGoToHistory}
-          className="w-full py-3.5 bg-indigo-600 rounded-2xl text-sm font-bold active:scale-95 transition-transform">
+          className="w-full py-3.5 bg-violet-600 rounded-2xl text-sm font-bold active:scale-95 transition-transform">
           Ver todos en historial →
         </button>
       </div>
@@ -1772,7 +2944,7 @@ function CompareModal({ transactions, MONTHS, formatNumber, onClose }) {
       </div>
       {/* Pickers */}
       <div className="px-6 py-4 grid grid-cols-2 gap-3 border-b border-white/5">
-        {[{ label:'Mes A', state: monthA, set: setMonthA, color:'text-indigo-400' },
+        {[{ label:'Mes A', state: monthA, set: setMonthA, color:'text-violet-400' },
           { label:'Mes B', state: monthB, set: setMonthB, color:'text-violet-400' }].map(({ label, state, set, color }) => (
           <div key={label}>
             <p className={`text-[10px] font-bold mb-1.5 ${color}`}>{label}</p>
@@ -1791,7 +2963,7 @@ function CompareModal({ transactions, MONTHS, formatNumber, onClose }) {
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* Column headers */}
         <div className="grid grid-cols-3 items-center mb-2">
-          <p className="text-xs font-black text-indigo-400 text-right pr-2">{MONTHS[monthA.month].slice(0,3)} {monthA.year}</p>
+          <p className="text-xs font-black text-violet-400 text-right pr-2">{MONTHS[monthA.month].slice(0,3)} {monthA.year}</p>
           <div/>
           <p className="text-xs font-black text-violet-400 text-left pl-2">{MONTHS[monthB.month].slice(0,3)} {monthB.year}</p>
         </div>
@@ -1802,7 +2974,7 @@ function CompareModal({ transactions, MONTHS, formatNumber, onClose }) {
         <CompRow label="Movimientos" vA={String(sA.count)} vB={String(sB.count)} higherIsBetter={false}/>
         {/* Top cats */}
         <div className="mt-5 grid grid-cols-2 gap-4">
-          {[{s:sA,label:MONTHS[monthA.month].slice(0,3),col:'text-indigo-400'},{s:sB,label:MONTHS[monthB.month].slice(0,3),col:'text-violet-400'}].map(({s,label,col})=>(
+          {[{s:sA,label:MONTHS[monthA.month].slice(0,3),col:'text-violet-400'},{s:sB,label:MONTHS[monthB.month].slice(0,3),col:'text-violet-400'}].map(({s,label,col})=>(
             <div key={label}>
               <p className={`text-[10px] font-bold mb-2 ${col}`}>Top — {label}</p>
               {s.top3.length > 0 ? s.top3.map(([cat,amt])=>(
@@ -1843,10 +3015,10 @@ function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
           {rec.type==='GASTO'?'-':'+'} ${formatNumber(rec.amount)}
         </p>
         <div className="flex flex-col gap-0.5">
-          <button onClick={()=>onToggle(rec)} className={`p-1 transition-colors ${rec.active?'text-indigo-400':'text-zinc-700'}`} title={rec.active?'Pausar':'Activar'}>
+          <button onClick={()=>onToggle(rec)} className={`p-1 transition-colors ${rec.active?'text-violet-400':'text-zinc-700'}`} title={rec.active?'Pausar':'Activar'}>
             <RefreshCw className="w-3.5 h-3.5"/>
           </button>
-          <button onClick={()=>onEdit(rec)} className="p-1 text-zinc-700 active:text-indigo-400 transition-colors">
+          <button onClick={()=>onEdit(rec)} className="p-1 text-zinc-700 active:text-violet-400 transition-colors">
             <Edit3 className="w-3.5 h-3.5"/>
           </button>
           <button onClick={()=>onDelete(rec.id)} className="p-1 text-zinc-700 active:text-rose-500 transition-colors">
@@ -1861,17 +3033,23 @@ function RecurringCard({ rec, onEdit, onDelete, onToggle, getEmoji }) {
 // ─────────────────────────────────────────────
 // RECURRING FORM
 // ─────────────────────────────────────────────
-function RecurringForm({ rec, categories, onSave, onClose }) {
+function RecurringForm({ rec, categories, accounts: accs, currSymbol, onSave, onClose }) {
   const [type,      setType]      = useState(rec?.type || 'GASTO');
-  const [amount,    setAmount]    = useState(rec ? String(rec.amount) : '');
+  const [amount,    setAmount]    = useState(rec ? formatNumber(rec.amount) : '');
   const [category,  setCategory]  = useState(rec?.category || (categories?.GASTO?.[0] || ''));
+  const [subcateg,  setSubcateg]  = useState(rec?.subcategory || '');
+  const [acctVal,   setAcctVal]   = useState(rec?.account || '');
   const [frequency, setFrequency] = useState(rec?.frequency || 'monthly');
   const [startDate, setStartDate] = useState(rec?.start_date || new Date().toISOString().slice(0,10));
   const [endDate,   setEndDate]   = useState(rec?.end_date || '');
   const [note,      setNote]      = useState(rec?.note || '');
   const [saving,    setSaving]    = useState(false);
 
-  const currentCats = categories?.[type] || [];
+  const currentCats  = categories?.[type] || [];
+  const accountList  = accs || [];
+  const catSubcats   = (() => {
+    try { return JSON.parse(localStorage.getItem('metacasa_categories') || 'null')?.subcategories?.[category] || []; } catch { return []; }
+  })();
 
   const handleSave = async () => {
     if (!amount || !category) return;
@@ -1879,8 +3057,10 @@ function RecurringForm({ rec, categories, onSave, onClose }) {
     await onSave({
       id: rec?.id,
       type,
-      amount: parseFloat(amount.replace(/\D/g,'')) || 0,
+      amount: parseFormattedNumber(amount),
       category,
+      subcategory: subcateg || null,
+      account:     acctVal  || null,
       frequency,
       start_date: startDate,
       next_date: rec?.next_date || startDate,
@@ -1892,35 +3072,42 @@ function RecurringForm({ rec, categories, onSave, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex items-end justify-center">
-      <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 p-7 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto no-scrollbar">
+    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-2xl flex items-end justify-center">
+      <div className="anim-slide-up w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 px-6 pt-6 space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto no-scrollbar">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-black uppercase tracking-tight">{rec ? 'Editar' : 'Nuevo'} recurrente</h3>
           <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full"><X className="w-5 h-5"/></button>
         </div>
 
         {/* Tipo */}
-        <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
+        <div className="flex mc-card-inset p-1.5 gap-1" style={{borderRadius:'1rem'}}>
           {['GASTO','INGRESO'].map(t=>(
-            <button key={t} onClick={()=>{ setType(t); setCategory(categories?.[t]?.[0]||''); }}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${type===t?(t==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'):'text-zinc-500'}`}>
-              {t}
+            <button key={t} onClick={()=>{ setType(t); setCategory(categories?.[t]?.[0]||''); setSubcateg(''); }}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 active:scale-[0.97]
+                ${type===t?(t==='GASTO'?'bg-rose-600 text-white shadow-lg shadow-rose-900/40':'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40'):'text-zinc-500'}`}>
+              {t === 'GASTO' ? '↓ Gasto' : '↑ Ingreso'}
             </button>
           ))}
         </div>
 
         {/* Monto */}
-        <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
-          placeholder="$ 0" inputMode="numeric"
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-indigo-500/60"/>
+        <input
+          value={amount ? `${currSymbol || '$'} ${amount}` : ''}
+          onChange={e => {
+            const raw = e.target.value.replace(/[^0-9]/g, '');
+            setAmount(raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '');
+          }}
+          placeholder={`${currSymbol || '$'} 0`}
+          inputMode="numeric"
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-2xl font-black text-center focus:outline-none focus:border-violet-500/60"/>
 
         {/* Categoría */}
         <div className="space-y-2">
-          <p className="text-xs text-zinc-600 ml-1">Categoría</p>
+          <p className="text-label ml-1">Categoría</p>
           <div className="flex flex-wrap gap-2">
             {currentCats.map(c=>(
-              <button key={c} onClick={()=>setCategory(c)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all
+              <button key={c} onClick={()=>{ setCategory(c); setSubcateg(''); }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
                   ${category===c?(type==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'):'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                 {c}
               </button>
@@ -1928,14 +3115,56 @@ function RecurringForm({ rec, categories, onSave, onClose }) {
           </div>
         </div>
 
+        {/* Subcategoría (solo si hay) */}
+        {catSubcats.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-label ml-1">Subcategoría</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>setSubcateg('')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
+                  ${!subcateg?'bg-zinc-700 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                General
+              </button>
+              {catSubcats.map(sc=>(
+                <button key={sc} onClick={()=>setSubcateg(sc)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
+                    ${subcateg===sc?'bg-teal-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  {sc}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cuenta */}
+        {accountList.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-label ml-1">Cuenta</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>setAcctVal('')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
+                  ${!acctVal?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                Sin especificar
+              </button>
+              {accountList.map(a=>(
+                <button key={a} onClick={()=>setAcctVal(a)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95
+                    ${acctVal===a?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Frecuencia */}
         <div className="space-y-2">
-          <p className="text-xs text-zinc-600 ml-1">Frecuencia</p>
+          <p className="text-label ml-1">Frecuencia</p>
           <div className="grid grid-cols-4 gap-2">
             {FREQUENCIES.map(f=>(
               <button key={f.v} onClick={()=>setFrequency(f.v)}
-                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1
-                  ${frequency===f.v?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                className={`py-3 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 active:scale-95
+                  ${frequency===f.v?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                 <span className="text-base">{f.icon}</span>
                 <span>{f.l}</span>
               </button>
@@ -1946,23 +3175,23 @@ function RecurringForm({ rec, categories, onSave, onClose }) {
         {/* Fechas */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <p className="text-xs text-zinc-600 ml-1">Inicia</p>
+            <p className="text-label ml-1">Inicia</p>
             <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-zinc-600 ml-1">Termina (opc.)</p>
+            <p className="text-label ml-1">Termina (opc.)</p>
             <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/60"/>
+              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/60"/>
           </div>
         </div>
 
         {/* Nota */}
-        <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Nota (opcional)"
-          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 focus:outline-none focus:border-indigo-500/60"/>
+        <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Nota (opcional)" rows={2}
+          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 resize-none focus:outline-none focus:border-violet-500/60"/>
 
         <button onClick={handleSave} disabled={saving||!amount||!category}
-          className="w-full py-5 bg-indigo-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all disabled:opacity-40">
+          className="w-full py-5 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40">
           {saving ? 'Guardando…' : rec ? 'Guardar cambios' : 'Agregar recurrente'}
         </button>
       </div>
@@ -1995,7 +3224,7 @@ function SortableWidgetItem({ widget, hidden, size, onToggle, onCycleSize }) {
         <button onClick={() => onCycleSize(widget.id)}
           className={`text-[10px] font-black px-2 py-1 rounded-lg border flex-shrink-0 transition-all active:scale-90
             ${size === 'S' ? 'bg-zinc-800 border-zinc-700 text-zinc-400' :
-              size === 'L' ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-400' :
+              size === 'L' ? 'bg-violet-700/15 border-violet-500/30 text-violet-400' :
               'bg-zinc-900 border-white/8 text-zinc-500'}`}>
           {sizeLabel}
         </button>
@@ -2003,9 +3232,145 @@ function SortableWidgetItem({ widget, hidden, size, onToggle, onCycleSize }) {
       {/* Toggle switch */}
       <button onClick={() => onToggle(widget.id)}
         className={`w-10 h-5 rounded-full flex-shrink-0 flex items-center px-0.5 transition-all
-          ${hidden ? 'bg-zinc-800 justify-start' : 'bg-indigo-600 justify-end'}`}>
+          ${hidden ? 'bg-zinc-800 justify-start' : 'bg-violet-600 justify-end'}`}>
         <div className="w-4 h-4 rounded-full bg-white shadow-sm"/>
       </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// UTILS: Distribución de presupuesto
+// ─────────────────────────────────────────────
+
+/** Calcula allocations a partir de inputs del drawer de distribución.
+ *  @param {number} globalAmount - Monto total del presupuesto global
+ *  @param {Array<{account,mode,value}>} inputs - mode: '$'|'%'
+ *  @returns {{ allocations, remainder, valid }}
+ */
+function calcAllocations(globalAmount, inputs) {
+  const allocations = inputs.map(inp => ({
+    account: inp.account,
+    amount: inp.mode === '%'
+      ? Math.round(globalAmount * (Number(inp.value) || 0) / 100)
+      : Number(inp.value) || 0,
+  }));
+  const total     = allocations.reduce((a, b) => a + b.amount, 0);
+  const remainder = globalAmount - total;
+  const valid     = Math.abs(remainder) <= 1; // tolerancia $1 por redondeo
+  return { allocations, remainder, valid };
+}
+
+/** Componente: formulario de distribución por cuenta */
+function DistInputs({ accounts, globalAmt, existingBudgets, cat, subcat, onSave, onCancel, formatNumber: fmt }) {
+  const [mode, setMode] = useState('$');
+  const [inputs, setInputs] = useState(() =>
+    accounts.map(acc => ({
+      account: acc,
+      mode: '$',
+      value: existingBudgets[`${acc}|${cat}|${subcat}`]?.amount || 0,
+    }))
+  );
+  const [saving, setSaving] = useState(false);
+  const { allocations, remainder, valid } = calcAllocations(globalAmt, inputs);
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setInputs(prev => prev.map(inp => ({
+      ...inp,
+      mode: newMode,
+      value: newMode === '%'
+        ? (globalAmt > 0 ? Math.round((inp.value / globalAmt) * 100) : 0)
+        : Math.round(globalAmt * (inp.value || 0) / 100),
+    })));
+  };
+
+  const updateVal = (i, raw) => {
+    const next = [...inputs];
+    const v = Number(String(raw).replace(/[^0-9.]/g,'')) || 0;
+    next[i] = { ...next[i], value: mode === '%' ? Math.min(100, v) : v };
+    setInputs(next);
+  };
+
+  const handleSave = async () => {
+    if (!valid || saving) return;
+    setSaving(true);
+    await onSave(allocations);
+    setSaving(false);
+  };
+
+  const totalAssigned = allocations.reduce((a, b) => a + b.amount, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Toggle $ / % */}
+      <div className="flex gap-2">
+        {['$', '%'].map(m => (
+          <button key={m} onClick={() => switchMode(m)}
+            className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+              mode === m ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'
+            }`}>
+            {m === '$' ? 'Monto fijo ($)' : 'Porcentaje (%)'}
+          </button>
+        ))}
+      </div>
+
+      {/* Fila por cuenta */}
+      <div className="space-y-2">
+        {inputs.map((inp, i) => (
+          <div key={inp.account} className="flex items-center gap-3 bg-zinc-900/60 rounded-2xl px-4 py-3 border border-white/5">
+            <span className="text-sm font-bold text-zinc-300 w-16 flex-shrink-0 truncate">{inp.account}</span>
+            <div className="flex-1 flex items-center gap-1 border-b border-white/10 pb-0.5">
+              <span className="text-xs text-zinc-600">{mode}</span>
+              <input
+                type="number"
+                value={inp.value || ''}
+                onChange={e => updateVal(i, e.target.value)}
+                className="flex-1 bg-transparent text-right text-sm font-black text-white focus:outline-none [appearance:textfield]"
+                placeholder="0"
+                inputMode="numeric"
+              />
+            </div>
+            {/* Preview en la otra unidad */}
+            <span className="text-[10px] text-zinc-600 w-16 text-right flex-shrink-0">
+              {mode === '%'
+                ? `$${fmt(Math.round(globalAmt * (inp.value||0) / 100))}`
+                : `${globalAmt > 0 ? Math.round(((inp.value||0)/globalAmt)*100) : 0}%`}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Barra de validación */}
+      <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+        valid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+      }`}>
+        <span>Total asignado</span>
+        <span>
+          ${fmt(totalAssigned)} / ${fmt(globalAmt)}
+          {!valid && (
+            <span className="ml-1">
+              ({remainder > 0 ? `faltan $${fmt(remainder)}` : `excede $${fmt(-remainder)}`})
+            </span>
+          )}
+        </span>
+      </div>
+
+      {/* Botones */}
+      <div className="flex gap-3 pt-1">
+        <button onClick={onCancel}
+          className="flex-1 py-3 bg-zinc-900 rounded-2xl text-sm font-bold text-zinc-400 active:opacity-60 border border-white/8">
+          Cancelar
+        </button>
+        <button onClick={handleSave} disabled={!valid || saving}
+          className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all ${
+            valid && !saving
+              ? 'bg-violet-600 text-white active:scale-[0.97]'
+              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+          }`}>
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -2020,16 +3385,91 @@ export default function App() {
   const [authEmail,    setAuthEmail]    = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMode,     setAuthMode]     = useState("LOGIN");
+  const [showPassword, setShowPassword] = useState(false);
+  // Tema: 'dark' | 'light' | 'auto'
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
+  const saveTheme = (t) => { setAppTheme(t); localStorage.setItem(THEME_KEY, t); };
+
+  // ONBOARDING
+  const ONBOARDING_KEY = 'metacasa_onboarding_done';
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1); // 1=welcome, 2=accounts, 3=currency, 4=done
+  const [onboardingAccounts, setOnboardingAccounts] = useState([]);
+  const [onboardingNewName, setOnboardingNewName] = useState('');
 
   // DATA
   const [transactions, setTransactions] = useState([]);
   const [budgets,      setBudgets]      = useState({});
-  const [strategy,     setStrategy]     = useState({ savingsPercent: 0, investmentPercent: 0 });
+  const [budgetAccount, setBudgetAccount] = useState('');        // '' = Todas
+  const [expandedBudgetCats, setExpandedBudgetCats] = useState(new Set()); // categorías con subcats expandidas
+  const [homeAccount, setHomeAccount] = useState('');            // '' = Todas
+  const [statsAccount, setStatsAccount] = useState('');          // '' = Todas (para tab estadísticas)
+  const [distDrawer, setDistDrawer]   = useState(null);          // null | { cat, subcat }
+  const [strategy,     setStrategy]     = useState({ savingsPercent: 0, investmentPercent: 0, useGlobal: true });
+  // Waterfall: tipo de cuenta 'personal' | 'compartida'
+  const [accountTypes, setAccountTypes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACCOUNT_TYPES_KEY) || '{}'); } catch { return {}; }
+  });
+  const saveAccountTypes = (types) => { setAccountTypes(types); localStorage.setItem(ACCOUNT_TYPES_KEY, JSON.stringify(types)); };
+  // Waterfall: distribución del saldo a personas
+  const [allocations, setAllocations] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ALLOCATIONS_KEY) || '{"mode":"equal","amounts":{}}'); } catch { return { mode: 'equal', amounts: {} }; }
+  });
+  const saveAllocations = (alloc) => { setAllocations(alloc); localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(alloc)); };
+  // Waterfall: qué cuenta maneja ahorro e inversión ('' = hogar/compartida)
+  const [savingsInvestAccount, setSavingsInvestAccount] = useState(() => {
+    return localStorage.getItem(SAVINGS_ACCOUNT_KEY) || '';
+  });
+  const saveSavingsInvestAccount = (acc) => { setSavingsInvestAccount(acc); localStorage.setItem(SAVINGS_ACCOUNT_KEY, acc); };
   const [customCats,   setCustomCats]   = useState(null);
   const [catMeta,      setCatMeta]      = useState({}); // { NombreCat: { emoji, color } }
+  const [needsCats, setNeedsCats]     = useState(loadNeedsCats);
+  const saveNeedsCats = (cats) => { const s = new Set(cats); setNeedsCats(s); localStorage.setItem(NEEDS_CATS_KEY, JSON.stringify([...s])); };
+  const [subcategories, setSubcategories] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('metacasa_subcats') || '{}'); } catch { return {}; }
+  }); // { catName: ['Subcat1', 'Subcat2'] }
+  // UI state for subcategory management in CatManager
+  const [expandedCatSubcat, setExpandedCatSubcat] = useState(null);
+  const [newSubcatInput, setNewSubcatInput] = useState('');
   const [loadingData,  setLoadingData]  = useState(true);
   const [bills,        setBills]        = useState([]);
   const [recurring,    setRecurring]    = useState([]);
+
+  // ── BILLETERAS / PSP ──────────────────────────────────
+  const [wallets,              setWallets]              = useState([]);
+  const [walletMovements,      setWalletMovements]      = useState([]);
+  const [showWalletConnect,    setShowWalletConnect]    = useState(false);
+  const [walletConnectStep,    setWalletConnectStep]    = useState(1); // 1=provider, 2=creds, 3=naming
+  const [walletConnectProv,    setWalletConnectProv]    = useState(null);
+  const [walletConnectCreds,   setWalletConnectCreds]   = useState({});
+  const [walletConnectName,    setWalletConnectName]    = useState('');
+  const [walletConnectLoading, setWalletConnectLoading] = useState(false);
+  const [selectedWallet,       setSelectedWallet]       = useState(null);
+  const [syncingWalletId,      setSyncingWalletId]      = useState(null);
+  const [editingWalletBalance, setEditingWalletBalance] = useState(null); // wallet being balance-edited
+  const [editBalanceVal,       setEditBalanceVal]       = useState('');
+  const [mpOAuthLoading,       setMpOAuthLoading]       = useState(false); // OAuth exchange in progress
+  const [mpManualToken,        setMpManualToken]        = useState(false);  // show manual token input
+
+  // PRESUPUESTO POR PERÍODO
+  const [budgetPeriod, setBudgetPeriod] = useState(() => {
+    const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() };
+  });
+  const [showBudgetPeriodPicker, setShowBudgetPeriodPicker] = useState(false);
+  const [paidItems,    setPaidItems]    = useState({});
+  const [budgetModes,  setBudgetModes]  = useState(() => {
+    try { return JSON.parse(localStorage.getItem(BUDGET_MODE_KEY)||'{}'); } catch { return {}; }
+  });
+  const [expandHistorico, setExpandHistorico] = useState(false);
+  const [showBudgetResumen, setShowBudgetResumen] = useState(false);
+  const [showDueDateCalendar, setShowDueDateCalendar] = useState(false);
+  const [calendarSelectedDay, setCalendarSelectedDay] = useState(null);
+  const [fixedTxs,     setFixedTxs]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem(FIXED_TX_KEY)||'[]'); } catch { return []; }
+  });
+  // Estado de "abonado" por período para vencimientos (bills) y cuotas
+  const [paidBillsInPeriod,  setPaidBillsInPeriod]  = useState({});
+  const [paidCuotasInPeriod, setPaidCuotasInPeriod] = useState({});
 
   // NAVIGATION
   const [activeTab, setActiveTab] = useState('home'); // home | add | history | settings | stats
@@ -2047,6 +3487,9 @@ export default function App() {
   const [showBillsModal,     setShowBillsModal]     = useState(false);
   const [showBillForm,       setShowBillForm]        = useState(false);
   const [editingBill,        setEditingBill]         = useState(null);
+  const [editingFixedTx,     setEditingFixedTx]      = useState(null); // action sheet Gastos Fijos
+  const [editingBudgetItem,  setEditingBudgetItem]   = useState(null); // action sheet Vencimientos/Cuotas
+  const [detailCat,          setDetailCat]           = useState(null); // sheet detalle categoría
   const [showRecurringModal, setShowRecurringModal]  = useState(false);
   const [showRecurringForm,  setShowRecurringForm]   = useState(false);
   const [editingRecurring,   setEditingRecurring]    = useState(null);
@@ -2063,9 +3506,43 @@ export default function App() {
   const [searchQuery,        setSearchQuery]        = useState('');
   const [calendarView,       setCalendarView]       = useState(false);
   const [showPlazoFijo,      setShowPlazoFijo]      = useState(false);
+  // ── HELP CENTER ──
+  const [showHelpCenter,     setShowHelpCenter]     = useState(false);
+  const [helpTab,            setHelpTab]            = useState('topics');
+  const [helpSearchQuery,    setHelpSearchQuery]    = useState('');
+  const [helpSelectedTopic,  setHelpSelectedTopic]  = useState(null);
+  const [helpChatMessages,   setHelpChatMessages]   = useState([]);
+  const [helpChatInput,      setHelpChatInput]      = useState('');
+  const [helpChatLoading,    setHelpChatLoading]    = useState(false);
+  const helpChatRef = useRef(null);
+  // ── AI Provider Config ──
+  const [aiConfig, setAiConfig] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(AI_CONFIG_KEY) || 'null'); } catch { return null; }
+  });
+  const [showAIConfig, setShowAIConfig] = useState(false);
+  const [aiTestStatus, setAiTestStatus] = useState(null);
+  const [aiTestError, setAiTestError] = useState('');
+  const saveAiConfig = (config) => {
+    setAiConfig(config);
+    if (config) localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
+    else localStorage.removeItem(AI_CONFIG_KEY);
+  };
+  // Widgets visibles por defecto (curados) — el resto se oculta para nuevos usuarios
+  const CURATED_WIDGETS = new Set([
+    'planMes','dailyBudget','topTxs','recurringAlerts','semaforo',
+    'rule503020','healthScore','todaySummary','gastosHoy','monthProjection',
+    'goalsWidget','debtsWidget','savings','donutChart','prevMonthCompare',
+    'recurringFixed','vencimientos',
+  ]);
   const [hiddenWidgets,      setHiddenWidgets]      = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_WIDGETS_KEY) || '[]')); }
-    catch { return new Set(); }
+    try {
+      const stored = localStorage.getItem(HIDDEN_WIDGETS_KEY);
+      if (stored) return new Set(JSON.parse(stored));
+      // First time: hide all except curated set
+      const allIds = WIDGET_LIST.map(w => w.id);
+      const defaultHidden = allIds.filter(id => !CURATED_WIDGETS.has(id));
+      return new Set(defaultHidden);
+    } catch { return new Set(); }
   });
   const isHidden   = (id) => hiddenWidgets.has(id);
   const toggleWidget = (id) => {
@@ -2148,7 +3625,10 @@ export default function App() {
 
   // BÚSQUEDA Y FILTROS (Historial)
   const [filterType,       setFilterType]       = useState('ALL');   // ALL | GASTO | INGRESO
-  const [filterCategory,   setFilterCategory]   = useState('');      // '' = todas
+  const [filterCategories, setFilterCategories] = useState(new Set()); // Set de categorías seleccionadas (vacío = todas)
+  const [showHistoryMonthPicker, setShowHistoryMonthPicker] = useState(false);
+  const [showCatFilter,    setShowCatFilter]    = useState(false);
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState(null); // null=mes actual | {year,month}
   const [sortBy,           setSortBy]           = useState('date_desc'); // date_desc | date_asc | amount_desc | amount_asc
   const [allMonths,        setAllMonths]        = useState(false);   // false = solo mes actual
   const [filterDate,       setFilterDate]       = useState('');      // '' | 'YYYY-MM-DD'
@@ -2158,6 +3638,7 @@ export default function App() {
   const [filterDateFrom,   setFilterDateFrom]   = useState('');      // '' | 'YYYY-MM-DD'
   const [filterDateTo,     setFilterDateTo]     = useState('');      // '' | 'YYYY-MM-DD'
   const [showRangeFilter,  setShowRangeFilter]  = useState(false);
+  const [historyDateMode,  setHistoryDateMode]  = useState('period'); // 'period' | 'real'
   const [compactView,      setCompactView]      = useState(false);
   const [monthMemos,       setMonthMemos]       = useState(() => {
     try { return JSON.parse(localStorage.getItem(MEMO_KEY) || '{}'); } catch { return {}; }
@@ -2179,13 +3660,32 @@ export default function App() {
   const [mesAsignado, setMesAsignado] = useState(() => ({
     year: new Date().getFullYear(), month: new Date().getMonth(),
   }));
-  const autoReplicatedRef = useRef(new Set()); // meses ya auto-replicados en esta sesión
-
-  // TIPO DE CAMBIO (persiste en localStorage)
-  const [exchangeRate, setExchangeRate] = useState(() => {
-    const stored = localStorage.getItem('metacasa_usd_rate');
-    return stored ? parseFloat(stored) : 0;
+  // TIPOS DE CAMBIO por moneda — { USD: 1000, EUR: 1100 }  (debe estar antes del useEffect que lo usa)
+  const [exchangeRates, setExchangeRates] = useState(() => {
+    try {
+      const stored = localStorage.getItem('metacasa_fx_rates');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    // Migrar valor legacy de USD si existía
+    const oldRate = parseFloat(localStorage.getItem('metacasa_usd_rate') || '0');
+    return oldRate > 0 ? { USD: oldRate } : {};
   });
+
+  // Moneda de la transacción siendo registrada (default = moneda base del usuario)
+  const [txCurrency, setTxCurrency] = useState(() => localStorage.getItem(CURRENCY_KEY) || 'ARS');
+  const [txFxRate,   setTxFxRate]   = useState(0);
+  const [txFxLoading, setTxFxLoading] = useState(false);
+
+  // Actualizar tipo de cambio cuando cambia la moneda de la transacción
+  useEffect(() => {
+    // Si la moneda de la TX coincide con la base → no se necesita conversión
+    const baseCurr = localStorage.getItem(CURRENCY_KEY) || 'ARS';
+    if (txCurrency === baseCurr) { setTxFxRate(1); return; }
+    const manualRate = exchangeRates[txCurrency] || 0;
+    setTxFxRate(manualRate > 0 ? manualRate : 0);
+  }, [txCurrency, exchangeRates]);
+
+  const autoReplicatedRef = useRef(new Set()); // meses ya auto-replicados en esta sesión
 
   // VOZ + REPORTE
   const [isListening,  setIsListening]  = useState(false);
@@ -2193,6 +3693,9 @@ export default function App() {
   const recognitionRef = useRef(null);
   const voiceSupported = typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  // DETALLE INGRESOS/GASTOS — Home
+  const [homeDetailType, setHomeDetailType] = useState(null); // null | 'INGRESO' | 'GASTO' | 'DISPONIBLE'
 
   // VOZ DICTADO — Home FAB
   const [showVoiceDictado, setShowVoiceDictado] = useState(false);
@@ -2260,6 +3763,89 @@ export default function App() {
   });
   const priv = (val) => privacyMode ? '••••' : val;
 
+  // ── IDIOMA (i18n) ─────────────────────────────────────────────────────────
+  const [lang, setLang] = useState(() => localStorage.getItem(LANG_KEY) || 'es');
+  const changeLang = (l) => { setLang(l); localStorage.setItem(LANG_KEY, l); };
+  // Shorthand
+  const tl = (key) => t(lang, key);
+
+  // ── MONEDA BASE ──────────────────────────────────────────────────────────
+  // `currency` ES la moneda base: todos los movimientos se guardan en esta moneda.
+  const [currency, setCurrency] = useState(() => localStorage.getItem(CURRENCY_KEY) || 'ARS');
+  const currSymbol = CURRENCIES[currency]?.symbol ?? '$';
+
+  // Monedas activas (las que el usuario habilitó para usar en la app)
+  const [activeCurrencies, setActiveCurrencies] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ACTIVE_CURRENCIES_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return DEFAULT_ACTIVE_CURRENCIES;
+  });
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+
+  const addActiveCurrency = (code) => {
+    if (activeCurrencies.includes(code)) return;
+    const updated = [...activeCurrencies, code];
+    setActiveCurrencies(updated);
+    localStorage.setItem(ACTIVE_CURRENCIES_KEY, JSON.stringify(updated));
+  };
+  const removeActiveCurrency = (code) => {
+    if (code === currency) return; // no se puede quitar la base
+    const updated = activeCurrencies.filter(c => c !== code);
+    setActiveCurrencies(updated);
+    localStorage.setItem(ACTIVE_CURRENCIES_KEY, JSON.stringify(updated));
+  };
+
+  // Cambiar moneda base → también resetear txCurrency al nuevo default
+  const changeCurrency = (c) => {
+    setCurrency(c);
+    localStorage.setItem(CURRENCY_KEY, c);
+    setTxCurrency(c);
+  };
+  // fmtMoney: los montos YA están en la moneda base → solo agregar símbolo
+  const fmtMoney = (amt) => {
+    const n = Math.abs(Number(amt));
+    const sign = Number(amt) < 0 ? '-' : '';
+    return `${sign}${currSymbol}${formatNumber(n)}`;
+  };
+  // exchangeRate: solo se usa para la sección de tipo de cambio en Ajustes (legacy compat)
+  const exchangeRate = exchangeRates[currency] || 0;
+  // needsConversion: true si hay alguna moneda no-base configurada (para mostrar sección TC)
+  const needsConversion = Object.keys(CURRENCIES).some(c => c !== currency);
+
+  // ── CUENTAS (quién pagó) ──────────────────────────────────────────────────
+  const [accounts, setAccounts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); }
+    catch { return []; }
+  });
+  const saveAccounts = (list) => {
+    setAccounts(list);
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+  };
+  // Cuenta activa del formulario de registro
+  const [txAccount, setTxAccount] = useState('');
+  // Filtro de historial por cuenta
+  const [filterAccount, setFilterAccount] = useState('');
+
+  // ── ESTADÍSTICAS: mes seleccionado ────────────────────────────────────────
+  const [statsDate, setStatsDate] = useState(() => ({
+    year: new Date().getFullYear(), month: new Date().getMonth(),
+  }));
+  const changeStatsMonth = (offset) => {
+    setStatsDate(prev => {
+      const d = new Date(prev.year, prev.month + offset, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+  };
+
+  // ── SUBCATEGORÍAS (formulario registro) ──────────────────────────────────
+  const [txSubcategory, setTxSubcategory] = useState('');
+
+  // ── INPUT TEMPORAL PARA NUEVA CUENTA EN AJUSTES ──────────────────────────
+  const [newAccountName, setNewAccountName] = useState('');
+
   // PLANIFICADOR DE MES (localStorage por YYYY-MM)
   const planMesKey = `metacasa_plan_${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
   const [planMes,         setPlanMes]         = useState({ targetIncome: 0, targetExpense: 0 });
@@ -2307,6 +3893,120 @@ export default function App() {
     if (error) toast(error.message, 'error');
   };
   const signOut = async () => { await supabase.auth.signOut(); };
+  const resetPassword = async () => {
+    if (!authEmail.trim()) { toast('Ingresá tu email primero', 'error'); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim());
+    if (error) toast(error.message, 'error');
+    else toast('Te enviamos un email para restablecer tu contraseña', 'success');
+  };
+
+  // ── AI Provider: llamada directa al proveedor configurado ──
+  const callAI = async (systemPrompt, messages) => {
+    if (!aiConfig?.apiKey) throw new Error('No AI configured');
+    const provider = aiConfig.provider;
+    const provDef = AI_PROVIDERS[provider];
+    const model = aiConfig.model?.trim() || provDef?.defaultModel || '';
+    const apiKey = aiConfig.apiKey;
+
+    if (provider === 'openai' || provider === 'custom') {
+      const baseUrl = provider === 'custom'
+        ? (aiConfig.baseUrl?.replace(/\/+$/, '') || '')
+        : 'https://api.openai.com';
+      const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model, max_tokens: 1024, temperature: 0.4,
+          messages: [{ role: 'system', content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+        }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || '';
+    }
+    if (provider === 'gemini') {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { maxOutputTokens: 1024, temperature: 0.4 } }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+    if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model, max_tokens: 1024, system: systemPrompt, messages: messages.map(m => ({ role: m.role, content: m.content })) }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+      const data = await res.json();
+      return data.content?.[0]?.text || '';
+    }
+    throw new Error('Unknown provider');
+  };
+
+  // ── Help Center: AI Chat ──
+  const sendHelpChatMessage = async () => {
+    const msg = helpChatInput.trim();
+    if (!msg || helpChatLoading) return;
+    const userMessage = { role: 'user', content: msg };
+    const updated = [...helpChatMessages, userMessage];
+    setHelpChatMessages(updated);
+    setHelpChatInput('');
+    setHelpChatLoading(true);
+    setTimeout(() => helpChatRef.current?.scrollTo({ top: helpChatRef.current.scrollHeight, behavior: 'smooth' }), 50);
+
+    const topics = HELP_CONTENT(lang);
+    const contextStr = topics.map(tp =>
+      `## ${tp.title}\n${tp.sections.map(s => `### ${s.heading}\n${s.body}`).join('\n')}`
+    ).join('\n\n');
+
+    // 1) IA del usuario (llamada directa al proveedor)
+    if (aiConfig?.apiKey) {
+      try {
+        const systemPrompt = lang === 'es'
+          ? `Sos el asistente de MetaCasa, una app de finanzas del hogar. Respondé SOLO sobre MetaCasa usando esta documentación. Sé conciso y amigable. Si la pregunta no se relaciona con MetaCasa, decí que solo podés ayudar con temas de la app.\n\nDocumentación:\n${contextStr}`
+          : `You are the MetaCasa help assistant, a household finance app. Answer ONLY about MetaCasa using this documentation. Be concise and friendly. If unrelated, say you can only help with app topics.\n\nDocumentation:\n${contextStr}`;
+        const reply = await callAI(systemPrompt, updated.slice(-10));
+        setHelpChatMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+        setHelpChatLoading(false);
+        setTimeout(() => helpChatRef.current?.scrollTo({ top: helpChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
+        return;
+      } catch (err) {
+        console.error('AI provider error:', err);
+      }
+    }
+
+    // 2) Supabase Edge Function (futuro server-side)
+    try {
+      const { data, error } = await supabase.functions.invoke('help-chat', {
+        body: { messages: updated.slice(-10), appContext: contextStr, lang },
+      });
+      if (error) throw error;
+      setHelpChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch (err) {
+      // 3) Fallback local: búsqueda por keywords
+      const q = msg.toLowerCase();
+      const match = topics.find(tp =>
+        tp.keywords.some(k => q.includes(k)) ||
+        tp.title.toLowerCase().includes(q) ||
+        tp.sections.some(s => s.body.toLowerCase().includes(q))
+      );
+      const fallback = match
+        ? `${match.icon} **${match.title}**\n\n${match.sections.map(s => `**${s.heading}:** ${s.body}`).join('\n\n')}${match.tip ? `\n\n💡 ${match.tip}` : ''}`
+        : (lang === 'es'
+          ? 'No pude conectar con el asistente IA. Probá buscando en la pestaña "Temas" o "Buscar" del centro de ayuda.'
+          : 'Could not connect to the AI assistant. Try searching in the "Topics" or "Search" tab of the help center.');
+      setHelpChatMessages(prev => [...prev, { role: 'assistant', content: fallback }]);
+    } finally {
+      setHelpChatLoading(false);
+      setTimeout(() => helpChatRef.current?.scrollTo({ top: helpChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
+    }
+  };
 
   // ── DATA LOADERS ──
   const loadTransactions = useCallback(async () => {
@@ -2319,19 +4019,26 @@ export default function App() {
 
   const loadBudgets = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase.from('budgets').select('category, amount');
+    const { data, error } = await supabase.from('budgets').select('account, category, subcategory, amount');
     if (error) { console.error(error); return; }
     const b = {};
-    (data || []).forEach(row => { b[row.category] = { amount: Number(row.amount || 0) }; });
+    (data || []).forEach(row => {
+      const key = `${row.account || ''}|${row.category}|${row.subcategory || ''}`;
+      b[key] = { amount: Number(row.amount || 0) };
+    });
     setBudgets(b);
   }, [userId]);
 
   const loadStrategy = useCallback(async () => {
     if (!userId) return;
     const { data, error } = await supabase.from('strategy')
-      .select('savings_percent, investment_percent').maybeSingle();
+      .select('savings_percent, investment_percent, use_global').maybeSingle();
     if (error && error.code !== 'PGRST116') { console.error(error); return; }
-    setStrategy({ savingsPercent: Number(data?.savings_percent || 0), investmentPercent: Number(data?.investment_percent || 0) });
+    setStrategy({
+      savingsPercent:    Number(data?.savings_percent    || 0),
+      investmentPercent: Number(data?.investment_percent || 0),
+      useGlobal:         data?.use_global ?? true,
+    });
   }, [userId]);
 
   const loadCategories = useCallback(async () => {
@@ -2340,13 +4047,35 @@ export default function App() {
     if (error && error.code !== 'PGRST116') { console.error(error); return; }
     const raw = data?.data || null;
     if (raw) {
-      const { meta, goals: cloudGoals, cuotas: cloudCuotas, debts: cloudDebts, ...cats } = raw;
+      const { meta, goals: cloudGoals, cuotas: cloudCuotas, debts: cloudDebts, subcategories: cloudSubcats,
+              accounts: cloudAccounts, accountTypes: cloudAccountTypes, allocations: cloudAllocations, savingsInvestAccount: cloudSavingsAccount,
+              ...cats } = raw;
       setCustomCats(cats);
       setCatMeta(meta || {});
+      if (cloudSubcats) {
+        setSubcategories(cloudSubcats);
+        localStorage.setItem('metacasa_subcats', JSON.stringify(cloudSubcats));
+        const catData = JSON.parse(localStorage.getItem('metacasa_categories') || '{}');
+        catData.subcategories = cloudSubcats;
+        localStorage.setItem('metacasa_categories', JSON.stringify(catData));
+      }
       // Cloud wins over localStorage
       if (cloudGoals)  { setGoals(cloudGoals);   localStorage.setItem(GOALS_KEY,  JSON.stringify(cloudGoals));  }
       if (cloudCuotas) { setCuotas(cloudCuotas); localStorage.setItem(CUOTAS_KEY, JSON.stringify(cloudCuotas)); }
       if (cloudDebts)  { setDebts(cloudDebts); }
+      // Sincronizar cuentas y configuración hogar desde la nube
+      if (cloudAccounts && cloudAccounts.length > 0) {
+        setAccounts(cloudAccounts); localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(cloudAccounts));
+      }
+      if (cloudAccountTypes && Object.keys(cloudAccountTypes).length > 0) {
+        setAccountTypes(cloudAccountTypes); localStorage.setItem(ACCOUNT_TYPES_KEY, JSON.stringify(cloudAccountTypes));
+      }
+      if (cloudAllocations && cloudAllocations.mode) {
+        setAllocations(cloudAllocations); localStorage.setItem(ALLOCATIONS_KEY, JSON.stringify(cloudAllocations));
+      }
+      if (cloudSavingsAccount !== undefined) {
+        setSavingsInvestAccount(cloudSavingsAccount); localStorage.setItem(SAVINGS_ACCOUNT_KEY, cloudSavingsAccount);
+      }
     } else {
       setCustomCats(null);
       setCatMeta({});
@@ -2399,6 +4128,130 @@ export default function App() {
     setBills(data || []);
   }, [userId]);
 
+  const loadWallets = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('connected_wallets')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+    if (data) setWallets(data);
+  }, [userId]);
+
+  const loadWalletMovements = useCallback(async (walletId) => {
+    const { data } = await supabase
+      .from('wallet_movements')
+      .select('*')
+      .eq('wallet_id', walletId)
+      .order('date', { ascending: false })
+      .limit(100);
+    if (data) setWalletMovements(data);
+  }, []);
+
+  const connectWallet = async () => {
+    if (!walletConnectProv) return;
+    setWalletConnectLoading(true);
+    const provDef = WALLET_PROVIDERS[walletConnectProv];
+    const insertName = walletConnectName.trim() || provDef.name;
+    const meta = { ...walletConnectCreds };
+    const accessToken = walletConnectCreds.access_token || null;
+    // Remove access_token from metadata to avoid double storage
+    delete meta.access_token;
+    const { data, error } = await supabase.from('connected_wallets').insert({
+      user_id: userId,
+      provider: walletConnectProv,
+      name: insertName,
+      access_token: accessToken,
+      metadata: meta,
+      currency: walletConnectCreds.currency || currency,
+      balance: 0,
+    }).select().single();
+    setWalletConnectLoading(false);
+    if (error) { toast(error.message, 'error'); return; }
+    setWallets(prev => [...prev, data]);
+    setShowWalletConnect(false);
+    setWalletConnectStep(1);
+    setWalletConnectCreds({});
+    setWalletConnectProv(null);
+    setWalletConnectName('');
+    toast(`${insertName} conectado ✓`, 'success');
+    haptic(20);
+  };
+
+  const syncWallet = async (wallet) => {
+    setSyncingWalletId(wallet.id);
+    try {
+      const adapter = createWalletAdapter(wallet.provider, { wallet_id: wallet.id });
+      if (!adapter) { toast('Proveedor no soportado aún', 'info'); setSyncingWalletId(null); return; }
+      let newBalance = wallet.balance;
+      try { const bal = await adapter.getBalance(); if (bal !== null) newBalance = bal.available ?? bal.total ?? 0; } catch {}
+      let movements = [];
+      try { movements = await adapter.getTransactions(50); } catch {}
+      if (movements.length > 0) {
+        const rows = movements.map(m => ({
+          wallet_id: wallet.id, user_id: userId, external_id: m.external_id,
+          amount: m.amount, type: m.type, description: m.description,
+          date: m.date, currency: m.currency, status: m.status, metadata: m.raw ?? {},
+        }));
+        await supabase.from('wallet_movements').upsert(rows, { onConflict: 'wallet_id,external_id', ignoreDuplicates: false });
+      }
+      const { data: updated } = await supabase.from('connected_wallets')
+        .update({ balance: newBalance, last_sync: new Date().toISOString() })
+        .eq('id', wallet.id).select().single();
+      if (updated) setWallets(prev => prev.map(w => w.id === wallet.id ? updated : w));
+      if (selectedWallet?.id === wallet.id) loadWalletMovements(wallet.id);
+      toast('Sincronizado ✓', 'success');
+    } catch (e) {
+      toast('Error al sincronizar: ' + e.message, 'error');
+    }
+    setSyncingWalletId(null);
+  };
+
+  const disconnectWallet = async (walletId) => {
+    await supabase.from('connected_wallets').update({ is_active: false }).eq('id', walletId);
+    setWallets(prev => prev.filter(w => w.id !== walletId));
+    if (selectedWallet?.id === walletId) setSelectedWallet(null);
+    toast('Billetera desconectada', 'info');
+    haptic(10);
+  };
+
+  const saveWalletBalance = async (wallet) => {
+    const n = parseFormattedNumber(editBalanceVal);
+    const { data } = await supabase.from('connected_wallets')
+      .update({ balance: n, last_sync: new Date().toISOString() })
+      .eq('id', wallet.id).select().single();
+    if (data) setWallets(prev => prev.map(w => w.id === wallet.id ? data : w));
+    setEditingWalletBalance(null);
+    setEditBalanceVal('');
+    toast('Saldo actualizado', 'success');
+  };
+
+  const importWalletMovement = async (movement, walletId) => {
+    const d = new Date(movement.date || new Date());
+    const { data, error } = await supabase.from('transactions').insert({
+      user_id: userId,
+      amount: movement.amount,
+      type: movement.type,
+      category: movement.type === 'GASTO' ? (activeCategories.GASTO?.[0] || 'Otros') : (activeCategories.INGRESO?.[0] || 'Sueldo'),
+      note: movement.description,
+      date: d.toISOString(),
+      period_year: d.getFullYear(),
+      period_month: d.getMonth(),
+      currency_original: movement.currency !== currency ? movement.currency : null,
+      fx_rate_to_base: 1,
+      fx_source: 'WALLET',
+      fx_status: 'FINAL',
+    }).select().single();
+    if (error) { toast(error.message, 'error'); return; }
+    await supabase.from('wallet_movements').update({ synced_tx_id: data.id, status: 'synced' })
+      .eq('wallet_id', walletId).eq('external_id', movement.external_id);
+    loadTransactions();
+    loadWalletMovements(walletId);
+    toast('Importado ✓', 'success');
+    haptic(15);
+  };
+
   const loadAll = useCallback(async () => {
     setLoadingData(true);
     const [,,,,recurringData] = await Promise.all([
@@ -2415,9 +4268,134 @@ export default function App() {
     await autoGenerateRecurring(recurringData || []);
     if (recurringData?.length) await loadTransactions(); // recargar si hubo auto-gen
     setLoadingData(false);
+    // Check if onboarding needed (first time user)
+    if (!localStorage.getItem(ONBOARDING_KEY)) {
+      setShowOnboarding(true);
+      setOnboardingStep(1);
+    }
   }, [loadTransactions, loadBudgets, loadStrategy, loadCategories, loadBills, autoGenerateRecurring, userId]);
 
-  useEffect(() => { if (userId) loadAll(); }, [userId, loadAll]);
+  useEffect(() => { if (userId) { loadAll(); loadWallets(); } }, [userId, loadAll, loadWallets]);
+
+  // ── Aplicar tema al document ──
+  useEffect(() => {
+    const applyTheme = (mode) => {
+      document.documentElement.classList.remove('light-theme', 'dark-theme');
+      document.documentElement.classList.add(mode === 'light' ? 'light-theme' : 'dark-theme');
+    };
+    if (appTheme === 'auto') {
+      const mq = window.matchMedia('(prefers-color-scheme: light)');
+      applyTheme(mq.matches ? 'light' : 'dark');
+      const handler = (e) => applyTheme(e.matches ? 'light' : 'dark');
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      applyTheme(appTheme);
+    }
+  }, [appTheme]);
+
+  // Auto-seleccionar primera cuenta PERSONAL en Budget tab para que el usuario inicie en modo editable
+  useEffect(() => {
+    if (accounts.length > 0 && budgetAccount === '') {
+      const firstPersonal = accounts.find(a => (accountTypes[a] || 'personal') === 'personal');
+      if (firstPersonal) setBudgetAccount(firstPersonal);
+    }
+  }, [accounts, accountTypes]);
+
+  // ── Sincronizar cuentas y configuración hogar a la nube ──
+  const syncAccountsRef = useRef(false);
+  useEffect(() => {
+    if (!userId || !syncAccountsRef.current) { syncAccountsRef.current = true; return; }
+    const cats = customCats || INITIAL_CATEGORIES;
+    const payload = { ...cats, meta: catMeta, goals, cuotas, debts, subcategories,
+      accounts, accountTypes, allocations, savingsInvestAccount };
+    supabase.from('categories').upsert({ user_id: userId, data: payload }, { onConflict: 'user_id' });
+  }, [accounts, accountTypes, allocations, savingsInvestAccount]);
+
+  // ── Mercado Pago OAuth callback detector ──────────────────────────────────
+  // Runs once on mount; if ?code= found in URL, stores it and triggers exchange
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code  = params.get('code');
+    const state = params.get('state');
+    if (!code || !state) return;
+    // Clean the URL immediately so the code isn't reused
+    window.history.replaceState({}, document.title, window.location.pathname);
+    const storedState = sessionStorage.getItem('mp_oauth_state');
+    if (state !== storedState) return; // CSRF guard
+    sessionStorage.removeItem('mp_oauth_state');
+    sessionStorage.setItem('mp_oauth_pending_code', code);
+  }, []);
+
+  // ── Process pending OAuth once userId is available ────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    const code = sessionStorage.getItem('mp_oauth_pending_code');
+    if (!code) return;
+    sessionStorage.removeItem('mp_oauth_pending_code');
+    handleMPOAuthCallback(code);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleMPOAuthCallback = async (code) => {
+    setMpOAuthLoading(true);
+    try {
+      const res = await fetch(WALLET_PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          action:       'oauth_exchange',
+          provider:     'mercadopago',
+          code,
+          redirect_uri: MP_OAUTH_REDIRECT,
+        }),
+      });
+      const tokenData = await res.json();
+      if (!tokenData.access_token) throw new Error(tokenData.message || 'No se pudo obtener el token de Mercado Pago');
+
+      const walletName = tokenData.display_name || 'Mercado Pago';
+      const { data, error } = await supabase.from('connected_wallets').insert({
+        user_id:      userId,
+        provider:     'mercadopago',
+        name:         walletName,
+        access_token: tokenData.access_token,
+        metadata: {
+          refresh_token: tokenData.refresh_token || null,
+          token_type:    tokenData.token_type    || 'bearer',
+          mp_user_id:    tokenData.user_id       || null,
+          scope:         tokenData.scope         || null,
+          oauth:         true,
+        },
+        currency: currency,
+        balance:  0,
+      }).select().single();
+
+      if (error) throw new Error(error.message);
+      setWallets(prev => [...prev, data]);
+      setActiveTab('wallets');
+      toast(`${walletName} conectado con OAuth ✓`, 'success');
+      haptic(20);
+    } catch (e) {
+      toast('Error al conectar Mercado Pago: ' + e.message, 'error');
+    }
+    setMpOAuthLoading(false);
+  };
+
+  const startMPOAuth = () => {
+    if (!MP_OAUTH_CLIENT_ID || MP_OAUTH_CLIENT_ID === 'REEMPLAZAR_CON_TU_APP_ID') {
+      toast('Configurá el App ID de Mercado Pago en el código', 'error');
+      return;
+    }
+    const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem('mp_oauth_state', state);
+    const oauthUrl = new URL('https://auth.mercadopago.com/authorization');
+    oauthUrl.searchParams.set('client_id',     MP_OAUTH_CLIENT_ID);
+    oauthUrl.searchParams.set('response_type', 'code');
+    oauthUrl.searchParams.set('platform_id',   'mp');
+    oauthUrl.searchParams.set('state',         state);
+    oauthUrl.searchParams.set('redirect_uri',  MP_OAUTH_REDIRECT);
+    window.location.href = oauthUrl.toString();
+  };
 
   const activeCategories = useMemo(() => customCats || INITIAL_CATEGORIES, [customCats]);
 
@@ -2439,6 +4417,14 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  // ── Cargar estados "pagado/abonado" del localStorage al cambiar período ──
+  useEffect(() => {
+    const p = `${budgetPeriod.year}-${String(budgetPeriod.month+1).padStart(2,'0')}`;
+    try { setPaidItems(JSON.parse(localStorage.getItem(`metacasa_paid_${p}`)||'{}')); }         catch { setPaidItems({}); }
+    try { setPaidBillsInPeriod(JSON.parse(localStorage.getItem(`metacasa_billspaid_${p}`)||'{}')); }  catch { setPaidBillsInPeriod({}); }
+    try { setPaidCuotasInPeriod(JSON.parse(localStorage.getItem(`metacasa_cuotaspaid_${p}`)||'{}')); } catch { setPaidCuotasInPeriod({}); }
+  }, [budgetPeriod]);
+
   // ── Auto-replicación de gastos/ingresos fijos ──
   useEffect(() => {
     if (!userId || !transactions.length) return;
@@ -2452,8 +4438,8 @@ export default function App() {
     if (!templates.length) return;
 
     const monthTxs = transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getFullYear() === y && d.getMonth() === m;
+      const p = txBudgetPeriod(t);
+      return p.year === y && p.month === m;
     });
 
     const missing = templates.filter(tpl =>
@@ -2476,6 +4462,7 @@ export default function App() {
           amount: tpl.amount,
           note: (tpl.note || tpl.category) + ' (fijo)',
           date: new Date(y, m, day, 12).toISOString(),
+          account: tpl.account || null,
         });
       }
       await loadTransactions();
@@ -2489,7 +4476,7 @@ export default function App() {
   // ── STATS ──
   const stats = useMemo(() => {
     const m = currentDate.getMonth(), y = currentDate.getFullYear();
-    const cur = transactions.filter(t => { const d = new Date(t.date); return d.getMonth()===m && d.getFullYear()===y; });
+    const cur = transactions.filter(t => { const p = txBudgetPeriod(t); return p.month===m && p.year===y; });
     const income   = cur.filter(t => t.type==='INGRESO').reduce((a,c) => a+Number(c.amount),0);
     const expenses = cur.filter(t => t.type==='GASTO').reduce((a,c) => a+Number(c.amount),0);
     const expenseByCategory = {};
@@ -2499,12 +4486,67 @@ export default function App() {
     const totalHistoricalIncome    = transactions.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
     const historicalSavingsTotal   = (totalHistoricalIncome*(strategy.savingsPercent||0))/100;
     const historicalInvestmentTotal= (totalHistoricalIncome*(strategy.investmentPercent||0))/100;
-    const totalBudgetsAssigned = Object.values(budgets).reduce((a,b)=>a+Number(b.amount||0),0);
+    const totalBudgetsAssigned = Object.entries(budgets)
+      .filter(([k]) => { const p = k.split('|'); return p[0] === '' && p[2] === ''; })
+      .reduce((a, [, b]) => a + Number(b.amount || 0), 0);
     const available = income - savingsAmount - investmentAmount - expenses;
     const availableToAssign = income - savingsAmount - investmentAmount - totalBudgetsAssigned;
     return { income, expenses, available, expenseByCategory, savingsAmount, investmentAmount,
              totalBudgetsAssigned, availableToAssign, historicalSavingsTotal, historicalInvestmentTotal };
   }, [transactions, currentDate, strategy, budgets]);
+
+  // ── HOME STATS (filtrado por cuenta seleccionada) ──
+  const homeStats = useMemo(() => {
+    if (!homeAccount) return stats;
+    const m = currentDate.getMonth(), y = currentDate.getFullYear();
+    const cur = transactions.filter(t => {
+      const p = txBudgetPeriod(t);
+      return p.month === m && p.year === y && t.account === homeAccount;
+    });
+    const income   = cur.filter(t => t.type === 'INGRESO').reduce((a, c) => a + Number(c.amount), 0);
+    const expenses = cur.filter(t => t.type === 'GASTO').reduce((a, c) => a + Number(c.amount), 0);
+    const expenseByCategory = {};
+    cur.filter(t => t.type === 'GASTO').forEach(t => {
+      expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + Number(t.amount);
+    });
+    const savingsAmount    = (income * (strategy.savingsPercent    || 0)) / 100;
+    const investmentAmount = (income * (strategy.investmentPercent || 0)) / 100;
+    const available        = income - savingsAmount - investmentAmount - expenses;
+    return {
+      ...stats,
+      income, expenses, available, expenseByCategory, savingsAmount, investmentAmount,
+      availableToAssign: income - savingsAmount - investmentAmount - stats.totalBudgetsAssigned,
+    };
+  }, [homeAccount, transactions, currentDate, strategy, stats]);
+
+  // ── STATS DEL MES SELECCIONADO EN TAB ESTADÍSTICAS ──
+  const statsData = useMemo(() => {
+    const m = statsDate.month, y = statsDate.year;
+    const all = transactions.filter(t => { const p = txBudgetPeriod(t); return p.month===m && p.year===y; });
+    // Filtrar por cuenta seleccionada en Estadísticas (statsAccount)
+    const cur = statsAccount ? all.filter(t => t.account === statsAccount) : all;
+    const income   = cur.filter(t => t.type==='INGRESO').reduce((a,c) => a+Number(c.amount),0);
+    const expenses = cur.filter(t => t.type==='GASTO').reduce((a,c) => a+Number(c.amount),0);
+    const expenseByCategory = {};
+    cur.filter(t => t.type==='GASTO').forEach(t => {
+      expenseByCategory[t.category]=(expenseByCategory[t.category]||0)+Number(t.amount);
+    });
+    // Desglose por cuenta (siempre del total del mes, para el widget byAccount)
+    const byAccount = {};
+    all.forEach(t => {
+      const acct = t.account || 'Sin cuenta';
+      if (!byAccount[acct]) byAccount[acct] = { income: 0, expense: 0 };
+      if (t.type === 'INGRESO') byAccount[acct].income += Number(t.amount);
+      else byAccount[acct].expense += Number(t.amount);
+    });
+    // Desglose por subcategoría (por categoría)
+    const bySubcategory = {};
+    cur.filter(t => t.subcategory && t.type==='GASTO').forEach(t => {
+      if (!bySubcategory[t.category]) bySubcategory[t.category] = {};
+      bySubcategory[t.category][t.subcategory] = (bySubcategory[t.category][t.subcategory]||0) + Number(t.amount);
+    });
+    return { income, expenses, expenseByCategory, byAccount, bySubcategory, txs: cur };
+  }, [transactions, statsDate, statsAccount]);
 
   // ── PROYECCIÓN FIN DE MES ──
   const projection = useMemo(() => {
@@ -2526,8 +4568,8 @@ export default function App() {
   const prevMonth = useMemo(() => {
     const prev = new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1);
     const txs = transactions.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth()===prev.getMonth() && d.getFullYear()===prev.getFullYear();
+      const p = txBudgetPeriod(t);
+      return p.month===prev.getMonth() && p.year===prev.getFullYear();
     });
     const income  = txs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
     const expense = txs.filter(t=>t.type==='GASTO').reduce((a,c)=>a+Number(c.amount),0);
@@ -2545,8 +4587,12 @@ export default function App() {
         end.setMonth(end.getMonth() + c.totalCuotas);
         return now >= start && now < end;
       })
-      .reduce((a, c) => a + c.monthlyAmount, 0);
-  }, [cuotas]);
+      .reduce((a, c) => {
+        const cuotaCurr = c.currency || currency;
+        const rate = cuotaCurr !== currency ? (exchangeRates[cuotaCurr] || 1) : 1;
+        return a + (c.monthlyAmount * rate);
+      }, 0);
+  }, [cuotas, currency, exchangeRates]);
 
   const activeCuotas = cuotas.filter(c => c.paidCuotas < c.totalCuotas);
 
@@ -2570,22 +4616,28 @@ export default function App() {
   }, [stats.available, goals, totalOwedToMe, totalIOwe, cuotas]);
 
   // ── TIPO DE CAMBIO ──
-  const updateExchangeRate = (val) => {
-    const n = parseFloat(String(val).replace(/\D/g,'')) || 0;
-    setExchangeRate(n);
-    localStorage.setItem('metacasa_usd_rate', String(n));
+  // forCurrency: la moneda EXTRANJERA (no la base) para la que se configura el rate
+  // rate: cuántas unidades de moneda base (currency) vale 1 unidad de forCurrency
+  const updateExchangeRate = (forCurrency, val) => {
+    const n = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+    const updated = { ...exchangeRates, [forCurrency]: n };
+    setExchangeRates(updated);
+    localStorage.setItem('metacasa_fx_rates', JSON.stringify(updated));
+    // Compatibilidad con key legacy para USD
+    if (forCurrency === 'USD') localStorage.setItem('metacasa_usd_rate', String(n));
   };
 
   // ── SYNC EXTRAS → SUPABASE (goals / cuotas / debts en el blob de categories) ──
   const syncExtrasToCloud = useCallback(async (newGoals, newCuotas, newDebts) => {
     if (!userId) return;
     const cats = customCats || INITIAL_CATEGORIES;
-    const payload = { ...cats, meta: catMeta, goals: newGoals, cuotas: newCuotas, debts: newDebts };
+    const payload = { ...cats, meta: catMeta, goals: newGoals, cuotas: newCuotas, debts: newDebts, subcategories,
+      accounts, accountTypes, allocations, savingsInvestAccount };
     const { error } = await supabase.from('categories').upsert(
       { user_id: userId, data: payload }, { onConflict: 'user_id' }
     );
     if (error) console.error('syncExtrasToCloud error:', error);
-  }, [userId, customCats, catMeta]);
+  }, [userId, customCats, catMeta, subcategories, accounts, accountTypes, allocations, savingsInvestAccount]);
 
   // ── VOZ ──
   const startListening = useCallback(() => {
@@ -2770,12 +4822,50 @@ export default function App() {
     haptic(15);
   };
   const deleteCuota = (id) => { persistCuotas(cuotas.filter(c=>c.id!==id)); haptic(20); };
-  const payCuota    = (id) => {
+  const payCuota = async (id) => {
+    const cuota = cuotas.find(c => c.id === id);
+    if (!cuota) return;
+    // Update cuota progress
     persistCuotas(cuotas.map(c => c.id===id
       ? { ...c, paidCuotas: Math.min(c.paidCuotas+1, c.totalCuotas) }
       : c
     ));
     haptic(15);
+    // Create real transaction in Supabase
+    if (userId) {
+      const cuotaCurr = cuota.currency || currency;
+      const amt = Math.round(cuota.monthlyAmount * 100) / 100;
+      let amountInBase = amt;
+      let fxRateUsed = 1, fxSource = 'MANUAL', fxStatus = 'FINAL';
+      if (cuotaCurr !== currency) {
+        const manualRate = exchangeRates[cuotaCurr] || 0;
+        const todayStr = new Date().toISOString().slice(0,10);
+        const fx = await fxGetRate(cuotaCurr, todayStr, manualRate);
+        fxRateUsed = fx.rate; fxSource = fx.source; fxStatus = fx.status;
+        amountInBase = fxRateUsed > 0 ? Math.round(amt * fxRateUsed) : amt;
+      }
+      const paidNum = cuota.paidCuotas + 1;
+      const payload = {
+        user_id: userId,
+        amount: Math.round(amountInBase),
+        category: cuota.category || 'Cuotas',
+        type: 'GASTO',
+        note: `${cuota.emoji} ${cuota.name} (${paidNum}/${cuota.totalCuotas})`,
+        date: new Date().toISOString(),
+        account: cuota.account || null,
+        subcategory: cuota.subcategory || null,
+        amount_original: cuotaCurr !== currency ? amt : null,
+        currency_original: cuotaCurr,
+        fx_rate_to_base: fxRateUsed,
+        fx_source: fxSource,
+        fx_status: fxStatus,
+      };
+      const { error } = await supabase.from('transactions').insert(payload);
+      if (!error) {
+        await loadTransactions();
+        toast(`Cuota ${paidNum}/${cuota.totalCuotas} de ${cuota.name} registrada`, 'success');
+      }
+    }
   };
 
   // ── DEUDAS CRUD (localStorage + cloud sync) ──
@@ -2828,6 +4918,18 @@ export default function App() {
     return null;
   }, [note, category, activeCategories]);
 
+  // Helper: suma presupuestos de una categoría a través de todas las cuentas
+  const getAggregatedBudget = (cat, subcat = '') => {
+    return accounts.reduce((sum, acc) => {
+      const key = `${acc}|${cat}|${subcat}`;
+      return sum + (budgets[key]?.amount || 0);
+    }, 0);
+  };
+
+  // Waterfall: cuentas personales vs compartidas
+  const personalAccounts = accounts.filter(a => (accountTypes[a] || 'personal') === 'personal');
+  const sharedAccounts   = accounts.filter(a => accountTypes[a] === 'compartida');
+
   // ── INSIGHTS DINÁMICOS ──
   const insights = useMemo(() => {
     if (stats.income === 0 && stats.expenses === 0) return [];
@@ -2838,7 +4940,7 @@ export default function App() {
     if (topCat && prevMonth.expense > 0) {
       const prev = new Date(currentDate.getFullYear(), currentDate.getMonth()-1, 1);
       const prevSpent = transactions
-        .filter(t => { const d = new Date(t.date); return d.getMonth()===prev.getMonth() && d.getFullYear()===prev.getFullYear() && t.category===topCat[0] && t.type==='GASTO'; })
+        .filter(t => { const p = txBudgetPeriod(t); return p.month===prev.getMonth() && p.year===prev.getFullYear() && t.category===topCat[0] && t.type==='GASTO'; })
         .reduce((a,c) => a+Number(c.amount), 0);
       if (prevSpent > 0) {
         const pct = Math.round(((topCat[1] - prevSpent) / prevSpent) * 100);
@@ -2862,7 +4964,7 @@ export default function App() {
 
     // 3. Categoría excedida
     const overspent = (activeCategories.GASTO || []).find(cat => {
-      const limit = budgets[cat]?.amount || 0;
+      const limit = getAggregatedBudget(cat);
       return limit > 0 && (stats.expenseByCategory[cat] || 0) > limit;
     });
     if (overspent) result.push({
@@ -2898,12 +5000,13 @@ export default function App() {
   }, [toast]);
 
   // ── ACTIONS ──
-  const handleSaveTransaction = async () => {
+  const [dupWarning, setDupWarning] = useState(null); // { amount, category }
+  const handleSaveTransaction = async (skipDupCheck = false) => {
     if (!userId || !amount || !category) return;
     setSavingTx(true);
     const numericAmount = parseFormattedNumber(amount);
 
-    // Alerta de posible duplicado (mismo monto + categoría en las últimas 2 horas)
+    // Bloqueo de posible duplicado (mismo monto + categoría en las últimas 2 horas)
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const recentDup = transactions.find(t =>
       t.type === type &&
@@ -2911,27 +5014,55 @@ export default function App() {
       t.category === category &&
       t.date > twoHoursAgo
     );
-    if (recentDup) {
-      setTimeout(() => toast(`⚠️ Posible duplicado: ya registraste $${formatNumber(numericAmount)} en ${category}`, 'info'), 400);
+    if (recentDup && !skipDupCheck) {
+      setSavingTx(false);
+      setDupWarning({ amount: numericAmount, category });
+      return;
     }
-    // Si mesAsignado difiere del mes de txDate, almacenar con el día de txDate pero en el mes asignado
+    setDupWarning(null);
+    // Guardar la fecha real; si el período asignado difiere, almacenar en period_year/period_month
     const txDateObj = new Date(txDate + 'T12:00:00');
-    let storedDate;
-    if (mesAsignado.year !== txDateObj.getFullYear() || mesAsignado.month !== txDateObj.getMonth()) {
-      const maxDay = new Date(mesAsignado.year, mesAsignado.month + 1, 0).getDate();
-      const day = Math.min(txDateObj.getDate(), maxDay);
-      storedDate = new Date(mesAsignado.year, mesAsignado.month, day, 12).toISOString();
-    } else {
-      storedDate = new Date(txDate + 'T12:00:00').toISOString();
+    const realDate = new Date(txDate + 'T12:00:00').toISOString();
+    const periodDiffers = mesAsignado.year !== txDateObj.getFullYear() || mesAsignado.month !== txDateObj.getMonth();
+    // Multi-currency: calcular amount_in_base (moneda base del usuario)
+    let amountInBase = numericAmount;
+    let fxRateUsed   = 1;
+    let fxSource     = 'MANUAL';
+    let fxStatus     = 'FINAL';
+    if (txCurrency !== currency) {
+      // La transacción está en una moneda distinta a la base → convertir
+      const manualRate = exchangeRates[txCurrency] || 0;
+      const fx = await fxGetRate(txCurrency, txDate, manualRate);
+      fxRateUsed  = fx.rate;
+      fxSource    = fx.source;
+      fxStatus    = fx.status;
+      amountInBase = fxRateUsed > 0 ? Math.round(numericAmount * fxRateUsed) : numericAmount;
     }
-    const payload = { user_id: userId, amount: numericAmount, category, type, note: note.trim(), date: storedDate };
+
+    const payload = {
+      user_id: userId,
+      amount: amountInBase,          // siempre en ARS (base)
+      category, type, note: note.trim(),
+      date: realDate,
+      period_year:  periodDiffers ? mesAsignado.year  : null,
+      period_month: periodDiffers ? mesAsignado.month : null,
+      account:      txAccount    || null,
+      subcategory:  txSubcategory || null,
+      // Multi-currency fields
+      amount_original:  txCurrency !== currency ? numericAmount : null,
+      currency_original: txCurrency,
+      fx_rate_to_base:  fxRateUsed,
+      fx_source:        fxSource,
+      fx_status:        fxStatus,
+    };
     const { error } = await supabase.from('transactions').insert(payload);
     setSavingTx(false);
     if (error) { toast(error.message, 'error'); return; }
 
     // ── Alerta de presupuesto ──
     if (type === 'GASTO') {
-      const limit = budgets[category]?.amount || 0;
+      const budgetKey = `${txAccount || ''}|${category}|`;
+      const limit = budgets[budgetKey]?.amount || getAggregatedBudget(category);
       if (limit > 0) {
         const prevSpent = stats.expenseByCategory[category] || 0;
         const newSpent  = prevSpent + numericAmount;
@@ -2955,13 +5086,15 @@ export default function App() {
         amount: numericAmount,
         note: note.trim(),
         dayOfMonth: new Date(txDate + 'T12:00:00').getDate(),
+        account: txAccount || '',
       };
       if (existIdx >= 0) templates[existIdx] = tpl; else templates.push(tpl);
       localStorage.setItem(FIXED_TX_KEY, JSON.stringify(templates));
+      setFixedTxs(templates);
       setIsFixed(false);
     }
 
-    setAmount(''); setNote('');
+    setAmount(''); setNote(''); setTxAccount(''); setTxSubcategory(''); setTxCurrency('ARS');
     setMesAsignado({ year: new Date().getFullYear(), month: new Date().getMonth() });
     setSavedOk(true);
     setTimeout(() => setSavedOk(false), 1800);
@@ -2974,7 +5107,12 @@ export default function App() {
     if (!userId) return;
     const ns = { ...strategy, [field]: value };
     setStrategy(ns);
-    const { error } = await supabase.from('strategy').upsert({ user_id: userId, savings_percent: Number(ns.savingsPercent||0), investment_percent: Number(ns.investmentPercent||0) }, { onConflict: 'user_id' });
+    const { error } = await supabase.from('strategy').upsert({
+      user_id:           userId,
+      savings_percent:   Number(ns.savingsPercent    || 0),
+      investment_percent:Number(ns.investmentPercent || 0),
+      use_global:        true,
+    }, { onConflict: 'user_id' });
     if (error) toast(error.message, 'error');
   };
 
@@ -3006,13 +5144,57 @@ export default function App() {
     toast('Resumen copiado al portapapeles', 'success');
   };
 
+  const [undoableTx, setUndoableTx] = useState(null); // { id, tx, timer }
   const deleteTransaction = async (id) => {
     if (!userId) return;
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) { toast(error.message, 'error'); return; }
-    toast('Movimiento eliminado', 'info');
-    await loadTransactions();
+    // Optimistic: remove from local state first, allow undo for 5 seconds
+    const txToDelete = transactions.find(t => t.id === id);
+    if (!txToDelete) return;
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    if (editingTx) setEditingTx(null);
+    // Clear any previous pending undo
+    if (undoableTx?.timer) clearTimeout(undoableTx.timer);
+    const timer = setTimeout(async () => {
+      await supabase.from('transactions').delete().eq('id', id);
+      setUndoableTx(null);
+    }, 5000);
+    setUndoableTx({ id, tx: txToDelete, timer });
+    toast('Eliminado · Toca deshacer abajo', 'info');
   };
+  const undoDeleteTransaction = () => {
+    if (!undoableTx) return;
+    clearTimeout(undoableTx.timer);
+    setTransactions(prev => [...prev, undoableTx.tx].sort((a,b) => b.date?.localeCompare(a.date)));
+    setUndoableTx(null);
+    toast('Movimiento restaurado ✓', 'success');
+  };
+
+  // ── PRESUPUESTO: GASTOS FIJOS edit/delete ──
+  const deleteFixedTx = (id) => {
+    const updated = fixedTxs.filter(t => t.id !== id);
+    localStorage.setItem(FIXED_TX_KEY, JSON.stringify(updated));
+    setFixedTxs(updated);
+    haptic(10);
+    toast('Gasto fijo eliminado', 'info');
+  };
+
+  const openFixedTxEdit = (f) => {
+    const now = new Date();
+    const maxDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const day = Math.min(f.dayOfMonth || 1, maxDay);
+    const d = new Date(now.getFullYear(), now.getMonth(), day);
+    setType(f.type);
+    setAmount(formatNumber(f.amount));
+    setCategory(f.category);
+    setNote(f.note || '');
+    setIsFixed(true);
+    setTxDate(d.toISOString().slice(0, 10));
+    setTxAccount(f.account || '');
+    setActiveTab('add');
+    setEditingFixedTx(null);
+    haptic(12);
+  };
+
 
   // ── BILLS CRUD ──
   const saveBill = async (data) => {
@@ -3070,7 +5252,14 @@ export default function App() {
     const clean = name.trim();
     if (!clean) return;
     if (action==='ADD') { if (!nc[type].includes(clean)) nc[type]=[...nc[type],clean]; }
-    else if (action==='DELETE') nc[type]=nc[type].filter(c=>c!==clean);
+    else if (action==='DELETE') {
+      const txCount = transactions.filter(t => t.category === clean).length;
+      if (txCount > 0 && !extra?.__confirmed) {
+        const ok = window.confirm(`"${clean}" tiene ${txCount} movimiento(s). Si la eliminás, esos movimientos quedarán sin categoría válida.\n\n¿Eliminar de todas formas?`);
+        if (!ok) return;
+      }
+      nc[type]=nc[type].filter(c=>c!==clean);
+    }
     else if (action==='RENAME') {
       const newName = extra?.trim();
       if (!newName || newName === clean) return;
@@ -3101,6 +5290,39 @@ export default function App() {
     if (action!=='EMOJI') setCustomCats(nc);
     if (action==='RENAME' || action==='MERGE') await loadTransactions();
     toast(action==='ADD'?'Categoría agregada':action==='DELETE'?'Categoría eliminada':action==='RENAME'?'Categoría renombrada':action==='MERGE'?'Categorías fusionadas':'Emoji actualizado', 'success');
+  };
+
+  // ── SUBCATEGORÍAS CRUD ──
+  const saveSubcategories = (updated) => {
+    setSubcategories(updated);
+    localStorage.setItem('metacasa_subcats', JSON.stringify(updated));
+    // Mirror for Add form quick access
+    const catData = JSON.parse(localStorage.getItem('metacasa_categories') || '{}');
+    catData.subcategories = updated;
+    localStorage.setItem('metacasa_categories', JSON.stringify(catData));
+    // Sync to cloud — include all shared data to avoid overwriting
+    if (userId) {
+      const cats = customCats || INITIAL_CATEGORIES;
+      const payload = { ...cats, meta: catMeta, goals, cuotas, debts, subcategories: updated,
+        accounts, accountTypes, allocations, savingsInvestAccount };
+      supabase.from('categories').upsert({ user_id: userId, data: payload }, { onConflict: 'user_id' });
+    }
+  };
+  const addSubcategory = (catName, subcatName) => {
+    const name = subcatName.trim();
+    if (!name) return;
+    const cur = subcategories[catName] || [];
+    if (cur.includes(name)) { toast('Ya existe esa subcategoría', 'info'); return; }
+    const updated = { ...subcategories, [catName]: [...cur, name] };
+    saveSubcategories(updated);
+    setNewSubcatInput('');
+    toast('Subcategoría agregada ✓', 'success'); haptic(10);
+  };
+  const deleteSubcategory = (catName, subcatName) => {
+    const updated = { ...subcategories, [catName]: (subcategories[catName] || []).filter(s => s !== subcatName) };
+    if (updated[catName].length === 0) delete updated[catName];
+    saveSubcategories(updated);
+    toast('Subcategoría eliminada', 'info'); haptic(10);
   };
 
   // ── RECURRING CRUD ──
@@ -3134,15 +5356,35 @@ export default function App() {
     await loadRecurring();
   };
 
-  const updateBudget = async (cat, val) => {
+  const updateBudget = async (account, cat, subcat, val) => {
     if (!userId) return;
-    const { error } = await supabase.from('budgets').upsert({ user_id: userId, category: cat, amount: Number(val||0) },{ onConflict: 'user_id,category' });
-    if (error) { toast(error.message,'error'); return; }
+    // Advertencia si excede disponible de la cuenta (waterfall)
+    if (account && !subcat) {
+      const isShared = accountTypes[account] === 'compartida';
+      const base = isShared
+        ? waterfallData.remainder
+        : (waterfallData.effectiveAllocations[account] || 0);
+
+      const otherBudgets = activeCategories.GASTO.filter(c => c !== cat).reduce((acc, c) => {
+        const raw  = budgets[`${account}|${c}|`]?.amount || 0;
+        return acc + raw;
+      }, 0);
+      const newDisponible = base - otherBudgets - Number(val || 0);
+      if (newDisponible < 0 && base > 0) {
+        toast(`⚠ Excede el ${isShared ? 'presupuesto compartido' : 'presupuesto de ' + account} en ${currSymbol}${formatNumber(-newDisponible)}`, 'info');
+      }
+    }
+    const { error } = await supabase.from('budgets').upsert(
+      { user_id: userId, account: account || '', category: cat, subcategory: subcat || '', amount: Number(val||0) },
+      { onConflict: 'user_id,account,category,subcategory' }
+    );
+    if (error) { toast(error.message, 'error'); return; }
     await loadBudgets();
   };
 
   const suggestBudgets = async () => {
     if (!userId) return;
+    if (!budgetAccount) { toast('Seleccioná una cuenta para sugerir presupuestos', 'info'); return; }
     const now = new Date();
     const rows = [];
     activeCategories.GASTO.forEach(cat => {
@@ -3151,21 +5393,217 @@ export default function App() {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const y = d.getFullYear(), m = d.getMonth();
         const total = transactions
-          .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+          .filter(t => {
+            const p = txBudgetPeriod(t);
+            const matchAcc = !budgetAccount || t.account === budgetAccount;
+            return t.type === 'GASTO' && t.category === cat && p.year === y && p.month === m && matchAcc;
+          })
           .reduce((a, c) => a + Number(c.amount), 0);
         if (total > 0) amounts.push(total);
       }
       if (amounts.length > 0) {
-        const avg = amounts.reduce((a,b)=>a+b,0) / amounts.length;
-        rows.push({ user_id: userId, category: cat, amount: Math.round(avg * 1.05) });
+        const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+        rows.push({
+          user_id: userId,
+          account: budgetAccount || '',
+          category: cat,
+          subcategory: '',
+          amount: Math.round(avg * 1.05),
+        });
       }
     });
-    if (rows.length === 0) { toast('Sin historial para sugerir presupuestos','info'); return; }
-    const { error } = await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,category' });
-    if (error) { toast(error.message,'error'); return; }
+    if (rows.length === 0) { toast('Sin historial para sugerir presupuestos', 'info'); return; }
+    const { error } = await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,account,category,subcategory' });
+    if (error) { toast(error.message, 'error'); return; }
     await loadBudgets();
-    toast(`✓ Sugerencias aplicadas para ${rows.length} categorías (+5% buffer)`, 'success');
+    const acctLabel = budgetAccount || 'todas las cuentas';
+    toast(`✓ Sugerencias aplicadas para ${rows.length} categorías (${acctLabel}, +5% buffer)`, 'success');
     haptic(20);
+  };
+
+  // ── Marcar/desmarcar ítem fijo como "Pagado" para el período ──
+  // Si no existe transacción real: la crea en Supabase. Si se desmarca: la elimina.
+  // Clave localStorage para el ID de la tx auto-creada: metacasa_paid_txid_YYYY-MM_templateId
+  const togglePaidItem = async (f) => {
+    if (!userId) return;
+    const periodStr  = `${budgetPeriod.year}-${String(budgetPeriod.month+1).padStart(2,'0')}`;
+    const stateKey   = `metacasa_paid_${periodStr}`;
+    const txIdKey    = `metacasa_paid_txid_${periodStr}_${f.id}`;
+    const isPaid     = !!paidItems[f.id];
+
+    if (!isPaid) {
+      // Marcando como pagado: crear transacción si no existe ya (auto-replicación puede haberla creado)
+      const alreadyHasTx = budgetPeriodTxs.some(t =>
+        t.category === f.category &&
+        t.type     === f.type     &&
+        Math.abs(Number(t.amount) - f.amount) < 1
+      );
+      if (!alreadyHasTx) {
+        const txDate = new Date(budgetPeriod.year, budgetPeriod.month, f.dayOfMonth || 1);
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({
+            user_id:  userId,
+            category: f.category,
+            type:     f.type,
+            amount:   f.amount,
+            note:     `[Fijo] ${f.note || f.category}`,
+            date:     txDate.toISOString(),
+            account:  f.account || null,
+          })
+          .select('id')
+          .single();
+        if (error) { toast(error.message, 'error'); return; }
+        // Guardar el ID para poder eliminarlo si se desmarca
+        localStorage.setItem(txIdKey, data.id);
+        await loadTransactions();
+      }
+      toast(`✓ ${f.category} registrado como pagado`, 'success');
+    } else {
+      // Desmarcando: eliminar la transacción auto-creada (si la creamos nosotros)
+      const autoTxId = localStorage.getItem(txIdKey);
+      if (autoTxId) {
+        const { error } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', autoTxId)
+          .eq('user_id', userId);
+        if (!error) {
+          localStorage.removeItem(txIdKey);
+          await loadTransactions();
+        }
+      }
+    }
+
+    // Actualizar estado de "Pagado" en localStorage (persistencia por período)
+    setPaidItems(prev => {
+      const next = { ...prev, [f.id]: !prev[f.id] };
+      localStorage.setItem(stateKey, JSON.stringify(next));
+      return next;
+    });
+    haptic(8);
+  };
+
+  // ── Marcar/desmarcar vencimiento o cuota como "Abonado" para el período ──
+  // Al abonar: crea transacción en Supabase → reduce disponibleReal.
+  // Al desabonar: elimina la tx auto-creada.
+  const markPeriodItemPaid = async (item) => {
+    if (!userId) return;
+    const periodStr = `${budgetPeriod.year}-${String(budgetPeriod.month+1).padStart(2,'0')}`;
+
+    if (item.type === 'bill') {
+      const bill = bills.find(b => b.id === item.rawId);
+      if (!bill) return;
+      const txIdKey  = `metacasa_billtxid_${periodStr}_${item.rawId}`;
+      const stateKey = `metacasa_billspaid_${periodStr}`;
+
+      if (!item.isPaid) {
+        // Verificar si ya existe una tx real que coincida (evitar duplicado)
+        const alreadyHasTx = budgetPeriodTxs.some(t =>
+          t.type === 'GASTO' && t.category === bill.category &&
+          Math.abs(Number(t.amount) - bill.amount) < 1
+        );
+        if (!alreadyHasTx) {
+          const txDay  = item.isRecurring ? item.dueDay : new Date(bill.due_date).getDate();
+          const txDate = new Date(budgetPeriod.year, budgetPeriod.month, txDay || 1);
+          const { data, error } = await supabase.from('transactions').insert({
+            user_id:  userId,
+            category: bill.category,
+            type:     'GASTO',
+            amount:   bill.amount,
+            note:     `[Vencimiento] ${bill.title}`,
+            date:     txDate.toISOString(),
+          }).select('id').single();
+          if (error) { toast(error.message, 'error'); return; }
+          localStorage.setItem(txIdKey, data.id);
+          await loadTransactions();
+        }
+        // Para bills one-time: actualizar status en Supabase también
+        if (!item.isRecurring) {
+          await supabase.from('bills').update({ status: 'paid' }).eq('id', item.rawId).eq('user_id', userId);
+          await loadBills();
+        } else {
+          setPaidBillsInPeriod(prev => {
+            const next = { ...prev, [item.rawId]: true };
+            localStorage.setItem(stateKey, JSON.stringify(next));
+            return next;
+          });
+        }
+        toast(`✓ ${bill.title} marcado como abonado`, 'success');
+      } else {
+        // Desabonar: eliminar tx auto-creada
+        const autoTxId = localStorage.getItem(txIdKey);
+        if (autoTxId) {
+          await supabase.from('transactions').delete().eq('id', autoTxId).eq('user_id', userId);
+          localStorage.removeItem(txIdKey);
+          await loadTransactions();
+        }
+        if (!item.isRecurring) {
+          await supabase.from('bills').update({ status: 'pending' }).eq('id', item.rawId).eq('user_id', userId);
+          await loadBills();
+        } else {
+          setPaidBillsInPeriod(prev => {
+            const next = { ...prev, [item.rawId]: false };
+            localStorage.setItem(stateKey, JSON.stringify(next));
+            return next;
+          });
+        }
+      }
+
+    } else if (item.type === 'cuota') {
+      const cuota = cuotas.find(c => c.id === item.rawId);
+      if (!cuota) return;
+      const txIdKey  = `metacasa_cuotatxid_${periodStr}_${item.rawId}`;
+      const stateKey = `metacasa_cuotaspaid_${periodStr}`;
+
+      if (!item.isPaid) {
+        const alreadyHasTx = budgetPeriodTxs.some(t =>
+          t.type === 'GASTO' && Math.abs(Number(t.amount) - cuota.monthlyAmount) < 1
+        );
+        if (!alreadyHasTx) {
+          const txDate = new Date(budgetPeriod.year, budgetPeriod.month, 1);
+          const { data, error } = await supabase.from('transactions').insert({
+            user_id:  userId,
+            category: activeCategories.GASTO[0] || 'Servicios',
+            type:     'GASTO',
+            amount:   cuota.monthlyAmount,
+            note:     `[Cuota ${item.cuotaNum}/${cuota.totalCuotas}] ${cuota.name}`,
+            date:     txDate.toISOString(),
+          }).select('id').single();
+          if (error) { toast(error.message, 'error'); return; }
+          localStorage.setItem(txIdKey, data.id);
+          await loadTransactions();
+        }
+        setPaidCuotasInPeriod(prev => {
+          const next = { ...prev, [item.rawId]: true };
+          localStorage.setItem(stateKey, JSON.stringify(next));
+          return next;
+        });
+        toast(`✓ Cuota ${item.cuotaNum}/${cuota.totalCuotas} de ${cuota.name} abonada`, 'success');
+      } else {
+        const autoTxId = localStorage.getItem(txIdKey);
+        if (autoTxId) {
+          await supabase.from('transactions').delete().eq('id', autoTxId).eq('user_id', userId);
+          localStorage.removeItem(txIdKey);
+          await loadTransactions();
+        }
+        setPaidCuotasInPeriod(prev => {
+          const next = { ...prev, [item.rawId]: false };
+          localStorage.setItem(stateKey, JSON.stringify(next));
+          return next;
+        });
+      }
+    }
+    haptic(8);
+  };
+
+  // ── Alternar modo de presupuesto: '$' ↔ '%' por categoría ──
+  const cycleBudgetMode = (cat) => {
+    setBudgetModes(prev => {
+      const next = {...prev, [cat]: (prev[cat]||'$')==='$'?'%':'$'};
+      localStorage.setItem(BUDGET_MODE_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   const exportAllJSON = () => {
@@ -3254,21 +5692,46 @@ export default function App() {
   // RENDER: APP
   // ─────────────────────────────────────────────
 
-  // Transacciones del mes actual
+  // Transacciones del mes actual (usando período asignado si corresponde)
   const monthTxs = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth()===currentDate.getMonth() && d.getFullYear()===currentDate.getFullYear();
+    const p = txBudgetPeriod(t);
+    return p.month===currentDate.getMonth() && p.year===currentDate.getFullYear();
   });
 
   // ── Transacciones filtradas para Historial ──
   const filteredTxs = useMemo(() => {
-    let base = allMonths ? transactions : monthTxs;
+    let base;
+    if (allMonths) {
+      base = transactions;
+    } else if (selectedHistoryMonth) {
+      if (historyDateMode === 'period') {
+        base = transactions.filter(t => {
+          const p = txBudgetPeriod(t);
+          return p.year === selectedHistoryMonth.year && p.month === selectedHistoryMonth.month;
+        });
+      } else {
+        base = transactions.filter(t => {
+          const d = new Date(t.date);
+          return d.getFullYear() === selectedHistoryMonth.year && d.getMonth() === selectedHistoryMonth.month;
+        });
+      }
+    } else {
+      // Mes actual: 'period' usa txBudgetPeriod (comportamiento original), 'real' usa fecha real
+      if (historyDateMode === 'real') {
+        base = transactions.filter(t => {
+          const d = new Date(t.date);
+          return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
+        });
+      } else {
+        base = monthTxs;
+      }
+    }
 
     // Filtro por tipo
     if (filterType !== 'ALL') base = base.filter(t => t.type === filterType);
 
-    // Filtro por categoría
-    if (filterCategory) base = base.filter(t => t.category === filterCategory);
+    // Filtro por categoría (Set multi-select)
+    if (filterCategories.size > 0) base = base.filter(t => filterCategories.has(t.category));
 
     // Filtro por fecha específica (drill-down desde el calendario)
     if (filterDate) base = base.filter(t => t.date === filterDate);
@@ -3292,13 +5755,18 @@ export default function App() {
     if (filterDateFrom) base = base.filter(t => t.date.slice(0,10) >= filterDateFrom);
     if (filterDateTo)   base = base.filter(t => t.date.slice(0,10) <= filterDateTo);
 
-    // Búsqueda por texto (categoría, nota, monto)
+    // Filtro por cuenta (quien pagó)
+    if (filterAccount) base = base.filter(t => t.account === filterAccount);
+
+    // Búsqueda por texto (categoría, nota, monto, cuenta)
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       base = base.filter(t =>
         t.category.toLowerCase().includes(q) ||
         (t.note || '').toLowerCase().includes(q) ||
-        String(t.amount).includes(q)
+        String(t.amount).includes(q) ||
+        (t.account || '').toLowerCase().includes(q) ||
+        (t.subcategory || '').toLowerCase().includes(q)
       );
     }
 
@@ -3310,22 +5778,53 @@ export default function App() {
       if (sortBy === 'amount_asc')  return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, monthTxs, allMonths, filterType, filterCategory, filterDate, filterMin, filterMax, filterWeek, filterDateFrom, filterDateTo, searchQuery, sortBy]);
+  }, [transactions, monthTxs, allMonths, selectedHistoryMonth, historyDateMode, currentDate, filterType, filterCategories, filterDate, filterMin, filterMax, filterWeek, filterDateFrom, filterDateTo, searchQuery, sortBy, filterAccount]);
 
   // Categorías disponibles según el filtro de tipo actual
   const filterableCats = useMemo(() => {
-    const base = allMonths ? transactions : monthTxs;
+    let base;
+    if (allMonths) {
+      base = transactions;
+    } else if (selectedHistoryMonth) {
+      if (historyDateMode === 'period') {
+        base = transactions.filter(t => {
+          const p = txBudgetPeriod(t);
+          return p.year === selectedHistoryMonth.year && p.month === selectedHistoryMonth.month;
+        });
+      } else {
+        base = transactions.filter(t => {
+          const d = new Date(t.date);
+          return d.getFullYear() === selectedHistoryMonth.year && d.getMonth() === selectedHistoryMonth.month;
+        });
+      }
+    } else {
+      base = historyDateMode === 'real'
+        ? transactions.filter(t => { const d = new Date(t.date); return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear(); })
+        : monthTxs;
+    }
     const src = filterType === 'ALL' ? base : base.filter(t => t.type === filterType);
     return [...new Set(src.map(t => t.category))].sort();
-  }, [transactions, monthTxs, allMonths, filterType]);
+  }, [transactions, monthTxs, allMonths, selectedHistoryMonth, historyDateMode, currentDate, filterType]);
 
-  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategory || filterDate || filterMin !== '' || filterMax !== '' || filterWeek || filterDateFrom || filterDateTo || sortBy !== 'date_desc' || allMonths;
+  // Meses disponibles agrupados por año (para el picker)
+  const availableYearMonths = useMemo(() => {
+    const byYearMonth = {};
+    transactions.forEach(t => {
+      const d = new Date(t.date);
+      const y = d.getFullYear(), m = d.getMonth();
+      const key = `${y}-${String(m).padStart(2,'0')}`;
+      if (!byYearMonth[key]) byYearMonth[key] = { year: y, month: m };
+    });
+    return Object.values(byYearMonth).sort((a,b) => b.year !== a.year ? b.year - a.year : b.month - a.month);
+  }, [transactions]);
+
+  const hasActiveFilters = searchQuery || filterType !== 'ALL' || filterCategories.size > 0 || filterDate || filterMin !== '' || filterMax !== '' || filterWeek || filterDateFrom || filterDateTo || sortBy !== 'date_desc' || allMonths || selectedHistoryMonth || filterAccount;
 
   const clearFilters = () => {
-    setSearchQuery(''); setFilterType('ALL'); setFilterCategory('');
+    setSearchQuery(''); setFilterType('ALL'); setFilterCategories(new Set());
     setFilterDate(''); setFilterMin(''); setFilterMax(''); setFilterWeek(false);
     setFilterDateFrom(''); setFilterDateTo(''); setShowRangeFilter(false);
-    setSortBy('date_desc'); setAllMonths(false);
+    setSortBy('date_desc'); setAllMonths(false); setSelectedHistoryMonth(null);
   };
 
   // ── RESUMEN DEL FILTRO (historial) ──
@@ -3380,10 +5879,10 @@ export default function App() {
 
     // 2. Presupuestos respetados (0-25 pts)
     const budgetItems = activeCategories.GASTO
-      .filter(cat => Number(budgets[cat]?.amount || 0) > 0);
+      .filter(cat => getAggregatedBudget(cat) > 0);
     const budgetPts = budgetItems.length > 0 ? (() => {
       const greenCount = budgetItems.filter(cat => {
-        const pct = (stats.expenseByCategory[cat] || 0) / Number(budgets[cat].amount);
+        const pct = (stats.expenseByCategory[cat] || 0) / getAggregatedBudget(cat);
         return pct < 0.9;
       }).length;
       return Math.round((greenCount / budgetItems.length) * 25);
@@ -3408,7 +5907,7 @@ export default function App() {
     breakdown.push({ label: 'Metas', pts: goalPts, max: 10, detail: goals.length > 0 ? `${goals.length} meta${goals.length!==1?'s':''}` : 'Sin metas' });
 
     const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 60 ? 'C' : score >= 50 ? 'D' : 'F';
-    const color = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-indigo-400' : score >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const color = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-violet-400' : score >= 40 ? 'text-amber-400' : 'text-rose-400';
     const label = score >= 80 ? 'Excelente' : score >= 60 ? 'Buena' : score >= 40 ? 'Regular' : 'Crítica';
     return { score, grade, color, label, breakdown };
   }, [stats, budgets, activeCategories, savingsStreak, goals]);
@@ -3803,7 +6302,7 @@ export default function App() {
   const budgetSemaforo = useMemo(() => {
     const items = activeCategories.GASTO
       .map(cat => {
-        const limit = Number(budgets[cat]?.amount || 0);
+        const limit = getAggregatedBudget(cat);
         if (limit <= 0) return null;
         const spent = stats.expenseByCategory[cat] || 0;
         const pct = Math.round((spent / limit) * 100);
@@ -4092,8 +6591,8 @@ export default function App() {
   // ── REGLA 50/30/20 ──
   const rule503020 = useMemo(() => {
     if (stats.income === 0 || stats.expenses === 0) return null;
-    const needsAmt   = activeCategories.GASTO.filter(c => NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
-    const wantsAmt   = activeCategories.GASTO.filter(c => !NEEDS_CATS.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const needsAmt   = activeCategories.GASTO.filter(c => needsCats.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
+    const wantsAmt   = activeCategories.GASTO.filter(c => !needsCats.has(c)).reduce((a,c) => a + (stats.expenseByCategory[c]||0), 0);
     const savingsAmt = Math.max(0, stats.income - stats.expenses);
     const base       = stats.income;
     const needsPct   = Math.round((needsAmt   / base) * 100);
@@ -4112,7 +6611,7 @@ export default function App() {
       wants:   { amount: Math.round(wantsAmt),   actual: wantsPct,   target: 30 },
       savings: { amount: Math.round(savingsAmt), actual: savingsPct, target: 20 },
     };
-  }, [stats, activeCategories]);
+  }, [stats, activeCategories, needsCats]);
 
   // ── SPARKLINES POR CATEGORÍA (3 meses) ──
   const catSparklines = useMemo(() => {
@@ -4123,14 +6622,197 @@ export default function App() {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const y = d.getFullYear(), m = d.getMonth();
         return transactions
-          .filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; })
+          .filter(t => {
+            const p = txBudgetPeriod(t);
+            const matchAcc = !budgetAccount || t.account === budgetAccount;
+            return t.type === 'GASTO' && t.category === cat && p.year === y && p.month === m && matchAcc;
+          })
           .reduce((a, c) => a + Number(c.amount), 0);
       });
       const maxVal = Math.max(...vals, 1);
       result[cat] = { vals, maxVal };
     });
     return result;
-  }, [transactions, activeCategories]);
+  }, [transactions, activeCategories, budgetAccount]);
+
+  // ── PRESUPUESTO: transacciones del período seleccionado ──
+  const budgetPeriodTxs = useMemo(() =>
+    transactions.filter(t => {
+      const p = txBudgetPeriod(t);
+      return p.year===budgetPeriod.year && p.month===budgetPeriod.month;
+    }),
+  [transactions, budgetPeriod]);
+
+  // ── PRESUPUESTO: vencimientos (bills) y cuotas activas en el período ──
+  // Cada ítem: { id, rawId, type:'bill'|'cuota', name, amount, dueDay, isPaid, emoji, ... }
+  const periodBudgetItems = useMemo(() => {
+    const pY = budgetPeriod.year;
+    const pM = budgetPeriod.month; // 0-based
+    const items = [];
+
+    // ── Bills ──
+    bills.forEach(b => {
+      const due = new Date(b.due_date);
+      let inPeriod = false;
+      if      (b.recurrence_type === 'monthly') { inPeriod = true; }
+      else if (b.recurrence_type === 'yearly')  { inPeriod = due.getMonth() === pM; }
+      else { inPeriod = due.getFullYear() === pY && due.getMonth() === pM; }
+      if (!inPeriod) return;
+
+      // Estado de pago: recurrentes = por período; one-time = status global
+      const isPaid = b.recurrence_type
+        ? !!paidBillsInPeriod[b.id]
+        : b.status === 'paid';
+
+      items.push({
+        id:          `bill_${b.id}`,
+        rawId:       b.id,
+        type:        'bill',
+        name:        b.title,
+        amount:      b.amount,
+        dueDay:      due.getDate(),
+        isPaid,
+        emoji:       '📅',
+        category:    b.category,
+        isRecurring: !!b.recurrence_type,
+      });
+    });
+
+    // ── Cuotas ──
+    cuotas.forEach(c => {
+      if (c.paidCuotas >= c.totalCuotas) return;
+      const start     = new Date(c.startDate);
+      const endDate   = new Date(c.startDate);
+      endDate.setMonth(endDate.getMonth() + c.totalCuotas);
+      const pStart    = new Date(pY, pM, 1);
+      const pEnd      = new Date(pY, pM + 1, 0);
+      if (start > pEnd || endDate <= pStart) return;
+
+      const startMonthNum  = start.getFullYear() * 12 + start.getMonth();
+      const periodMonthNum = pY * 12 + pM;
+      const cuotaNum = Math.max(1, periodMonthNum - startMonthNum + 1);
+
+      items.push({
+        id:          `cuota_${c.id}`,
+        rawId:       c.id,
+        type:        'cuota',
+        name:        c.name,
+        amount:      c.monthlyAmount,
+        dueDay:      null,
+        isPaid:      !!paidCuotasInPeriod[c.id],
+        emoji:       c.emoji || '💳',
+        cuotaNum,
+        totalCuotas: c.totalCuotas,
+      });
+    });
+
+    // Ordenar por día de vencimiento (bills primero, luego cuotas)
+    return items.sort((a, b) => {
+      if (a.dueDay === null && b.dueDay === null) return 0;
+      if (a.dueDay === null) return 1;
+      if (b.dueDay === null) return -1;
+      return a.dueDay - b.dueDay;
+    });
+  }, [bills, cuotas, budgetPeriod, paidBillsInPeriod, paidCuotasInPeriod]);
+
+  // ── PRESUPUESTO: stats del período seleccionado ──
+  const budgetPeriodStats = useMemo(() => {
+    const income = budgetPeriodTxs.filter(t=>t.type==='INGRESO').reduce((a,c)=>a+Number(c.amount),0);
+    const expBycat = {};
+    budgetPeriodTxs.filter(t=>t.type==='GASTO').forEach(t=>{
+      expBycat[t.category]=(expBycat[t.category]||0)+Number(t.amount);
+    });
+    const incomeCats = {};
+    budgetPeriodTxs.filter(t=>t.type==='INGRESO').forEach(t=>{
+      incomeCats[t.category]=(incomeCats[t.category]||0)+Number(t.amount);
+    });
+    const fixedPaidTotal = fixedTxs
+      .filter(f=>f.type==='GASTO' && paidItems[f.id])
+      .reduce((a,c)=>a+c.amount,0);
+    return { income, expBycat, incomeCats, fixedPaidTotal };
+  }, [budgetPeriodTxs, fixedTxs, paidItems]);
+
+  // ── PRESUPUESTO: stats filtrados por cuenta seleccionada ──
+  const budgetFilteredStats = useMemo(() => {
+    const filtered = budgetAccount
+      ? budgetPeriodTxs.filter(t => t.account === budgetAccount)
+      : budgetPeriodTxs;
+    const income = filtered.filter(t => t.type === 'INGRESO').reduce((a, c) => a + Number(c.amount), 0);
+    const expBycat = {};
+    const expByCatSubcat = {}; // key: 'cat||subcat'
+    filtered.filter(t => t.type === 'GASTO').forEach(t => {
+      expBycat[t.category] = (expBycat[t.category] || 0) + Number(t.amount);
+      const sk = `${t.category}||${t.subcategory || ''}`;
+      expByCatSubcat[sk] = (expByCatSubcat[sk] || 0) + Number(t.amount);
+    });
+    return { income, expBycat, expByCatSubcat };
+  }, [budgetPeriodTxs, budgetAccount]);
+
+  // ── WATERFALL: Cálculo completo del presupuesto del hogar ──
+  const waterfallData = useMemo(() => {
+    // 1. Ingreso total del hogar (TODAS las cuentas)
+    const totalIncome = budgetPeriodTxs
+      .filter(t => t.type === 'INGRESO')
+      .reduce((a, c) => a + Number(c.amount), 0);
+
+    // Ingreso por cuenta (para modo proporcional)
+    const incomeByAccount = {};
+    budgetPeriodTxs.filter(t => t.type === 'INGRESO').forEach(t => {
+      incomeByAccount[t.account] = (incomeByAccount[t.account] || 0) + Number(t.amount);
+    });
+
+    // 2. Obligaciones: gastos fijos pagados
+    const fixedExpenses = budgetPeriodStats.fixedPaidTotal;
+
+    // 3. Vencimientos y cuotas
+    const billsAndCuotas = periodBudgetItems.reduce((a, i) => a + i.amount, 0);
+
+    // 4. Presupuestos compartidos (categorías asignadas a cuentas "compartida")
+    const sharedCategoryBudgets = sharedAccounts.reduce((total, acc) => {
+      return total + activeCategories.GASTO.reduce((sum, cat) => {
+        const raw = budgets[`${acc}|${cat}|`]?.amount || 0;
+        return sum + raw;
+      }, 0);
+    }, 0);
+
+    // 5. Ahorro e Inversión (% del ingreso total del hogar)
+    const savingsAmt = Math.round(totalIncome * (strategy.savingsPercent || 0) / 100);
+    const investAmt  = Math.round(totalIncome * (strategy.investmentPercent || 0) / 100);
+
+    // 6. Saldo a distribuir
+    const totalDeductions = fixedExpenses + billsAndCuotas + sharedCategoryBudgets + savingsAmt + investAmt;
+    const remainder = Math.max(0, totalIncome - totalDeductions);
+
+    // 7. Asignaciones efectivas según modo
+    let effectiveAllocations = {};
+    const mode = allocations.mode || 'equal';
+    if (mode === 'equal' && personalAccounts.length > 0) {
+      const share = Math.round(remainder / personalAccounts.length);
+      personalAccounts.forEach(a => { effectiveAllocations[a] = share; });
+    } else if (mode === 'proportional' && totalIncome > 0) {
+      personalAccounts.forEach(a => {
+        const accIncome = incomeByAccount[a] || 0;
+        effectiveAllocations[a] = Math.round(remainder * (accIncome / totalIncome));
+      });
+    } else if (mode === 'custom') {
+      effectiveAllocations = { ...(allocations.amounts || {}) };
+    } else if (personalAccounts.length > 0) {
+      const share = Math.round(remainder / personalAccounts.length);
+      personalAccounts.forEach(a => { effectiveAllocations[a] = share; });
+    }
+
+    const totalAllocated = personalAccounts.reduce((a, acc) => a + (effectiveAllocations[acc] || 0), 0);
+    const unallocated = remainder - totalAllocated;
+
+    return {
+      totalIncome, incomeByAccount,
+      fixedExpenses, billsAndCuotas, sharedCategoryBudgets,
+      savingsAmt, investAmt, totalDeductions,
+      remainder, effectiveAllocations, totalAllocated, unallocated,
+    };
+  }, [budgetPeriodTxs, budgetPeriodStats, periodBudgetItems,
+      sharedAccounts, personalAccounts, budgets,
+      activeCategories, strategy, allocations]);
 
   // ── INFLACIÓN PERSONAL (YoY) ──
   const yoyAnalysis = useMemo(() => {
@@ -4256,7 +6938,7 @@ export default function App() {
     if (stats.expenses === 0) return null;
     const cats = activeCategories.GASTO.filter(cat => {
       const spent  = stats.expenseByCategory[cat] || 0;
-      const budget = budgets[cat]?.amount || 0;
+      const budget = getAggregatedBudget(cat);
       return spent > 0 && budget === 0;
     });
     if (cats.length === 0) return null;
@@ -4495,11 +7177,11 @@ export default function App() {
 
   // ── VICTORIAS DE PRESUPUESTO ──
   const budgetWins = useMemo(() => {
-    const budgeted = activeCategories.GASTO.filter(cat => (budgets[cat]?.amount||0) > 0);
+    const budgeted = activeCategories.GASTO.filter(cat => getAggregatedBudget(cat) > 0);
     if (budgeted.length === 0) return null;
     const wins = budgeted
       .map(cat => {
-        const budget = Number(budgets[cat].amount);
+        const budget = getAggregatedBudget(cat);
         const spent  = stats.expenseByCategory[cat] || 0;
         const saved  = budget - spent;
         const pct    = Math.round((saved / budget) * 100);
@@ -4588,7 +7270,7 @@ export default function App() {
       for (let i = 0; i < 6; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const y = d.getFullYear(), m = d.getMonth();
-        const s = transactions.filter(t => { const td = new Date(t.date); return t.type==='GASTO' && t.category===cat && td.getFullYear()===y && td.getMonth()===m; }).reduce((a,c)=>a+Number(c.amount),0);
+        const s = transactions.filter(t => { const p = txBudgetPeriod(t); return t.type==='GASTO' && t.category===cat && p.year===y && p.month===m; }).reduce((a,c)=>a+Number(c.amount),0);
         if (s > 0) sums.push(s);
       }
       if (sums.length < 3) return null;
@@ -4818,8 +7500,8 @@ export default function App() {
   const budgetCoverage = useMemo(() => {
     const activeCats = activeCategories.GASTO.filter(cat => (stats.expenseByCategory[cat]||0) > 0);
     if (activeCats.length === 0) return null;
-    const withBudget = activeCats.filter(cat => Number(budgets[cat]?.amount||0) > 0);
-    const noBudget   = activeCats.filter(cat => !(Number(budgets[cat]?.amount||0) > 0));
+    const withBudget = activeCats.filter(cat => getAggregatedBudget(cat) > 0);
+    const noBudget   = activeCats.filter(cat => getAggregatedBudget(cat) === 0);
     const pct = Math.round((withBudget.length / activeCats.length) * 100);
     return { total: activeCats.length, covered: withBudget.length, noBudget, pct };
   }, [activeCategories, stats, budgets]);
@@ -5119,28 +7801,39 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-4xl font-black italic uppercase tracking-tighter">MetaCasa</h1>
-              <p className="text-sm text-zinc-500 mt-1">Finanzas del hogar</p>
+              <p className="text-sm text-zinc-500 mt-1">{tl('homeFinance')}</p>
             </div>
           </div>
 
           <div className="bg-zinc-900/50 rounded-[2rem] p-7 border border-white/5 space-y-5">
             <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
-              {[{key:"LOGIN",label:"Ingresar"},{key:"SIGNUP",label:"Registrarse"}].map(opt=>(
+              {[{key:"LOGIN",label:tl('loginTab')},{key:"SIGNUP",label:tl('signupTab')}].map(opt=>(
                 <button key={opt.key} onClick={()=>setAuthMode(opt.key)}
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${authMode===opt.key?'bg-indigo-600 text-white':'text-zinc-500'}`}>
+                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${authMode===opt.key?'bg-violet-600 text-white':'text-zinc-500'}`}>
                   {opt.label}
                 </button>
               ))}
             </div>
             <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email"
-              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
-            <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Contraseña"
-              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors" />
+              className="w-full bg-black/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-colors" />
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder={lang==='en'?'Password':'Contraseña'}
+                className="w-full bg-black/60 rounded-2xl p-4 pr-12 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-colors" />
+              <button type="button" onClick={()=>setShowPassword(p=>!p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-500 active:text-zinc-300 transition-colors">
+                {showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+              </button>
+            </div>
             <button onClick={authMode==="LOGIN"?signIn:signUp}
-              className="w-full py-5 rounded-2xl font-bold text-sm uppercase tracking-wider bg-indigo-600 active:scale-95 transition-all shadow-lg">
-              {authMode==="LOGIN"?"Ingresar":"Crear cuenta"}
+              className="w-full py-5 rounded-2xl font-bold text-sm uppercase tracking-wider bg-violet-600 active:scale-95 transition-all shadow-lg">
+              {authMode==="LOGIN"?tl('loginBtn'):tl('createAccountBtn')}
             </button>
-            {authMode==="SIGNUP"&&<p className="text-xs text-zinc-600 text-center">Revisá spam/promociones si no llega el email de confirmación.</p>}
+            {authMode==="LOGIN" && (
+              <button onClick={resetPassword} className="text-xs text-violet-400 text-center w-full py-2 active:text-violet-300">
+                {tl('forgotPassword')}
+              </button>
+            )}
+            {authMode==="SIGNUP"&&<p className="text-xs text-zinc-600 text-center">{tl('checkSpam')}</p>}
           </div>
         </div>
       </div>
@@ -5152,13 +7845,13 @@ export default function App() {
       <GlobalStyles />
 
       {/* ── TAB CONTENT ── */}
-      <div className="max-w-md sm:max-w-xl md:max-w-3xl xl:max-w-5xl mx-auto pb-28 md:pb-10">
+      <div className="max-w-md sm:max-w-xl md:max-w-3xl xl:max-w-5xl mx-auto pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pb-10">
 
         {/* ════════════════════════════════
             TAB: INICIO (Dashboard)
         ════════════════════════════════ */}
         {activeTab==='home' && (
-          <div className="px-4 md:px-6 pt-5 flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5 md:items-start">
+          <div className="px-5 pt-[calc(env(safe-area-inset-top)+16px)] pb-[calc(env(safe-area-inset-bottom)+90px)] flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5 md:items-start">
             {/* Header */}
             <header style={{order: -2}} className="md:col-span-2 lg:col-span-3 flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -5168,29 +7861,30 @@ export default function App() {
                 <div>
                   <h1 className="text-lg font-black italic uppercase tracking-tight leading-none">MetaCasa</h1>
                   <button onClick={()=>setShowDatePicker(true)}
-                    className="flex items-center gap-1 text-xs font-semibold text-indigo-400 mt-0.5 active:opacity-60">
+                    className="flex items-center gap-1 text-xs font-semibold text-violet-400 mt-0.5 active:opacity-60">
                     <Calendar className="w-3 h-3" />
                     {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <button onClick={()=>{ haptic(8); setShowSearch(true); }}
-                  className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Buscar transacciones">
+                  className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Buscar transacciones">
                   <Search className="w-5 h-5 text-zinc-400"/>
                 </button>
-                <button onClick={()=>{ haptic(8); setShowWidgetEditor(true); }}
-                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${hiddenWidgets.size > 0 ? 'bg-indigo-600/20' : 'bg-zinc-900'}`} title="Personalizar widgets">
-                  <LayoutGrid className={`w-5 h-5 ${hiddenWidgets.size > 0 ? 'text-indigo-400' : 'text-zinc-400'}`}/>
+                <button onClick={()=>{ haptic(8); setActiveTab('settings'); }}
+                  className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Ajustes">
+                  <Settings className="w-5 h-5 text-zinc-400"/>
                 </button>
-                <button onClick={togglePrivacy} className={`p-2.5 rounded-xl active:scale-90 transition-transform ${privacyMode ? 'bg-amber-500/20' : 'bg-zinc-900'}`} title={privacyMode ? 'Mostrar montos' : 'Ocultar montos'}>
+                <button onClick={()=>{ haptic(8); setShowWidgetEditor(true); }}
+                  className={`p-2 rounded-xl active:scale-90 transition-transform ${hiddenWidgets.size > 0 ? 'bg-violet-700/15' : 'bg-zinc-900'}`} title="Personalizar widgets">
+                  <LayoutGrid className={`w-5 h-5 ${hiddenWidgets.size > 0 ? 'text-violet-400' : 'text-zinc-400'}`}/>
+                </button>
+                <button onClick={togglePrivacy} className={`p-2 rounded-xl active:scale-90 transition-transform ${privacyMode ? 'bg-amber-500/20' : 'bg-zinc-900'}`} title={privacyMode ? 'Mostrar montos' : 'Ocultar montos'}>
                   {privacyMode ? <EyeOff className="w-5 h-5 text-amber-400"/> : <Eye className="w-5 h-5 text-zinc-400"/>}
                 </button>
-                <button onClick={handleQuickShare} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Compartir resumen">
-                  <Share2 className="w-5 h-5 text-indigo-400" />
-                </button>
-                <button onClick={signOut} className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Cerrar sesión">
-                  <LogOut className="w-5 h-5 text-zinc-400" />
+                <button onClick={handleQuickShare} className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform" title="Compartir resumen">
+                  <Share2 className="w-5 h-5 text-violet-400" />
                 </button>
               </div>
             </header>
@@ -5203,7 +7897,7 @@ export default function App() {
                     <button onClick={()=>changeMonth(-1)} className="p-2 bg-zinc-900/70 rounded-full text-zinc-500 active:scale-90 transition-transform">
                       <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <span className="text-xs font-semibold text-zinc-600 uppercase tracking-wider">Balance del período</span>
+                    <span className="text-xs font-semibold text-zinc-600 uppercase tracking-wider">{tl('periodBalance')}</span>
                     <button onClick={()=>changeMonth(1)} className="p-2 bg-zinc-900/70 rounded-full text-zinc-500 active:scale-90 transition-transform">
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -5219,7 +7913,7 @@ export default function App() {
                         return (
                           <button key={i} onClick={()=>{ setCurrentDate(new Date(d.getFullYear(),d.getMonth(),1)); haptic(8); }}
                             className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95
-                              ${isSel ? 'bg-indigo-600 text-white shadow-md' : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
+                              ${isSel ? 'bg-violet-600 text-white shadow-md' : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
                             {MONTHS[d.getMonth()].slice(0,3)}{d.getFullYear()!==new Date().getFullYear()?` ${d.getFullYear()}`:''}
                           </button>
                         );
@@ -5227,42 +7921,63 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2rem] p-7 shadow-2xl relative overflow-hidden">
+                  {/* Selector de cuenta — Home */}
+                  {accounts.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+                      {['', ...accounts].map(acc => (
+                        <button key={acc || '__all__'}
+                          onClick={() => { setHomeAccount(acc); haptic(6); }}
+                          className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 border
+                            ${homeAccount === acc
+                              ? 'bg-violet-600 text-white border-violet-500/50'
+                              : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                          {acc || 'Todas'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="rounded-[2rem] p-7 shadow-2xl relative overflow-hidden border border-violet-500/10" style={{background:'linear-gradient(145deg, #2c1158 0%, #18093a 45%, #090511 100%)'}}>
                     <div className="relative z-10">
-                      <p className="text-xs font-semibold text-indigo-200/60 uppercase tracking-wider">Saldo disponible</p>
-                      {privacyMode
-                        ? <p className="text-5xl font-black text-white tracking-tight my-1">••••</p>
-                        : <SharedSizeText value={stats.available} fontSizeClass="text-5xl" />
-                      }
-                      {!privacyMode && exchangeRate > 0 && (
-                        <p className="text-sm font-bold text-indigo-300/70 -mt-3">
-                          ≈ USD {formatNumber(Math.round(stats.available / exchangeRate))}
-                        </p>
-                      )}
+                      <button
+                        onClick={()=>{ setHomeDetailType('DISPONIBLE'); haptic(8); }}
+                        className="w-full text-left active:opacity-70 transition-opacity">
+                        <p className="text-xs font-semibold text-violet-200/55 uppercase tracking-wider">{tl('availableBalance')}</p>
+                        {privacyMode
+                          ? <p className="text-5xl font-black text-white tracking-tight my-1">••••</p>
+                          : <SharedSizeText value={homeStats.available} fontSizeClass="text-5xl" />
+                        }
+                        {/* Eliminado: conversión de balance — los montos ya están en la moneda base */}
+                        <p className="text-[9px] text-white/20 font-semibold tracking-wide mt-1.5">{tl('seeDetailByCategory')}</p>
+                      </button>
                       <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-3">
-                        <div className="bg-white/8 rounded-2xl p-4">
+                        <button onClick={()=>{ setHomeDetailType('INGRESO'); haptic(8); }}
+                          className="bg-white/8 rounded-2xl p-4 text-left active:scale-[0.96] transition-transform">
                           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-300 mb-1.5">
-                            <ArrowUpRight className="w-3.5 h-3.5" /> Ingresos
+                            <ArrowUpRight className="w-3.5 h-3.5" /> {tl('incomesLabel')}
                           </span>
-                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(stats.income))}</p>
-                        </div>
-                        <div className="bg-white/8 rounded-2xl p-4">
+                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(homeStats.income))}</p>
+                          <p className="text-[9px] text-white/30 mt-1 font-semibold tracking-wide">{tl('seeDetail')}</p>
+                        </button>
+                        <button onClick={()=>{ setHomeDetailType('GASTO'); haptic(8); }}
+                          className="bg-white/8 rounded-2xl p-4 text-left active:scale-[0.96] transition-transform">
                           <span className="flex items-center gap-1 text-xs font-semibold text-rose-300 mb-1.5">
-                            <ArrowDownLeft className="w-3.5 h-3.5" /> Gastos
+                            <ArrowDownLeft className="w-3.5 h-3.5" /> {tl('expensesTitle')}
                           </span>
-                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(stats.expenses))}</p>
-                        </div>
+                          <p className="text-xl font-black tracking-tight">${priv(formatNumber(homeStats.expenses))}</p>
+                          <p className="text-[9px] text-white/30 mt-1 font-semibold tracking-wide">{tl('seeDetail')}</p>
+                        </button>
                         {cuotasMonthly > 0 && (
                           <div className="col-span-2 bg-amber-500/10 rounded-2xl p-3 flex justify-between items-center">
                             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-                              <Wallet className="w-3.5 h-3.5"/> Cuotas del mes
+                              <Wallet className="w-3.5 h-3.5"/> {tl('monthInstallments')}
                             </span>
-                            <span className="text-sm font-black text-amber-300">${priv(formatNumber(cuotasMonthly))}</span>
+                            <span className="text-sm font-black text-amber-300">{currSymbol}{priv(formatNumber(cuotasMonthly))}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -mr-20 -mt-20" />
+                    <div className="absolute top-0 right-0 w-56 h-56 bg-violet-400/18 rounded-full blur-[90px] -mr-20 -mt-20" />
                   </div>
                 </div>
 
@@ -5271,7 +7986,7 @@ export default function App() {
                   <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 space-y-3">
                     <div className="flex justify-between items-center">
                       <p className="text-sm font-bold text-zinc-300">Plan de {MONTHS[currentDate.getMonth()]}</p>
-                      <button onClick={() => setShowPlanEditor(v=>!v)} className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                      <button onClick={() => setShowPlanEditor(v=>!v)} className="text-[10px] font-bold text-violet-400 active:opacity-60">
                         {showPlanEditor ? 'Cerrar' : 'Editar →'}
                       </button>
                     </div>
@@ -5284,11 +7999,11 @@ export default function App() {
                             <div>
                               <div className="flex justify-between text-xs mb-1">
                                 <span className="text-zinc-500 font-semibold">Ingreso meta</span>
-                                <span className="font-black text-emerald-400">${priv(formatNumber(stats.income))} / ${formatNumber(planMes.targetIncome)}</span>
+                                <span className="font-black text-emerald-400">${priv(formatNumber(homeStats.income))} / ${formatNumber(planMes.targetIncome)}</span>
                               </div>
                               <div className="h-2 bg-black/40 rounded-full overflow-hidden">
                                 <div className="h-full rounded-full bg-emerald-500 transition-all duration-700"
-                                  style={{width:`${Math.min(100,Math.round((stats.income/planMes.targetIncome)*100))}%`}}/>
+                                  style={{width:`${Math.min(100,Math.round((homeStats.income/planMes.targetIncome)*100))}%`}}/>
                               </div>
                             </div>
                           )}
@@ -5296,13 +8011,13 @@ export default function App() {
                             <div>
                               <div className="flex justify-between text-xs mb-1">
                                 <span className="text-zinc-500 font-semibold">Gasto límite</span>
-                                <span className={`font-black ${stats.expenses > planMes.targetExpense ? 'text-rose-400' : 'text-indigo-400'}`}>
-                                  ${priv(formatNumber(stats.expenses))} / ${formatNumber(planMes.targetExpense)}
+                                <span className={`font-black ${homeStats.expenses > planMes.targetExpense ? 'text-rose-400' : 'text-violet-400'}`}>
+                                  ${priv(formatNumber(homeStats.expenses))} / ${formatNumber(planMes.targetExpense)}
                                 </span>
                               </div>
                               <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-700 ${stats.expenses > planMes.targetExpense ? 'bg-rose-500' : 'bg-indigo-500'}`}
-                                  style={{width:`${Math.min(100,Math.round((stats.expenses/planMes.targetExpense)*100))}%`}}/>
+                                <div className={`h-full rounded-full transition-all duration-700 ${homeStats.expenses > planMes.targetExpense ? 'bg-rose-500' : 'bg-violet-500'}`}
+                                  style={{width:`${Math.min(100,Math.round((homeStats.expenses/planMes.targetExpense)*100))}%`}}/>
                               </div>
                             </div>
                           )}
@@ -5413,7 +8128,7 @@ export default function App() {
                   <div className={`rounded-[1.5rem] p-4 border flex items-center gap-4
                     ${dailyBudget.isOver ? 'bg-rose-500/8 border-rose-500/20' : dailyBudget.pct >= 85 ? 'bg-amber-500/8 border-amber-500/15' : 'bg-zinc-900/40 border-white/5'}`}>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl leading-none"
-                      style={{background: dailyBudget.isOver ? 'rgba(244,63,94,0.12)' : 'rgba(99,102,241,0.12)'}}>
+                      style={{background: dailyBudget.isOver ? 'rgba(244,63,94,0.12)' : 'rgba(109,40,217,0.12)'}}>
                       {dailyBudget.isOver ? '🚨' : dailyBudget.pct >= 85 ? '⚠️' : '💰'}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -5421,12 +8136,12 @@ export default function App() {
                         {dailyBudget.isOver ? 'Presupuesto excedido' : `Disponible por día — ${dailyBudget.daysLeft} días`}
                       </p>
                       <div className="w-full h-1 bg-black/40 rounded-full mt-1.5 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-700 ${dailyBudget.isOver ? 'bg-rose-500' : dailyBudget.pct >= 85 ? 'bg-amber-400' : 'bg-indigo-500'}`}
+                        <div className={`h-full rounded-full transition-all duration-700 ${dailyBudget.isOver ? 'bg-rose-500' : dailyBudget.pct >= 85 ? 'bg-amber-400' : 'bg-violet-500'}`}
                           style={{width:`${dailyBudget.pct}%`}}/>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`text-base font-black ${dailyBudget.isOver ? 'text-rose-400' : dailyBudget.pct >= 85 ? 'text-amber-400' : 'text-indigo-300'}`}>
+                      <p className={`text-base font-black ${dailyBudget.isOver ? 'text-rose-400' : dailyBudget.pct >= 85 ? 'text-amber-400' : 'text-violet-300'}`}>
                         {dailyBudget.isOver ? `−${priv(formatNumber(Math.abs(dailyBudget.remaining)))}` : `$${priv(formatNumber(dailyBudget.daily))}`}
                       </p>
                       <p className="text-[9px] text-zinc-600 mt-0.5">{dailyBudget.pct}% del presupuesto</p>
@@ -5438,7 +8153,7 @@ export default function App() {
                 {!isHidden('gastosHoy') && gastosHoy && (
                   <button onClick={() => { goToDate(new Date().toISOString().slice(0,10)); setActiveTab('history'); }}
                     className="w-full bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-4 active:bg-zinc-900/70 transition-colors">
-                    <div className="w-10 h-10 bg-indigo-600/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-violet-700/12 rounded-xl flex items-center justify-center flex-shrink-0">
                       <span className="text-lg leading-none">📅</span>
                     </div>
                     <div className="flex-1 text-left">
@@ -5462,16 +8177,16 @@ export default function App() {
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {monthProjection.projectedIncome > 0 && (
                         <div className="bg-black/30 rounded-xl p-2.5 text-center">
-                          <p className="text-[10px] text-zinc-600 mb-1">Ingresos est.</p>
+                          <p className="text-[10px] text-zinc-600 mb-1">{tl('estIncome')}</p>
                           <p className="text-xs font-black text-emerald-400">${priv(formatNumber(monthProjection.projectedIncome))}</p>
                         </div>
                       )}
                       <div className="bg-black/30 rounded-xl p-2.5 text-center">
-                        <p className="text-[10px] text-zinc-600 mb-1">Gastos est.</p>
+                        <p className="text-[10px] text-zinc-600 mb-1">{tl('estExpenses')}</p>
                         <p className="text-xs font-black text-rose-300">${priv(formatNumber(monthProjection.projectedExpense))}</p>
                       </div>
                       <div className={`rounded-xl p-2.5 text-center ${monthProjection.projectedBalance >= 0 ? 'bg-emerald-500/8 border border-emerald-500/15' : 'bg-rose-500/8 border border-rose-500/15'}`}>
-                        <p className="text-[10px] text-zinc-600 mb-1">Balance est.</p>
+                        <p className="text-[10px] text-zinc-600 mb-1">{tl('balance')} est.</p>
                         <p className={`text-xs font-black ${monthProjection.projectedBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {monthProjection.projectedBalance >= 0 ? '+' : ''}{priv(formatNumber(monthProjection.projectedBalance))}
                         </p>
@@ -5512,7 +8227,7 @@ export default function App() {
                 {/* ── Top gastos del mes ── */}
                 {!isHidden('topTxs') && topTxs && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
-                    <p className="text-sm font-bold text-zinc-300 mb-3">Top gastos del mes</p>
+                    <p className="text-sm font-bold text-zinc-300 mb-3">{tl('topExpensesMonth')}</p>
                     <div className="space-y-2">
                       {topTxs.map((t, i) => (
                         <button key={t.id} onClick={() => setEditingTx(t)}
@@ -5538,17 +8253,17 @@ export default function App() {
                 {ww('savings', (strategy.savingsPercent > 0 || strategy.investmentPercent > 0) && (
                   <div className="grid grid-cols-2 gap-3">
                     {strategy.savingsPercent>0 && (
-                      <div className="bg-zinc-900/60 rounded-2xl p-4 border border-white/5">
-                        <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1 mb-1"><PiggyBank className="w-3.5 h-3.5"/>Ahorro</p>
-                        <p className="text-lg font-black">${formatNumber(stats.savingsAmount)}</p>
-                        <p className="text-xs text-zinc-600">{strategy.savingsPercent}% ingresos</p>
+                      <div className="mc-card p-4">
+                        <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1 mb-1"><PiggyBank className="w-3.5 h-3.5"/>{tl('savings')}</p>
+                        <p className="text-lg font-black">${formatNumber(homeStats.savingsAmount)}</p>
+                        <p className="text-xs text-zinc-600">{strategy.savingsPercent}{tl('ofIncome')}</p>
                       </div>
                     )}
                     {strategy.investmentPercent>0 && (
-                      <div className="bg-zinc-900/60 rounded-2xl p-4 border border-white/5">
-                        <p className="text-xs text-indigo-400 font-semibold flex items-center gap-1 mb-1"><TrendingUp className="w-3.5 h-3.5"/>Inversión</p>
-                        <p className="text-lg font-black">${formatNumber(stats.investmentAmount)}</p>
-                        <p className="text-xs text-zinc-600">{strategy.investmentPercent}% ingresos</p>
+                      <div className="mc-card p-4">
+                        <p className="text-xs text-violet-400 font-semibold flex items-center gap-1 mb-1"><TrendingUp className="w-3.5 h-3.5"/>{tl('investment')}</p>
+                        <p className="text-lg font-black">${formatNumber(homeStats.investmentAmount)}</p>
+                        <p className="text-xs text-zinc-600">{strategy.investmentPercent}{tl('ofIncome')}</p>
                       </div>
                     )}
                   </div>
@@ -5557,10 +8272,10 @@ export default function App() {
                 {/* ── Desglose fuentes de ingreso ── */}
                 {!isHidden('incomeSourceBreakdown') && incomeSourceBreakdown && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
-                    <p className="text-sm font-bold text-zinc-300 mb-3">Fuentes de ingreso</p>
+                    <p className="text-sm font-bold text-zinc-300 mb-3">{tl('incomeSources')}</p>
                     <div className="space-y-2.5">
                       {incomeSourceBreakdown.map(({ cat, amount }) => {
-                        const pct = Math.round((amount / stats.income) * 100);
+                        const pct = Math.round((amount / homeStats.income) * 100);
                         return (
                           <div key={cat} className="flex items-center gap-3">
                             <span className="text-sm leading-none w-5 flex-shrink-0">{getEmoji(cat)}</span>
@@ -5585,10 +8300,10 @@ export default function App() {
                 {ww('donutChart', chartData.length > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
-                      <p className="text-sm font-bold text-zinc-300">Distribución de gastos</p>
+                      <p className="text-sm font-bold text-zinc-300">{tl('expenseDistribution')}</p>
                       <button onClick={()=>{ setShowBudgetModal(true); setBudgetChartView(true); }}
-                        className="text-xs text-indigo-400 font-semibold">
-                        Ver detalle →
+                        className="text-xs text-violet-400 font-semibold">
+                        {tl('seeDetail')}
                       </button>
                     </div>
                     <div className="flex items-center gap-4">
@@ -5600,7 +8315,7 @@ export default function App() {
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center">
                             <p className="text-base font-black text-white leading-tight">${formatNumber(totalSpent)}</p>
-                            <p className="text-[9px] text-zinc-600 mt-0.5">gastos</p>
+                            <p className="text-[9px] text-zinc-600 mt-0.5">{tl('expensesLabel')}</p>
                           </div>
                         </div>
                       </div>
@@ -5667,11 +8382,11 @@ export default function App() {
                               className="flex-1 flex flex-col items-center gap-1 group">
                               <div
                                 className={`w-full rounded-t-md transition-all group-active:opacity-70
-                                  ${isToday ? 'bg-indigo-500' : d.expense > 0 ? 'bg-rose-500/55' : 'bg-zinc-800/50'}`}
+                                  ${isToday ? 'bg-violet-500' : d.expense > 0 ? 'bg-rose-500/55' : 'bg-zinc-800/50'}`}
                                 style={{ height: `${barH}px` }}
                               />
                               <span className={`text-[9px] font-bold leading-none
-                                ${isToday ? 'text-indigo-400' : d.expense > 0 ? 'text-zinc-500' : 'text-zinc-800'}`}>
+                                ${isToday ? 'text-violet-400' : d.expense > 0 ? 'text-zinc-500' : 'text-zinc-800'}`}>
                                 {d.label}
                               </span>
                             </button>
@@ -5760,7 +8475,7 @@ export default function App() {
                     <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                       <div className="flex justify-between items-center mb-3">
                         <p className="text-sm font-bold text-zinc-300">Presupuestos por categoría</p>
-                        <span className="text-[10px] text-zinc-600 font-semibold">Ver detalle →</span>
+                        <span className="text-[10px] text-zinc-600 font-semibold">{tl('seeDetail')}</span>
                       </div>
                       <div className="space-y-2">
                         {budgetSemaforo.map(({ cat, pct, color, spent, limit }) => (
@@ -5807,11 +8522,11 @@ export default function App() {
                 )}
 
                 {/* Barra de presupuesto global */}
-                {ww('globalBudget', stats.totalBudgetsAssigned > 0 && (
+                {ww('globalBudget', homeStats.totalBudgetsAssigned > 0 && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     {(() => {
-                      const spent = stats.expenses;
-                      const total = stats.totalBudgetsAssigned;
+                      const spent = homeStats.expenses;
+                      const total = homeStats.totalBudgetsAssigned;
                       const pct = Math.round((spent / total) * 100);
                       const isOver = spent > total;
                       const barColor = isOver ? '#f43f5e' : pct >= 90 ? '#f59e0b' : pct >= 70 ? '#6366f1' : '#10b981';
@@ -5924,16 +8639,16 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Ingresos</p>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('incomesLabel')}</p>
                         <p className="text-sm font-black text-emerald-400">${formatNumber(monthlyAvg.avgIncome)}</p>
                       </div>
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Gastos</p>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('expensesTitle')}</p>
                         <p className="text-sm font-black text-rose-400">${formatNumber(monthlyAvg.avgExpense)}</p>
                       </div>
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Balance</p>
-                        <p className={`text-sm font-black ${monthlyAvg.avgBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('balance')}</p>
+                        <p className={`text-sm font-black ${monthlyAvg.avgBalance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                           {monthlyAvg.avgBalance >= 0 ? '+' : ''}${formatNumber(Math.abs(monthlyAvg.avgBalance))}
                         </p>
                       </div>
@@ -5947,22 +8662,22 @@ export default function App() {
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">{currentDate.getFullYear()} hasta hoy</p>
                       <button onClick={() => setShowAnnualModal(true)}
-                        className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                        className="text-[10px] font-bold text-violet-400 active:opacity-60">
                         Ver completo →
                       </button>
                     </div>
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Ingresos</p>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('incomesLabel')}</p>
                         <p className="text-sm font-black text-emerald-400">${formatNumber(yearStats.income)}</p>
                       </div>
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Gastos</p>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('expensesTitle')}</p>
                         <p className="text-sm font-black text-rose-400">${formatNumber(yearStats.expense)}</p>
                       </div>
                       <div className="bg-black/30 rounded-xl p-3 text-center">
-                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">Balance</p>
-                        <p className={`text-sm font-black ${yearStats.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                        <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('balance')}</p>
+                        <p className={`text-sm font-black ${yearStats.balance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                           {yearStats.balance >= 0 ? '+' : ''}{formatNumber(yearStats.balance) === '0' ? '$0' : `$${formatNumber(Math.abs(yearStats.balance))}`}
                         </p>
                       </div>
@@ -6048,7 +8763,7 @@ export default function App() {
                         {healthScore.breakdown.map(b => (
                           <div key={b.label} className="flex items-center gap-2">
                             <div className="flex-1 h-1 bg-black/40 rounded-full overflow-hidden">
-                              <div className="h-full bg-indigo-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/>
+                              <div className="h-full bg-violet-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/>
                             </div>
                             <span className="text-[10px] text-zinc-500 w-20 truncate">{b.label}</span>
                             <span className="text-[10px] font-bold text-zinc-400 w-8 text-right">{b.pts}/{b.max}</span>
@@ -6083,7 +8798,7 @@ export default function App() {
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Gastos {currentDate.getFullYear()}</p>
                       <button onClick={() => setShowAnnualModal(true)}
-                        className="text-[10px] font-bold text-indigo-400 active:opacity-60">
+                        className="text-[10px] font-bold text-violet-400 active:opacity-60">
                         Detalle →
                       </button>
                     </div>
@@ -6162,16 +8877,16 @@ export default function App() {
                     <p className="text-sm font-bold text-zinc-300 mb-3">Gastos últimos 30 días</p>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="flex-1 h-3 bg-black/40 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-indigo-500 rounded-l-full transition-all duration-700"
+                        <div className="h-full bg-violet-500 rounded-l-full transition-all duration-700"
                           style={{width:`${weekendAnalysis.wdPct}%`}}/>
                         <div className="h-full bg-violet-400 rounded-r-full transition-all duration-700"
                           style={{width:`${weekendAnalysis.wePct}%`}}/>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-indigo-500/8 border border-indigo-500/15 rounded-xl p-3 text-center">
+                      <div className="bg-violet-500/8 border border-violet-500/15 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-zinc-500 font-semibold mb-1">Lun–Vie</p>
-                        <p className="text-sm font-black text-indigo-300">${priv(formatNumber(weekendAnalysis.weekday))}</p>
+                        <p className="text-sm font-black text-violet-300">${priv(formatNumber(weekendAnalysis.weekday))}</p>
                         <p className="text-[10px] text-zinc-600 mt-0.5">{weekendAnalysis.wdPct}% del gasto</p>
                       </div>
                       <div className="bg-violet-500/8 border border-violet-500/15 rounded-xl p-3 text-center">
@@ -6253,7 +8968,7 @@ export default function App() {
                 {/* ── Gráfico barras 6 meses ── */}
                 {!isHidden('sixMonthBars') && sixMonthBars && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
-                    <p className="text-sm font-bold text-zinc-300 mb-4">Ingresos vs Gastos — últimos 6 meses</p>
+                    <p className="text-sm font-bold text-zinc-300 mb-4">{tl('incomeVsExpenses')}</p>
                     <div className="flex items-end justify-between gap-1.5 h-28">
                       {sixMonthBars.data.map((m, i) => {
                         const incH = Math.round((m.income  / sixMonthBars.maxVal) * 88);
@@ -6279,11 +8994,11 @@ export default function App() {
                     <div className="flex justify-end gap-3 mt-2">
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500"/>
-                        <span className="text-[10px] text-zinc-600 font-semibold">Ingresos</span>
+                        <span className="text-[10px] text-zinc-600 font-semibold">{tl('incomesLabel')}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-sm bg-rose-500"/>
-                        <span className="text-[10px] text-zinc-600 font-semibold">Gastos</span>
+                        <span className="text-[10px] text-zinc-600 font-semibold">{tl('expensesTitle')}</span>
                       </div>
                     </div>
                   </div>
@@ -6358,7 +9073,7 @@ export default function App() {
                       </div>
                       <div className="text-center">
                         <p className="text-[9px] text-zinc-600">Meses con ahorro</p>
-                        <p className="text-xs font-black text-indigo-300">{yearProgress.savedMonths}/{yearProgress.months.length}</p>
+                        <p className="text-xs font-black text-violet-300">{yearProgress.savedMonths}/{yearProgress.months.length}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[9px] text-zinc-600">Gastado</p>
@@ -6378,16 +9093,16 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-emerald-500/8 rounded-2xl p-3 text-center">
-                        <p className="text-[9px] text-zinc-600 mb-1">Ingresos</p>
+                        <p className="text-[9px] text-zinc-600 mb-1">{tl('incomesLabel')}</p>
                         <p className="text-sm font-black text-emerald-400">+${priv(formatNumber(nextMonthForecast.income))}</p>
                       </div>
                       <div className="bg-rose-500/8 rounded-2xl p-3 text-center">
-                        <p className="text-[9px] text-zinc-600 mb-1">Gastos</p>
+                        <p className="text-[9px] text-zinc-600 mb-1">{tl('expensesTitle')}</p>
                         <p className="text-sm font-black text-rose-400">−${priv(formatNumber(nextMonthForecast.expense))}</p>
                       </div>
-                      <div className={`${nextMonthForecast.balance >= 0 ? 'bg-indigo-500/8' : 'bg-rose-500/8'} rounded-2xl p-3 text-center`}>
-                        <p className="text-[9px] text-zinc-600 mb-1">Balance</p>
-                        <p className={`text-sm font-black ${nextMonthForecast.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                      <div className={`${nextMonthForecast.balance >= 0 ? 'bg-violet-500/8' : 'bg-rose-500/8'} rounded-2xl p-3 text-center`}>
+                        <p className="text-[9px] text-zinc-600 mb-1">{tl('balance')}</p>
+                        <p className={`text-sm font-black ${nextMonthForecast.balance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                           {nextMonthForecast.balance >= 0 ? '+' : ''}${priv(formatNumber(nextMonthForecast.balance))}
                         </p>
                       </div>
@@ -6546,7 +9261,7 @@ export default function App() {
                       {unbudgetedCats.cats.slice(0,6).map(cat=>(
                         <span key={cat} className="flex items-center gap-1 bg-zinc-900/60 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-zinc-400">
                           <span>{getEmoji(cat)}</span>{cat}
-                          <span className="text-amber-400 font-black">·${formatNumber(stats.expenseByCategory[cat]||0)}</span>
+                          <span className="text-amber-400 font-black">·${formatNumber(homeStats.expenseByCategory[cat]||0)}</span>
                         </span>
                       ))}
                     </div>
@@ -6558,10 +9273,10 @@ export default function App() {
 
                 {/* ── Distribuir superávit en metas ── */}
                 {!isHidden('surplusAllocation') && surplusAllocation && (
-                  <div className="bg-indigo-500/6 rounded-[1.5rem] p-4 border border-indigo-500/15">
+                  <div className="bg-violet-500/6 rounded-[1.5rem] p-4 border border-violet-500/15">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-base leading-none">🎯</span>
-                      <p className="text-xs font-bold text-indigo-300">Sugerencia de ahorro</p>
+                      <p className="text-xs font-bold text-violet-300">Sugerencia de ahorro</p>
                       <span className="ml-auto text-[10px] text-zinc-600">
                         Superávit: +${priv(formatNumber(surplusAllocation.surplus))}
                       </span>
@@ -6578,10 +9293,10 @@ export default function App() {
                                 <span className="text-zinc-600 ml-1">{pct}%</span>
                               </div>
                               <div className="h-1 bg-black/40 rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-600/50 rounded-full" style={{width:`${pct}%`}}/>
+                                <div className="h-full bg-violet-600/50 rounded-full" style={{width:`${pct}%`}}/>
                               </div>
                             </div>
-                            <span className="text-xs font-black text-indigo-300 flex-shrink-0">
+                            <span className="text-xs font-black text-violet-300 flex-shrink-0">
                               +${priv(formatNumber(g.suggested))}
                             </span>
                           </div>
@@ -6715,7 +9430,7 @@ export default function App() {
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-xs font-black text-indigo-300">{goalETA.etaLabel}</p>
+                          <p className="text-xs font-black text-violet-300">{goalETA.etaLabel}</p>
                           <p className="text-[10px] text-zinc-600">
                             {goalETA.monthsLeft === 1 ? 'en 1 mes' : `en ${goalETA.monthsLeft} meses`}
                           </p>
@@ -6762,7 +9477,7 @@ export default function App() {
                             <div className="h-px bg-white/5 my-1"/>
                             <div className="flex justify-between text-xs">
                               <span className="text-zinc-600">Balance</span>
-                              <span className={`font-black ${data.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                              <span className={`font-black ${data.balance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                                 {data.balance >= 0 ? '+' : ''}${priv(formatNumber(data.balance))}
                               </span>
                             </div>
@@ -6777,40 +9492,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ── Ahorro en USD ── */}
-                {!isHidden('usdSavings') && usdSavings && (
-                  <div className={`rounded-[1.5rem] p-4 border ${usdSavings.isPositive ? 'bg-emerald-500/6 border-emerald-500/15' : 'bg-rose-500/6 border-rose-500/15'}`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-base leading-none">💵</span>
-                      <p className="text-xs font-bold text-zinc-300">Balance en USD</p>
-                      <span className="ml-auto text-[10px] text-zinc-600">1 USD = ${formatNumber(usdSavings.rate)}</span>
-                    </div>
-                    <div className="flex items-end justify-between mb-3">
-                      <div>
-                        <p className="text-[10px] text-zinc-500 mb-0.5">Este mes</p>
-                        <p className={`text-3xl font-black tabular-nums ${usdSavings.isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {usdSavings.isPositive ? '+' : ''}USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.balUSD)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-zinc-600">Proyección anual</p>
-                        <p className={`text-sm font-black ${usdSavings.annualUSD >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
-                          {usdSavings.annualUSD >= 0 ? '+' : ''}USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.annualUSD)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-black/20 rounded-xl px-3 py-2">
-                        <p className="text-[10px] text-zinc-600 mb-0.5">Ingresos</p>
-                        <p className="font-bold text-zinc-300">USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.incUSD)}</p>
-                      </div>
-                      <div className="bg-black/20 rounded-xl px-3 py-2">
-                        <p className="text-[10px] text-zinc-600 mb-0.5">Gastos</p>
-                        <p className="font-bold text-zinc-300">USD {privacyMode ? '***' : usdSavings.fmt2(usdSavings.expUSD)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Widget legacy usdSavings removido (dead code) */}
 
                 {/* ── Días más costosos ── */}
                 {!isHidden('topSpenderDay') && topSpenderDay && (
@@ -6905,14 +9587,14 @@ export default function App() {
                     <div className="flex items-center justify-between mt-1.5">
                       {['E','F','M','A','M','J','J','A','S','O','N','D'].map((l,i) => (
                         <span key={i} className={`text-[8px] flex-1 text-center font-bold
-                          ${i === monthlyPattern.peakMonth ? 'text-rose-400' : i === currentDate.getMonth() ? 'text-indigo-400' : 'text-zinc-700'}`}>
+                          ${i === monthlyPattern.peakMonth ? 'text-rose-400' : i === currentDate.getMonth() ? 'text-violet-400' : 'text-zinc-700'}`}>
                           {l}
                         </span>
                       ))}
                     </div>
                     <div className="flex items-center justify-center gap-4 mt-2 text-[9px] text-zinc-600">
                       <span><span className="text-rose-400">■</span> Pico histórico</span>
-                      <span><span className="text-indigo-400">■</span> Mes actual</span>
+                      <span><span className="text-violet-400">■</span> Mes actual</span>
                       <span>Prom. ${priv(formatNumber(monthlyPattern.overallAvg))}/mes</span>
                     </div>
                   </div>
@@ -6955,7 +9637,7 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {threeMonthForecast.months.map((m, i) => (
-                        <div key={i} className={`rounded-xl p-3 border ${m.balance >= 0 ? 'bg-indigo-500/6 border-indigo-500/15' : 'bg-rose-500/6 border-rose-500/15'}`}>
+                        <div key={i} className={`rounded-xl p-3 border ${m.balance >= 0 ? 'bg-violet-500/6 border-violet-500/15' : 'bg-rose-500/6 border-rose-500/15'}`}>
                           <p className="text-[10px] font-bold text-zinc-500 mb-2 text-center">{m.label}</p>
                           {m.income > 0 && (
                             <div className="flex justify-between text-[10px] mb-1">
@@ -6968,7 +9650,7 @@ export default function App() {
                             <span className="text-rose-400 font-semibold">${priv(formatNumber(m.expense))}</span>
                           </div>
                           <div className="h-px bg-white/5 mb-1.5"/>
-                          <p className={`text-xs font-black text-center ${m.balance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                          <p className={`text-xs font-black text-center ${m.balance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                             {m.balance >= 0 ? '+' : ''}${priv(formatNumber(m.balance))}
                           </p>
                         </div>
@@ -7111,7 +9793,7 @@ export default function App() {
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-[10px] text-zinc-600">
                         <span><span className="text-emerald-400">■</span> &lt;70%</span>
-                        <span><span className="text-indigo-400">■</span> 70–85%</span>
+                        <span><span className="text-violet-400">■</span> 70–85%</span>
                         <span><span className="text-amber-400">■</span> 85–100%</span>
                         <span><span className="text-rose-400">■</span> &gt;100%</span>
                       </div>
@@ -7170,7 +9852,7 @@ export default function App() {
                       {savingsProjection.milestones.map((m, i) => (
                         <div key={m.months}
                           className={`rounded-xl p-2.5 border text-center transition-all
-                            ${i === 3 ? 'bg-indigo-600/15 border-indigo-500/25' : 'bg-zinc-900/60 border-white/5'}`}>
+                            ${i === 3 ? 'bg-violet-700/12 border-violet-500/25' : 'bg-zinc-900/60 border-white/5'}`}>
                           <p className="text-[10px] text-zinc-500 mb-1">{m.label}</p>
                           <div className="mx-auto mb-1.5 rounded-sm"
                             style={{
@@ -7178,7 +9860,7 @@ export default function App() {
                               height: `${Math.round((m.amount / savingsProjection.max) * 32) + 4}px`,
                               backgroundColor: `rgba(99,102,241,${0.2 + (i / 3) * 0.5})`,
                             }}/>
-                          <p className={`text-[10px] font-black ${i === 3 ? 'text-indigo-300' : 'text-zinc-300'}`}>
+                          <p className={`text-[10px] font-black ${i === 3 ? 'text-violet-300' : 'text-zinc-300'}`}>
                             ${priv(formatNumber(m.amount))}
                           </p>
                         </div>
@@ -7232,7 +9914,7 @@ export default function App() {
                   <div className={`rounded-[1.5rem] p-4 border ${incomeExpectation.isComplete ? 'bg-emerald-500/6 border-emerald-500/15' : 'bg-zinc-900/40 border-white/5'}`}>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-base leading-none">📬</span>
-                      <p className="text-xs font-bold text-zinc-300">Ingresos esperados</p>
+                      <p className="text-xs font-bold text-zinc-300">{tl('expectedIncome')}</p>
                       <span className={`ml-auto text-xs font-black ${incomeExpectation.isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {incomeExpectation.pct}%
                       </span>
@@ -7280,22 +9962,22 @@ export default function App() {
                               <span className="text-sm w-5 text-center flex-shrink-0">{getEmoji(item.cat)}</span>
                               <div className="flex-1 min-w-0">
                                 <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                  <div className="h-full rounded-full bg-indigo-500/60"
-                                    style={{width:`${Math.round((item.amount/stats.expenses)*100)}%`}}/>
+                                  <div className="h-full rounded-full bg-violet-500/60"
+                                    style={{width:`${Math.round((item.amount/homeStats.expenses)*100)}%`}}/>
                                 </div>
                               </div>
                               <span className="text-[10px] text-zinc-400 font-semibold w-8 text-right flex-shrink-0">
-                                {Math.round((item.amount/stats.expenses)*100)}%
+                                {Math.round((item.amount/homeStats.expenses)*100)}%
                               </span>
-                              <span className="text-[10px] text-indigo-300 font-bold w-8 text-right flex-shrink-0">
+                              <span className="text-[10px] text-violet-300 font-bold w-8 text-right flex-shrink-0">
                                 {item.cumPct}%
                               </span>
                             </div>
                             {isParetoLine && i < paretoExpenses.items.length - 1 && (
                               <div className="flex items-center gap-2 my-1">
-                                <div className="flex-1 h-px bg-indigo-500/30"/>
-                                <span className="text-[9px] text-indigo-400 font-bold">80% acumulado</span>
-                                <div className="flex-1 h-px bg-indigo-500/30"/>
+                                <div className="flex-1 h-px bg-violet-500/30"/>
+                                <span className="text-[9px] text-violet-400 font-bold">80% acumulado</span>
+                                <div className="flex-1 h-px bg-violet-500/30"/>
                               </div>
                             )}
                           </div>
@@ -7387,10 +10069,10 @@ export default function App() {
                     )}
                     {categoryLifecycle.activeCats.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wide mb-1.5">✅ Activas ({categoryLifecycle.activeCats.length})</p>
+                        <p className="text-[10px] text-violet-400 font-semibold uppercase tracking-wide mb-1.5">✅ Activas ({categoryLifecycle.activeCats.length})</p>
                         <div className="flex flex-wrap gap-1.5">
                           {categoryLifecycle.activeCats.slice(0,5).map(cat => (
-                            <span key={cat} className="text-[11px] bg-indigo-500/10 text-indigo-400/80 border border-indigo-500/15 px-2 py-0.5 rounded-full">{cat}</span>
+                            <span key={cat} className="text-[11px] bg-violet-500/10 text-violet-400/80 border border-violet-500/15 px-2 py-0.5 rounded-full">{cat}</span>
                           ))}
                           {categoryLifecycle.activeCats.length > 5 && (
                             <span className="text-[11px] text-zinc-600">+{categoryLifecycle.activeCats.length-5} más</span>
@@ -7456,7 +10138,7 @@ export default function App() {
                               <span className="text-xs font-semibold text-zinc-200">{priv(`$${formatNumber(mo.income)}`)}</span>
                             </div>
                             <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                              <div className="h-1.5 bg-indigo-500 rounded-full" style={{width:`${pct}%`}}/>
+                              <div className="h-1.5 bg-violet-500 rounded-full" style={{width:`${pct}%`}}/>
                             </div>
                           </div>
                           <span className={`text-[10px] w-12 text-right ${vsAvg>=0?'text-emerald-400':'text-rose-400'}`}>
@@ -7514,7 +10196,7 @@ export default function App() {
                             <span className="text-[10px] text-zinc-500">{b.count} op. · {b.pct}%</span>
                           </div>
                           <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-                            <div className="h-2 bg-indigo-500/70 rounded-full"
+                            <div className="h-2 bg-violet-500/70 rounded-full"
                               style={{width:`${Math.round((b.count/amountHistogram.maxCount)*100)}%`}}/>
                           </div>
                         </div>
@@ -7556,13 +10238,13 @@ export default function App() {
                     <div className="flex gap-3 mb-3">
                       {todaySummary.income > 0 && (
                         <div className="flex-1 bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/15">
-                          <p className="text-[10px] text-emerald-400 mb-0.5">Ingresos</p>
+                          <p className="text-[10px] text-emerald-400 mb-0.5">{tl('incomesLabel')}</p>
                           <p className="text-sm font-bold text-emerald-300">{priv(`$${formatNumber(todaySummary.income)}`)}</p>
                         </div>
                       )}
                       {todaySummary.expense > 0 && (
                         <div className="flex-1 bg-rose-500/10 rounded-xl p-3 border border-rose-500/15">
-                          <p className="text-[10px] text-rose-400 mb-0.5">Gastos</p>
+                          <p className="text-[10px] text-rose-400 mb-0.5">{tl('expensesTitle')}</p>
                           <p className="text-sm font-bold text-rose-300">{priv(`$${formatNumber(todaySummary.expense)}`)}</p>
                         </div>
                       )}
@@ -7587,7 +10269,7 @@ export default function App() {
                     <div className="grid grid-cols-3 gap-1 text-center mb-2">
                       <div/>
                       <div className="text-[10px] text-zinc-500 font-semibold uppercase">{prevMonthCompare.prev.label}</div>
-                      <div className="text-[10px] text-indigo-400 font-semibold uppercase">{prevMonthCompare.curr.label}</div>
+                      <div className="text-[10px] text-violet-400 font-semibold uppercase">{prevMonthCompare.curr.label}</div>
                     </div>
                     {[
                       { label: 'Ingresos', prev: prevMonthCompare.prev.income,  curr: prevMonthCompare.curr.income,  chg: prevMonthCompare.incChange, goodIfUp: true  },
@@ -7670,8 +10352,8 @@ export default function App() {
                         const isToday = i === weekOverWeek.days.length - 1;
                         return (
                           <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                            <div className={`w-full rounded-md ${isToday ? 'bg-indigo-500' : 'bg-zinc-700'}`} style={{height:`${h}px`}}/>
-                            <span className={`text-[9px] ${isToday ? 'text-indigo-400' : 'text-zinc-600'}`}>{weekOverWeek.labels[i]}</span>
+                            <div className={`w-full rounded-md ${isToday ? 'bg-violet-500' : 'bg-zinc-700'}`} style={{height:`${h}px`}}/>
+                            <span className={`text-[9px] ${isToday ? 'text-violet-400' : 'text-zinc-600'}`}>{weekOverWeek.labels[i]}</span>
                           </div>
                         );
                       })}
@@ -7856,7 +10538,7 @@ export default function App() {
                     <div className="grid grid-cols-3 gap-1 text-center mb-2">
                       <div/>
                       <div className="text-[10px] text-zinc-500 font-semibold">{quarterSummary.prev.label}</div>
-                      <div className="text-[10px] text-indigo-400 font-semibold">{quarterSummary.curr.label}</div>
+                      <div className="text-[10px] text-violet-400 font-semibold">{quarterSummary.curr.label}</div>
                     </div>
                     {[
                       { label: 'Ingresos', prevVal: quarterSummary.prev.income,  currVal: quarterSummary.curr.income,  chg: quarterSummary.incChange, goodIfUp: true  },
@@ -7931,7 +10613,7 @@ export default function App() {
                 {!isHidden('incomeByDow') && incomeByDow && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
-                      <p className="text-sm font-bold text-zinc-300">📗 Ingresos por día</p>
+                      <p className="text-sm font-bold text-zinc-300">{tl('incomePerDay')}</p>
                       <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">últ. 8 semanas</span>
                     </div>
                     <div className="flex gap-2 items-end justify-between">
@@ -7997,7 +10679,7 @@ export default function App() {
                 )}
 
                 {/* ── Patrimonio acumulado ── */}
-                {patrimonioData && (
+                {!isHidden('patrimonioAcumulado') && patrimonioData && (
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-3">
                       <p className="text-sm font-bold text-zinc-300">Patrimonio acumulado</p>
@@ -8044,7 +10726,7 @@ export default function App() {
                           </p>
                         </div>
                       </div>
-                      <span className={`text-4xl font-black tabular-nums ${savingsStreak >= 6 ? 'text-amber-400' : savingsStreak >= 3 ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                      <span className={`text-4xl font-black tabular-nums ${savingsStreak >= 6 ? 'text-amber-400' : savingsStreak >= 3 ? 'text-violet-400' : 'text-zinc-400'}`}>
                         {savingsStreak}
                       </span>
                     </div>
@@ -8054,7 +10736,7 @@ export default function App() {
                 {/* ── Racha de registro ── */}
                 {!isHidden('registroStreak') && registroStreak >= 2 && (
                   <div className={`rounded-[1.5rem] p-4 border flex items-center gap-3
-                    ${registroStreak >= 14 ? 'bg-violet-500/8 border-violet-500/20' : registroStreak >= 7 ? 'bg-indigo-500/8 border-indigo-500/15' : 'bg-zinc-900/30 border-white/5'}`}>
+                    ${registroStreak >= 14 ? 'bg-violet-500/8 border-violet-500/20' : registroStreak >= 7 ? 'bg-violet-500/8 border-violet-500/15' : 'bg-zinc-900/30 border-white/5'}`}>
                     <span className="text-2xl leading-none flex-shrink-0">
                       {registroStreak >= 14 ? '💜' : registroStreak >= 7 ? '⚡' : '📝'}
                     </span>
@@ -8065,7 +10747,7 @@ export default function App() {
                       </p>
                     </div>
                     <span className={`text-3xl font-black tabular-nums flex-shrink-0
-                      ${registroStreak >= 14 ? 'text-violet-400' : registroStreak >= 7 ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                      ${registroStreak >= 14 ? 'text-violet-400' : registroStreak >= 7 ? 'text-violet-400' : 'text-zinc-400'}`}>
                       {registroStreak}
                     </span>
                     <span className="text-[9px] text-zinc-600 flex-shrink-0 self-end mb-1">días</span>
@@ -8077,9 +10759,9 @@ export default function App() {
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-zinc-300 flex items-center gap-2">
-                        <Target className="w-4 h-4 text-indigo-400"/> Metas
+                        <Target className="w-4 h-4 text-violet-400"/> Metas
                       </p>
-                      <button onClick={()=>setShowGoalsModal(true)} className="text-xs text-indigo-400 font-semibold">Ver todas →</button>
+                      <button onClick={()=>setShowGoalsModal(true)} className="text-xs text-violet-400 font-semibold">Ver todas →</button>
                     </div>
                     <div className="space-y-3">
                       {goals.filter(g=>!g.completed).slice(0,2).map(g=>{
@@ -8090,10 +10772,10 @@ export default function App() {
                               <span className="text-sm font-semibold text-zinc-300 flex items-center gap-1.5">
                                 <span>{g.emoji}</span>{g.name}
                               </span>
-                              <span className="text-xs font-bold text-indigo-400">{pct}%</span>
+                              <span className="text-xs font-bold text-violet-400">{pct}%</span>
                             </div>
                             <div className="h-2 bg-black/60 rounded-full overflow-hidden">
-                              <div className="h-full bg-indigo-600 rounded-full" style={{width:`${pct}%`}}/>
+                              <div className="h-full bg-violet-600 rounded-full" style={{width:`${pct}%`}}/>
                             </div>
                             <p className="text-xs text-zinc-700">${formatNumber(g.current)} / ${formatNumber(g.target)}</p>
                           </div>
@@ -8113,7 +10795,7 @@ export default function App() {
                         </p>
                         <div className="text-right">
                           <p className="text-xs text-zinc-600">{activeCuotas.length} en curso</p>
-                          <p className="text-sm font-black text-amber-400">${formatNumber(cuotasMonthly)}/mes</p>
+                          <p className="text-sm font-black text-amber-400">{currSymbol}{formatNumber(cuotasMonthly)}/mes</p>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -8124,7 +10806,7 @@ export default function App() {
                               <span className="text-sm text-zinc-400 flex items-center gap-1.5">
                                 <span>{c.emoji}</span>{c.name}
                               </span>
-                              <span className="text-xs text-zinc-600">{rem} cuota{rem!==1?'s':''} · ${formatNumber(c.monthlyAmount)}</span>
+                              <span className="text-xs text-zinc-600">{rem} cuota{rem!==1?'s':''} · {CURRENCIES[c.currency||currency]?.symbol||'$'}{formatNumberWithDecimals(c.monthlyAmount)}</span>
                             </div>
                           );
                         })}
@@ -8189,9 +10871,9 @@ export default function App() {
                     {prevMonth.expense > 0 && (
                       <div className="mt-3 pt-3 border-t border-white/5 flex justify-between text-xs">
                         <span className="text-zinc-600">vs mes anterior · gastos</span>
-                        <span className={`font-bold ${stats.expenses > prevMonth.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {stats.expenses > prevMonth.expense ? '▲' : '▼'}
-                          {prevMonth.expense > 0 ? Math.abs(((stats.expenses-prevMonth.expense)/prevMonth.expense)*100).toFixed(0) : 0}%
+                        <span className={`font-bold ${homeStats.expenses > prevMonth.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {homeStats.expenses > prevMonth.expense ? '▲' : '▼'}
+                          {prevMonth.expense > 0 ? Math.abs(((homeStats.expenses-prevMonth.expense)/prevMonth.expense)*100).toFixed(0) : 0}%
                         </span>
                       </div>
                     )}
@@ -8203,9 +10885,9 @@ export default function App() {
                   <div className="bg-zinc-900/40 rounded-[1.5rem] p-5 border border-white/5">
                     <p className="text-sm font-bold text-zinc-300 mb-4">Este mes vs anterior</p>
                     {[
-                      { label: 'Ingresos', cur: stats.income,    prev: prevMonth.income,   betterIfHigher: true  },
-                      { label: 'Gastos',   cur: stats.expenses,  prev: prevMonth.expense,  betterIfHigher: false },
-                      { label: 'Balance',  cur: stats.available, prev: prevMonth.income - prevMonth.expense, betterIfHigher: true },
+                      { label: 'Ingresos', cur: homeStats.income,    prev: prevMonth.income,   betterIfHigher: true  },
+                      { label: 'Gastos',   cur: homeStats.expenses,  prev: prevMonth.expense,  betterIfHigher: false },
+                      { label: 'Balance',  cur: homeStats.available, prev: prevMonth.income - prevMonth.expense, betterIfHigher: true },
                     ].map(row => {
                       const diff = row.prev > 0 ? Math.round(((row.cur - row.prev) / row.prev) * 100) : null;
                       const isUp = diff !== null && diff > 0;
@@ -8321,7 +11003,7 @@ export default function App() {
                       </div>
                       {patrimonioNeto.activos > 0 && (
                         <div className="h-2 bg-black/60 rounded-full overflow-hidden mt-2">
-                          <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 rounded-full transition-all duration-700"
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-violet-500 rounded-full transition-all duration-700"
                             style={{width:`${Math.min(100, (patrimonioNeto.activos / (patrimonioNeto.activos + patrimonioNeto.pasivos)) * 100).toFixed(0)}%`}}/>
                         </div>
                       )}
@@ -8395,7 +11077,7 @@ export default function App() {
                     <p className="text-zinc-600 text-sm mb-6">Ocultaste todos los widgets</p>
                     <button
                       onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
-                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-sm font-bold text-white active:scale-95 transition-all">
+                      className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-2xl text-sm font-bold text-white active:scale-95 transition-all">
                       ✨ Mostrar todos los widgets
                     </button>
                   </div>
@@ -8408,7 +11090,7 @@ export default function App() {
                       <ArrowUpRight className="w-7 h-7 text-zinc-700" />
                     </div>
                     <p className="text-sm font-semibold text-zinc-600">Sin movimientos en {MONTHS[currentDate.getMonth()]}</p>
-                    <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-indigo-400 active:opacity-60">
+                    <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-violet-400 active:opacity-60">
                       + Registrar el primero
                     </button>
                   </div>
@@ -8422,15 +11104,15 @@ export default function App() {
             TAB: REGISTRAR
         ════════════════════════════════ */}
         {activeTab==='add' && (
-          <div className="px-5 pt-5 space-y-5">
+          <div className="px-4 md:px-6 pt-[calc(env(safe-area-inset-top)+16px)] space-y-4 pb-[calc(env(safe-area-inset-bottom)+100px)] max-w-lg mx-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black uppercase tracking-tight">Registrar</h2>
+              <h2 className="text-h1 uppercase">{tl('add')}</h2>
             </div>
 
             {/* ── Atajos rápidos ── */}
             {templates.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider ml-1">Atajos rápidos</p>
+                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider ml-1">{tl('quickShortcuts')}</p>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                   {templates.map(tpl => (
                     <div key={tpl.id} className="relative flex-shrink-0">
@@ -8455,27 +11137,83 @@ export default function App() {
               </div>
             )}
 
-            <div className="bg-zinc-900/40 rounded-[2rem] p-6 border border-white/5 space-y-5">
+            <div className="mc-card p-6 space-y-5" style={{borderRadius:'2rem'}}>
               {/* Tipo GASTO/INGRESO */}
-              <div className="flex bg-black rounded-2xl p-1.5 border border-white/10">
+              <div className="flex mc-card-inset p-1.5 gap-1" style={{borderRadius:'1rem'}}>
                 {['GASTO','INGRESO'].map(t=>(
                   <button key={t} onClick={()=>setType(t)}
-                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${type===t?(t==='GASTO'?'bg-rose-600 text-white':'bg-emerald-600 text-white'):'text-zinc-500'}`}>
-                    {t}
+                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all duration-200 active:scale-[0.97]
+                      ${type===t
+                        ?(t==='GASTO'
+                          ?'bg-rose-600 text-white shadow-lg shadow-rose-900/40'
+                          :'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40')
+                        :'text-zinc-500 hover:text-zinc-400'}`}>
+                    {t === 'GASTO' ? '↓ Gasto' : '↑ Ingreso'}
                   </button>
                 ))}
               </div>
 
-              {/* Monto */}
+              {/* Gasto en cuotas */}
+              {type === 'GASTO' && (
+                <button onClick={() => { setEditingCuota(null); setShowCuotaForm(true); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 text-violet-400 text-xs font-bold active:scale-[0.97] transition-all">
+                  <Wallet className="w-3.5 h-3.5"/> Registrar gasto en cuotas
+                </button>
+              )}
+
+              {/* Monto + Moneda */}
               <div className="space-y-3">
-                <input type="text" value={amount?'$ '+formatNumber(amount):""} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
-                  placeholder="$ 0"
+                {/* Selector de moneda (solo muestra las monedas activas) */}
+                {activeCurrencies.length > 1 && (
+                  <div className="flex gap-1.5 justify-center flex-wrap">
+                    {activeCurrencies.map(code => {
+                      const cfg = CURRENCIES[code];
+                      if (!cfg) return null;
+                      return (
+                        <button key={code}
+                          onClick={() => { setTxCurrency(code); haptic(6); }}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 border
+                            ${txCurrency === code
+                              ? 'bg-violet-600 text-white border-violet-500/40'
+                              : 'bg-zinc-900/80 text-zinc-500 border-white/8'}`}>
+                          <span>{cfg.flag}</span>
+                          <span>{code}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <input type="text"
+                  value={amount ? (CURRENCIES[txCurrency]?.symbol || '$') + ' ' + formatNumber(amount) : ""}
+                  onChange={e=>setAmount(e.target.value.replace(/\D/g,''))}
+                  placeholder={`${CURRENCIES[txCurrency]?.symbol || '$'} 0`}
                   className={`w-full bg-transparent text-6xl font-black text-center focus:outline-none transition-colors
                     ${amount
                       ? type==='GASTO' ? 'text-rose-400' : 'text-emerald-400'
                       : 'placeholder:text-zinc-800'}`}
                   inputMode="numeric"
-                  onKeyDown={e => { if (e.key==='Enter' && amount && category && !savingTx) { e.target.blur(); handleSaveTransaction(); } }} />
+                  onKeyDown={e => { if (e.key==='Enter' && amount && category && !savingTx) { e.target.blur(); handleSaveTransaction(); } }}
+ />
+
+                {/* Preview FX cuando la moneda de la TX ≠ moneda base */}
+                {txCurrency !== currency && amount && (
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    {txFxRate > 0 ? (
+                      <span className="text-zinc-400">
+                        ≈ <strong className="text-white">{currSymbol}{formatNumber(Math.round(parseFormattedNumber(amount) * txFxRate))}</strong>{' '}
+                        <span className="text-zinc-600">{currency}</span>
+                      </span>
+                    ) : (
+                      <span className="text-amber-400 text-xs">⚠️ Configurá el tipo de cambio en Ajustes</span>
+                    )}
+                  </div>
+                )}
+                {txCurrency !== currency && !amount && txFxRate <= 0 && (
+                  <div className="flex items-center justify-center">
+                    <span className="text-amber-400 text-xs">⚠️ Sin tipo de cambio para {txCurrency} → configurá en Ajustes</span>
+                  </div>
+                )}
 
                 {/* Dictado por voz */}
                 {voiceSupported && (
@@ -8486,8 +11224,8 @@ export default function App() {
                           ? 'bg-rose-600 text-white'
                           : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                       {isListening
-                        ? <><MicOff className="w-3.5 h-3.5"/><span className="animate-pulse">Escuchando…</span></>
-                        : <><Mic className="w-3.5 h-3.5"/>Dictado</>}
+                        ? <><MicOff className="w-3.5 h-3.5"/><span className="animate-pulse">{tl('listening')}</span></>
+                        : <><Mic className="w-3.5 h-3.5"/>{tl('dictate')}</>}
                     </button>
                   </div>
                 )}
@@ -8496,11 +11234,11 @@ export default function App() {
               {/* Categoría */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-zinc-600 ml-1">Categoría</p>
+                  <p className="text-xs font-semibold text-zinc-600 ml-1">{tl('category')}</p>
                   <div className="flex flex-wrap gap-2">
                     {activeCategories[type]?.map(c=>(
                       <button key={c} onClick={()=>setCategory(c)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-90
                           ${category===c
                             ? type==='GASTO' ? 'bg-rose-600 text-white shadow-lg' : 'bg-emerald-600 text-white shadow-lg'
                             : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
@@ -8524,7 +11262,7 @@ export default function App() {
                             if (e.key === 'Escape') { setShowInlineCat(false); setInlineCatName(''); }
                           }}
                           placeholder="Nombre de la categoría…"
-                          className="flex-1 bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500/40 transition-colors placeholder:text-zinc-700"
+                          className="flex-1 bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40 transition-colors placeholder:text-zinc-700"
                         />
                         <button
                           onClick={() => {
@@ -8534,7 +11272,7 @@ export default function App() {
                             }
                             setInlineCatName(''); setShowInlineCat(false);
                           }}
-                          className="px-3 py-2 bg-indigo-600 rounded-xl text-sm font-bold active:scale-95 transition-all">
+                          className="px-3 py-2 bg-violet-600 rounded-xl text-sm font-bold active:scale-95 transition-all">
                           OK
                         </button>
                         <button onClick={() => { setShowInlineCat(false); setInlineCatName(''); }}
@@ -8545,7 +11283,7 @@ export default function App() {
                     ) : (
                       <button onClick={() => setShowInlineCat(true)}
                         className="flex items-center gap-1 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-zinc-600 bg-zinc-900/60 border border-dashed border-white/10 active:scale-95 transition-all">
-                        <Plus className="w-3.5 h-3.5"/><span>Nueva</span>
+                        <Plus className="w-3.5 h-3.5"/><span>{tl('newCategory')}</span>
                       </button>
                     )}
                   </div>
@@ -8575,12 +11313,61 @@ export default function App() {
                 );
               })()}
 
+              {/* Cuenta (quién pagó) */}
+              {accounts.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-zinc-600 ml-1">{tl('account')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setTxAccount('')}
+                      className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+                        ${!txAccount ? 'bg-violet-600 text-white shadow-md shadow-violet-950/40' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                      {tl('noAccountSpecified')}
+                    </button>
+                    {accounts.map(acc => (
+                      <button key={acc}
+                        onClick={() => setTxAccount(acc)}
+                        className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+                          ${txAccount === acc ? 'bg-violet-600 text-white shadow-md shadow-violet-900/40' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                        {acc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Subcategoría */}
+              {category && (() => {
+                const catData = JSON.parse(localStorage.getItem('metacasa_categories') || 'null');
+                const subcats = catData?.subcategories?.[category] || [];
+                if (subcats.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-zinc-600 ml-1">{tl('subcategory')}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setTxSubcategory('')}
+                        className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+                          ${!txSubcategory ? 'bg-zinc-700 text-white' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                        {tl('general')}
+                      </button>
+                      {subcats.map(sc => (
+                        <button key={sc} onClick={() => setTxSubcategory(sc)}
+                          className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+                            ${txSubcategory === sc ? 'bg-teal-600 text-white' : 'bg-zinc-900/80 text-zinc-400 border border-white/8'}`}>
+                          {sc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Fecha */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <p className="text-xs font-semibold text-zinc-600">Fecha del movimiento</p>
+                  <p className="text-xs font-semibold text-zinc-600">{tl('transactionDate')}</p>
                   <div className="flex gap-1.5">
-                    {['Hoy', 'Ayer'].map((label, i) => {
+                    {[tl('today'), tl('yesterday')].map((label, i) => {
                       const d = new Date();
                       d.setDate(d.getDate() - i);
                       const dStr = d.toISOString().slice(0, 10);
@@ -8588,7 +11375,7 @@ export default function App() {
                         <button key={label} onClick={() => setTxDate(dStr)}
                           className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all active:scale-95
                             ${txDate === dStr
-                              ? 'bg-indigo-600 text-white'
+                              ? 'bg-violet-600 text-white'
                               : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
                           {label}
                         </button>
@@ -8597,13 +11384,19 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Date picker: input nativo invisible sobre display visual — toca para abrir almanaque */}
-                <div className="relative cursor-pointer">
+                {/* Date picker */}
+                <div className="relative cursor-pointer"
+                  onClick={() => {
+                    const inp = document.getElementById('tx-date-input');
+                    if (inp) { inp.showPicker ? inp.showPicker() : inp.focus(); }
+                  }}>
                   <input
+                    id="tx-date-input"
                     type="date"
                     value={txDate}
                     onChange={e => setTxDate(e.target.value)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    className="absolute inset-0 w-full h-full opacity-[0.01] cursor-pointer"
+                    style={{ zIndex: 20, minHeight: '60px' }}
                   />
                   <div className="w-full bg-black/60 rounded-2xl px-5 py-4 border border-white/10 flex items-center justify-between pointer-events-none select-none">
                     <div>
@@ -8616,7 +11409,7 @@ export default function App() {
                         {new Date(txDate + 'T12:00:00').getFullYear()}
                       </p>
                     </div>
-                    <Calendar className="w-5 h-5 text-indigo-400"/>
+                    <Calendar className="w-5 h-5 text-violet-400"/>
                   </div>
                 </div>
               </div>
@@ -8624,11 +11417,11 @@ export default function App() {
               {/* Período del mes — INDEPENDIENTE de la fecha */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <p className="text-xs font-semibold text-zinc-600">Registrar en el período de</p>
+                  <p className="text-xs font-semibold text-zinc-600">{tl('registerIn')}</p>
                   {(mesAsignado.year !== new Date(txDate + 'T12:00:00').getFullYear() ||
                     mesAsignado.month !== new Date(txDate + 'T12:00:00').getMonth()) && (
                     <span className="text-[10px] text-amber-400 font-bold">
-                      ≠ fecha real
+                      {tl('diffFromReal')}
                     </span>
                   )}
                 </div>
@@ -8645,11 +11438,11 @@ export default function App() {
                         onClick={() => { setMesAsignado({ year: y, month: m }); haptic(6); }}
                         className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all active:scale-95 text-center
                           ${isSelected
-                            ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/30'
+                            ? 'bg-violet-600 text-white shadow-md ring-2 ring-violet-400/30'
                             : 'bg-zinc-900/80 text-zinc-500 border border-white/8'}`}>
                         <span className="block text-sm">{MONTHS[m].slice(0, 3)}</span>
-                        <span className={`block text-[9px] mt-0.5 ${isSelected ? 'text-indigo-200' : 'text-zinc-700'}`}>
-                          {offset < 0 ? 'anterior' : offset > 0 ? 'próximo' : 'actual'}
+                        <span className={`block text-[9px] mt-0.5 ${isSelected ? 'text-violet-200' : 'text-zinc-700'}`}>
+                          {offset < 0 ? tl('previous') : offset > 0 ? tl('next') : tl('current')}
                         </span>
                       </button>
                     );
@@ -8668,18 +11461,18 @@ export default function App() {
               </div>
 
               {/* Nota */}
-              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Detalle opcional del movimiento…"
-                className="w-full bg-black/40 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 min-h-[80px] resize-none focus:outline-none focus:border-indigo-500/40 transition-colors" />
+              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder={tl('optionalNote')}
+                className="w-full bg-black/40 rounded-2xl p-4 border border-white/10 text-sm text-zinc-400 min-h-[80px] resize-none focus:outline-none focus:border-violet-500/40 transition-colors" />
 
               {/* Auto-sugerencia de categoría */}
               {catSuggestion && (
                 <button onClick={()=>setCategory(catSuggestion)}
-                  className="w-full flex items-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600/10 border border-indigo-500/25 text-left active:scale-[0.98] transition-all">
-                  <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0"/>
-                  <span className="text-xs font-semibold text-indigo-300 flex-1">
-                    ¿Categoría sugerida: <strong className="text-white">{catSuggestion}</strong>?
+                  className="w-full flex items-center gap-2 px-4 py-3 rounded-2xl bg-violet-600/10 border border-violet-500/25 text-left active:scale-[0.98] transition-all">
+                  <Sparkles className="w-4 h-4 text-violet-400 flex-shrink-0"/>
+                  <span className="text-xs font-semibold text-violet-300 flex-1">
+                    {tl('suggestedCat')}: <strong className="text-white">{catSuggestion}</strong>?
                   </span>
-                  <span className="text-xs text-indigo-500 font-bold flex-shrink-0">Aplicar →</span>
+                  <span className="text-xs text-violet-500 font-bold flex-shrink-0">{tl('apply')} →</span>
                 </button>
               )}
 
@@ -8693,10 +11486,10 @@ export default function App() {
                 <span className="text-lg leading-none">📌</span>
                 <div className="flex-1 text-left">
                   <p className={`text-sm font-bold ${isFixed ? 'text-amber-300' : 'text-zinc-400'}`}>
-                    {type === 'GASTO' ? 'Gasto fijo mensual' : 'Ingreso fijo mensual'}
+                    {type === 'GASTO' ? tl('monthlyFixed') : tl('monthlyFixedIncome')}
                   </p>
                   <p className="text-[10px] text-zinc-600 mt-0.5">
-                    {isFixed ? 'Se registrará automáticamente cada mes' : 'Activar para replicar cada mes'}
+                    {isFixed ? tl('autoRegisterEachMonth') : tl('activateToReplicate')}
                   </p>
                 </div>
                 <div className={`w-10 h-5 rounded-full flex items-center px-0.5 transition-all flex-shrink-0 ${isFixed ? 'bg-amber-500 justify-end' : 'bg-zinc-700 justify-start'}`}>
@@ -8704,12 +11497,30 @@ export default function App() {
                 </div>
               </button>
 
+              {/* Alerta de duplicado bloqueante */}
+              {dupWarning && (
+                <div className="w-full p-4 rounded-2xl bg-amber-900/30 border border-amber-500/30 space-y-3">
+                  <p className="text-sm text-amber-200 font-bold">⚠️ Posible duplicado</p>
+                  <p className="text-xs text-amber-200/70">Ya registraste ${formatNumber(dupWarning.amount)} en {dupWarning.category} en las últimas 2 horas.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setDupWarning(null); handleSaveTransaction(true); }}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold active:scale-95 transition-transform">
+                      Guardar igual
+                    </button>
+                    <button onClick={() => setDupWarning(null)}
+                      className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-xs font-bold active:scale-95 transition-transform border border-white/10">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Botón guardar */}
-              <button onClick={handleSaveTransaction} disabled={!amount||!category||savingTx}
+              <button onClick={() => handleSaveTransaction()} disabled={!amount||!category||savingTx}
                 className={`w-full py-5 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-all shadow-xl
                   ${savedOk?'bg-emerald-600':(!amount||!category)?'bg-zinc-800/50 text-zinc-600':(type==='GASTO'?'bg-rose-600':'bg-emerald-600')}
                   ${savingTx?'opacity-60':''}`}>
-                {savingTx ? 'Guardando…' : savedOk ? '¡Listo! ✓' : 'Confirmar registro'}
+                {savingTx ? tl('saving') : savedOk ? tl('done') : tl('confirmRegister')}
               </button>
 
               {/* Guardar como atajo */}
@@ -8717,7 +11528,7 @@ export default function App() {
                 <button
                   onClick={() => saveTemplate({ type, category, amount: parseInt(amount)||0, note })}
                   className="w-full py-2.5 rounded-xl bg-zinc-900/60 border border-white/8 text-xs font-bold text-zinc-500 active:text-zinc-300 active:scale-95 transition-all flex items-center justify-center gap-1.5">
-                  ⚡ Guardar como atajo rápido
+                  ⚡ {tl('saveAsShortcut')}
                 </button>
               )}
             </div>
@@ -8728,15 +11539,15 @@ export default function App() {
             TAB: HISTORIAL
         ════════════════════════════════ */}
         {activeTab==='history' && (
-          <div className="pt-5 space-y-4">
+          <div className="pt-[calc(env(safe-area-inset-top)+16px)] space-y-3 pb-[calc(env(safe-area-inset-bottom)+90px)]">
             {/* Header */}
             <div className="px-5 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black uppercase tracking-tight">Historial</h2>
-                {allMonths && !filterDate && (
-                  <button onClick={() => { setAllMonths(false); haptic(10); }}
-                    className="text-xs font-bold text-indigo-400 active:opacity-60">
-                    Ir a hoy →
+                <h2 className="text-h1 uppercase">{tl('history')}</h2>
+                {(allMonths || selectedHistoryMonth) && !filterDate && (
+                  <button onClick={() => { setAllMonths(false); setSelectedHistoryMonth(null); haptic(10); }}
+                    className="text-xs font-bold text-violet-400 active:opacity-60">
+                    {tl('goToToday')}
                   </button>
                 )}
               </div>
@@ -8756,7 +11567,7 @@ export default function App() {
                   <Calendar className="w-4 h-4"/>
                 </button>
                 <button onClick={() => { setCompactView(v => !v); haptic(8); }}
-                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${compactView ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}
+                  className={`p-2.5 rounded-xl active:scale-90 transition-transform ${compactView ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}
                   title={compactView ? 'Vista normal' : 'Vista compacta'}>
                   <SlidersHorizontal className="w-4 h-4"/>
                 </button>
@@ -8774,7 +11585,7 @@ export default function App() {
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por categoría, nota o monto…"
+                  placeholder={tl('search')}
                   className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"
                 />
                 {searchQuery && (
@@ -8792,7 +11603,7 @@ export default function App() {
                 {/* Chip de fecha activa (drill-down desde calendario) */}
                 {filterDate && (
                   <button onClick={() => { setFilterDate(''); setAllMonths(false); haptic(10); }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-indigo-600 text-white">
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-violet-600 text-white">
                     <Calendar className="w-3.5 h-3.5"/>
                     {(() => { const p = filterDate.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; })()}
                     <X className="w-3 h-3 opacity-70"/>
@@ -8803,9 +11614,9 @@ export default function App() {
                 <button
                   onClick={() => { setFilterWeek(v => !v); if (!filterWeek) setAllMonths(true); haptic(8); }}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
-                    ${filterWeek ? 'bg-indigo-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                    ${filterWeek ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
                   <Clock className="w-3.5 h-3.5"/>
-                  Esta semana
+                  {tl('thisWeek')}
                 </button>
 
                 {/* Rango de fechas */}
@@ -8814,17 +11625,37 @@ export default function App() {
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
                     ${(filterDateFrom || filterDateTo) ? 'bg-violet-600 text-white' : showRangeFilter ? 'bg-zinc-800 text-zinc-300 border border-white/20' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
                   <Calendar className="w-3.5 h-3.5"/>
-                  {(filterDateFrom || filterDateTo) ? 'Rango activo' : 'Rango'}
+                  {(filterDateFrom || filterDateTo) ? tl('activeRange') : tl('range')}
                 </button>
 
-                {/* Toggle mes/todos */}
+                {/* Toggle: Fecha de registro vs Fecha real */}
+                {!allMonths && (
+                  <div className="flex items-center bg-zinc-900 border border-white/8 rounded-xl overflow-hidden p-0.5 gap-0.5 flex-shrink-0">
+                    <button
+                      onClick={()=>{ setHistoryDateMode('period'); haptic(6); }}
+                      className={`px-2.5 py-1.5 rounded-[0.4rem] text-[10px] font-bold whitespace-nowrap transition-all
+                        ${historyDateMode==='period' ? 'bg-violet-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                      📋 Registro
+                    </button>
+                    <button
+                      onClick={()=>{ setHistoryDateMode('real'); haptic(6); }}
+                      className={`px-2.5 py-1.5 rounded-[0.4rem] text-[10px] font-bold whitespace-nowrap transition-all
+                        ${historyDateMode==='real' ? 'bg-violet-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                      📅 Real
+                    </button>
+                  </div>
+                )}
+
+                {/* Selector de mes */}
                 {!filterDate && !filterWeek && !(filterDateFrom || filterDateTo) && (
                 <button
-                  onClick={()=>setAllMonths(v=>!v)}
+                  onClick={()=>{ setShowHistoryMonthPicker(true); haptic(8); }}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
-                    ${allMonths?'bg-white text-black':'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                    ${(allMonths || selectedHistoryMonth) ? 'bg-violet-600 text-white' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
                   <Calendar className="w-3.5 h-3.5"/>
-                  {allMonths ? 'Todos los meses' : `${MONTHS[currentDate.getMonth()].slice(0,3)} ${currentDate.getFullYear()}`}
+                  {allMonths ? tl('allMonths')
+                    : selectedHistoryMonth ? `${MONTHS[selectedHistoryMonth.month].slice(0,3)} ${selectedHistoryMonth.year}`
+                    : `${MONTHS[currentDate.getMonth()].slice(0,3)} ${currentDate.getFullYear()}`}
                 </button>
                 )}
 
@@ -8836,7 +11667,7 @@ export default function App() {
                   <SlidersHorizontal className="w-3.5 h-3.5"/>
                   {filterMin !== '' || filterMax !== ''
                     ? `$${filterMin||'0'}–${filterMax ? '$'+filterMax : '∞'}`
-                    : 'Monto'}
+                    : tl('amount')}
                 </button>
 
                 {/* Separador */}
@@ -8845,31 +11676,47 @@ export default function App() {
                 {/* Tipo */}
                 {['ALL','GASTO','INGRESO'].map(t=>(
                   <button key={t}
-                    onClick={()=>{ setFilterType(t); setFilterCategory(''); }}
+                    onClick={()=>{ setFilterType(t); setFilterCategories(new Set()); }}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
                       ${filterType===t
                         ? t==='GASTO' ? 'bg-rose-600 text-white'
                           : t==='INGRESO' ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-600 text-white'
+                          : 'bg-violet-600 text-white'
                         : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
-                    {t==='ALL'?'Todos':t}
+                    {t==='ALL'?tl('all'):t}
                   </button>
                 ))}
 
-                {/* Separador */}
-                {filterableCats.length > 0 && <div className="w-px bg-white/10 self-stretch my-1"/>}
+                {/* Separador + botón Categorías */}
+                {filterableCats.length > 0 && (
+                  <>
+                    <div className="w-px bg-white/10 self-stretch my-1"/>
+                    <button
+                      onClick={() => { setShowCatFilter(true); haptic(8); }}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                        ${filterCategories.size > 0 ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                      <span>🏷️</span>
+                      {filterCategories.size > 0 ? `${filterCategories.size} cat.` : tl('categories')}
+                    </button>
+                  </>
+                )}
 
-                {/* Chips de categoría */}
-                {filterableCats.map(cat=>(
-                  <button key={cat}
-                    onClick={()=>setFilterCategory(fc=>fc===cat?'':cat)}
-                    className={`flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
-                      ${filterCategory===cat
-                        ? 'bg-white text-black'
-                        : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
-                    <span>{getEmoji(cat)}</span><span>{cat}</span>
-                  </button>
-                ))}
+                {/* Filtro por cuenta */}
+                {accounts.length > 0 && (
+                  <>
+                    <div className="w-px bg-white/10 self-stretch my-1"/>
+                    {['', ...accounts].map(acc => (
+                      <button key={acc || '__all'}
+                        onClick={() => { setFilterAccount(acc); haptic(8); }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all
+                          ${filterAccount === acc
+                            ? acc ? 'bg-violet-600 text-white' : 'bg-violet-600 text-white'
+                            : 'bg-zinc-900 text-zinc-400 border border-white/8'}`}>
+                        {acc || '👥 Todos'}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
 
@@ -8877,17 +11724,17 @@ export default function App() {
             {showRangeFilter && (
               <div className="px-5">
                 <div className="bg-violet-600/8 border border-violet-500/20 rounded-2xl px-4 py-3 space-y-2.5">
-                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">Rango personalizado</p>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">{tl('customRange')}</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">Desde</p>
+                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('from')}</p>
                       <input type="date" value={filterDateFrom}
                         onChange={e => { setFilterDateFrom(e.target.value); setAllMonths(true); }}
                         className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-zinc-200 focus:outline-none focus:border-violet-500/40"/>
                     </div>
                     <span className="text-zinc-600 text-sm mt-4">→</span>
                     <div className="flex-1">
-                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">Hasta</p>
+                      <p className="text-[10px] text-zinc-600 font-semibold mb-1">{tl('to')}</p>
                       <input type="date" value={filterDateTo}
                         onChange={e => { setFilterDateTo(e.target.value); setAllMonths(true); }}
                         className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-zinc-200 focus:outline-none focus:border-violet-500/40"/>
@@ -8906,7 +11753,7 @@ export default function App() {
             {(filterMin !== '' || filterMax !== '') ? (
               <div className="px-5">
                 <div className="flex items-center gap-2 bg-zinc-900/40 rounded-2xl px-4 py-3 border border-white/5">
-                  <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap">Monto</span>
+                  <span className="text-xs text-zinc-500 font-semibold whitespace-nowrap">{tl('amount')}</span>
                   <input type="text" inputMode="numeric" value={filterMin}
                     onChange={e => setFilterMin(e.target.value.replace(/\D/g,''))}
                     placeholder="Mín"
@@ -8927,12 +11774,12 @@ export default function App() {
             <div className="px-5 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 {loadingData
-                  ? <span className="text-xs text-zinc-600">Cargando…</span>
+                  ? <span className="text-xs text-zinc-600">{tl('loading')}</span>
                   : <span className="text-xs text-zinc-500">{filteredTxs.length} movimiento{filteredTxs.length!==1?'s':''}</span>
                 }
                 {hasActiveFilters && (
-                  <button onClick={clearFilters} className="text-xs text-indigo-400 font-semibold ml-2 active:opacity-60">
-                    Limpiar
+                  <button onClick={clearFilters} className="text-xs text-violet-400 font-semibold ml-2 active:opacity-60">
+                    {tl('clear')}
                   </button>
                 )}
               </div>
@@ -8941,28 +11788,29 @@ export default function App() {
                   value={sortBy}
                   onChange={e=>setSortBy(e.target.value)}
                   className="appearance-none bg-zinc-900/60 border border-white/8 rounded-xl pl-3 pr-7 py-2 text-xs font-semibold text-zinc-400 focus:outline-none">
-                  <option value="date_desc">Más reciente</option>
-                  <option value="date_asc">Más antiguo</option>
-                  <option value="amount_desc">Mayor monto</option>
-                  <option value="amount_asc">Menor monto</option>
+                  <option value="date_desc">{tl('mostRecent')}</option>
+                  <option value="date_asc">{tl('oldest')}</option>
+                  <option value="amount_desc">{tl('highestAmount')}</option>
+                  <option value="amount_asc">{tl('lowestAmount')}</option>
                 </select>
                 <ArrowUpDown className="w-3 h-3 text-zinc-600 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"/>
               </div>
             </div>
 
-            {/* Stats de categoría filtrada */}
-            {filterCategory && filteredTxs.length > 0 && !loadingData && (() => {
-              const catColor = chartData.find(d=>d.cat===filterCategory)?.color || '#6366f1';
+            {/* Stats de categoría filtrada (solo cuando hay exactamente 1 seleccionada) */}
+            {filterCategories.size === 1 && filteredTxs.length > 0 && !loadingData && (() => {
+              const singleCat = [...filterCategories][0];
+              const catColor = chartData.find(d=>d.cat===singleCat)?.color || '#6366f1';
               const total = filteredTxs.reduce((a,c)=>a+Number(c.amount),0);
               const avg = filteredTxs.length > 0 ? Math.round(total/filteredTxs.length) : 0;
-              const budget = budgets[filterCategory]?.amount || 0;
+              const budget = budgets[singleCat]?.amount || 0;
               return (
                 <div className="px-5">
                   <div className="rounded-2xl p-4 border"
                     style={{backgroundColor:`${catColor}12`, borderColor:`${catColor}30`}}>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:catColor}}/>
-                      <span className="text-sm font-bold text-zinc-200">{filterCategory}</span>
+                      <span className="text-sm font-bold text-zinc-200">{singleCat}</span>
                       {budget > 0 && (
                         <span className="ml-auto text-xs font-semibold text-zinc-500">
                           {Math.round((total/budget)*100)}% del límite
@@ -8971,15 +11819,15 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <p className="text-[10px] text-zinc-600 mb-0.5">Total</p>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">{tl('total')}</p>
                         <p className="text-sm font-black text-white">${formatNumber(total)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-zinc-600 mb-0.5">Movimientos</p>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">{tl('movements')}</p>
                         <p className="text-sm font-black text-white">{filteredTxs.length}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-zinc-600 mb-0.5">Promedio</p>
+                        <p className="text-[10px] text-zinc-600 mb-0.5">{tl('average')}</p>
                         <p className="text-sm font-black text-white">${formatNumber(avg)}</p>
                       </div>
                     </div>
@@ -8998,16 +11846,16 @@ export default function App() {
             {filteredTxs.length > 0 && !loadingData && (
               <div className="px-5 grid grid-cols-3 gap-2">
                 <div className="bg-emerald-500/10 rounded-xl p-2.5 text-center">
-                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Ingresos</p>
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">{tl('incomes')}</p>
                   <p className="text-sm font-black text-emerald-400 mt-0.5">${formatNumber(filteredIncome)}</p>
                 </div>
                 <div className="bg-rose-500/10 rounded-xl p-2.5 text-center">
-                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Gastos</p>
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">{tl('expenses')}</p>
                   <p className="text-sm font-black text-rose-400 mt-0.5">${formatNumber(filteredExpense)}</p>
                 </div>
-                <div className={`rounded-xl p-2.5 text-center ${filteredBalance >= 0 ? 'bg-indigo-500/10' : 'bg-zinc-900/60'}`}>
-                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Balance</p>
-                  <p className={`text-sm font-black mt-0.5 ${filteredBalance >= 0 ? 'text-indigo-300' : 'text-rose-400'}`}>
+                <div className={`rounded-xl p-2.5 text-center ${filteredBalance >= 0 ? 'bg-violet-500/10' : 'bg-zinc-900/60'}`}>
+                  <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">{tl('balance')}</p>
+                  <p className={`text-sm font-black mt-0.5 ${filteredBalance >= 0 ? 'text-violet-300' : 'text-rose-400'}`}>
                     {filteredBalance >= 0 ? '+' : ''} ${formatNumber(filteredBalance)}
                   </p>
                 </div>
@@ -9052,11 +11900,11 @@ export default function App() {
                           <button key={key}
                             onClick={() => { setFilterDate(isSelected ? '' : key); if (!isSelected) setAllMonths(true); haptic(8); }}
                             className={`aspect-square flex flex-col items-center justify-center rounded-xl transition-all active:scale-90
-                              ${isSelected ? 'ring-2 ring-indigo-400' : ''}
+                              ${isSelected ? 'ring-2 ring-violet-400' : ''}
                               ${isToday    ? 'ring-1 ring-white/30'   : ''}`}
                             style={{ backgroundColor: hasExpense ? `rgba(239,68,68,${0.08+intensity*0.52})` : hasIncome ? 'rgba(52,211,153,0.15)' : 'transparent' }}>
                             <span className={`text-[11px] font-bold leading-none
-                              ${isSelected ? 'text-white' : isToday ? 'text-indigo-300' : data ? 'text-zinc-200' : 'text-zinc-600'}`}>
+                              ${isSelected ? 'text-white' : isToday ? 'text-violet-300' : data ? 'text-zinc-200' : 'text-zinc-600'}`}>
                               {day}
                             </span>
                             {data && (
@@ -9076,8 +11924,8 @@ export default function App() {
                       </span>
                       {filterDate && (
                         <button onClick={()=>{ setFilterDate(''); haptic(8); }}
-                          className="font-bold text-indigo-400 active:opacity-60">
-                          × Limpiar día
+                          className="font-bold text-violet-400 active:opacity-60">
+                          {tl('clearDay')}
                         </button>
                       )}
                     </div>
@@ -9098,11 +11946,11 @@ export default function App() {
                       : <History className="w-7 h-7 text-zinc-700"/>}
                   </div>
                   <p className="text-sm font-semibold text-zinc-600">
-                    {searchQuery || hasActiveFilters ? 'Sin resultados para esa búsqueda' : 'Sin movimientos este mes'}
+                    {searchQuery || hasActiveFilters ? tl('noResults') : tl('noMovementsMonth')}
                   </p>
                   {hasActiveFilters
-                    ? <button onClick={clearFilters} className="text-sm font-bold text-indigo-400">Limpiar filtros</button>
-                    : <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-indigo-400">+ Registrar uno</button>
+                    ? <button onClick={clearFilters} className="text-sm font-bold text-violet-400">{tl('clear')}</button>
+                    : <button onClick={()=>setActiveTab('add')} className="text-sm font-bold text-violet-400">{tl('registerOne')}</button>
                   }
                 </div>
               ) : (() => {
@@ -9119,8 +11967,8 @@ export default function App() {
                 const today = new Date().toISOString().slice(0,10);
                 const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
                 const dayLabel = (key) => {
-                  if (key===today) return 'Hoy';
-                  if (key===yesterday) return 'Ayer';
+                  if (key===today) return tl('today');
+                  if (key===yesterday) return tl('yesterday');
                   return new Date(key+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
                 };
                 return (
@@ -9134,7 +11982,7 @@ export default function App() {
                         <div key={day}>
                           {/* Separador de fecha */}
                           <div className="flex items-center justify-between mb-2.5 px-1">
-                            <span className="text-xs font-bold text-zinc-500 capitalize">{dayLabel(day)}</span>
+                            <span className="text-label capitalize" style={{color:'#71717a'}}>{dayLabel(day)}</span>
                             <span className={`text-xs font-black ${dayBal>=0?'text-emerald-500':'text-rose-400'}`}>
                               {dayBal>=0?'+':''} ${formatNumber(dayBal)}
                             </span>
@@ -9149,30 +11997,44 @@ export default function App() {
                                 <span className="text-xs font-semibold text-zinc-300 flex-1 truncate text-left">{t.category}</span>
                                 {t.note && <span className="text-[10px] text-zinc-600 italic truncate max-w-[80px]">{t.note}</span>}
                                 <span className={`text-xs font-black flex-shrink-0 ${t.type==='INGRESO'?'text-emerald-400':'text-rose-300'}`}>
-                                  {t.type==='GASTO'?'−':'+'}${formatNumber(t.amount)}
+                                  {t.type==='GASTO'?'−':'+'}
+                                  {t.currency_original && t.currency_original !== 'ARS'
+                                    ? `${CURRENCIES[t.currency_original]?.symbol||t.currency_original}${formatNumber(t.amount_original)}`
+                                    : `$${formatNumber(t.amount)}`}
                                 </span>
                               </button>
                             ) : (
                               /* ── Vista normal ── */
-                              <div key={t.id} className="bg-zinc-900/50 rounded-2xl border border-white/5">
+                              <div key={t.id} className="mc-card-sm border-white/[0.06]">
                                 <div className="flex items-center gap-3.5 p-4">
                                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0
                                     ${t.type==='INGRESO'?'bg-emerald-500/15':'bg-rose-500/15'}`}>
                                     {getEmoji(t.category)}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-white truncate">{t.category}</p>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="text-sm font-bold text-white truncate">{t.category}</p>
+                                      {t.subcategory && <span className="text-[10px] bg-teal-500/15 text-teal-400 px-1.5 py-0.5 rounded-md font-semibold flex-shrink-0">{t.subcategory}</span>}
+                                      {t.account && <span className="text-[10px] bg-violet-500/15 text-violet-400 px-1.5 py-0.5 rounded-md font-semibold flex-shrink-0">{t.account}</span>}
+                                    </div>
                                     {t.note && <p className="text-xs text-zinc-500 italic truncate mt-0.5">"{t.note}"</p>}
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
-                                    <p className={`text-base font-black ${t.type==='INGRESO'?'text-emerald-400':'text-white'}`}>
-                                      {t.type==='GASTO'?'-':'+'} ${formatNumber(t.amount)}
-                                    </p>
+                                    <div className="text-right">
+                                      <p className={`text-lg font-black ${t.type==='INGRESO'?'amount-ingreso':'amount-gasto'}`}>
+                                        {t.type==='GASTO'?'-':'+'} {t.currency_original && t.currency_original !== 'ARS'
+                                          ? `${CURRENCIES[t.currency_original]?.symbol || t.currency_original} ${formatNumber(t.amount_original)}`
+                                          : `$${formatNumber(t.amount)}`}
+                                      </p>
+                                      {t.currency_original && t.currency_original !== 'ARS' && t.amount && (
+                                        <p className="text-[10px] text-zinc-500 mt-0.5">≈ ${formatNumber(t.amount)} ARS</p>
+                                      )}
+                                    </div>
                                     <div className="flex flex-col gap-1">
-                                      <button onClick={()=>prefillFromTransaction(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors" title="Copiar como nuevo">
+                                      <button onClick={()=>prefillFromTransaction(t)} className="p-1.5 text-zinc-700 active:text-violet-400 transition-colors" title="Copiar como nuevo">
                                         <Copy className="w-3.5 h-3.5"/>
                                       </button>
-                                      <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-indigo-400 transition-colors" title="Editar">
+                                      <button onClick={()=>setEditingTx(t)} className="p-1.5 text-zinc-700 active:text-violet-400 transition-colors" title="Editar">
                                         <Edit3 className="w-3.5 h-3.5"/>
                                       </button>
                                       <button onClick={()=>requestDelete(t.id,'tx')}
@@ -9201,48 +12063,96 @@ export default function App() {
             TAB: ESTADÍSTICAS
         ════════════════════════════════ */}
         {activeTab==='stats' && (
-          <div className="px-5 pt-5 pb-10">
+          <div className="px-5 pt-[calc(env(safe-area-inset-top)+20px)] pb-10">
             {statsView==='menu' ? (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">Estadísticas</h2>
-                    <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                    <h2 className="text-h1 uppercase">{tl('stats')}</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">{MONTHS[statsDate.month]} {statsDate.year}</p>
+                  </div>
+                  {/* Selector de mes para estadísticas */}
+                  <div className="flex items-center gap-1 mc-card-sm p-1">
+                    <button onClick={() => changeStatsMonth(-1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 active:bg-zinc-700 transition-colors">
+                      <ChevronLeft className="w-4 h-4"/>
+                    </button>
+                    <span className="text-xs font-bold text-white px-1 min-w-[60px] text-center">
+                      {MONTHS[statsDate.month].slice(0,3)} {statsDate.year}
+                    </span>
+                    <button onClick={() => changeStatsMonth(+1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 active:bg-zinc-700 transition-colors">
+                      <ChevronRight className="w-4 h-4"/>
+                    </button>
                   </div>
                 </div>
                 <button onClick={()=>setShowReport(true)}
-                  className="w-full bg-indigo-600/15 border border-indigo-500/30 rounded-[1.5rem] p-5 flex items-center gap-4 active:bg-indigo-600/25 transition-colors">
-                  <div className="w-12 h-12 bg-indigo-600/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  className="w-full bg-violet-700/12 border border-violet-500/30 rounded-[1.5rem] p-5 flex items-center gap-4 active:bg-violet-600/25 transition-colors">
+                  <div className="w-12 h-12 bg-violet-600/30 rounded-2xl flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">📊</span>
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-black text-white">Informe mensual</p>
-                    <p className="text-xs text-indigo-300/70 mt-0.5">Resumen completo · {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
+                    <p className="text-sm font-black text-white">{tl('monthlyReport')}</p>
+                    <p className="text-xs text-violet-300/70 mt-0.5">{tl('fullSummary')} · {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}</p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-indigo-400 flex-shrink-0"/>
+                  <ChevronRight className="w-5 h-5 text-violet-400 flex-shrink-0"/>
                 </button>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5">
-                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">Ingresos</p>
-                    <p className="text-lg font-black text-emerald-400">${priv(formatNumber(stats.income))}</p>
-                    {prevMonth && prevMonth.income > 0 && <p className="text-[10px] text-zinc-600 mt-0.5">{stats.income >= prevMonth.income ? '▲' : '▼'} vs mes ant.</p>}
+                {/* Selector de cuenta — Estadísticas */}
+                {accounts.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+                    {['', ...accounts].map(acc => (
+                      <button key={acc || '__all__'}
+                        onClick={() => { setStatsAccount(acc); haptic(6); }}
+                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 border
+                          ${statsAccount === acc
+                            ? 'bg-violet-600 text-white border-violet-500/50'
+                            : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                        {acc || 'Todas'}
+                      </button>
+                    ))}
                   </div>
-                  <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/5">
-                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">Gastos</p>
-                    <p className="text-lg font-black text-rose-400">${priv(formatNumber(stats.expenses))}</p>
-                    {prevMonth && prevMonth.expense > 0 && <p className="text-[10px] text-zinc-600 mt-0.5">{stats.expenses <= prevMonth.expense ? '▼' : '▲'} vs mes ant.</p>}
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="glass-success p-4">
+                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">{tl('incomes')}</p>
+                    <p className="text-lg font-black text-emerald-400">${priv(formatNumber(statsData.income))}</p>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">{statsData.txs.filter(t=>t.type==='INGRESO').length} movimientos</p>
+                  </div>
+                  <div className="glass-danger p-4">
+                    <p className="text-[10px] text-zinc-500 font-semibold mb-1">{tl('expenses')}</p>
+                    <p className="text-lg font-black text-rose-400">${priv(formatNumber(statsData.expenses))}</p>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">{statsData.txs.filter(t=>t.type==='GASTO').length} movimientos</p>
                   </div>
                 </div>
+
+                {/* Desglose por cuenta */}
+                {Object.keys(statsData.byAccount).length > 1 && (
+                  <div className="bg-zinc-900/40 rounded-2xl border border-white/5 p-4 space-y-3">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">👥 {tl('byAccount')}</p>
+                    {Object.entries(statsData.byAccount).map(([acct, vals]) => (
+                      <div key={acct} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0"/>
+                          <span className="text-sm font-semibold text-zinc-300">{acct}</span>
+                        </div>
+                        <div className="text-right">
+                          {vals.expense > 0 && <p className="text-xs font-black text-rose-400">-${formatNumber(vals.expense)}</p>}
+                          {vals.income > 0 && <p className="text-xs font-bold text-emerald-400">+${formatNumber(vals.income)}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div>
-                  <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider ml-1 mb-3">Reportes</p>
+                  <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider ml-1 mb-3">{tl('reports')}</p>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { id:'gastos',      label:'Gastos',           icon:'🛒', color:'bg-rose-500/10 border-rose-500/20',       badge: stats.expenses > 0 ? '$'+formatNumber(stats.expenses) : null },
-                      { id:'ingresos',    label:'Ingresos',         icon:'💰', color:'bg-emerald-500/10 border-emerald-500/20', badge: stats.income > 0 ? '$'+formatNumber(stats.income) : null },
-                      { id:'tendencias',  label:'Tendencias',       icon:'📈', color:'bg-indigo-500/10 border-indigo-500/20',   badge: null },
-                      { id:'salud',       label:'Salud financiera', icon:'🏥', color:'bg-violet-500/10 border-violet-500/20',   badge: healthScore ? healthScore.grade : null },
-                      { id:'presupuesto', label:'Presupuesto',      icon:'📋', color:'bg-amber-500/10 border-amber-500/20',     badge: budgetCoverage ? budgetCoverage.pct+'%' : null },
-                      { id:'ahorro',      label:'Ahorro y metas',   icon:'🚀', color:'bg-cyan-500/10 border-cyan-500/20',       badge: null },
+                      { id:'gastos',      label:tl('expenses'),         icon:'🛒', color:'bg-rose-500/10 border-rose-500/20',       badge: statsData.expenses > 0 ? '$'+formatNumber(statsData.expenses) : null },
+                      { id:'ingresos',    label:tl('incomes'),          icon:'💰', color:'bg-emerald-500/10 border-emerald-500/20', badge: statsData.income > 0 ? '$'+formatNumber(statsData.income) : null },
+                      { id:'tendencias',  label:tl('trends'),           icon:'📈', color:'bg-violet-500/10 border-violet-500/20',   badge: null },
+                      { id:'salud',       label:tl('financialHealth'),  icon:'🏥', color:'bg-violet-500/10 border-violet-500/20',   badge: healthScore ? healthScore.grade : null },
+                      { id:'presupuesto', label:tl('budget'),           icon:'📋', color:'bg-amber-500/10 border-amber-500/20',     badge: budgetCoverage ? budgetCoverage.pct+'%' : null },
+                      { id:'ahorro',      label:'Ahorro y metas',       icon:'🚀', color:'bg-cyan-500/10 border-cyan-500/20',       badge: null },
                     ].map(cat=>(
                       <button key={cat.id} onClick={()=>setStatsView(cat.id)}
                         className={`${cat.color} border rounded-2xl p-4 text-left active:scale-95 transition-all`}>
@@ -9251,7 +12161,7 @@ export default function App() {
                           {cat.badge && <span className="text-[10px] font-black text-zinc-400">{cat.badge}</span>}
                         </div>
                         <p className="text-sm font-bold text-white">{cat.label}</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-0.5">Ver detalle <ChevronRight className="w-3 h-3 inline"/></p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-0.5">{tl('seeDetail')} <ChevronRight className="w-3 h-3 inline"/></p>
                       </button>
                     ))}
                   </div>
@@ -9263,7 +12173,7 @@ export default function App() {
                       <span className="text-xl font-black" style={{color:healthScore.color}}>{healthScore.grade}</span>
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-sm font-bold text-zinc-300">Índice de salud financiera</p>
+                      <p className="text-sm font-bold text-zinc-300">{tl('financialHealth')}</p>
                       <p className="text-xs mt-0.5 font-semibold" style={{color:healthScore.color}}>{healthScore.label} · {healthScore.score}/100 pts</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-zinc-600 flex-shrink-0"/>
@@ -9272,21 +12182,21 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-5">
-                <button onClick={()=>setStatsView('menu')} className="flex items-center gap-2 text-indigo-400 active:opacity-60 py-1">
+                <button onClick={()=>setStatsView('menu')} className="flex items-center gap-2 text-violet-400 active:opacity-60 py-1">
                   <ChevronLeft className="w-4 h-4"/>
-                  <span className="text-sm font-semibold">Estadísticas</span>
+                  <span className="text-sm font-semibold">{tl('stats')}</span>
                 </button>
                 {statsView==='gastos' && (<>
-                  <h3 className="text-xl font-black uppercase tracking-tight">🛒 Gastos</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">🛒 {tl('expenses')}</h3>
                   {burnRate && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-1">Velocidad de gasto</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-1">{tl('spendingSpeed')}</p>
                     <p className="text-3xl font-black">${priv(formatNumber(burnRate.dailyRate))}<span className="text-sm text-zinc-500 font-semibold">/día</span></p>
                     <div className="flex gap-4 mt-3 text-xs"><span className="text-zinc-500">Proyectado: <b className="text-white">${priv(formatNumber(burnRate.projected))}</b></span>{burnRate.pct&&<span className="text-amber-400 font-bold">{burnRate.pct}% del presupuesto</span>}</div>
                     <div className="mt-3 h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-rose-500 rounded-full" style={{width:`${Math.min(100,Math.round((burnRate.daysPassed/burnRate.daysInMonth)*100))}%`}}/></div>
                     <p className="text-[10px] text-zinc-600 mt-1">Día {burnRate.daysPassed} de {burnRate.daysInMonth}</p>
                   </div>)}
                   {topTxs && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Top gastos del mes</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('topExpenses')}</p>
                     {topTxs.slice(0,5).map((t,i)=>(<div key={t.id||i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
                       <span className="text-base leading-none">{getEmoji(t.category)}</span>
                       <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-zinc-300 truncate">{t.note||t.category}</p><p className="text-[10px] text-zinc-600">{t.category}</p></div>
@@ -9295,11 +12205,11 @@ export default function App() {
                   </div>)}
                   {worstWeek && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
                     <span className="text-2xl">📉</span>
-                    <div><p className="text-xs text-zinc-500">Peor semana</p><p className="text-sm font-black text-white">${priv(formatNumber(worstWeek.total))}</p><p className="text-[10px] text-zinc-600">{worstWeek.label}</p></div>
+                    <div><p className="text-xs text-zinc-500">{tl('worstWeek')}</p><p className="text-sm font-black text-white">${priv(formatNumber(worstWeek.total))}</p><p className="text-[10px] text-zinc-600">{worstWeek.label}</p></div>
                   </div>)}
                   {paretoExpenses && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-3">Pareto de gastos</p>
-                    {paretoExpenses.slice(0,5).map((p,i)=>(<div key={p.cat} className="mb-2"><div className="flex justify-between mb-0.5"><span className="text-xs text-zinc-300">{i+1}. {p.cat}</span><span className="text-xs font-bold text-rose-400">{p.pct}%</span></div><div className="h-1 bg-zinc-800 rounded-full"><div className="h-full bg-rose-500 rounded-full" style={{width:`${p.pct}%`}}/></div></div>))}
+                    {paretoExpenses.items.slice(0,5).map((p,i)=>(<div key={p.cat} className="mb-2"><div className="flex justify-between mb-0.5"><span className="text-xs text-zinc-300">{i+1}. {p.cat}</span><span className="text-xs font-bold text-rose-400">{p.cumPct}%</span></div><div className="h-1 bg-zinc-800 rounded-full"><div className="h-full bg-rose-500 rounded-full" style={{width:`${Math.min(p.cumPct,100)}%`}}/></div></div>))}
                   </div>)}
                   {microSpends && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
                     <span className="text-2xl">🐜</span>
@@ -9307,7 +12217,7 @@ export default function App() {
                   </div>)}
                 </>)}
                 {statsView==='ingresos' && (<>
-                  <h3 className="text-xl font-black uppercase tracking-tight">💰 Ingresos</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">💰 {tl('incomes')}</h3>
                   <div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5 grid grid-cols-2 gap-4">
                     <div><p className="text-xs text-zinc-500">Este mes</p><p className="text-2xl font-black text-emerald-400">${priv(formatNumber(stats.income))}</p></div>
                     {prevMonth&&<div><p className="text-xs text-zinc-500">Mes anterior</p><p className="text-2xl font-black text-zinc-300">${priv(formatNumber(prevMonth.income))}</p></div>}
@@ -9322,46 +12232,46 @@ export default function App() {
                   </div>)}
                   {savingsMomentum && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3">
                     <span className="text-2xl">📈</span>
-                    <div><p className="text-xs text-zinc-500">Momentum de ahorro</p><p className={`text-sm font-black ${savingsMomentum.trend==='up'?'text-emerald-400':savingsMomentum.trend==='down'?'text-rose-400':'text-zinc-300'}`}>{savingsMomentum.trend==='up'?'▲ Tendencia positiva':savingsMomentum.trend==='down'?'▼ Tendencia negativa':'→ Estable'}</p></div>
+                    <div><p className="text-xs text-zinc-500">{tl('savingsMomentum')}</p><p className={`text-sm font-black ${savingsMomentum.trend==='up'?'text-emerald-400':savingsMomentum.trend==='down'?'text-rose-400':'text-zinc-300'}`}>{savingsMomentum.trend==='up'?'▲ Tendencia positiva':savingsMomentum.trend==='down'?'▼ Tendencia negativa':'→ Estable'}</p></div>
                   </div>)}
                   {incomeByDow && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Ingresos por día de la semana</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('incomePerDay')}</p>
                     <div className="flex gap-1 items-end h-16">{incomeByDow.avgs.map((v,i)=>{const max=Math.max(...incomeByDow.avgs,1);return(<div key={i} className="flex-1 flex flex-col items-center gap-1"><div className="w-full rounded-t" style={{height:`${Math.round((v/max)*48)+4}px`,background:incomeByDow.peakDow===i?'#10b981':'#27272a'}}/><span className="text-[9px] text-zinc-600">{incomeByDow.labels[i]}</span></div>);})}
                     </div>
                   </div>)}
                 </>)}
                 {statsView==='tendencias' && (<>
-                  <h3 className="text-xl font-black uppercase tracking-tight">📈 Tendencias</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">📈 {tl('trends')}</h3>
                   {balanceTrend && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-1">Tendencia de balance</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-1">{tl('balanceTrend')}</p>
                     <p className={`text-lg font-black ${balanceTrend.trend==='up'?'text-emerald-400':balanceTrend.trend==='down'?'text-rose-400':'text-zinc-300'}`}>{balanceTrend.trend==='up'?'▲ Balance en crecimiento':balanceTrend.trend==='down'?'▼ Balance en descenso':'→ Balance estable'}</p>
                     {balanceTrend.last3&&balanceTrend.last3.length>0&&<div className="flex gap-2 mt-3">{balanceTrend.last3.map((v,i)=>(<div key={i} className="flex-1 text-center bg-zinc-800/50 rounded-xl py-2"><p className="text-[9px] text-zinc-600 mb-1">M-{2-i}</p><p className={`text-xs font-bold ${v>=0?'text-emerald-400':'text-rose-400'}`}>{v>=0?'+':''}{formatNumber(v)}</p></div>))}</div>}
                   </div>)}
                   {weekOverWeek && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Semana vs semana</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('weekVsWeek')}</p>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><p className="text-[10px] text-zinc-600">Esta semana</p><p className="text-xl font-black text-white">${priv(formatNumber(weekOverWeek.cur))}</p></div>
-                      <div><p className="text-[10px] text-zinc-600">Semana anterior</p><p className="text-xl font-black text-zinc-400">${priv(formatNumber(weekOverWeek.prev))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">{tl('thisWeekLabel')}</p><p className="text-xl font-black text-white">${priv(formatNumber(weekOverWeek.cur))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">{tl('prevWeek')}</p><p className="text-xl font-black text-zinc-400">${priv(formatNumber(weekOverWeek.prev))}</p></div>
                     </div>
                     {weekOverWeek.pct!==null&&<p className={`text-xs mt-2 font-bold ${weekOverWeek.diff>0?'text-rose-400':'text-emerald-400'}`}>{weekOverWeek.diff>0?'▲':'▼'} {Math.abs(weekOverWeek.pct)}% vs semana anterior</p>}
                   </div>)}
                   {prevMonthCompare && prevMonthCompare.items && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Comparativa mes anterior</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('vsLastMonth')}</p>
                     {prevMonthCompare.items.slice(0,6).map(it=>(<div key={it.cat} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0"><span className="text-base leading-none flex-shrink-0">{getEmoji(it.cat)}</span><p className="text-sm flex-1 text-zinc-300">{it.cat}</p><p className={`text-xs font-bold ${it.diff>0?'text-rose-400':'text-emerald-400'}`}>{it.diff>0?'+':''}{formatNumber(it.diff)}</p></div>))}
                   </div>)}
                   {weeklyHeatmap && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Heatmap semanal (promedio)</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('weeklyHeatmap')}</p>
                     <div className="flex gap-1 items-end h-16">{weeklyHeatmap.avgs.map((v,i)=>{const pct=weeklyHeatmap.maxAvg>0?v/weeklyHeatmap.maxAvg:0;return(<div key={i} className="flex-1 flex flex-col items-center gap-1"><div className="w-full rounded-t" style={{height:`${Math.round(pct*48)+4}px`,background:weeklyHeatmap.peakDow===i?'#f97316':`rgba(249,115,22,${0.15+pct*0.5})`}}/><span className="text-[9px] text-zinc-500">{weeklyHeatmap.labels[i]}</span></div>);})}
                     </div>
                     <p className="text-[10px] text-zinc-600 mt-2">Pico: {weeklyHeatmap.labels[weeklyHeatmap.peakDow]} · ${priv(formatNumber(weeklyHeatmap.avgs[weeklyHeatmap.peakDow]))}/sem</p>
                   </div>)}
                   {categoryLifecycle && categoryLifecycle.length>0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Ciclo de categorías</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('categoryCycle')}</p>
                     {categoryLifecycle.slice(0,5).map(c=>(<div key={c.cat} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0"><span className="text-base leading-none">{getEmoji(c.cat)}</span><p className="text-sm flex-1 text-zinc-300">{c.cat}</p><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.trend==='growing'?'bg-rose-500/20 text-rose-400':c.trend==='shrinking'?'bg-emerald-500/20 text-emerald-400':'bg-zinc-800 text-zinc-400'}`}>{c.trend==='growing'?'↑ Creciendo':c.trend==='shrinking'?'↓ Bajando':'→ Estable'}</span></div>))}
                   </div>)}
                 </>)}
                 {statsView==='salud' && (<>
-                  <h3 className="text-xl font-black uppercase tracking-tight">🏥 Salud financiera</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">🏥 {tl('financialHealth')}</h3>
                   {healthScore && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-6">
                     <div className="flex items-center gap-4 mb-5">
                       <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{background:healthScore.color+'20'}}>
@@ -9372,14 +12282,14 @@ export default function App() {
                         <p className="text-sm font-bold mt-0.5" style={{color:healthScore.color}}>{healthScore.label}</p>
                       </div>
                     </div>
-                    {healthScore.breakdown.map(b=>(<div key={b.label} className="flex items-center gap-3 py-2"><p className="text-xs text-zinc-400 flex-1">{b.label}</p><div className="w-20 h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-indigo-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/></div><p className="text-xs font-bold text-zinc-300 w-10 text-right">{b.pts}/{b.max}</p></div>))}
+                    {healthScore.breakdown.map(b=>(<div key={b.label} className="flex items-center gap-3 py-2"><p className="text-xs text-zinc-400 flex-1">{b.label}</p><div className="w-20 h-1.5 bg-zinc-800 rounded-full"><div className="h-full bg-violet-500 rounded-full" style={{width:`${(b.pts/b.max)*100}%`}}/></div><p className="text-xs font-bold text-zinc-300 w-10 text-right">{b.pts}/{b.max}</p></div>))}
                   </div>)}
                   {stabilityIndex && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-2">Índice de estabilidad</p>
                     <p className="text-2xl font-black" style={{color:stabilityIndex.color}}>{stabilityIndex.score}<span className="text-sm text-zinc-500 ml-1">/100 · {stabilityIndex.level}</span></p>
                   </div>)}
                   {achievements && achievements.length>0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
-                    <p className="text-xs font-bold text-zinc-500 mb-3">Logros desbloqueados</p>
+                    <p className="text-xs font-bold text-zinc-500 mb-3">{tl('achievementsUnlocked')}</p>
                     {achievements.slice(0,5).map(a=>(<div key={a.id} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0"><span className="text-2xl leading-none">{a.icon}</span><div><p className="text-sm font-bold text-zinc-300">{a.label}</p><p className="text-[10px] text-zinc-600">{a.desc}</p></div></div>))}
                   </div>)}
                   {noSpendStreak > 0 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3"><span className="text-2xl">🔥</span><div><p className="text-xs text-zinc-500">Racha sin gastos</p><p className="text-lg font-black text-amber-400">{noSpendStreak} mes{noSpendStreak!==1?'es':''} consecutivo{noSpendStreak!==1?'s':''}</p></div></div>)}
@@ -9389,7 +12299,7 @@ export default function App() {
                   </div>)}
                 </>)}
                 {statsView==='presupuesto' && (<>
-                  <h3 className="text-xl font-black uppercase tracking-tight">📋 Presupuesto</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">📋 {tl('budget')}</h3>
                   {budgetCoverage && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-2">Cobertura de presupuesto</p>
                     <p className={`text-3xl font-black ${budgetCoverage.pct>=100?'text-emerald-400':budgetCoverage.pct>=75?'text-amber-400':'text-rose-400'}`}>{budgetCoverage.pct}%</p>
@@ -9398,7 +12308,7 @@ export default function App() {
                   </div>)}
                   {rule503020 && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-3">Regla 50/30/20</p>
-                    {[{label:'Necesidades (50%)',val:rule503020.needs,pct:rule503020.needsPct,color:'bg-indigo-500'},{label:'Deseos (30%)',val:rule503020.wants,pct:rule503020.wantsPct,color:'bg-violet-500'},{label:'Ahorro (20%)',val:rule503020.savings,pct:rule503020.savingsPct,color:'bg-emerald-500'}].map(r=>(<div key={r.label} className="mb-3"><div className="flex justify-between text-xs mb-1"><span className="text-zinc-400">{r.label}</span><span className="font-bold text-white">${priv(formatNumber(r.val))}</span></div><div className="h-2 bg-zinc-800 rounded-full"><div className={`h-full ${r.color} rounded-full`} style={{width:`${Math.min(100,r.pct||0)}%`}}/></div></div>))}
+                    {[{label:'Necesidades (50%)',val:rule503020.needs,pct:rule503020.needsPct,color:'bg-violet-500'},{label:'Deseos (30%)',val:rule503020.wants,pct:rule503020.wantsPct,color:'bg-violet-500'},{label:'Ahorro (20%)',val:rule503020.savings,pct:rule503020.savingsPct,color:'bg-emerald-500'}].map(r=>(<div key={r.label} className="mb-3"><div className="flex justify-between text-xs mb-1"><span className="text-zinc-400">{r.label}</span><span className="font-bold text-white">${priv(formatNumber(r.val))}</span></div><div className="h-2 bg-zinc-800 rounded-full"><div className={`h-full ${r.color} rounded-full`} style={{width:`${Math.min(100,r.pct||0)}%`}}/></div></div>))}
                   </div>)}
                   {monthProjection && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-1">Proyección fin de mes</p>
@@ -9422,9 +12332,9 @@ export default function App() {
                   {quarterSummary && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-5">
                     <p className="text-xs font-bold text-zinc-500 mb-3">Resumen trimestral Q{quarterSummary.q} {quarterSummary.year}</p>
                     <div className="grid grid-cols-3 gap-3">
-                      <div><p className="text-[10px] text-zinc-600">Ingresos</p><p className="text-base font-black text-emerald-400">${priv(formatNumber(quarterSummary.income))}</p></div>
-                      <div><p className="text-[10px] text-zinc-600">Gastos</p><p className="text-base font-black text-rose-400">${priv(formatNumber(quarterSummary.expenses))}</p></div>
-                      <div><p className="text-[10px] text-zinc-600">Balance</p><p className={`text-base font-black ${quarterSummary.balance>=0?'text-emerald-400':'text-rose-400'}`}>{quarterSummary.balance>=0?'+':''}{priv(formatNumber(quarterSummary.balance))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">{tl('incomes')}</p><p className="text-base font-black text-emerald-400">${priv(formatNumber(quarterSummary.income))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">{tl('expenses')}</p><p className="text-base font-black text-rose-400">${priv(formatNumber(quarterSummary.expenses))}</p></div>
+                      <div><p className="text-[10px] text-zinc-600">{tl('balance')}</p><p className={`text-base font-black ${quarterSummary.balance>=0?'text-emerald-400':'text-rose-400'}`}>{quarterSummary.balance>=0?'+':''}{priv(formatNumber(quarterSummary.balance))}</p></div>
                     </div>
                   </div>)}
                   {liquidityRatio && (<div className="bg-zinc-900/40 rounded-[1.5rem] border border-white/5 p-4 flex items-center gap-3"><span className="text-2xl">💧</span><div><p className="text-xs text-zinc-500">Ratio de liquidez</p><p className="text-lg font-black text-white">{liquidityRatio.ratio} mes{liquidityRatio.ratio!==1?'es':''}<span className="text-xs text-zinc-500 font-normal"> cobertura</span></p></div></div>)}
@@ -9445,219 +12355,1257 @@ export default function App() {
         )}
 
         {/* ════════════════════════════════
-            TAB: AJUSTES
+            TAB: PRESUPUESTO
         ════════════════════════════════ */}
-        {activeTab==='settings' && (
-          <div className="px-5 pt-5 space-y-6">
-            <h2 className="text-xl font-black uppercase tracking-tight">Ajustes</h2>
+        {activeTab==='budget' && (
+          <div className="px-4 md:px-6 lg:px-8 pt-[calc(env(safe-area-inset-top)+16px)] space-y-4 md:space-y-5 pb-[calc(env(safe-area-inset-bottom)+90px)] max-w-2xl lg:max-w-3xl mx-auto">
 
-            {/* Estrategia */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Estrategia financiera</p>
-              <div className="bg-zinc-900/40 rounded-[1.75rem] p-5 border border-white/5 space-y-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-4 h-4 text-indigo-400"/>
-                  <span className="text-sm font-semibold text-zinc-400">Patrimonio histórico</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-emerald-400 font-semibold">Ahorro total</p>
-                    <p className="text-xl font-black">${formatNumber(stats.historicalSavingsTotal)}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-indigo-400 font-semibold">Inversión total</p>
-                    <p className="text-xl font-black">${formatNumber(stats.historicalInvestmentTotal)}</p>
-                  </div>
-                </div>
+            {/* ── Header con selector de período ── */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-h1 uppercase">{tl('budget')}</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Control de Gastos</p>
               </div>
-              <PrecisionSelector label="Ahorro mensual" subtext={`Este mes: $${formatNumber(stats.savingsAmount)}`}
-                value={strategy.savingsPercent||0} onChange={v=>updateStrategy('savingsPercent',v)} color="emerald" icon={PiggyBank}/>
-              <PrecisionSelector label="Inversión mensual" subtext={`Este mes: $${formatNumber(stats.investmentAmount)}`}
-                value={strategy.investmentPercent||0} onChange={v=>updateStrategy('investmentPercent',v)} color="indigo" icon={TrendingUp}/>
+              <div className="flex items-center gap-2">
+                <button onClick={()=>{ setShowBudgetResumen(true); haptic(6); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 rounded-xl border border-violet-500/25 text-sm font-bold text-violet-400 active:scale-90 transition-transform">
+                  <FileText className="w-3.5 h-3.5"/>
+                  Resumen
+                </button>
+                <button onClick={()=>setShowBudgetPeriodPicker(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 rounded-xl border border-white/8 text-sm font-bold text-zinc-300 active:scale-90 transition-transform">
+                  <Calendar className="w-3.5 h-3.5 text-zinc-500"/>
+                  {MONTHS[budgetPeriod.month].slice(0,3)} {budgetPeriod.year}
+                  <ChevronDown className="w-3 h-3 text-zinc-500"/>
+                </button>
+              </div>
             </div>
 
-            {/* Presupuesto por categoría */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center ml-1">
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Límites de categorías</p>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${stats.availableToAssign<0?'bg-rose-500/10 text-rose-400':'bg-emerald-500/10 text-emerald-400'}`}>
-                  Sobra: ${formatNumber(stats.availableToAssign)}
-                </span>
+            {/* ── Selector de cuenta ── */}
+            {accounts.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                {['', ...personalAccounts].map(acc => (
+                  <button key={acc || '__hogar__'}
+                    onClick={() => { setBudgetAccount(acc); haptic(6); }}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 border
+                      ${budgetAccount === acc
+                        ? 'bg-violet-600 text-white border-violet-500/50'
+                        : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                    {acc || '🏠 Hogar'}
+                  </button>
+                ))}
               </div>
-              <div className="bg-zinc-900/40 rounded-[1.75rem] border border-white/5 overflow-hidden">
-                {activeCategories.GASTO.map((cat,i)=>{
-                  const spark = catSparklines[cat];
-                  return (
-                  <div key={cat} className={`flex items-center gap-3 px-5 py-3.5 ${i<activeCategories.GASTO.length-1?'border-b border-white/5':''}`}>
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-lg leading-none flex-shrink-0">{getEmoji(cat)}</span>
-                      <div className="min-w-0">
-                        <span className="text-sm font-semibold text-zinc-300 block truncate">{cat}</span>
-                        {spark && spark.vals.some(v=>v>0) && (
-                          <svg width="36" height="14" className="mt-0.5">
-                            {spark.vals.map((v,idx)=>{
-                              const barH = Math.max(2, Math.round((v/spark.maxVal)*12));
-                              const x = idx * 13;
-                              const isCur = idx === 2;
-                              return <rect key={idx} x={x} y={14-barH} width={10} height={barH}
-                                rx="2" fill={isCur ? '#6366f1' : '#3f3f46'}/>;
-                            })}
-                          </svg>
+            )}
+
+            {/* ── Sección 1: Resumen del período ── */}
+            {!budgetAccount ? (
+              /* ══════ VISTA HOGAR: Waterfall + Distribución + Compartidos ══════ */
+              <div className="space-y-4">
+                {/* ── A: Waterfall Card — Ingresos del hogar ── */}
+                <div className="glass-success px-5 py-5">
+                  <p className="text-label mb-2">💰 Ingresos del hogar</p>
+                  {accounts.map(acc => {
+                    const accIncome = waterfallData.incomeByAccount[acc] || 0;
+                    return accIncome > 0 ? (
+                      <div key={acc} className="flex justify-between items-center py-0.5">
+                        <span className="text-xs text-emerald-300/70 font-semibold">{acc}</span>
+                        <span className="text-sm font-bold text-emerald-400">{currSymbol}{formatNumber(accIncome)}</span>
+                      </div>
+                    ) : null;
+                  })}
+                  <div className="flex justify-between items-center pt-2 mt-2 border-t border-emerald-500/20">
+                    <span className="text-xs font-black text-emerald-200">TOTAL</span>
+                    <span className="text-display text-emerald-400">{currSymbol}{formatNumber(waterfallData.totalIncome)}</span>
+                  </div>
+                </div>
+
+                {/* ── Deducciones ── */}
+                <div className="mc-card px-5 py-5 space-y-2">
+                  <p className="text-label mb-2">📋 Deducciones</p>
+                  {waterfallData.fixedExpenses > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-500 font-semibold">Gastos fijos pagados</span>
+                      <span className="text-sm font-bold text-rose-400">−{currSymbol}{formatNumber(waterfallData.fixedExpenses)}</span>
+                    </div>
+                  )}
+                  {waterfallData.billsAndCuotas > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-500 font-semibold">Vencimientos y cuotas</span>
+                      <span className="text-sm font-bold text-rose-400">−{currSymbol}{formatNumber(waterfallData.billsAndCuotas)}</span>
+                    </div>
+                  )}
+                  {waterfallData.savingsAmt > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-500 font-semibold">Ahorro ({strategy.savingsPercent}%)</span>
+                      <span className="text-sm font-bold text-emerald-400">−{currSymbol}{formatNumber(waterfallData.savingsAmt)}</span>
+                    </div>
+                  )}
+                  {waterfallData.investAmt > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-500 font-semibold">Inversión ({strategy.investmentPercent}%)</span>
+                      <span className="text-sm font-bold text-violet-400">−{currSymbol}{formatNumber(waterfallData.investAmt)}</span>
+                    </div>
+                  )}
+                  {waterfallData.sharedCategoryBudgets > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-500 font-semibold">Presup. compartidos</span>
+                      <span className="text-sm font-bold text-teal-400">−{currSymbol}{formatNumber(waterfallData.sharedCategoryBudgets)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-3 mt-2 border-t border-white/10">
+                    <span className="text-xs font-black text-white">💵 SALDO A DISTRIBUIR</span>
+                    <span className="text-xl font-black text-white">{currSymbol}{formatNumber(waterfallData.remainder)}</span>
+                  </div>
+                </div>
+
+                {/* ── B: Distribución (editable) ── */}
+                <div className="mc-card px-5 py-5 space-y-3">
+                  <p className="text-label mb-1">Distribución</p>
+                  {/* Mode chips */}
+                  <div className="flex gap-2">
+                    {[
+                      { key: 'equal', label: 'Igual' },
+                      { key: 'proportional', label: 'Proporcional' },
+                      { key: 'custom', label: 'Manual' },
+                    ].map(m => (
+                      <button key={m.key}
+                        onClick={() => saveAllocations({ ...allocations, mode: m.key })}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all active:scale-95 border
+                          ${(allocations.mode || 'equal') === m.key
+                            ? 'bg-violet-600 text-white border-violet-500/50'
+                            : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Per-person allocation */}
+                  {personalAccounts.length > 0 && (
+                    <div className="space-y-2">
+                      {personalAccounts.map(acc => {
+                        const amount = waterfallData.effectiveAllocations[acc] || 0;
+                        const pct = waterfallData.remainder > 0
+                          ? Math.round((amount / waterfallData.remainder) * 100)
+                          : 0;
+                        const isCustom = (allocations.mode || 'equal') === 'custom';
+                        return (
+                          <div key={acc} className="flex items-center gap-3">
+                            <span className="text-xs text-zinc-400 font-semibold w-16 truncate">{acc}</span>
+                            <div className="flex-1">
+                              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-600 rounded-full transition-all duration-300"
+                                  style={{width: `${Math.min(100, pct)}%`}}/>
+                              </div>
+                            </div>
+                            {isCustom ? (
+                              <input
+                                type="text"
+                                value={formatNumber(allocations.amounts?.[acc] || 0)}
+                                onChange={e => {
+                                  const v = parseFormattedNumber(e.target.value);
+                                  saveAllocations({
+                                    ...allocations,
+                                    amounts: { ...(allocations.amounts || {}), [acc]: v }
+                                  });
+                                }}
+                                className="bg-zinc-900 border border-white/8 rounded-lg text-right font-bold text-sm w-24 px-2 py-1 focus:outline-none focus:border-violet-500/60 text-white"
+                                inputMode="numeric"
+                              />
+                            ) : (
+                              <span className="text-sm font-bold text-white w-24 text-right">
+                                {currSymbol}{formatNumber(amount)}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-zinc-600 font-semibold w-8 text-right">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                      {/* Unallocated warning */}
+                      {waterfallData.unallocated !== 0 && (
+                        <div className={`flex justify-between items-center px-2 py-1.5 rounded-lg text-xs font-bold ${
+                          waterfallData.unallocated < 0
+                            ? 'bg-rose-500/10 text-rose-400'
+                            : 'bg-amber-500/10 text-amber-400'
+                        }`}>
+                          <span>Sin asignar</span>
+                          <span>{currSymbol}{formatNumber(waterfallData.unallocated)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {personalAccounts.length === 0 && (
+                    <p className="text-xs text-zinc-600 text-center py-3">
+                      No hay cuentas personales. Marcá al menos una cuenta como personal en Ajustes.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── C: Presupuestos Compartidos (editables) ── */}
+                {sharedAccounts.length > 0 && (
+                  <div className="mc-card px-5 py-5 space-y-3">
+                    <p className="text-label mb-1">🤝 Presupuestos compartidos</p>
+                    {sharedAccounts.map(sharedAcc => (
+                      <div key={sharedAcc} className="space-y-2">
+                        {sharedAccounts.length > 1 && (
+                          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">{sharedAcc}</p>
+                        )}
+                        {activeCategories.GASTO.map(cat => {
+                          const budKey  = `${sharedAcc}|${cat}|`;
+                          const rawVal  = budgets[budKey]?.amount || 0;
+                          const spent   = budgetPeriodTxs
+                            .filter(t => t.account === sharedAcc && t.type === 'GASTO' && t.category === cat)
+                            .reduce((a, c) => a + Number(c.amount), 0);
+                          const remaining = rawVal > 0 ? rawVal - spent : null;
+                          const pct     = rawVal > 0 ? Math.min(100, Math.round((spent / rawVal) * 100)) : 0;
+                          const isOver  = remaining !== null && remaining < 0;
+                          const barColor = isOver ? '#f43f5e' : pct > 80 ? '#f59e0b' : '#14b8a6';
+                          if (rawVal === 0 && spent === 0) return null;
+                          return (
+                            <div key={cat}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                                <span className="text-xs text-zinc-400 flex-1 truncate">{cat}</span>
+                                <span className="text-[10px] text-zinc-600 mr-1">{currSymbol}{formatNumber(spent)}</span>
+                                <span className="text-zinc-700 text-[10px]">/</span>
+                                <input
+                                  type="text"
+                                  value={formatNumber(rawVal)}
+                                  onChange={async e => {
+                                    const v = parseFormattedNumber(e.target.value);
+                                    await updateBudget(sharedAcc, cat, '', v);
+                                  }}
+                                  className="bg-transparent text-right font-bold text-xs w-16 focus:outline-none focus:text-teal-400 text-zinc-500 transition-colors"
+                                  inputMode="numeric" placeholder="0"
+                                />
+                              </div>
+                              {rawVal > 0 && (
+                                <div className="ml-6 mt-1">
+                                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full transition-all duration-300"
+                                      style={{width:`${pct}%`, backgroundColor: barColor}}/>
+                                  </div>
+                                  <div className="flex justify-between text-[9px] font-semibold mt-0.5">
+                                    <span className="text-zinc-600">{pct}%</span>
+                                    <span className={isOver ? 'text-rose-400' : 'text-zinc-600'}>
+                                      {isOver ? `⚠ −${currSymbol}${formatNumber(-remaining)}` : `${currSymbol}${formatNumber(remaining)}`}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Subcategorías compartidas expandibles */}
+                              {(subcategories[cat] || []).length > 0 && rawVal > 0 && (
+                                <>
+                                  <button
+                                    onClick={() => setExpandedBudgetCats(prev => {
+                                      const next = new Set(prev);
+                                      const key = `shared_${sharedAcc}_${cat}`;
+                                      next.has(key) ? next.delete(key) : next.add(key);
+                                      return next;
+                                    })}
+                                    className="mt-1 ml-6 flex items-center gap-1 text-[9px] text-zinc-600 active:text-zinc-400 transition-colors">
+                                    <ChevronRight className={`w-2.5 h-2.5 transition-transform ${expandedBudgetCats.has(`shared_${sharedAcc}_${cat}`) ? 'rotate-90' : ''}`}/>
+                                    {(subcategories[cat]||[]).length} sub
+                                  </button>
+                                  {expandedBudgetCats.has(`shared_${sharedAcc}_${cat}`) && (subcategories[cat] || []).map(subcat => {
+                                    const subKey = `${sharedAcc}|${cat}|${subcat}`;
+                                    const subRawVal = budgets[subKey]?.amount || 0;
+                                    const subSpent = budgetPeriodTxs
+                                      .filter(t => t.account === sharedAcc && t.type === 'GASTO' && t.category === cat && t.subcategory === subcat)
+                                      .reduce((a, c) => a + Number(c.amount), 0);
+                                    return (
+                                      <div key={subcat} className="ml-6 mt-1 flex items-center gap-1.5">
+                                        <span className="text-[10px] text-zinc-500 flex-1 truncate">{subcat}</span>
+                                        <span className="text-[10px] text-zinc-600 w-12 text-right">{subSpent > 0 ? `${currSymbol}${formatNumber(subSpent)}` : '-'}</span>
+                                        <span className="text-zinc-700 text-[9px]">/</span>
+                                        <input type="text" value={formatNumber(subRawVal)}
+                                          onChange={async e => { const v = parseFormattedNumber(e.target.value); await updateBudget(sharedAcc, cat, subcat, v); }}
+                                          className="bg-transparent text-right font-bold text-[10px] w-12 focus:outline-none focus:text-teal-400 text-zinc-600 transition-colors"
+                                          inputMode="numeric" placeholder="0" />
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {/* Add budget for unbudgeted shared categories */}
+                        {activeCategories.GASTO.filter(cat => {
+                          const rawVal = budgets[`${sharedAcc}|${cat}|`]?.amount || 0;
+                          const spent = budgetPeriodTxs
+                            .filter(t => t.account === sharedAcc && t.type === 'GASTO' && t.category === cat)
+                            .reduce((a, c) => a + Number(c.amount), 0);
+                          return rawVal === 0 && spent === 0;
+                        }).length > 0 && (
+                          <details className="mt-2">
+                            <summary className="text-[10px] text-zinc-700 cursor-pointer hover:text-zinc-500 transition-colors">
+                              + Agregar categoría compartida
+                            </summary>
+                            <div className="mt-1 space-y-1">
+                              {activeCategories.GASTO.filter(cat => {
+                                const rawVal = budgets[`${sharedAcc}|${cat}|`]?.amount || 0;
+                                const spent = budgetPeriodTxs
+                                  .filter(t => t.account === sharedAcc && t.type === 'GASTO' && t.category === cat)
+                                  .reduce((a, c) => a + Number(c.amount), 0);
+                                return rawVal === 0 && spent === 0;
+                              }).map(cat => (
+                                <div key={cat} className="flex items-center gap-2">
+                                  <span className="text-sm leading-none">{getEmoji(cat)}</span>
+                                  <span className="text-xs text-zinc-500 flex-1">{cat}</span>
+                                  <input type="text" placeholder="0"
+                                    onBlur={async e => {
+                                      const v = parseFormattedNumber(e.target.value);
+                                      if (v > 0) await updateBudget(sharedAcc, cat, '', v);
+                                    }}
+                                    className="bg-transparent text-right font-bold text-xs w-16 focus:outline-none focus:text-teal-400 text-zinc-600 transition-colors"
+                                    inputMode="numeric" />
+                                </div>
+                              ))}
+                            </div>
+                          </details>
                         )}
                       </div>
-                    </div>
-                    <input type="text" value={formatNumber(budgets[cat]?.amount||0)}
-                      onChange={async e=>{ const v=parseFormattedNumber(e.target.value); await updateBudget(cat,v); }}
-                      className="bg-transparent text-right font-bold text-sm w-24 focus:outline-none focus:text-indigo-400 transition-colors flex-shrink-0"
-                      inputMode="numeric"/>
+                    ))}
                   </div>
+                )}
+              </div>
+            ) : (
+              /* ══════ VISTA CUENTA PERSONAL ══════ */
+              (() => {
+                const allocation = waterfallData.effectiveAllocations[budgetAccount] || 0;
+                const totalBudgets = activeCategories.GASTO.reduce((acc, cat) => {
+                  const mode = budgetModes[cat] || '$';
+                  const raw  = budgets[`${budgetAccount}|${cat}|`]?.amount || 0;
+                  return acc + (mode === '%' ? Math.round(allocation * raw / 100) : raw);
+                }, 0);
+                const totalExp = Object.values(budgetFilteredStats.expBycat).reduce((a,b)=>a+b, 0);
+                const dispPresupuestado = allocation - totalBudgets;
+                const dispReal = allocation - totalExp;
+                return (
+                  <div className="space-y-3">
+                    {/* Card: Asignación del hogar */}
+                    <div className="glass-success px-5 py-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-label mb-1">Tu presupuesto</p>
+                        <p className="text-display text-emerald-400">{currSymbol}{formatNumber(allocation)}</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">Asignación del hogar</p>
+                      </div>
+                      <ArrowUpRight className="w-8 h-8 text-emerald-600/30 flex-shrink-0"/>
+                    </div>
+                    {/* Cards: Disponible presupuestado + Disponible real */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`flex flex-col gap-1 px-4 py-4
+                        ${dispPresupuestado >= 0 ? 'glass-card' : 'glass-danger'}`} style={{borderRadius:'1.75rem'}}>
+                        <p className="text-label">{tl('budgetedAvailable')}</p>
+                        <p className={`text-amount mt-1 ${dispPresupuestado >= 0 ? 'text-white' : 'text-rose-400'}`}>
+                          {currSymbol}{formatNumber(dispPresupuestado)}
+                        </p>
+                        <p className="text-[9px] text-zinc-700 font-semibold">{tl('accordingToPlan')}</p>
+                      </div>
+                      <div className={`flex flex-col gap-1 px-4 py-4
+                        ${dispReal >= 0 ? 'mc-card' : 'glass-danger'}`} style={{borderRadius:'1.75rem'}}>
+                        <p className="text-label">{tl('realAvailable')}</p>
+                        <p className={`text-amount mt-1 ${dispReal >= 0 ? 'text-white' : 'text-rose-400'}`}>
+                          {currSymbol}{formatNumber(dispReal)}
+                        </p>
+                        <p className="text-[9px] text-zinc-700 font-semibold">{tl('accordingToExpenses')}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+
+            {/* ── Sección 2 y 2b: Gastos Fijos + Vencimientos ── */}
+            {(() => {
+              const acctFixedTxs = fixedTxs.filter(f => {
+                if (f.type !== 'GASTO') return false;
+                if (!budgetAccount) return true; // Hogar: mostrar todos
+                return (f.account || '') === budgetAccount;
+              });
+              const acctFixedPaidTotal = acctFixedTxs
+                .filter(f => paidItems[f.id])
+                .reduce((a, c) => a + c.amount, 0);
+              return (
+            <>
+            <div className="space-y-3">
+              <div className="section-header"><p className="text-label">{tl('fixedExpenses')}</p></div>
+              {acctFixedTxs.length === 0 ? (
+                <div className="bg-zinc-900/40 rounded-[1.75rem] border border-white/5 px-5 py-8 text-center">
+                  <p className="text-zinc-600 text-sm mb-1">{tl('noFixedExpenses')}</p>
+                  <p className="text-zinc-700 text-xs">{tl('markFixedToAdd')}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mc-card overflow-hidden">
+                    {acctFixedTxs.map((f,i,arr)=>{
+                      const isPaid = !!paidItems[f.id];
+                      return (
+                        <div key={f.id} className={`flex items-center px-5 py-4 transition-all ${i<arr.length-1?'border-b border-white/[0.04]':''} ${isPaid?'opacity-40':''}`}>
+                          <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-60 transition-opacity"
+                            onClick={() => setEditingFixedTx(f)}>
+                            <span className="text-lg flex-shrink-0">{getEmoji(f.category)}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-zinc-300 truncate">{f.category}</p>
+                              <p className="text-xs text-zinc-600">
+                                Día {f.dayOfMonth}{f.note ? ` · ${f.note}` : ''}
+                                {!budgetAccount && f.account ? ` · ${f.account}` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-sm font-bold flex-shrink-0 mr-2 ${isPaid?'text-emerald-400 line-through decoration-emerald-600':'text-zinc-200'}`}>
+                              ${formatNumber(f.amount)}
+                            </span>
+                          </div>
+                          <button onClick={e=>{ e.stopPropagation(); togglePaidItem(f); }}
+                            className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all active:scale-90 ${isPaid?'bg-emerald-600 border-emerald-500':'bg-transparent border-zinc-600 active:border-zinc-400'}`}>
+                            {isPaid && <Check className="w-3 h-3 text-white"/>}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {acctFixedPaidTotal > 0 && (
+                    <div className="flex justify-between items-center px-1">
+                      <span className="text-xs text-zinc-600 font-semibold">{tl('paidFixed')}</span>
+                      <span className="text-xs font-bold text-rose-400">${formatNumber(acctFixedPaidTotal)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="section-header">
+                <div className="flex items-center gap-2">
+                  <p className="text-label">{tl('billsAndInstallments')}</p>
+                  {periodBudgetItems.length > 0 && (
+                    <button onClick={() => setShowDueDateCalendar(true)}
+                      className="p-1 rounded-lg bg-zinc-800 border border-white/8 active:scale-90 transition-transform">
+                      <Calendar className="w-3.5 h-3.5 text-violet-400"/>
+                    </button>
+                  )}
+                </div>
+                {periodBudgetItems.length > 0 && (
+                  <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
+                    ${formatNumber(periodBudgetItems.reduce((a,i)=>a+i.amount,0))}
+                  </span>
+                )}
+              </div>
+              {periodBudgetItems.length === 0 ? (
+                <div className="bg-zinc-900/40 rounded-[1.75rem] border border-white/5 px-5 py-6 text-center">
+                  <p className="text-zinc-600 text-sm">{tl('noBills')}</p>
+                  <p className="text-zinc-700 text-xs mt-1">{tl('manageBillsInSettings')}</p>
+                </div>
+              ) : (
+                <div className="mc-card overflow-hidden">
+                  {periodBudgetItems.map((item, i) => {
+                    const dueDate = item.dueDay
+                      ? new Date(budgetPeriod.year, budgetPeriod.month, item.dueDay)
+                      : null;
+                    const today = new Date();
+                    const isOverdue = dueDate && !item.isPaid &&
+                      dueDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const isDueSoon = dueDate && !item.isPaid && !isOverdue &&
+                      (dueDate - new Date(today.getFullYear(), today.getMonth(), today.getDate())) <= 3 * 86400000;
+                    return (
+                    <div key={item.id}
+                      className={`flex items-center px-5 py-4 transition-all
+                        ${i < periodBudgetItems.length-1 ? 'border-b border-white/[0.04]' : ''}
+                        ${item.isPaid ? 'opacity-40' : ''}`}>
+                      <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-60 transition-opacity"
+                        onClick={() => setEditingBudgetItem(item)}>
+                        <span className="text-lg flex-shrink-0">{item.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-300 truncate">{item.name}</p>
+                          <p className={`text-xs ${isOverdue ? 'text-rose-400' : isDueSoon ? 'text-amber-400' : 'text-zinc-600'}`}>
+                            {item.type === 'bill'
+                              ? `${item.dueDay}/${budgetPeriod.month+1}${item.isRecurring ? ' · Mensual' : ''}${isOverdue ? ' · ⚠ Vencido' : isDueSoon ? ' · Próximo' : ''}`
+                              : `Cuota ${item.cuotaNum}/${item.totalCuotas}`}
+                          </p>
+                        </div>
+                        <span className={`text-sm font-bold flex-shrink-0 mr-2
+                          ${item.isPaid ? 'text-emerald-400 line-through decoration-emerald-600' : 'text-zinc-200'}`}>
+                          ${formatNumber(item.amount)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={e=>{ e.stopPropagation(); markPeriodItemPaid(item); }}
+                        className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center
+                          transition-all active:scale-90
+                          ${item.isPaid
+                            ? 'bg-emerald-600 border-emerald-500'
+                            : 'bg-transparent border-zinc-600 active:border-zinc-400'}`}>
+                        {item.isPaid && <Check className="w-3 h-3 text-white"/>}
+                      </button>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </>
+              );
+            })()}
+
+            {/* ── Sección 3: Estrategia — solo visible en la cuenta asignada ── */}
+            {/* savingsInvestAccount='' → visible en Hogar, savingsInvestAccount='Ariel' → visible solo en Ariel */}
+            {budgetAccount === savingsInvestAccount && (
+            <div className="space-y-3">
+              <div className="section-header"><p className="text-label">{tl('strategy')}</p></div>
+              <div className="mc-card p-5 space-y-4">
+                {/* Montos de este período — siempre visible */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-emerald-400 font-semibold">{tl('savingsThisPeriod')}</p>
+                    <p className="text-xl font-black">{currSymbol}{formatNumber(waterfallData.savingsAmt)}</p>
+                    <p className="text-[10px] text-zinc-600">{strategy.savingsPercent||0}% del ingreso hogar</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-violet-400 font-semibold">{tl('investmentThisPeriod')}</p>
+                    <p className="text-xl font-black">{currSymbol}{formatNumber(waterfallData.investAmt)}</p>
+                    <p className="text-[10px] text-zinc-600">{strategy.investmentPercent||0}% del ingreso hogar</p>
+                  </div>
+                </div>
+                {/* Botón colapsable patrimonio histórico */}
+                <button onClick={()=>setExpandHistorico(e=>!e)}
+                  className="flex items-center gap-2 text-xs text-zinc-500 font-semibold w-full pt-1 border-t border-white/5 active:opacity-60 transition-opacity">
+                  <TrendingUp className="w-3.5 h-3.5"/>
+                  <span>Patrimonio histórico acumulado</span>
+                  <ChevronDown className={`w-3 h-3 ml-auto transition-transform duration-200 ${expandHistorico?'rotate-180':''}`}/>
+                </button>
+                {expandHistorico && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-emerald-400 font-semibold">Ahorro total</p>
+                      <p className="text-lg font-black">{currSymbol}{formatNumber(stats.historicalSavingsTotal)}</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-violet-400 font-semibold">Inversión total</p>
+                      <p className="text-lg font-black">{currSymbol}{formatNumber(stats.historicalInvestmentTotal)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <PrecisionSelector label="Ahorro mensual" subtext={`Este período: ${currSymbol}${formatNumber(waterfallData.savingsAmt)}`}
+                value={strategy.savingsPercent||0} onChange={v=>updateStrategy('savingsPercent',v)} color="emerald" icon={PiggyBank}/>
+              <PrecisionSelector label="Inversión mensual" subtext={`Este período: ${currSymbol}${formatNumber(waterfallData.investAmt)}`}
+                value={strategy.investmentPercent||0} onChange={v=>updateStrategy('investmentPercent',v)} color="violet" icon={TrendingUp}/>
+            </div>
+            )}
+
+            {/* ── Sección 4: Límites por categoría (solo para cuentas personales) ── */}
+            {budgetAccount && (
+            <div className="space-y-3">
+              {(() => {
+                const allocation = waterfallData.effectiveAllocations[budgetAccount] || 0;
+                const totalBudgetsForAccount = activeCategories.GASTO.reduce((acc, cat) => {
+                  const mode = budgetModes[cat] || '$';
+                  const raw  = budgets[`${budgetAccount}|${cat}|`]?.amount || 0;
+                  return acc + (mode === '%' ? Math.round(allocation * raw / 100) : raw);
+                }, 0);
+                const disponible = allocation - totalBudgetsForAccount;
+                return (
+                  <div className="section-header">
+                    <p className="text-label">{tl('categoryLimits')}</p>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${disponible<0?'bg-rose-500/10 text-rose-400':'bg-emerald-500/10 text-emerald-400'}`}>
+                      Disponible: {currSymbol}{formatNumber(disponible)}
+                    </span>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const filteredGastoCats = budgetAccount
+                  ? activeCategories.GASTO.filter(cat => {
+                      const hasExpenses = (budgetFilteredStats.expBycat[cat] || 0) > 0;
+                      const hasBudget = (budgets[`${budgetAccount}|${cat}|`]?.amount || 0) > 0;
+                      return hasExpenses || hasBudget;
+                    })
+                  : activeCategories.GASTO;
+                const unlistedCats = budgetAccount
+                  ? activeCategories.GASTO.filter(cat => {
+                      const hasExpenses = (budgetFilteredStats.expBycat[cat] || 0) > 0;
+                      const hasBudget = (budgets[`${budgetAccount}|${cat}|`]?.amount || 0) > 0;
+                      return !hasExpenses && !hasBudget;
+                    })
+                  : [];
+                return (
+                  <>
+              <div className="mc-card overflow-hidden">
+                {filteredGastoCats.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <p className="text-sm text-zinc-600">Sin categorías con gastos</p>
+                    <p className="text-xs text-zinc-700 mt-1">Registra gastos en esta cuenta para ver categorías</p>
+                  </div>
+                ) : filteredGastoCats.map((cat,i)=>{
+                  const spark     = catSparklines[cat];
+                  const spent     = budgetFilteredStats.expBycat[cat] || 0;
+                  const allocation = waterfallData.effectiveAllocations[budgetAccount] || 0;
+                  const mode      = budgetModes[cat] || '$';
+                  const budKey    = `${budgetAccount}|${cat}|`;
+                  const rawVal    = budgets[budKey]?.amount || 0;
+                  const budgetLimit = mode === '%'
+                    ? Math.round(allocation * rawVal / 100)
+                    : rawVal;
+                  const remaining = budgetLimit > 0 ? budgetLimit - spent : null;
+                  const pct       = budgetLimit > 0 ? Math.min(100, Math.round((spent/budgetLimit)*100)) : 0;
+                  const isOver    = remaining !== null && remaining < 0;
+                  const barColor  = isOver ? '#f43f5e' : pct > 80 ? '#f59e0b' : '#7c3aed';
+                  return (
+                    <div key={cat} className={`px-5 py-3.5 ${i<filteredGastoCats.length-1?'border-b border-white/5':''}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer active:opacity-60 transition-opacity"
+                          onClick={() => setDetailCat(cat)}>
+                          <span className="text-lg leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-semibold text-zinc-300 block truncate">{cat}</span>
+                            {spark && spark.vals.some(v=>v>0) && (
+                              <svg width="36" height="14" className="mt-0.5">
+                                {spark.vals.map((v,idx)=>{
+                                  const barH = Math.max(2, Math.round((v/spark.maxVal)*12));
+                                  return <rect key={idx} x={idx*13} y={14-barH} width={10} height={barH}
+                                    rx="2" fill={idx===2?'#7c3aed':'#3f3f46'}/>;
+                                })}
+                              </svg>
+                            )}
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-700 flex-shrink-0"/>
+                        </div>
+                        {/* Modo $ / % + input */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={()=>cycleBudgetMode(cat)}
+                            className="text-[10px] font-black px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-white/5 active:scale-90 transition-transform">
+                            {mode}
+                          </button>
+                          <input
+                            type="text"
+                            value={mode==='%' ? rawVal : formatNumber(rawVal)}
+                            onChange={async e=>{
+                              const v = mode==='%'
+                                ? Math.min(100, Math.max(0, parseFloat(e.target.value)||0))
+                                : parseFormattedNumber(e.target.value);
+                              await updateBudget(budgetAccount, cat, '', v);
+                            }}
+                            className="bg-transparent text-right font-bold text-sm w-20 focus:outline-none focus:text-violet-400 transition-colors"
+                            inputMode="numeric"
+                          />
+                          {mode==='%' && <span className="text-xs text-zinc-600">%</span>}
+                        </div>
+                      </div>
+                      {/* Barra de progreso + resumen */}
+                      {budgetLimit > 0 && (
+                        <div className="space-y-1 mt-2 ml-9">
+                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-300"
+                              style={{width:`${pct}%`, backgroundColor: barColor}}/>
+                          </div>
+                          <div className="flex justify-between text-[10px] font-semibold">
+                            <span className="text-zinc-600">
+                              Gastado {currSymbol}{formatNumber(spent)}
+                              {mode==='%' && <span className="text-zinc-700"> (límite {currSymbol}{formatNumber(budgetLimit)})</span>}
+                            </span>
+                            <span className={isOver?'text-rose-400':'text-zinc-500'}>
+                              {isOver ? `⚠ Excedido ${currSymbol}${formatNumber(-remaining)}` : `Sobra ${currSymbol}${formatNumber(remaining)}`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {/* Botón expandir subcats — filtrado por cuenta */}
+                      {(() => {
+                        const allSubs = subcategories[cat] || [];
+                        const filteredSubs = budgetAccount
+                          ? allSubs.filter(sub => {
+                              const hasExp = (budgetFilteredStats.expByCatSubcat[`${cat}||${sub}`] || 0) > 0;
+                              const hasBud = (budgets[`${budgetAccount}|${cat}|${sub}`]?.amount || 0) > 0;
+                              return hasExp || hasBud;
+                            })
+                          : allSubs;
+                        if (filteredSubs.length === 0) return null;
+                        return (
+                          <>
+                        <button
+                          onClick={() => setExpandedBudgetCats(prev => {
+                            const next = new Set(prev);
+                            next.has(cat) ? next.delete(cat) : next.add(cat);
+                            return next;
+                          })}
+                          className="mt-2 ml-9 flex items-center gap-1 text-[10px] text-zinc-600 active:text-zinc-400 transition-colors">
+                          <ChevronRight className={`w-3 h-3 transition-transform ${expandedBudgetCats.has(cat) ? 'rotate-90' : ''}`}/>
+                          {expandedBudgetCats.has(cat) ? 'Ocultar subcategorías' : `${filteredSubs.length} subcategoría${filteredSubs.length !== 1 ? 's' : ''}`}
+                        </button>
+                          </>
+                        );
+                      })()}
+                      {/* Filas de subcategorías expandidas */}
+                      {expandedBudgetCats.has(cat) && (() => {
+                        const allSubs = subcategories[cat] || [];
+                        const filteredSubs = budgetAccount
+                          ? allSubs.filter(sub => {
+                              const hasExp = (budgetFilteredStats.expByCatSubcat[`${cat}||${sub}`] || 0) > 0;
+                              const hasBud = (budgets[`${budgetAccount}|${cat}|${sub}`]?.amount || 0) > 0;
+                              return hasExp || hasBud;
+                            })
+                          : allSubs;
+                        return filteredSubs;
+                      })().map(subcat => {
+                        const subKey    = `${budgetAccount}|${cat}|${subcat}`;
+                        const subRawVal = budgets[subKey]?.amount || 0;
+                        const subSpent  = budgetFilteredStats.expByCatSubcat[`${cat}||${subcat}`] || 0;
+                        const subLimit  = subRawVal;
+                        const subPct    = subLimit > 0 ? Math.min(100, Math.round((subSpent / subLimit) * 100)) : 0;
+                        const subOver   = subLimit > 0 && subSpent > subLimit;
+                        return (
+                          <div key={subcat} className="ml-9 mt-2 pb-2 border-b border-white/5 last:border-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-zinc-400 flex-1 truncate">{subcat}</span>
+                              <span className="text-xs text-zinc-600 mr-1">{currSymbol}{formatNumber(subSpent)}</span>
+                              <input
+                                type="text"
+                                value={subRawVal ? formatNumber(subRawVal) : ''}
+                                onChange={async e => {
+                                  const v = parseFormattedNumber(e.target.value);
+                                  await updateBudget(budgetAccount, cat, subcat, v);
+                                }}
+                                placeholder="—"
+                                className="bg-transparent text-right font-bold text-xs w-16 focus:outline-none focus:text-violet-400 transition-colors text-zinc-500 placeholder-zinc-700"
+                                inputMode="numeric"
+                              />
+                            </div>
+                            {subLimit > 0 && (
+                              <div className="h-1 bg-zinc-800 rounded-full overflow-hidden mt-1">
+                                <div className="h-full rounded-full transition-all duration-300"
+                                  style={{width:`${subPct}%`, backgroundColor: subOver ? '#f43f5e' : '#7c3aed'}}/>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>
+              {/* Categorías sin gastos — agregar manualmente */}
+              {unlistedCats.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[11px] text-zinc-600 font-semibold cursor-pointer active:text-zinc-400 transition-colors px-1">
+                    + {unlistedCats.length} categoría{unlistedCats.length !== 1 ? 's' : ''} sin gastos
+                  </summary>
+                  <div className="mc-card overflow-hidden mt-1.5">
+                    {unlistedCats.map((cat, i) => (
+                      <div key={cat} className={`flex items-center px-5 py-3 gap-3 ${i < unlistedCats.length - 1 ? 'border-b border-white/5' : ''}`}>
+                        <span className="text-lg leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                        <span className="text-sm text-zinc-500 flex-1 truncate">{cat}</span>
+                        <input
+                          type="text"
+                          value=""
+                          onChange={async e => {
+                            const v = parseFormattedNumber(e.target.value);
+                            await updateBudget(budgetAccount, cat, '', v);
+                          }}
+                          placeholder="—"
+                          className="bg-transparent text-right font-bold text-sm w-20 focus:outline-none focus:text-violet-400 transition-colors text-zinc-500 placeholder-zinc-700"
+                          inputMode="numeric"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+                  </>
+                );
+              })()}
+              {/* Botón Sugerir */}
               <button onClick={suggestBudgets}
-                className="w-full py-3.5 bg-indigo-600/15 border border-indigo-500/25 rounded-2xl text-sm font-semibold text-indigo-400 active:bg-indigo-600/25 transition-colors flex items-center justify-center gap-2">
+                className="w-full py-3.5 bg-violet-700/12 border border-violet-500/25 rounded-2xl text-sm font-semibold text-violet-400 active:bg-violet-600/25 transition-colors flex items-center justify-center gap-2">
                 <span className="text-base leading-none">🪄</span>
-                Sugerir del historial (+5% buffer)
+                {tl('suggestFromHistory')}
+              </button>
+            </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            TAB: BILLETERAS
+        ══════════════════════════════════════════════════════════════ */}
+        {activeTab==='billeteras' && (
+          <div className="flex-1 overflow-y-auto pb-32 px-5 pt-[calc(env(safe-area-inset-top)+20px)]">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-h1 uppercase">Billeteras</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Conectá tus cuentas y PSPs</p>
+              </div>
+              <button onClick={() => { setShowWalletConnect(true); setWalletConnectStep(1); }}
+                className="w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center active:scale-95 transition-transform shadow-lg shadow-violet-950/40">
+                <Plus className="w-5 h-5 text-white"/>
               </button>
             </div>
 
-            {/* Cuotas */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Cuotas en curso</p>
-              <button onClick={()=>setShowCuotasModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <Wallet className="w-4 h-4 text-amber-400"/>
-                Administrar cuotas
-                {activeCuotas.length>0 && <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full">{activeCuotas.length}</span>}
-              </button>
-            </div>
-
-            {/* Metas de Ahorro */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Metas de ahorro</p>
-              <button onClick={()=>setShowGoalsModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <Target className="w-4 h-4 text-indigo-400"/>
-                Administrar metas
-                {goals.length>0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{goals.length}</span>}
-              </button>
-            </div>
-
-            {/* Deudas y Préstamos */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Deudas y préstamos</p>
-              <button onClick={()=>setShowDebtsModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <span className="text-base leading-none">🤝</span>
-                Administrar deudas
-                {pendingDebts.length>0 && <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{pendingDebts.length}</span>}
-              </button>
-            </div>
-
-            {/* Movimientos Recurrentes */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Automatización</p>
-              <button onClick={()=>setShowRecurringModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 text-indigo-400"/>
-                Movimientos recurrentes
-                {recurring.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{recurring.length}</span>}
-              </button>
-            </div>
-
-            {/* Categorías */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Categorías</p>
-              <button onClick={()=>setShowCatManager(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors text-center">
-                Editar categorías →
-              </button>
-              <button onClick={()=>setShowBudgetModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors text-center">
-                Ver gráfico de gastos →
-              </button>
-              <button onClick={()=>setShowBillsModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <Bell className="w-4 h-4"/>
-                Vencimientos y alertas
-                {urgentCount > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{urgentCount}</span>}
-              </button>
-              <button onClick={()=>setShowReport(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-400"/>
-                Reporte de {MONTHS[currentDate.getMonth()]}
-              </button>
-              <button onClick={()=>setShowAnnualModal(true)}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <BarChart3 className="w-4 h-4 text-indigo-400"/>
-                Vista anual {currentDate.getFullYear()}
-              </button>
-              <button onClick={()=>{ haptic(10); setShowCompareModal(true); }}
-                className="w-full py-4 bg-zinc-900/40 border border-white/5 rounded-2xl text-sm font-semibold text-zinc-400 active:bg-zinc-900 transition-colors flex items-center justify-center gap-2">
-                <span className="text-base leading-none">⚖️</span>
-                Comparar dos meses
-              </button>
-            </div>
-
-            {/* Tipo de cambio */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Tipo de cambio</p>
-              <div className="bg-zinc-900/40 rounded-2xl border border-white/5 p-5 space-y-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-bold text-white">USD → ARS</p>
-                    <p className="text-xs text-zinc-600 mt-0.5">Ingresá el valor del dólar manualmente</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-zinc-600 font-semibold">$</span>
-                    <input
-                      type="text"
-                      value={exchangeRate || ''}
-                      onChange={e=>updateExchangeRate(e.target.value)}
-                      placeholder="0"
-                      inputMode="numeric"
-                      className="bg-black/60 rounded-xl px-3 py-2.5 w-24 text-right font-black text-sm text-white focus:outline-none border border-white/10 focus:border-indigo-500/60 transition-colors"
-                    />
-                  </div>
+            {/* Total balance card */}
+            {wallets.length > 0 && (() => {
+              const total = wallets.reduce((s, w) => s + Number(w.balance || 0), 0);
+              return (
+                <div className="mx-5 mb-4 glass-card p-5" style={{borderRadius:'1.75rem'}}>
+                  <p className="text-xs text-violet-300 uppercase tracking-wider font-semibold mb-1">Saldo total en billeteras</p>
+                  <p className="text-3xl font-black text-white">{fmtMoney(total)}</p>
+                  <p className="text-xs text-zinc-500 mt-1">{wallets.length} billetera{wallets.length !== 1 ? 's' : ''} conectada{wallets.length !== 1 ? 's' : ''}</p>
                 </div>
-                {exchangeRate > 0 ? (
-                  <div className="flex items-center justify-between text-xs bg-black/30 rounded-xl px-3 py-2">
-                    <span className="text-zinc-500">$1.000 ARS =</span>
-                    <span className="font-bold text-indigo-300">USD {(1000/exchangeRate).toFixed(2)}</span>
+              );
+            })()}
+
+            {/* Wallet cards */}
+            <div className="px-5 space-y-3">
+              {wallets.map(wallet => {
+                const provDef = WALLET_PROVIDERS[wallet.provider] || WALLET_PROVIDERS.manual;
+                const isSyncing = syncingWalletId === wallet.id;
+                const isEditing = editingWalletBalance?.id === wallet.id;
+                return (
+                  <div key={wallet.id} className={`rounded-3xl border ${provDef.borderClass} ${provDef.bgClass} overflow-hidden`}>
+                    {/* Card header */}
+                    <div className="px-5 py-4 flex items-center gap-3">
+                      <div className="w-11 h-11 flex-shrink-0">
+                        <WalletLogo provider={wallet.provider} size={44} className="rounded-2xl"/>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm truncate">{wallet.name}</p>
+                        <p className={`text-xs ${provDef.textClass} font-semibold`}>{provDef.name}</p>
+                        {wallet.last_sync && (
+                          <p className="text-[10px] text-zinc-600 mt-0.5">
+                            Actualizado {new Date(wallet.last_sync).toLocaleDateString('es-AR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text" inputMode="numeric"
+                              value={editBalanceVal}
+                              onChange={e => { const r=e.target.value.replace(/\D/g,''); setEditBalanceVal(r?r.replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''); }}
+                              className="w-24 bg-zinc-900 border border-white/10 rounded-xl px-2 py-1 text-sm font-black text-right focus:outline-none focus:border-violet-500/60"
+                              autoFocus
+                              onBlur={() => { setEditingWalletBalance(null); setEditBalanceVal(''); }}
+                            />
+                            <button
+                              onMouseDown={e => { e.preventDefault(); saveWalletBalance(wallet); }}
+                              className="w-7 h-7 bg-violet-600 rounded-xl flex items-center justify-center active:scale-95">
+                              <Check className="w-4 h-4 text-white"/>
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingWalletBalance(wallet); setEditBalanceVal(formatNumber(wallet.balance||0)); }}
+                            className="text-right active:opacity-70">
+                            <p className="text-base font-black text-white">{fmtMoney(wallet.balance || 0)}</p>
+                            <p className="text-[10px] text-zinc-600">toca para editar</p>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex border-t border-white/5">
+                      <button onClick={() => { setSelectedWallet(wallet); loadWalletMovements(wallet.id); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-zinc-400 active:bg-white/5 transition-colors">
+                        <History className="w-3.5 h-3.5"/>Movimientos
+                      </button>
+                      <div className="w-px bg-white/5"/>
+                      {!provDef.comingSoon && (
+                        <>
+                          <button onClick={() => syncWallet(wallet)} disabled={isSyncing}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-zinc-400 active:bg-white/5 transition-colors disabled:opacity-50">
+                            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`}/>
+                            {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+                          </button>
+                          <div className="w-px bg-white/5"/>
+                        </>
+                      )}
+                      <button onClick={() => disconnectWallet(wallet.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-red-500/70 active:bg-red-500/5 transition-colors">
+                        <X className="w-3.5 h-3.5"/>Quitar
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-zinc-700">Al configurarlo aparecerá el equivalente en USD en el balance.</p>
-                )}
+                );
+              })}
+
+              {/* Empty state */}
+              {wallets.length === 0 && (
+                <div className="text-center py-16 px-6">
+                  <div className="w-16 h-16 mc-card rounded-3xl flex items-center justify-center mx-auto mb-4">
+                    <Wallet className="w-8 h-8 text-zinc-700"/>
+                  </div>
+                  <p className="text-zinc-400 font-bold mb-1">Sin billeteras conectadas</p>
+                  <p className="text-zinc-600 text-sm mb-6">Conectá Mercado Pago, PayPal o creá una cuenta manual para trackear tu saldo</p>
+                  <button onClick={() => { setShowWalletConnect(true); setWalletConnectStep(1); }}
+                    className="px-6 py-3 bg-violet-600 rounded-2xl font-black text-sm active:scale-95 transition-transform">
+                    + Conectar billetera
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════
+            TAB: AJUSTES
+        ════════════════════════════════ */}
+        {activeTab==='settings' && (
+          <div className="px-5 pt-[calc(env(safe-area-inset-top)+20px)] space-y-6 pb-[calc(env(safe-area-inset-bottom)+100px)]">
+            {/* Header con botón volver */}
+            <div className="flex items-center gap-3">
+              <button onClick={()=>setActiveTab('home')} className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+                <ChevronLeft className="w-5 h-5 text-zinc-400"/>
+              </button>
+              <h2 className="text-h1 uppercase">{tl('settings')}</h2>
+            </div>
+
+            {/* ═══ SECCIÓN: GESTIÓN FINANCIERA ═══ */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 ml-1">Gestión financiera</p>
+              <div className="mc-card overflow-hidden divide-y divide-white/5">
+                <button onClick={()=>setShowCuotasModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <Wallet className="w-4 h-4 text-amber-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('manageInstallments')}</span>
+                  {activeCuotas.length>0 && <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full">{activeCuotas.length}</span>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowGoalsModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <Target className="w-4 h-4 text-violet-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('manageSavingsGoals')}</span>
+                  {goals.length>0 && <span className="bg-violet-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{goals.length}</span>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowDebtsModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none flex-shrink-0">🤝</span>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('manageDebts')}</span>
+                  {pendingDebts.length>0 && <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{pendingDebts.length}</span>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowRecurringModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <RefreshCw className="w-4 h-4 text-violet-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('recurringMovements')}</span>
+                  {recurring.length > 0 && <span className="bg-violet-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{recurring.length}</span>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowBillsModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <Bell className="w-4 h-4 text-zinc-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('billsAndAlerts')}</span>
+                  {urgentCount > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{urgentCount}</span>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
               </div>
             </div>
 
-            {/* Cuenta */}
+            {/* ═══ SECCIÓN: CATEGORÍAS Y REPORTES ═══ */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 ml-1">Categorías y reportes</p>
+              <div className="mc-card overflow-hidden divide-y divide-white/5">
+                <button onClick={()=>setShowCatManager(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none flex-shrink-0">🏷️</span>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('editCategories')}</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowBudgetModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none flex-shrink-0">🥧</span>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">{tl('viewExpenseChart')}</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowReport(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <FileText className="w-4 h-4 text-violet-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">Reporte de {MONTHS[currentDate.getMonth()]}</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>setShowAnnualModal(true)} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <BarChart3 className="w-4 h-4 text-violet-400 flex-shrink-0"/>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">Vista anual {currentDate.getFullYear()}</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+                <button onClick={()=>{ haptic(10); setShowCompareModal(true); }} className="flex items-center gap-3 px-4 py-3.5 w-full active:bg-zinc-900/60 transition-colors">
+                  <span className="text-base leading-none flex-shrink-0">⚖️</span>
+                  <span className="text-sm font-semibold text-zinc-300 flex-1 text-left">Comparar dos meses</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700"/>
+                </button>
+              </div>
+            </div>
+
+            {/* ═══ SECCIÓN: PREFERENCIAS ═══ */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 ml-1">Preferencias</p>
+            </div>
+            {/* ── IDIOMA ── */}
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Cuenta</p>
-              <div className="bg-zinc-900/40 rounded-2xl border border-white/5 overflow-hidden">
+              <p className="text-label ml-1">🌐 Idioma / Language</p>
+              <div className="mc-card p-4">
+                <div className="flex gap-2">
+                  {[{code:'es',label:'🇦🇷 Español'},{code:'en',label:'🇺🇸 English'}].map(l => (
+                    <button key={l.code} onClick={() => changeLang(l.code)}
+                      className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-95
+                        ${lang === l.code ? 'bg-violet-600 text-white shadow-md' : 'bg-zinc-800 text-zinc-400 border border-white/8'}`}>
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── APARIENCIA ── */}
+            <div className="space-y-3">
+              <p className="text-label ml-1">🎨 Apariencia</p>
+              <div className="mc-card p-4">
+                <div className="flex gap-2">
+                  {[
+                    { key: 'dark',  label: '🌙 Oscuro' },
+                    { key: 'light', label: '☀️ Claro' },
+                    { key: 'auto',  label: '⚙️ Auto' },
+                  ].map(t => (
+                    <button key={t.key} onClick={() => saveTheme(t.key)}
+                      className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-95
+                        ${appTheme === t.key ? 'bg-violet-600 text-white shadow-md' : 'bg-zinc-800 text-zinc-400 border border-white/8'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── MONEDA BASE ── */}
+            <div className="space-y-3">
+              <p className="text-label ml-1">💰 Moneda base</p>
+              <div className="mc-card p-4 space-y-4">
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Tu moneda principal. Todos los movimientos se guardan en esta moneda. Si registrás un pago en otra moneda, se convierte automáticamente.
+                </p>
+
+                {/* Grilla de monedas activas */}
+                <div className="flex flex-wrap gap-2">
+                  {activeCurrencies.map(code => {
+                    const cfg = CURRENCIES[code];
+                    if (!cfg) return null;
+                    const isBase = currency === code;
+                    return (
+                      <div key={code} className="relative">
+                        <button onClick={() => changeCurrency(code)}
+                          className={`flex flex-col items-center px-3 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95 min-w-[72px]
+                            ${isBase
+                              ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/30'
+                              : 'bg-zinc-800 text-zinc-400 border border-white/8'}`}>
+                          <span className="text-base leading-none">{cfg.flag}</span>
+                          <span className="text-xs font-black mt-1">{cfg.symbol}</span>
+                          <span className={`text-[9px] mt-0.5 font-semibold ${isBase ? 'text-emerald-200' : 'text-zinc-600'}`}>{code}</span>
+                        </button>
+                        {/* Botón quitar (solo si no es la base) */}
+                        {!isBase && (
+                          <button onClick={() => removeActiveCurrency(code)}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-zinc-700 border border-zinc-600 rounded-full flex items-center justify-center active:bg-rose-700 transition-colors z-10">
+                            <X className="w-2.5 h-2.5 text-zinc-300"/>
+                          </button>
+                        )}
+                        {isBase && (
+                          <span className="absolute -top-1.5 -right-1.5 text-[8px] bg-emerald-500 text-white rounded-full px-1 font-black leading-4">✓</span>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Botón agregar moneda */}
+                  <button onClick={() => { setShowCurrencyPicker(true); setCurrencySearch(''); }}
+                    className="flex flex-col items-center justify-center px-3 py-2.5 rounded-xl min-w-[72px] bg-zinc-900/60 border border-dashed border-white/15 text-zinc-600 active:scale-95 transition-all gap-1">
+                    <Plus className="w-4 h-4"/>
+                    <span className="text-[9px] font-bold">Agregar</span>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-zinc-700">Tocá una moneda para usarla como base · × para quitarla</p>
+              </div>
+            </div>
+
+            {/* ── TIPOS DE CAMBIO (para monedas activas ≠ base) ── */}
+            {activeCurrencies.filter(c => c !== currency).length > 0 && (
+              <div className="space-y-3">
+                <p className="text-label ml-1">🔄 {tl('exchangeRate')}</p>
+                <div className="mc-card p-4 space-y-4">
+                  <p className="text-[11px] text-zinc-500 leading-relaxed">
+                    ¿Cuántos <strong className="text-zinc-300">{getCurrencyShortName(currency)} ({currency})</strong> vale 1 unidad de cada moneda? Necesario para convertir al registrar.
+                  </p>
+                  {activeCurrencies
+                    .filter(code => code !== currency)
+                    .map(code => {
+                      const cfg = CURRENCIES[code];
+                      if (!cfg) return null;
+                      const rate = exchangeRates[code] || 0;
+                      return (
+                        <div key={code} className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-base">{cfg.flag}</span>
+                              <div className="flex items-center gap-1 text-xs font-bold">
+                                <span className="text-zinc-500">1</span>
+                                <span className="bg-zinc-800 border border-white/10 rounded-lg px-2 py-1 text-violet-300 font-black tracking-wide">
+                                  {cfg.symbol} {code}
+                                </span>
+                                <span className="text-zinc-600">=</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-1 justify-end">
+                              <input
+                                type="text"
+                                value={rate || ''}
+                                onChange={e => updateExchangeRate(code, e.target.value)}
+                                placeholder="0"
+                                inputMode="decimal"
+                                className="bg-black/60 rounded-xl px-3 py-2 w-28 text-right font-black text-sm text-white focus:outline-none border border-white/10 focus:border-violet-500/60 transition-colors"
+                              />
+                              <span className="text-sm font-bold text-zinc-400 flex-shrink-0">{currSymbol} {currency}</span>
+                            </div>
+                          </div>
+                          {rate > 0 ? (
+                            <div className="flex items-center justify-between text-[10px] text-zinc-600 px-1">
+                              <span>1 {code} = {currSymbol}{formatNumber(rate)}</span>
+                              <span>100 {code} = {currSymbol}{formatNumber(Math.round(rate * 100))}</span>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-amber-500/70 px-1">⚠️ Sin tasa — las transacciones en {code} no se convertirán</p>
+                          )}
+                        </div>
+                      );
+                    })
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* ── SISTEMA WATERFALL ── */}
+            <div className="space-y-3">
+              <p className="text-label ml-1">🏠 Sistema Hogar</p>
+              <div className="mc-card p-4 space-y-4">
+                <p className="text-xs text-zinc-500">
+                  La vista "🏠 Hogar" muestra el flujo waterfall: ingresos totales → deducciones → saldo a distribuir entre cuentas personales. Las cuentas compartidas tienen presupuestos editables desde Hogar.
+                </p>
+              </div>
+            </div>
+
+            {/* ── CUENTAS (quién pagó) ── */}
+            <div className="space-y-3">
+              <p className="text-label ml-1">👥 {tl('accounts')}</p>
+              <div className="mc-card p-4 space-y-3">
+                <p className="text-xs text-zinc-500">Nombres para identificar quién registró cada movimiento. Usá el toggle para marcar cuentas como compartidas.</p>
+                <div className="flex flex-col gap-2">
+                  {accounts.map((acc, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="flex-1 bg-zinc-800 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white">{acc}</span>
+                        <span className="text-[10px] text-zinc-500">
+                          {(accountTypes[acc] || 'personal') === 'compartida' ? '🤝 Compartida' : '👤 Personal'}
+                        </span>
+                      </div>
+                      <button onClick={() => {
+                        const current = accountTypes[acc] || 'personal';
+                        const next = current === 'personal' ? 'compartida' : 'personal';
+                        saveAccountTypes({ ...accountTypes, [acc]: next });
+                      }}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all active:scale-90 ${
+                          (accountTypes[acc] || 'personal') === 'compartida'
+                            ? 'bg-teal-600/15 text-teal-400 border-teal-500/30'
+                            : 'bg-zinc-800 text-zinc-500 border-white/8'
+                        }`}>
+                        {(accountTypes[acc] || 'personal') === 'compartida' ? '🤝' : '👤'}
+                      </button>
+                      <button onClick={() => {
+                        const updated = accounts.filter((_, idx) => idx !== i);
+                        saveAccounts(updated);
+                      }} className="w-9 h-9 bg-zinc-900 rounded-xl flex items-center justify-center border border-white/8 active:bg-rose-500/20">
+                        <X className="w-4 h-4 text-zinc-500"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={newAccountName}
+                    onChange={e => setNewAccountName(e.target.value)}
+                    placeholder={tl('newName')}
+                    className="flex-1 bg-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white border border-white/8 focus:outline-none focus:border-violet-500/60"
+                  />
+                  <button
+                    onClick={() => {
+                      const name = newAccountName.trim();
+                      if (!name || accounts.includes(name)) return;
+                      saveAccounts([...accounts, name]);
+                      setNewAccountName('');
+                    }}
+                    className="px-4 py-2.5 bg-violet-600 rounded-xl text-sm font-bold active:scale-95 transition-all">
+                    <Plus className="w-4 h-4"/>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── AHORRO E INVERSIÓN: qué cuenta lo gestiona ── */}
+            {accounts.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-label ml-1">💰 Ahorro e Inversión</p>
+              <div className="mc-card p-4 space-y-3">
+                <p className="text-xs text-zinc-500">Elegí qué cuenta gestiona el ahorro e inversión. Solo esa cuenta mostrará la sección de estrategia.</p>
+                <div className="flex flex-wrap gap-2">
+                  {[{ key: '', label: '🏠 Hogar' }, ...accounts.map(a => ({ key: a, label: a }))].map(opt => (
+                    <button key={opt.key || '__hogar__'}
+                      onClick={() => saveSavingsInvestAccount(opt.key)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 border
+                        ${savingsInvestAccount === opt.key
+                          ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-zinc-900 text-zinc-500 border-white/8'}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-600">
+                  {savingsInvestAccount
+                    ? `📌 ${savingsInvestAccount} gestiona el ahorro e inversión`
+                    : '📌 Se deduce del ingreso total del hogar (vista Hogar)'}
+                </p>
+              </div>
+            </div>
+            )}
+
+            {/* ═══ SECCIÓN: CUENTA Y DATOS ═══ */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 ml-1">Cuenta y datos</p>
+            </div>
+            <div className="space-y-3">
+              <p className="text-label ml-1">{tl('account')}</p>
+              <div className="mc-card overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
                   <span className="text-sm font-semibold text-zinc-300">Email</span>
                   <span className="text-xs text-zinc-600 truncate max-w-[140px]">{session?.user?.email}</span>
                 </div>
                 <button onClick={() => exportExcel(transactions)} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <FileSpreadsheet className="w-4 h-4 text-emerald-400"/>
-                  <span className="text-sm font-semibold text-zinc-300">Exportar CSV</span>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('exportCsv')}</span>
                 </button>
                 <button onClick={exportAllJSON} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <span className="text-base leading-none w-4 text-center">📦</span>
-                  <span className="text-sm font-semibold text-zinc-300">Backup JSON completo</span>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('backupJson')}</span>
                 </button>
                 <button onClick={()=>importFileRef.current?.click()} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <span className="text-base leading-none w-4 text-center">📥</span>
-                  <span className="text-sm font-semibold text-zinc-300">Restaurar backup JSON</span>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('restoreJson')}</span>
                 </button>
                 <button onClick={() => setShowPlazoFijo(true)} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
                   <span className="text-base leading-none w-4 text-center">🏦</span>
-                  <span className="text-sm font-semibold text-zinc-300">Calculadora plazo fijo</span>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('fixedTermCalc')}</span>
+                </button>
+                <button onClick={() => { setShowAIConfig(true); haptic(8); }} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                  <Sparkles className="w-4 h-4 text-violet-400"/>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('aiConfigTitle')}</span>
+                  {aiConfig?.apiKey && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-auto mr-1"/>}
+                  <ChevronRight className="w-4 h-4 text-zinc-700 ml-auto"/>
+                </button>
+                <button onClick={() => { setShowHelpCenter(true); haptic(8); }} className="flex items-center gap-3 px-5 py-4 w-full border-b border-white/5 active:bg-zinc-900/60 transition-colors">
+                  <BookOpen className="w-4 h-4 text-violet-400"/>
+                  <span className="text-sm font-semibold text-zinc-300">{tl('helpCenter')}</span>
+                  <ChevronRight className="w-4 h-4 text-zinc-700 ml-auto"/>
                 </button>
                 <button onClick={signOut} className="flex items-center gap-3 px-5 py-4 w-full active:bg-zinc-900/60 transition-colors">
                   <LogOut className="w-4 h-4 text-rose-400"/>
-                  <span className="text-sm font-semibold text-rose-400">Cerrar sesión</span>
+                  <span className="text-sm font-semibold text-rose-400">{tl('signOut')}</span>
                 </button>
               </div>
             </div>
@@ -9668,37 +13616,69 @@ export default function App() {
       {/* ════════════════════════════════
           FAB — Registrar rápido
       ════════════════════════════════ */}
-      {(activeTab === 'home' || activeTab === 'history') && (
-        <button
-          onClick={() => { setActiveTab('add'); haptic(12); }}
-          className="fixed z-[85] right-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-8 md:right-8 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-indigo-400/30">
-          <Plus className="w-7 h-7 text-white"/>
-        </button>
-      )}
-
       {/* ════════════════════════════════
-          FAB — Dictado por voz (solo Home)
+          FABs — contenedor centrado con el contenido
+          Evita que queden pegados al borde del viewport en desktop
       ════════════════════════════════ */}
-      {activeTab === 'home' && voiceSupported && (
-        <button
-          onClick={() => { setShowVoiceDictado(true); setTimeout(startHomeDictado, 300); haptic(10); }}
-          className="fixed z-[85] right-[calc(1.25rem+3.5rem+0.75rem)] bottom-[calc(env(safe-area-inset-bottom)+72px)] md:bottom-8 md:right-28 w-14 h-14 bg-violet-700 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30">
-          <Mic className="w-6 h-6 text-white"/>
-        </button>
-      )}
+      <div className="fixed bottom-0 left-0 right-0 z-[85] pointer-events-none">
+        <div className="relative max-w-lg md:max-w-2xl lg:max-w-3xl mx-auto h-0">
 
-      {/* Scroll to top */}
-      {activeTab === 'history' && showScrollTop && (
-        <button
-          onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); haptic(8); }}
-          className="fixed z-[85] left-5 bottom-[calc(env(safe-area-inset-bottom)+72px)] w-11 h-11 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all border border-white/10">
-          <ChevronLeft className="w-4 h-4 text-zinc-300 -rotate-90"/>
-        </button>
-      )}
+          {/* Plus FAB — Home + Historial */}
+          {(activeTab === 'home' || activeTab === 'history') && (
+            <button
+              onClick={() => { setActiveTab('add'); haptic(12); }}
+              className="pointer-events-auto absolute right-5 w-14 h-14 bg-violet-600 rounded-full shadow-2xl shadow-violet-950/50 flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom) + 84px)' }}>
+              <Plus className="w-7 h-7 text-white"/>
+            </button>
+          )}
+
+          {/* Mic FAB — solo Home */}
+          {activeTab === 'home' && voiceSupported && (
+            <button
+              onClick={() => { setShowVoiceDictado(true); setTimeout(startHomeDictado, 300); haptic(10); }}
+              className="pointer-events-auto absolute w-14 h-14 bg-violet-700 rounded-full shadow-2xl shadow-violet-900/50 flex items-center justify-center active:scale-90 transition-transform border-2 border-violet-400/30"
+              style={{ right: 'calc(1.25rem + 3.5rem + 0.75rem)', bottom: 'calc(env(safe-area-inset-bottom) + 84px)' }}>
+              <Mic className="w-6 h-6 text-white"/>
+            </button>
+          )}
+
+          {/* AI Chat FAB — Home, solo si hay IA configurada */}
+          {activeTab === 'home' && aiConfig?.apiKey && (
+            <button
+              onClick={() => { setShowHelpCenter(true); setHelpTab('chat'); haptic(10); }}
+              className="pointer-events-auto absolute left-5 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border-2 overflow-hidden"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom) + 84px)',
+                background: aiConfig.provider === 'openai' ? 'linear-gradient(135deg, #10a37f 0%, #1a7f64 100%)'
+                  : aiConfig.provider === 'gemini' ? 'linear-gradient(135deg, #4285F4 0%, #9B72CB 50%, #D96570 100%)'
+                  : aiConfig.provider === 'anthropic' ? 'linear-gradient(135deg, #D97757 0%, #c4613f 100%)'
+                  : 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                borderColor: aiConfig.provider === 'openai' ? 'rgba(16,163,127,0.4)'
+                  : aiConfig.provider === 'gemini' ? 'rgba(66,133,244,0.4)'
+                  : aiConfig.provider === 'anthropic' ? 'rgba(217,119,87,0.4)'
+                  : 'rgba(124,58,237,0.4)',
+              }}>
+              {(() => { const FabIcon = AI_PROVIDERS[aiConfig.provider]?.Icon; return FabIcon ? <span className="text-white"><FabIcon size={26}/></span> : <MessageCircle className="w-6 h-6 text-white"/>; })()}
+            </button>
+          )}
+
+          {/* Scroll-to-top — Historial */}
+          {activeTab === 'history' && showScrollTop && (
+            <button
+              onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); haptic(8); }}
+              className="pointer-events-auto absolute left-5 w-11 h-11 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all border border-white/10"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}>
+              <ChevronLeft className="w-4 h-4 text-zinc-300 -rotate-90"/>
+            </button>
+          )}
+
+        </div>
+      </div>
 
       {/* PWA install banner */}
       {showInstallBanner && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+60px)] left-4 right-4 z-[95] bg-zinc-900 border border-indigo-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 max-w-md mx-auto">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+60px)] left-4 right-4 z-[95] bg-zinc-900 border border-violet-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 max-w-md mx-auto">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
             <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover"/>
           </div>
@@ -9714,7 +13694,7 @@ export default function App() {
               if (outcome === 'accepted') toast('¡Aplicación instalada! ✓', 'success');
               setDeferredInstall(null); setShowInstallBanner(false);
             }}
-            className="px-3.5 py-2 bg-indigo-600 rounded-xl text-xs font-black active:scale-95 transition-transform">
+            className="px-3.5 py-2 bg-violet-600 rounded-xl text-xs font-black active:scale-95 transition-transform">
             Instalar
           </button>
           <button onClick={() => setShowInstallBanner(false)} className="p-1.5 active:opacity-60">
@@ -9723,42 +13703,178 @@ export default function App() {
         </div>
       )}
 
+      {/* ═══ ONBOARDING WIZARD ═══ */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[1000] bg-black/95 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm space-y-6">
+            {/* Progress dots */}
+            <div className="flex justify-center gap-2">
+              {[1,2,3].map(s => (
+                <div key={s} className={`w-2 h-2 rounded-full transition-all ${onboardingStep >= s ? 'bg-violet-500 scale-110' : 'bg-zinc-700'}`}/>
+              ))}
+            </div>
+
+            {onboardingStep === 1 && (
+              <div className="text-center space-y-4">
+                <div className="text-5xl">👋</div>
+                <h2 className="text-2xl font-black text-white">¡Bienvenido a MetaCasa!</h2>
+                <p className="text-sm text-zinc-400 leading-relaxed">
+                  Vamos a configurar tu app en 2 pasos rápidos para que puedas empezar a controlar tus finanzas.
+                </p>
+                <button onClick={() => setOnboardingStep(2)}
+                  className="w-full py-4 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-transform shadow-xl shadow-violet-950/50">
+                  Comenzar
+                </button>
+                <button onClick={() => { setShowOnboarding(false); localStorage.setItem(ONBOARDING_KEY, '1'); }}
+                  className="text-xs text-zinc-600 active:text-zinc-400">
+                  Omitir configuración
+                </button>
+              </div>
+            )}
+
+            {onboardingStep === 2 && (
+              <div className="space-y-4">
+                <div className="text-center space-y-2">
+                  <div className="text-4xl">👥</div>
+                  <h2 className="text-xl font-black text-white">¿Quiénes usan la app?</h2>
+                  <p className="text-xs text-zinc-500">Agregá los nombres de las personas del hogar para saber quién registra cada gasto.</p>
+                </div>
+                <div className="space-y-2">
+                  {onboardingAccounts.map((acc, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="flex-1 bg-zinc-800 rounded-xl px-4 py-2.5">
+                        <span className="text-sm font-semibold text-white">{acc}</span>
+                      </div>
+                      <button onClick={() => setOnboardingAccounts(prev => prev.filter((_, idx) => idx !== i))}
+                        className="w-9 h-9 bg-zinc-900 rounded-xl flex items-center justify-center border border-white/8 active:bg-rose-500/20">
+                        <X className="w-4 h-4 text-zinc-500"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={onboardingNewName}
+                    onChange={e => setOnboardingNewName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && onboardingNewName.trim()) {
+                        setOnboardingAccounts(prev => [...prev, onboardingNewName.trim()]);
+                        setOnboardingNewName('');
+                      }
+                    }}
+                    placeholder="Nombre..."
+                    className="flex-1 bg-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white border border-white/8 focus:outline-none focus:border-violet-500/60"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!onboardingNewName.trim()) return;
+                      setOnboardingAccounts(prev => [...prev, onboardingNewName.trim()]);
+                      setOnboardingNewName('');
+                    }}
+                    className="px-4 py-2.5 bg-violet-600 rounded-xl text-sm font-bold active:scale-95 transition-all">
+                    <Plus className="w-4 h-4"/>
+                  </button>
+                </div>
+                <button onClick={() => {
+                  if (onboardingAccounts.length > 0) saveAccounts(onboardingAccounts);
+                  setOnboardingStep(3);
+                }}
+                  className="w-full py-4 bg-violet-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-transform shadow-xl shadow-violet-950/50">
+                  {onboardingAccounts.length > 0 ? 'Siguiente' : 'Omitir'}
+                </button>
+              </div>
+            )}
+
+            {onboardingStep === 3 && (
+              <div className="space-y-4">
+                <div className="text-center space-y-2">
+                  <div className="text-4xl">💰</div>
+                  <h2 className="text-xl font-black text-white">Tu moneda</h2>
+                  <p className="text-xs text-zinc-500">Elegí la moneda principal. Podés agregar más después en Ajustes.</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['ARS','USD','EUR','BRL','CLP','UYU','MXN','COP','PEN'].map(code => {
+                    const cfg = CURRENCIES[code];
+                    if (!cfg) return null;
+                    return (
+                      <button key={code} onClick={() => changeCurrency(code)}
+                        className={`flex flex-col items-center px-2 py-3.5 rounded-xl text-sm font-bold transition-all active:scale-95 gap-0.5
+                          ${currency === code ? 'bg-violet-600 text-white shadow-md ring-2 ring-violet-400/30' : 'bg-zinc-800 text-zinc-400 border border-white/8'}`}>
+                        <span className="text-2xl leading-none">{cfg.flag}</span>
+                        <span className="text-[11px] font-black mt-1">{code}</span>
+                        <span className={`text-[9px] font-semibold ${currency === code ? 'text-violet-200' : 'text-zinc-600'}`}>{cfg.symbol}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={() => {
+                  setShowOnboarding(false);
+                  localStorage.setItem(ONBOARDING_KEY, '1');
+                  toast('¡Todo listo! Registrá tu primer movimiento con el botón +', 'success');
+                }}
+                  className="w-full py-4 bg-emerald-600 rounded-2xl font-bold text-sm uppercase tracking-wider active:scale-95 transition-transform shadow-xl shadow-emerald-950/50">
+                  ¡Empezar!
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── UNDO DELETE BANNER ── */}
+      {undoableTx && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[998] animate-in fade-in slide-in-from-bottom-4">
+          <button onClick={undoDeleteTransaction}
+            className="flex items-center gap-2 px-5 py-3 bg-zinc-800 border border-white/10 rounded-2xl shadow-2xl shadow-black/60 active:scale-95 transition-transform">
+            <span className="text-sm font-bold text-white">Deshacer eliminación</span>
+            <span className="text-xs text-violet-400 font-mono">5s</span>
+          </button>
+        </div>
+      )}
+
       {/* ════════════════════════════════
           BOTTOM TAB BAR (iOS-style)
       ════════════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-[90] bg-black/90 backdrop-blur-xl border-t border-white/8 pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-lg md:max-w-xl lg:max-w-2xl mx-auto flex">
+      <div className="bottom-nav">
+        <div className="max-w-lg md:max-w-2xl lg:max-w-3xl mx-auto flex items-end px-1">
           {[
-            { id:'home',    icon: Home,      label: 'Inicio'   },
-            { id:'add',     icon: Plus,      label: 'Registrar'},
-            { id:'history', icon: History,   label: 'Historial'},
-            { id:'stats',   icon: BarChart3, label: 'Stats'    },
-            { id:'settings',icon: Settings,  label: 'Ajustes'  },
+            { id:'home',       icon: Home,      label: tl('home')    },
+            { id:'add',        icon: Plus,      label: tl('add')     },
+            { id:'history',    icon: History,   label: tl('history') },
+            { id:'stats',      icon: BarChart3, label: tl('stats')   },
+            { id:'budget',     icon: PiggyBank, label: tl('budget')  },
+            { id:'billeteras', icon: Wallet,    label: 'Billeteras'  },
           ].map(tab=>{
             const Icon = tab.icon;
             const active = activeTab===tab.id;
             const isAdd = tab.id==='add';
-            const isHome = tab.id==='home';
             return (
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all active:scale-95
-                  ${active?'text-indigo-400':'text-zinc-600'}`}>
-                <div className="relative">
+              <button key={tab.id} onClick={()=>{ setActiveTab(tab.id); haptic && haptic(5); }}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-all duration-200 active:scale-90 relative min-w-0">
+                {/* Active pill indicator */}
+                {active && !isAdd && (
+                  <span className="absolute top-1.5 left-1/2 -translate-x-1/2 w-8 h-8 bg-violet-600/12 rounded-2xl -z-0"/>
+                )}
+                <div className="relative z-10">
                   {isAdd ? (
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all
-                      ${active?'bg-indigo-600':'bg-zinc-900 border border-white/10'}`}>
-                      <Icon className={`w-6 h-6 ${active?'text-white':'text-zinc-500'}`}/>
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200 -mb-1
+                      ${active
+                        ? 'bg-violet-600 shadow-violet-950/60'
+                        : 'bg-zinc-900 border border-white/10 shadow-black/40'}`}>
+                      <Icon className={`w-5 h-5 transition-colors ${active?'text-white':'text-zinc-500'}`}/>
                     </div>
                   ) : (
-                    <Icon className={`w-6 h-6 transition-all ${active?'text-indigo-400':'text-zinc-600'}`}/>
+                    <Icon className={`w-[22px] h-[22px] transition-all duration-200 ${active?'text-violet-400':'text-zinc-600'}`}/>
                   )}
-                  {isHome && urgentCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center text-[9px] font-black text-white leading-none">
+                  {tab.id==='home' && urgentCount > 0 && (
+                    <span className="pulse-dot absolute -top-1 -right-2 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center text-[8px] font-black text-white leading-none border border-black">
                       {urgentCount > 9 ? '9+' : urgentCount}
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-semibold transition-all ${active?'text-indigo-400':'text-zinc-600'} ${isAdd&&!active?'opacity-0':''}`}>
+                <span className={`text-[9px] font-bold leading-tight transition-all duration-200 truncate max-w-[52px] text-center
+                  ${active?'text-violet-400':'text-zinc-600'}
+                  ${isAdd&&!active?'opacity-0 h-0 overflow-hidden':''}`}>
                   {tab.label}
                 </span>
               </button>
@@ -9793,9 +13909,52 @@ export default function App() {
                 </select>
               </div>
             </div>
-            <button onClick={()=>setShowDatePicker(false)} className="w-full py-4 bg-indigo-600 rounded-2xl font-bold text-sm active:scale-95 transition-all">
+            <button onClick={()=>setShowDatePicker(false)} className="w-full py-4 bg-violet-600 rounded-2xl font-bold text-sm active:scale-95 transition-all">
               Aplicar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Selector de período de presupuesto
+      ════════════════════════════════ */}
+      {showBudgetPeriodPicker && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setShowBudgetPeriodPicker(false)}/>
+          <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-5 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-base font-black">Seleccioná período</p>
+              <button onClick={()=>setShowBudgetPeriodPicker(false)} className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[55vh] space-y-4 pb-2">
+              {availableYearMonths.length === 0 ? (
+                <p className="text-center text-zinc-600 text-sm py-6">Sin movimientos registrados aún</p>
+              ) : (
+                Object.entries(
+                  availableYearMonths.reduce((g,{year,month})=>{ (g[year]=g[year]||[]).push(month); return g; },{})
+                ).sort(([a],[b])=>Number(b)-Number(a)).map(([year, months]) => (
+                  <div key={year}>
+                    <p className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-2">{year}</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {months.map(m => {
+                        const isSelected = budgetPeriod.year===Number(year) && budgetPeriod.month===m;
+                        return (
+                          <button key={m}
+                            onClick={()=>{ setBudgetPeriod({year:Number(year),month:m}); setShowBudgetPeriodPicker(false); haptic(8); }}
+                            className={`py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95
+                              ${isSelected?'bg-violet-600 text-white shadow-lg shadow-violet-500/30':'bg-zinc-900 text-zinc-400 active:bg-zinc-800'}`}>
+                            {MONTHS[m].slice(0,3)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -9812,7 +13971,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={()=>setBudgetChartView(v=>!v)}
-                className={`p-2.5 rounded-xl transition-all ${budgetChartView?'bg-indigo-600 text-white':'bg-zinc-900 text-zinc-400'}`}>
+                className={`p-2.5 rounded-xl transition-all ${budgetChartView?'bg-violet-600 text-white':'bg-zinc-900 text-zinc-400'}`}>
                 {budgetChartView?<BarChart3 className="w-5 h-5"/>:<PieChart className="w-5 h-5"/>}
               </button>
               <button onClick={()=>setShowBudgetModal(false)} className="p-2.5 bg-zinc-900 rounded-xl"><X className="w-5 h-5"/></button>
@@ -9852,7 +14011,7 @@ export default function App() {
               )
             ) : (
               activeCategories.GASTO.map(cat=>{
-                const limit=budgets[cat]?.amount||0, spent=stats.expenseByCategory[cat]||0;
+                const limit=getAggregatedBudget(cat), spent=stats.expenseByCategory[cat]||0;
                 const remaining=limit-spent, progress=limit>0?Math.min(100,(spent/limit)*100):0;
                 const isOver=remaining<0;
                 return (
@@ -9910,8 +14069,8 @@ export default function App() {
 
           <div className="px-6 py-4 flex gap-3">
             <input value={newCatName} onChange={e=>setNewCatName(e.target.value)} placeholder="Nueva categoría…"
-              className="flex-1 bg-zinc-900/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-indigo-500/50" />
-            <button onClick={()=>manageCategory('ADD',newCatName)} className="bg-indigo-600 px-5 rounded-2xl active:scale-95 transition-all">
+              className="flex-1 bg-zinc-900/60 rounded-2xl p-4 border border-white/10 text-sm text-white focus:outline-none focus:border-violet-500/40" />
+            <button onClick={()=>manageCategory('ADD',newCatName)} className="bg-violet-600 px-5 rounded-2xl active:scale-95 transition-all">
               <Plus className="w-5 h-5"/>
             </button>
           </div>
@@ -9928,10 +14087,10 @@ export default function App() {
                           if (e.key === 'Enter' && renameValue.trim()) manageCategory('RENAME', c, renameValue.trim());
                           if (e.key === 'Escape') setRenamingCat(null);
                         }}
-                        className="flex-1 bg-zinc-900 rounded-xl px-3 py-2 text-sm text-white focus:outline-none border border-indigo-500/50"
+                        className="flex-1 bg-zinc-900 rounded-xl px-3 py-2 text-sm text-white focus:outline-none border border-violet-500/40"
                       />
                       <button onClick={() => { if (renameValue.trim()) manageCategory('RENAME', c, renameValue.trim()); else setRenamingCat(null); }}
-                        className="px-3 py-2 bg-indigo-600 rounded-xl text-sm font-bold active:scale-95 transition-transform">OK</button>
+                        className="px-3 py-2 bg-violet-600 rounded-xl text-sm font-bold active:scale-95 transition-transform">OK</button>
                       <button onClick={() => setRenamingCat(null)}
                         className="p-2 bg-zinc-800 rounded-xl active:scale-95 transition-transform"><X className="w-4 h-4 text-zinc-500"/></button>
                     </div>
@@ -9948,7 +14107,7 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-0.5">
                         <button onClick={() => { setRenamingCat(c); setRenameValue(c); setMergingCat(null); }}
-                          className="p-2 text-zinc-700 active:text-indigo-400 transition-colors" title="Renombrar">
+                          className="p-2 text-zinc-700 active:text-violet-400 transition-colors" title="Renombrar">
                           <Edit3 className="w-4 h-4"/>
                         </button>
                         <button onClick={() => { setMergingCat(mergingCat===c ? null : c); setRenamingCat(null); }}
@@ -9970,7 +14129,7 @@ export default function App() {
                         <button key={emoji}
                           onClick={()=>{ manageCategory('EMOJI', c, emoji); setShowEmojiPicker(null); }}
                           className={`w-9 h-9 flex items-center justify-center text-lg rounded-xl transition-all active:scale-90
-                            ${getEmoji(c)===emoji ? 'bg-indigo-600' : 'active:bg-white/10'}`}>
+                            ${getEmoji(c)===emoji ? 'bg-violet-600' : 'active:bg-white/10'}`}>
                           {emoji}
                         </button>
                       ))}
@@ -9997,6 +14156,65 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                {/* ── Subcategorías ── */}
+                <div className="border-t border-white/5 pt-1">
+                  <button
+                    onClick={() => {
+                      setExpandedCatSubcat(expandedCatSubcat === c ? null : c);
+                      setNewSubcatInput('');
+                    }}
+                    className="w-full flex items-center justify-between px-2 py-2 rounded-xl active:bg-white/5 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">⊞</span>
+                      <span className="text-xs font-semibold text-zinc-500">Subcategorías</span>
+                      {subcategories[c]?.length > 0 && (
+                        <span className="text-[10px] font-bold bg-teal-500/20 text-teal-400 px-1.5 py-0.5 rounded-full leading-none">
+                          {subcategories[c].length}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronRight className={`w-3.5 h-3.5 text-zinc-600 transition-transform duration-200 ${expandedCatSubcat === c ? 'rotate-90' : ''}`}/>
+                  </button>
+
+                  {expandedCatSubcat === c && (
+                    <div className="mt-1.5 bg-black/30 rounded-2xl p-3 border border-teal-500/20 space-y-3">
+                      {/* Chips existentes */}
+                      {(subcategories[c] || []).length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {(subcategories[c] || []).map(sc => (
+                            <div key={sc} className="flex items-center gap-1 bg-teal-500/15 border border-teal-500/25 rounded-xl px-2.5 py-1.5">
+                              <span className="text-xs font-semibold text-teal-300">{sc}</span>
+                              <button
+                                onClick={() => deleteSubcategory(c, sc)}
+                                className="ml-0.5 text-teal-700 active:text-rose-400 transition-colors">
+                                <X className="w-3 h-3"/>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-zinc-600 text-center py-0.5">Sin subcategorías aún — agregá una abajo</p>
+                      )}
+
+                      {/* Input para agregar */}
+                      <div className="flex gap-2">
+                        <input
+                          value={newSubcatInput}
+                          onChange={e => setNewSubcatInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') { addSubcategory(c, newSubcatInput); } }}
+                          placeholder="Nueva subcategoría…"
+                          className="flex-1 bg-zinc-900 rounded-xl px-3 py-2.5 text-sm text-white border border-white/10 focus:outline-none focus:border-teal-500/60 placeholder:text-zinc-700"
+                        />
+                        <button
+                          onClick={() => addSubcategory(c, newSubcatInput)}
+                          className="px-4 py-2.5 bg-teal-600 rounded-xl active:scale-95 transition-all font-bold flex items-center gap-1">
+                          <Plus className="w-4 h-4"/>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -10017,7 +14235,7 @@ export default function App() {
             </div>
             <div className="flex gap-2">
               <button onClick={()=>{ setEditingBill(null); setShowBillForm(true); }}
-                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform">
                 <Plus className="w-5 h-5"/>
               </button>
               <button onClick={()=>setShowBillsModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
@@ -10085,11 +14303,75 @@ export default function App() {
                   <Bell className="w-7 h-7 text-zinc-700"/>
                 </div>
                 <p className="text-sm font-semibold text-zinc-600">Sin vencimientos cargados</p>
-                <button onClick={()=>{setEditingBill(null);setShowBillForm(true);}} className="text-sm font-bold text-indigo-400">
+                <button onClick={()=>{setEditingBill(null);setShowBillForm(true);}} className="text-sm font-bold text-violet-400">
                   + Agregar el primero
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── CURRENCY PICKER MODAL ── */}
+      {showCurrencyPicker && (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCurrencyPicker(false)}/>
+          <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+24px)] max-h-[80vh] flex flex-col">
+            <div className="w-8 h-1 bg-zinc-700 rounded-full mx-auto mb-4"/>
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-black text-base">Agregar moneda</p>
+              <button onClick={() => setShowCurrencyPicker(false)}
+                className="p-2 bg-zinc-900 rounded-xl active:bg-zinc-800">
+                <X className="w-4 h-4 text-zinc-400"/>
+              </button>
+            </div>
+
+            {/* Búsqueda */}
+            <div className="relative mb-3">
+              <input
+                type="text"
+                value={currencySearch}
+                onChange={e => setCurrencySearch(e.target.value)}
+                placeholder="Buscar por nombre o código..."
+                autoFocus
+                className="w-full bg-zinc-900 rounded-2xl px-4 py-3 text-sm text-white border border-white/10 focus:outline-none focus:border-violet-500/40 pl-9"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">🔍</span>
+            </div>
+
+            {/* Lista scrolleable */}
+            <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+              {Object.entries(CURRENCIES)
+                .filter(([code, cfg]) => {
+                  if (activeCurrencies.includes(code)) return false; // ya agregada
+                  if (!currencySearch) return true;
+                  const q = currencySearch.toLowerCase();
+                  return code.toLowerCase().includes(q) || cfg.name.toLowerCase().includes(q) || cfg.shortName.toLowerCase().includes(q);
+                })
+                .map(([code, cfg]) => (
+                  <button key={code}
+                    onClick={() => { addActiveCurrency(code); setShowCurrencyPicker(false); haptic(10); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-zinc-900/60 rounded-2xl active:bg-zinc-800 transition-colors text-left border border-white/4">
+                    <span className="text-2xl leading-none flex-shrink-0">{cfg.flag}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white">{cfg.name}</p>
+                      <p className="text-xs text-zinc-500">{code} · {cfg.symbol}</p>
+                    </div>
+                    <Plus className="w-4 h-4 text-zinc-500 flex-shrink-0"/>
+                  </button>
+                ))
+              }
+              {Object.entries(CURRENCIES).filter(([code, cfg]) => {
+                if (activeCurrencies.includes(code)) return false;
+                if (!currencySearch) return true;
+                const q = currencySearch.toLowerCase();
+                return code.toLowerCase().includes(q) || cfg.name.toLowerCase().includes(q);
+              }).length === 0 && (
+                <p className="text-center text-zinc-600 text-sm py-8">
+                  {currencySearch ? `No se encontró "${currencySearch}"` : 'Todas las monedas ya están agregadas'}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -10112,13 +14394,13 @@ export default function App() {
           <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
             <div>
               <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                <RefreshCw className="w-5 h-5 text-indigo-400"/> Recurrentes
+                <RefreshCw className="w-5 h-5 text-violet-400"/> Recurrentes
               </h3>
               <p className="text-xs text-zinc-600 mt-0.5">{recurring.length} activo{recurring.length!==1?'s':''}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={()=>{ setEditingRecurring(null); setShowRecurringForm(true); }}
-                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform">
                 <Plus className="w-5 h-5"/>
               </button>
               <button onClick={()=>setShowRecurringModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
@@ -10136,7 +14418,7 @@ export default function App() {
                 <p className="text-sm font-semibold text-zinc-600">Sin movimientos recurrentes</p>
                 <p className="text-xs text-zinc-700">Sueldos, alquileres, suscripciones…</p>
                 <button onClick={()=>{ setEditingRecurring(null); setShowRecurringForm(true); }}
-                  className="text-sm font-bold text-indigo-400">
+                  className="text-sm font-bold text-violet-400">
                   + Agregar el primero
                 </button>
               </div>
@@ -10158,6 +14440,8 @@ export default function App() {
         <RecurringForm
           rec={editingRecurring}
           categories={activeCategories}
+          accounts={accounts}
+          currSymbol={currSymbol}
           onSave={async (data)=>{ const ok = await saveRecurring(data); if(ok) setShowRecurringForm(false); }}
           onClose={()=>setShowRecurringForm(false)}
         />
@@ -10170,8 +14454,10 @@ export default function App() {
         <EditTransactionModal
           tx={editingTx}
           categories={activeCategories}
+          accounts={accounts}
           onSave={loadTransactions}
           onClose={()=>setEditingTx(null)}
+          onFixedTxsChange={setFixedTxs}
           onDuplicate={(tx) => {
             setEditingTx(null);
             setType(tx.type);
@@ -10185,6 +14471,122 @@ export default function App() {
         />
       )}
 
+      {/* ── Modal: Gasto Fijo action sheet ── */}
+      {editingFixedTx && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setEditingFixedTx(null)}/>
+          <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+            <div className="w-8 h-1 bg-zinc-700 rounded-full mx-auto mb-4"/>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="text-2xl">{getEmoji(editingFixedTx.category)}</span>
+              <div>
+                <p className="font-black">{editingFixedTx.category}</p>
+                <p className="text-sm text-zinc-500">Día {editingFixedTx.dayOfMonth} · ${formatNumber(editingFixedTx.amount)}{editingFixedTx.account ? ` · ${editingFixedTx.account}` : ''}{editingFixedTx.note ? ` · ${editingFixedTx.note}` : ''}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button onClick={()=>openFixedTxEdit(editingFixedTx)}
+                className="w-full py-3.5 bg-zinc-900 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <Edit3 className="w-4 h-4"/> Editar
+              </button>
+              <button onClick={()=>{ deleteFixedTx(editingFixedTx.id); setEditingFixedTx(null); }}
+                className="w-full py-3.5 bg-red-500/10 rounded-2xl font-bold text-sm text-red-400 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <Trash2 className="w-4 h-4"/> Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Vencimiento/Cuota action sheet ── */}
+      {editingBudgetItem && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setEditingBudgetItem(null)}/>
+          <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+            <div className="w-8 h-1 bg-zinc-700 rounded-full mx-auto mb-4"/>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="text-2xl">{editingBudgetItem.emoji}</span>
+              <div>
+                <p className="font-black">{editingBudgetItem.name}</p>
+                <p className="text-sm text-zinc-500">
+                  {editingBudgetItem.type === 'bill'
+                    ? `Vence día ${editingBudgetItem.dueDay}${editingBudgetItem.isRecurring ? ' · Mensual' : ''}`
+                    : `Cuota ${editingBudgetItem.cuotaNum}/${editingBudgetItem.totalCuotas}`}
+                  {' · '}${formatNumber(editingBudgetItem.amount)}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {editingBudgetItem.type === 'bill' && (
+                <button onClick={()=>{
+                  const b = bills.find(x => x.id === editingBudgetItem.rawId);
+                  if (b) { setEditingBill(b); setShowBillForm(true); }
+                  setEditingBudgetItem(null);
+                }} className="w-full py-3.5 bg-zinc-900 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                  <Edit3 className="w-4 h-4"/> Editar vencimiento
+                </button>
+              )}
+              <button onClick={()=>{
+                if (editingBudgetItem.type === 'bill') deleteBill(editingBudgetItem.rawId);
+                else deleteCuota(editingBudgetItem.rawId);
+                setEditingBudgetItem(null);
+              }} className="w-full py-3.5 bg-red-500/10 rounded-2xl font-bold text-sm text-red-400 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <Trash2 className="w-4 h-4"/> Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Detalle de categoría ── */}
+      {detailCat && (()=>{
+        const catTxs = budgetPeriodTxs
+          .filter(t => t.type === 'GASTO' && t.category === detailCat)
+          .sort((a,b) => new Date(b.date) - new Date(a.date));
+        const total = catTxs.reduce((s,t) => s + Number(t.amount), 0);
+        return (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setDetailCat(null)}/>
+            <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)] max-h-[85vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{getEmoji(detailCat)}</span>
+                  <div>
+                    <p className="font-black">{detailCat}</p>
+                    <p className="text-xs text-zinc-500">{MONTHS[budgetPeriod.month].slice(0,3)} {budgetPeriod.year} · {catTxs.length} movimiento{catTxs.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <button onClick={()=>setDetailCat(null)} className="p-2 bg-zinc-900 rounded-xl"><X className="w-4 h-4"/></button>
+              </div>
+              {/* Total */}
+              <div className="mb-3 px-4 py-3 bg-zinc-900/60 rounded-2xl flex items-center justify-between">
+                <p className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Total gastado</p>
+                <p className="text-lg font-black text-red-400">${formatNumber(total)}</p>
+              </div>
+              {/* Lista de transacciones */}
+              <div className="overflow-y-auto flex-1 space-y-1.5">
+                {catTxs.map(t => (
+                  <button key={t.id}
+                    onClick={()=>{ setEditingTx(t); setDetailCat(null); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-zinc-900 rounded-2xl active:bg-zinc-800 transition-colors text-left">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{t.note || t.category}</p>
+                      <p className="text-xs text-zinc-500">{new Date(t.date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})}</p>
+                    </div>
+                    <p className="text-sm font-black text-red-400 flex-shrink-0">${formatNumber(t.amount)}</p>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0"/>
+                  </button>
+                ))}
+                {catTxs.length === 0 && (
+                  <p className="text-center text-zinc-600 text-sm py-10">Sin movimientos en este período</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ════════════════════════════════
           MODAL: Cuotas
       ════════════════════════════════ */}
@@ -10196,12 +14598,12 @@ export default function App() {
                 <Wallet className="w-5 h-5 text-amber-400"/> Cuotas
               </h3>
               <p className="text-xs text-zinc-600 mt-0.5">
-                {activeCuotas.length} activa{activeCuotas.length!==1?'s':''} · ${formatNumber(cuotasMonthly)}/mes
+                {activeCuotas.length} activa{activeCuotas.length!==1?'s':''} · {currSymbol}{formatNumber(cuotasMonthly)}/mes
               </p>
             </div>
             <div className="flex gap-2">
               <button onClick={()=>{ setEditingCuota(null); setShowCuotaForm(true); }}
-                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform">
                 <Plus className="w-5 h-5"/>
               </button>
               <button onClick={()=>setShowCuotasModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
@@ -10219,7 +14621,7 @@ export default function App() {
                 <p className="text-sm font-semibold text-zinc-600">Sin cuotas registradas</p>
                 <p className="text-xs text-zinc-700">Electrónicos, muebles, ropa…</p>
                 <button onClick={()=>{ setEditingCuota(null); setShowCuotaForm(true); }}
-                  className="text-sm font-bold text-indigo-400">+ Agregar la primera</button>
+                  className="text-sm font-bold text-violet-400">+ Agregar la primera</button>
               </div>
             ) : (
               <>
@@ -10228,11 +14630,11 @@ export default function App() {
                   <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl p-4 flex justify-between items-center">
                     <div>
                       <p className="text-xs text-zinc-500 font-semibold">Compromiso mensual</p>
-                      <p className="text-xl font-black text-amber-400">${formatNumber(cuotasMonthly)}/mes</p>
+                      <p className="text-xl font-black text-amber-400">{currSymbol}{formatNumber(cuotasMonthly)}/mes</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-zinc-500 font-semibold">Total restante</p>
-                      <p className="text-lg font-black">${formatNumber(cuotas.reduce((a,c)=>a+(c.totalCuotas-c.paidCuotas)*c.monthlyAmount,0))}</p>
+                      <p className="text-lg font-black">{currSymbol}{formatNumber(cuotas.reduce((a,c)=>{const r=c.currency&&c.currency!==currency?(exchangeRates[c.currency]||1):1;return a+(c.totalCuotas-c.paidCuotas)*c.monthlyAmount*r;},0))}</p>
                     </div>
                   </div>
                 )}
@@ -10241,7 +14643,7 @@ export default function App() {
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">En curso ({activeCuotas.length})</p>
                     {activeCuotas.map(c=>(
-                      <CuotaCard key={c.id} cuota={c}
+                      <CuotaCard key={c.id} cuota={c} baseCurrency={currency}
                         onEdit={(c)=>{ setEditingCuota(c); setShowCuotaForm(true); }}
                         onDelete={deleteCuota}
                         onPay={payCuota}
@@ -10254,7 +14656,7 @@ export default function App() {
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-zinc-600 uppercase tracking-wider ml-1">Completadas</p>
                     {cuotas.filter(c=>c.paidCuotas>=c.totalCuotas).map(c=>(
-                      <CuotaCard key={c.id} cuota={c}
+                      <CuotaCard key={c.id} cuota={c} baseCurrency={currency}
                         onEdit={(c)=>{ setEditingCuota(c); setShowCuotaForm(true); }}
                         onDelete={deleteCuota}
                         onPay={payCuota}
@@ -10271,10 +14673,806 @@ export default function App() {
       {showCuotaForm && (
         <CuotaForm
           cuota={editingCuota}
+          baseCurrency={currency}
+          activeCurrencies={activeCurrencies}
+          categories={activeCategories}
+          accounts={accounts}
+          getEmoji={getEmoji}
           onSave={(data)=>{ saveCuota(data); setShowCuotaForm(false); }}
           onClose={()=>setShowCuotaForm(false)}
         />
       )}
+
+      {/* ════════════════════════════════
+          MODAL: Resumen Presupuesto
+      ════════════════════════════════ */}
+      {showBudgetResumen && (() => {
+        const periodItemsTotal = periodBudgetItems.reduce((a, i) => a + i.amount, 0);
+        return (
+          <div className="fixed inset-0 z-[110] flex items-end justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowBudgetResumen(false)} />
+            <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] border border-white/8 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)] max-h-[90vh] flex flex-col">
+              <div className="w-8 h-1 bg-zinc-700 rounded-full mx-auto mb-4" />
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-black text-base">Resumen financiero</p>
+                  <p className="text-xs text-zinc-500">{MONTHS[budgetPeriod.month]} {budgetPeriod.year} · {accounts.length} cuenta{accounts.length !== 1 ? 's' : ''}</p>
+                </div>
+                <button onClick={() => setShowBudgetResumen(false)} className="p-2 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 space-y-4 no-scrollbar">
+                {/* Waterfall resumen global */}
+                <div className="glass-success px-4 py-4 space-y-2">
+                  <p className="text-label mb-1">🏠 Ingresos del hogar</p>
+                  <p className="text-display text-emerald-400">{currSymbol}{formatNumber(waterfallData.totalIncome)}</p>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-xs text-zinc-500 font-semibold">Deducciones</span>
+                    <span className="text-sm font-black text-rose-400">−{currSymbol}{formatNumber(waterfallData.totalDeductions)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 font-semibold">Saldo distribuido</span>
+                    <span className="text-sm font-black text-white">{currSymbol}{formatNumber(waterfallData.remainder)}</span>
+                  </div>
+                </div>
+
+                {/* Per personal account */}
+                {personalAccounts.map(acc => {
+                  const allocation = waterfallData.effectiveAllocations[acc] || 0;
+                  const accTxs = budgetPeriodTxs.filter(t => t.account === acc);
+                  const expBycat = {};
+                  accTxs.filter(t => t.type === 'GASTO').forEach(t => {
+                    expBycat[t.category] = (expBycat[t.category] || 0) + Number(t.amount);
+                  });
+                  const totalExp = Object.values(expBycat).reduce((a, b) => a + b, 0);
+                  const totalBudgets = activeCategories.GASTO.reduce((catAcc, cat) => {
+                    return catAcc + (budgets[`${acc}|${cat}|`]?.amount || 0);
+                  }, 0);
+                  const dispPresupuestado = allocation - totalBudgets;
+                  const dispReal = allocation - totalExp;
+                  return (
+                    <div key={acc} className="mc-card p-4 space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <Wallet className="w-4 h-4 text-violet-400" />
+                        <p className="font-black text-sm">{acc}</p>
+                        <span className="text-[9px] text-zinc-600 px-1.5 py-0.5 rounded-full bg-zinc-800">👤 Personal</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Asignación</span>
+                        <span className="text-sm font-black text-emerald-400">{currSymbol}{formatNumber(allocation)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Disp. presupuestado</span>
+                        <span className={`text-sm font-black ${dispPresupuestado >= 0 ? 'text-white' : 'text-rose-400'}`}>{currSymbol}{formatNumber(dispPresupuestado)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Disp. real</span>
+                        <span className={`text-sm font-black ${dispReal >= 0 ? 'text-white' : 'text-rose-400'}`}>{currSymbol}{formatNumber(dispReal)}</span>
+                      </div>
+                      {/* Category limits - editable */}
+                      <div className="space-y-1 pt-2 border-t border-white/5">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">Límites por categoría</p>
+                          <p className="text-[10px] text-zinc-700 font-semibold">gastado / límite</p>
+                        </div>
+                        {activeCategories.GASTO.map(cat => {
+                          const budKey = `${acc}|${cat}|`;
+                          const rawVal = budgets[budKey]?.amount || 0;
+                          const spent = expBycat[cat] || 0;
+                          const pct = rawVal > 0 ? Math.min(100, Math.round((spent / rawVal) * 100)) : 0;
+                          const isOver = rawVal > 0 && spent > rawVal;
+                          return (
+                            <div key={cat}>
+                              <div className="flex items-center gap-1.5 py-1">
+                                <span className="text-sm leading-none flex-shrink-0">{getEmoji(cat)}</span>
+                                <span className="text-xs text-zinc-400 truncate flex-1 min-w-0">{cat}</span>
+                                <span className={`text-[11px] font-bold w-[4.5rem] text-right flex-shrink-0 ${isOver ? 'text-rose-400' : spent > 0 ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                                  {spent > 0 ? `${currSymbol}${formatNumber(spent)}` : '-'}
+                                </span>
+                                <span className="text-zinc-700 text-[10px] mx-0.5">/</span>
+                                <input type="text" value={formatNumber(rawVal)}
+                                  onChange={async e => { const v = parseFormattedNumber(e.target.value); await updateBudget(acc, cat, '', v); }}
+                                  className="bg-transparent text-right font-bold text-[11px] w-[4.5rem] flex-shrink-0 focus:outline-none focus:text-violet-400 text-zinc-500 transition-colors"
+                                  inputMode="numeric" placeholder="0" />
+                              </div>
+                              {rawVal > 0 && (
+                                <div className="h-1 bg-black/40 rounded-full overflow-hidden ml-6 mb-0.5">
+                                  <div className={`h-full rounded-full transition-all ${isOver ? 'bg-rose-500' : pct > 80 ? 'bg-amber-500' : 'bg-violet-600'}`}
+                                    style={{width:`${pct}%`}}/>
+                                </div>
+                              )}
+                              {(subcategories[cat] || []).length > 0 && (
+                                <div className="ml-6 space-y-0.5 border-l border-white/5 pl-3 mt-1">
+                                  {(subcategories[cat] || []).map(subcat => {
+                                    const subKey = `${acc}|${cat}|${subcat}`;
+                                    const subRawVal = budgets[subKey]?.amount || 0;
+                                    const subSpent = budgetPeriodTxs
+                                      .filter(t => t.account === acc && t.type === 'GASTO' && t.category === cat && t.subcategory === subcat)
+                                      .reduce((a, c) => a + Number(c.amount), 0);
+                                    return (
+                                      <div key={subcat} className="flex items-center gap-1.5 py-0.5">
+                                        <span className="text-[10px] text-zinc-500 truncate flex-1 min-w-0">{subcat}</span>
+                                        <span className="text-[10px] text-zinc-600 w-14 text-right flex-shrink-0">{subSpent > 0 ? `${currSymbol}${formatNumber(subSpent)}` : '-'}</span>
+                                        <span className="text-zinc-700 text-[9px]">/</span>
+                                        <input type="text" value={formatNumber(subRawVal)}
+                                          onChange={async e => { const v = parseFormattedNumber(e.target.value); await updateBudget(acc, cat, subcat, v); }}
+                                          className="bg-transparent text-right font-bold text-[10px] w-14 flex-shrink-0 focus:outline-none focus:text-violet-400 text-zinc-600 transition-colors"
+                                          inputMode="numeric" placeholder="0" />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Shared accounts */}
+                {sharedAccounts.map(acc => {
+                  const accTxs = budgetPeriodTxs.filter(t => t.account === acc);
+                  const expBycat = {};
+                  accTxs.filter(t => t.type === 'GASTO').forEach(t => {
+                    expBycat[t.category] = (expBycat[t.category] || 0) + Number(t.amount);
+                  });
+                  const totalBudgets = activeCategories.GASTO.reduce((catAcc, cat) => {
+                    return catAcc + (budgets[`${acc}|${cat}|`]?.amount || 0);
+                  }, 0);
+                  const totalExp = Object.values(expBycat).reduce((a, b) => a + b, 0);
+                  return (
+                    <div key={acc} className="mc-card p-4 space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                        <Wallet className="w-4 h-4 text-teal-400" />
+                        <p className="font-black text-sm">{acc}</p>
+                        <span className="text-[9px] text-teal-500 px-1.5 py-0.5 rounded-full bg-teal-500/10">🤝 Compartida</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Presupuesto compartido</span>
+                        <span className="text-sm font-black text-teal-400">{currSymbol}{formatNumber(totalBudgets)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Gastado</span>
+                        <span className="text-sm font-black text-rose-400">{currSymbol}{formatNumber(totalExp)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-zinc-500 font-semibold">Disponible</span>
+                        <span className={`text-sm font-black ${totalBudgets - totalExp >= 0 ? 'text-white' : 'text-rose-400'}`}>{currSymbol}{formatNumber(totalBudgets - totalExp)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Global commitments */}
+                <div className="mc-card p-4 space-y-2">
+                  <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mb-1">Compromisos del periodo</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 font-semibold">Gastos fijos pagados</span>
+                    <span className="text-sm font-black text-rose-400">{currSymbol}{formatNumber(budgetPeriodStats.fixedPaidTotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 font-semibold">Vencimientos y cuotas</span>
+                    <span className="text-sm font-black text-rose-400">{currSymbol}{formatNumber(periodItemsTotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 font-semibold">Ahorro ({strategy.savingsPercent||0}%)</span>
+                    <span className="text-sm font-black text-emerald-400">{currSymbol}{formatNumber(waterfallData.savingsAmt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 font-semibold">Inversión ({strategy.investmentPercent||0}%)</span>
+                    <span className="text-sm font-black text-violet-400">{currSymbol}{formatNumber(waterfallData.investAmt)}</span>
+                  </div>
+                </div>
+
+                {accounts.length === 0 && (
+                  <div className="text-center py-10">
+                    <p className="text-sm text-zinc-600">Sin cuentas configuradas</p>
+                    <p className="text-xs text-zinc-700 mt-1">Agrega cuentas en Ajustes para ver el desglose</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════
+          MODAL: Centro de Ayuda / Help Center
+      ════════════════════════════════ */}
+      {showHelpCenter && (() => {
+        const topics = HELP_CONTENT(lang);
+        const selectedTopicData = helpSelectedTopic ? topics.find(tp => tp.id === helpSelectedTopic) : null;
+        const sq = helpSearchQuery.trim().toLowerCase();
+        const filteredTopics = sq
+          ? topics.filter(tp =>
+              tp.title.toLowerCase().includes(sq) ||
+              tp.subtitle.toLowerCase().includes(sq) ||
+              tp.keywords.some(k => k.includes(sq)) ||
+              tp.sections.some(s => s.heading.toLowerCase().includes(sq) || s.body.toLowerCase().includes(sq))
+            )
+          : topics;
+
+        return (
+          <div className="fixed inset-0 z-[170] bg-black flex flex-col">
+            {/* Header */}
+            <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-4 border-b border-white/8">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-violet-400"/> {tl('helpCenter')}
+                </h3>
+                <button onClick={() => { setShowHelpCenter(false); setHelpSelectedTopic(null); setHelpSearchQuery(''); setHelpTab('topics'); }}
+                  className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+                  <X className="w-5 h-5"/>
+                </button>
+              </div>
+              {/* Tab bar */}
+              <div className="flex bg-zinc-900/80 rounded-2xl p-1.5 border border-white/8">
+                {[
+                  { id:'topics', label: tl('helpTopics'),  icon: BookOpen },
+                  { id:'search', label: tl('helpSearch'),  icon: Search },
+                  { id:'chat',   label: tl('helpChat'),    icon: MessageCircle },
+                ].map(tab => {
+                  const TabIcon = tab.icon;
+                  return (
+                    <button key={tab.id}
+                      onClick={() => { setHelpTab(tab.id); if (tab.id !== 'topics') setHelpSelectedTopic(null); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all
+                        ${helpTab === tab.id ? 'bg-violet-600 text-white' : 'text-zinc-500'}`}>
+                      <TabIcon className="w-3.5 h-3.5"/>
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+
+              {/* ═══ TAB: TEMAS ═══ */}
+              {helpTab === 'topics' && !selectedTopicData && (
+                <div className="px-6 py-5 space-y-3">
+                  {topics.map((topic, idx) => (
+                    <button key={topic.id}
+                      onClick={() => setHelpSelectedTopic(topic.id)}
+                      className="anim-fade-up w-full flex items-center gap-4 mc-card px-5 py-4 active:scale-[0.98] transition-transform"
+                      style={{ animationDelay: `${idx * 0.03}s` }}>
+                      <div className="w-11 h-11 rounded-2xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-xl flex-shrink-0">
+                        {topic.icon}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-bold text-zinc-200">{topic.title}</p>
+                        <p className="text-xs text-zinc-600 truncate">{topic.subtitle}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-zinc-700 flex-shrink-0"/>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ═══ DETALLE DE TEMA ═══ */}
+              {helpTab === 'topics' && selectedTopicData && (
+                <div className="px-6 py-5 space-y-5 pb-12">
+                  <button onClick={() => setHelpSelectedTopic(null)}
+                    className="flex items-center gap-2 text-sm text-violet-400 font-bold active:opacity-70">
+                    <ChevronLeft className="w-4 h-4"/> {tl('helpBackToTopics')}
+                  </button>
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-2xl">
+                      {selectedTopicData.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-white">{selectedTopicData.title}</h4>
+                      <p className="text-xs text-zinc-500">{selectedTopicData.subtitle}</p>
+                    </div>
+                  </div>
+                  {selectedTopicData.sections.map((section, si) => (
+                    <div key={si} className="mc-card p-5 space-y-2">
+                      <h5 className="text-sm font-black text-violet-300 uppercase tracking-wide">{section.heading}</h5>
+                      <p className="text-sm text-zinc-400 leading-relaxed">{section.body}</p>
+                    </div>
+                  ))}
+                  {selectedTopicData.tip && (
+                    <div className="glass-card p-4 flex gap-3 items-start">
+                      <Lightbulb className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"/>
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        <span className="font-bold text-amber-400">{tl('helpTipPrefix')}</span> {selectedTopicData.tip}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ═══ TAB: BUSCAR ═══ */}
+              {helpTab === 'search' && (
+                <div className="px-6 py-5 space-y-4">
+                  <div className="flex items-center gap-3 bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-3">
+                    <Search className="w-5 h-5 text-zinc-500 flex-shrink-0"/>
+                    <input autoFocus type="text" value={helpSearchQuery}
+                      onChange={e => setHelpSearchQuery(e.target.value)}
+                      placeholder={tl('helpSearchPlaceholder')}
+                      className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"/>
+                    {helpSearchQuery && (
+                      <button onClick={() => setHelpSearchQuery('')} className="p-1 text-zinc-600 active:text-zinc-300">
+                        <X className="w-4 h-4"/>
+                      </button>
+                    )}
+                  </div>
+                  {sq && filteredTopics.length === 0 && (
+                    <div className="text-center py-12 space-y-3">
+                      <Search className="w-10 h-10 text-zinc-800 mx-auto"/>
+                      <p className="text-sm text-zinc-600">{tl('helpNoResults')}</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {filteredTopics.map(topic => (
+                      <button key={topic.id}
+                        onClick={() => { setHelpSelectedTopic(topic.id); setHelpTab('topics'); }}
+                        className="w-full flex items-center gap-4 mc-card px-5 py-4 active:scale-[0.98] transition-transform">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-lg flex-shrink-0">
+                          {topic.icon}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="text-sm font-bold text-zinc-200">{topic.title}</p>
+                          <p className="text-xs text-zinc-600 truncate">{topic.subtitle}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-zinc-700 flex-shrink-0"/>
+                      </button>
+                    ))}
+                  </div>
+                  {!sq && (
+                    <p className="text-center text-xs text-zinc-700 pt-4">
+                      {lang === 'es' ? 'Escribí para buscar en todos los temas de ayuda' : 'Type to search across all help topics'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ═══ TAB: CHAT IA ═══ */}
+              {helpTab === 'chat' && (
+                <div className="flex flex-col" style={{ height: 'calc(100dvh - 170px)' }}>
+                  {/* Banner de estado IA */}
+                  {!aiConfig?.apiKey ? (
+                    <div className="mx-5 mt-4 mb-1 p-4 rounded-2xl bg-violet-600/8 border border-violet-500/15 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-violet-400"/>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-violet-300">{tl('aiNotConfigured')}</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">{tl('aiSetupPrompt')}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => { setShowAIConfig(true); haptic(8); }}
+                        className="w-full py-3 bg-violet-600 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-transform">
+                        {tl('aiSetupButton')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mx-5 mt-4 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/15">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>
+                      {(() => { const BIcon = AI_PROVIDERS[aiConfig.provider]?.Icon; return BIcon ? <span className={`inline-flex ${AI_PROVIDERS[aiConfig.provider]?.iconColor || ''}`}><BIcon size={14}/></span> : null; })()}
+                      <span className="text-[11px] font-bold text-emerald-400">
+                        {AI_PROVIDERS[aiConfig.provider]?.name} {tl('aiConfigured').toLowerCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div ref={helpChatRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-4 no-scrollbar">
+                    {helpChatMessages.length === 0 && (
+                      <div className="space-y-4">
+                        <div className="flex gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-4 h-4 text-violet-400"/>
+                          </div>
+                          <div className="mc-card p-4 max-w-[85%]">
+                            <p className="text-sm text-zinc-300 leading-relaxed">{tl('helpChatWelcome')}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2 pl-12">
+                          {(lang === 'es' ? [
+                            '¿Cómo configuro el presupuesto cascada?',
+                            '¿Cómo registro un gasto en otra moneda?',
+                            '¿Para qué sirven las cuentas compartidas?',
+                            '¿Cómo funcionan los gastos fijos?',
+                          ] : [
+                            'How do I set up the waterfall budget?',
+                            'How do I record an expense in another currency?',
+                            'What are shared accounts for?',
+                            'How do fixed expenses work?',
+                          ]).map((q, qi) => (
+                            <button key={qi}
+                              onClick={() => setHelpChatInput(q)}
+                              className="block w-full text-left text-xs text-violet-400 bg-violet-600/8 border border-violet-500/15 rounded-xl px-3 py-2.5 active:scale-[0.98] transition-transform">
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {helpChatMessages.map((msg, mi) => (
+                      <div key={mi} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                        {msg.role === 'assistant' && (
+                          <div className="w-8 h-8 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400"/>
+                          </div>
+                        )}
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                          msg.role === 'user' ? 'bg-violet-600 text-white' : 'mc-card'}`}>
+                          <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                            msg.role === 'user' ? 'text-white' : 'text-zinc-300'}`}>{msg.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {helpChatLoading && (
+                      <div className="flex gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                          <Sparkles className="w-3.5 h-3.5 text-violet-400"/>
+                        </div>
+                        <div className="mc-card px-4 py-3">
+                          <div className="flex gap-1.5">
+                            {[0,1,2].map(di => (
+                              <div key={di} className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${di * 0.15}s` }}/>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-5 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 border-t border-white/8 bg-black">
+                    <div className="flex items-center gap-3">
+                      <input type="text" value={helpChatInput}
+                        onChange={e => setHelpChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendHelpChatMessage(); } }}
+                        placeholder={tl('helpChatPlaceholder')}
+                        className="flex-1 bg-zinc-900/60 rounded-2xl px-4 py-3 border border-white/10 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/40"/>
+                      <button onClick={sendHelpChatMessage}
+                        disabled={!helpChatInput.trim() || helpChatLoading}
+                        className="p-3 bg-violet-600 rounded-xl active:scale-90 transition-transform disabled:opacity-40">
+                        <Send className="w-4 h-4 text-white"/>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════
+          MODAL: Configurar IA
+      ════════════════════════════════ */}
+      {showAIConfig && (
+        <div className="fixed inset-0 z-[180] bg-black/95 backdrop-blur-xl flex items-end justify-center">
+          <div className="absolute inset-0" onClick={() => setShowAIConfig(false)}/>
+          <div className="anim-slide-up relative w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[90vh] overflow-y-auto no-scrollbar">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-zinc-950 px-6 pt-6 pb-4 flex justify-between items-center border-b border-white/5">
+              <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-violet-400"/> {tl('aiConfigTitle')}
+              </h3>
+              <button onClick={() => setShowAIConfig(false)} className="p-2 bg-zinc-900 rounded-full active:scale-90 transition-transform">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-5">
+              {/* Estado actual */}
+              {aiConfig?.apiKey && (() => {
+                const CurIcon = AI_PROVIDERS[aiConfig.provider]?.Icon;
+                return (
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/8 border border-emerald-500/20">
+                  <div className={`w-8 h-8 flex items-center justify-center ${AI_PROVIDERS[aiConfig.provider]?.iconColor || ''}`}>{CurIcon && <CurIcon size={28}/>}</div>
+                  <div className="flex-1">
+                    <p className="font-black text-sm">{AI_PROVIDERS[aiConfig.provider]?.name}</p>
+                    <p className="text-xs text-zinc-500">{aiConfig.model || AI_PROVIDERS[aiConfig.provider]?.defaultModel}</p>
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400"/>
+                </div>
+                );
+              })()}
+
+              {/* Grilla de proveedores */}
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{tl('aiSelectProvider')}</p>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.values(AI_PROVIDERS).map(prov => {
+                  const ProvIcon = prov.Icon;
+                  return (
+                  <button key={prov.id}
+                    onClick={() => { saveAiConfig({ provider: prov.id, apiKey: aiConfig?.provider === prov.id ? (aiConfig?.apiKey || '') : '', model: '', baseUrl: '' }); setAiTestStatus(null); }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-3xl border transition-all active:scale-95
+                      ${aiConfig?.provider === prov.id ? 'ring-2 ring-violet-500 bg-violet-600/10 border-violet-500/30' : 'bg-zinc-900/60 border-white/5'}`}>
+                    <div className={`w-10 h-10 flex items-center justify-center ${prov.iconColor}`}><ProvIcon size={32}/></div>
+                    <span className="text-xs font-black text-center leading-tight">{prov.name}</span>
+                  </button>
+                  );
+                })}
+              </div>
+
+              {/* Campos de configuración */}
+              {aiConfig?.provider && (() => {
+                const prov = AI_PROVIDERS[aiConfig.provider];
+                return (
+                  <div className="space-y-4">
+                    {/* API Key */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">API Key</p>
+                      <input type="password" placeholder={prov.placeholder}
+                        value={aiConfig.apiKey || ''}
+                        onChange={e => saveAiConfig({ ...aiConfig, apiKey: e.target.value })}
+                        className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-mono focus:outline-none focus:border-violet-500/60 text-zinc-200"/>
+                    </div>
+
+                    {/* Modelo */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                        {tl('aiModel')} <span className="text-zinc-700 normal-case">({tl('aiOptional')})</span>
+                      </p>
+                      <input type="text" placeholder={prov.defaultModel || 'model-name'}
+                        value={aiConfig.model || ''}
+                        onChange={e => saveAiConfig({ ...aiConfig, model: e.target.value })}
+                        className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-mono focus:outline-none focus:border-violet-500/60 text-zinc-200"/>
+                    </div>
+
+                    {/* Base URL (solo Custom) */}
+                    {aiConfig.provider === 'custom' && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Base URL</p>
+                        <input type="url" placeholder="https://your-api.com"
+                          value={aiConfig.baseUrl || ''}
+                          onChange={e => saveAiConfig({ ...aiConfig, baseUrl: e.target.value })}
+                          className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-mono focus:outline-none focus:border-violet-500/60 text-zinc-200"/>
+                      </div>
+                    )}
+
+                    {/* Link de ayuda */}
+                    {prov.helpUrl && (
+                      <a href={prov.helpUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-violet-400 underline">
+                        {prov.helpText?.[lang] || prov.helpText?.es} →
+                      </a>
+                    )}
+
+                    {/* Probar conexión */}
+                    <button
+                      onClick={async () => {
+                        if (!aiConfig.apiKey?.trim()) { toast(lang === 'es' ? 'Ingresá tu API key' : 'Enter your API key', 'error'); return; }
+                        setAiTestStatus('testing'); setAiTestError('');
+                        try {
+                          await callAI('Reply with exactly: OK', [{ role: 'user', content: 'Test' }]);
+                          setAiTestStatus('success');
+                          toast(lang === 'es' ? 'Conexión exitosa ✓' : 'Connection successful ✓', 'success');
+                          haptic(12);
+                        } catch (e) { setAiTestStatus('error'); setAiTestError(e.message); toast(e.message, 'error'); }
+                      }}
+                      disabled={!aiConfig.apiKey?.trim() || aiTestStatus === 'testing'}
+                      className="w-full py-3.5 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                      {aiTestStatus === 'testing'
+                        ? <><RefreshCw className="w-4 h-4 animate-spin"/> {tl('aiTesting')}</>
+                        : tl('aiTestConnection')}
+                    </button>
+
+                    {/* Resultado del test */}
+                    {aiTestStatus === 'success' && (
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400"/>
+                        <span className="text-xs font-bold text-emerald-400">{tl('aiConnectionOk')}</span>
+                      </div>
+                    )}
+                    {aiTestStatus === 'error' && (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                        <AlertCircle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0"/>
+                        <span className="text-xs font-bold text-rose-400">{aiTestError}</span>
+                      </div>
+                    )}
+
+                    {/* Desconectar */}
+                    {aiConfig.apiKey && (
+                      <button onClick={() => { saveAiConfig(null); setAiTestStatus(null); toast(lang === 'es' ? 'IA desconectada' : 'AI disconnected', 'info'); }}
+                        className="w-full py-3 bg-zinc-900 rounded-2xl text-sm font-bold text-rose-400 border border-rose-500/20 active:scale-95 transition-all">
+                        {tl('aiDisconnect')}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Calendario de Vencimientos
+      ════════════════════════════════ */}
+      {showDueDateCalendar && (() => {
+        const year = budgetPeriod.year;
+        const month = budgetPeriod.month; // 0-based
+        const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+        const todayDate = today.getDate();
+
+        // Build map: day → items
+        const dayItems = {};
+        // Bills from periodBudgetItems
+        periodBudgetItems.filter(it => it.dueDay).forEach(it => {
+          if (!dayItems[it.dueDay]) dayItems[it.dueDay] = [];
+          dayItems[it.dueDay].push({ ...it, source: 'bill' });
+        });
+        // Fixed expenses
+        fixedTxs.filter(f => f.type === 'GASTO').forEach(f => {
+          const day = f.dayOfMonth;
+          if (day >= 1 && day <= daysInMonth) {
+            if (!dayItems[day]) dayItems[day] = [];
+            dayItems[day].push({
+              id: f.id, name: f.category, amount: f.amount, emoji: getEmoji(f.category),
+              isPaid: !!paidItems[f.id], source: 'fixed', note: f.note || ''
+            });
+          }
+        });
+
+        const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const dayNames = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+        const cells = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+        const selectedItems = calendarSelectedDay ? (dayItems[calendarSelectedDay] || []) : [];
+
+        // Count totals
+        const totalDueAmount = Object.values(dayItems).flat().reduce((a, it) => a + it.amount, 0);
+        const totalPaidAmount = Object.values(dayItems).flat().filter(it => it.isPaid).reduce((a, it) => a + it.amount, 0);
+        const totalPendingAmount = totalDueAmount - totalPaidAmount;
+
+        return (
+          <div className="fixed inset-0 z-[110] bg-black flex flex-col">
+            <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-4 flex justify-between items-center border-b border-white/8">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-violet-400"/> Calendario
+                </h3>
+                <p className="text-xs text-zinc-600 mt-0.5">{monthNames[month]} {year}</p>
+              </div>
+              <button onClick={() => { setShowDueDateCalendar(false); setCalendarSelectedDay(null); }}
+                className="p-2.5 bg-zinc-900 rounded-xl active:scale-90 transition-transform">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar pb-12">
+              {/* Resumen */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-zinc-900/60 rounded-2xl border border-white/5 p-3 text-center">
+                  <p className="text-[10px] text-zinc-600 font-bold uppercase">Total</p>
+                  <p className="text-sm font-black text-zinc-200">{currSymbol}{formatNumber(totalDueAmount)}</p>
+                </div>
+                <div className="bg-emerald-600/8 rounded-2xl border border-emerald-500/15 p-3 text-center">
+                  <p className="text-[10px] text-emerald-500 font-bold uppercase">Pagado</p>
+                  <p className="text-sm font-black text-emerald-400">{currSymbol}{formatNumber(totalPaidAmount)}</p>
+                </div>
+                <div className="bg-rose-600/8 rounded-2xl border border-rose-500/15 p-3 text-center">
+                  <p className="text-[10px] text-rose-500 font-bold uppercase">Pendiente</p>
+                  <p className="text-sm font-black text-rose-400">{currSymbol}{formatNumber(totalPendingAmount)}</p>
+                </div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="mc-card p-4">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {dayNames.map(d => (
+                    <div key={d} className="text-center text-[10px] font-bold text-zinc-600 uppercase">{d}</div>
+                  ))}
+                </div>
+                {/* Day cells */}
+                <div className="grid grid-cols-7 gap-1">
+                  {cells.map((day, idx) => {
+                    if (day === null) return <div key={`empty-${idx}`} />;
+                    const hasItems = !!dayItems[day];
+                    const isToday = isCurrentMonth && day === todayDate;
+                    const isSelected = calendarSelectedDay === day;
+                    const allPaid = hasItems && dayItems[day].every(it => it.isPaid);
+                    const someOverdue = hasItems && dayItems[day].some(it => {
+                      if (it.isPaid) return false;
+                      const dueDate = new Date(year, month, day);
+                      return dueDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    });
+
+                    return (
+                      <button key={day}
+                        onClick={() => setCalendarSelectedDay(isSelected ? null : day)}
+                        className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all active:scale-90
+                          ${isSelected ? 'bg-violet-600 ring-2 ring-violet-400' :
+                            hasItems ? (someOverdue ? 'bg-rose-600/15 border border-rose-500/30' : allPaid ? 'bg-emerald-600/15 border border-emerald-500/30' : 'bg-amber-600/10 border border-amber-500/25') :
+                            'bg-zinc-900/40'}`}>
+                        <span className={`text-xs font-bold ${isSelected ? 'text-white' : isToday ? 'text-violet-400' : hasItems ? 'text-zinc-200' : 'text-zinc-600'}`}>
+                          {day}
+                        </span>
+                        {hasItems && (
+                          <div className="flex gap-0.5 mt-0.5">
+                            {dayItems[day].slice(0, 3).map((it, i) => (
+                              <div key={i} className={`w-1 h-1 rounded-full ${it.isPaid ? 'bg-emerald-400' : someOverdue ? 'bg-rose-400' : 'bg-amber-400'}`}/>
+                            ))}
+                          </div>
+                        )}
+                        {isToday && !isSelected && (
+                          <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-violet-500 rounded-full"/>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selected day details */}
+              {calendarSelectedDay && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-1">
+                    {calendarSelectedDay} de {monthNames[month]}
+                    {selectedItems.length > 0 && ` · ${selectedItems.length} item${selectedItems.length !== 1 ? 's' : ''}`}
+                  </p>
+                  {selectedItems.length === 0 ? (
+                    <div className="mc-card p-5 text-center">
+                      <p className="text-sm text-zinc-600">Sin vencimientos este día</p>
+                    </div>
+                  ) : (
+                    <div className="mc-card overflow-hidden">
+                      {selectedItems.map((item, i) => (
+                        <div key={item.id}
+                          className={`flex items-center px-4 py-3.5 ${i < selectedItems.length - 1 ? 'border-b border-white/[0.04]' : ''} ${item.isPaid ? 'opacity-40' : ''}`}>
+                          <span className="text-lg mr-3 flex-shrink-0">{item.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-zinc-300 truncate">{item.name}</p>
+                            <p className="text-[11px] text-zinc-600">
+                              {item.source === 'fixed' ? 'Gasto fijo' :
+                               item.source === 'bill' && item.type === 'cuota' ? `Cuota ${item.cuotaNum}/${item.totalCuotas}` :
+                               item.isRecurring ? 'Mensual' : 'Único'}
+                              {item.note ? ` · ${item.note}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0 ml-2">
+                            <p className={`text-sm font-bold ${item.isPaid ? 'text-emerald-400 line-through decoration-emerald-600' : 'text-zinc-200'}`}>
+                              {currSymbol}{formatNumber(item.amount)}
+                            </p>
+                            <p className={`text-[10px] font-semibold ${item.isPaid ? 'text-emerald-500' : 'text-amber-500'}`}>
+                              {item.isPaid ? '✓ Pagado' : '⏳ Pendiente'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-3 px-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"/>
+                  <span className="text-[10px] text-zinc-600 font-semibold">Pagado</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400"/>
+                  <span className="text-[10px] text-zinc-600 font-semibold">Pendiente</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-400"/>
+                  <span className="text-[10px] text-zinc-600 font-semibold">Vencido</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-violet-500"/>
+                  <span className="text-[10px] text-zinc-600 font-semibold">Hoy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ════════════════════════════════
           MODAL: Metas de Ahorro
@@ -10284,13 +15482,13 @@ export default function App() {
           <div className="px-6 pt-[calc(env(safe-area-inset-top)+16px)] pb-5 flex justify-between items-center border-b border-white/8">
             <div>
               <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                <Target className="w-5 h-5 text-indigo-400"/> Metas de ahorro
+                <Target className="w-5 h-5 text-violet-400"/> Metas de ahorro
               </h3>
               <p className="text-xs text-zinc-600 mt-0.5">{goals.length} meta{goals.length!==1?'s':''}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={()=>{ setEditingGoal(null); setShowGoalForm(true); }}
-                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform">
                 <Plus className="w-5 h-5"/>
               </button>
               <button onClick={()=>setShowGoalsModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
@@ -10308,15 +15506,15 @@ export default function App() {
                 <p className="text-sm font-semibold text-zinc-600">Sin metas de ahorro</p>
                 <p className="text-xs text-zinc-700">Vacaciones, auto, electrónico…</p>
                 <button onClick={()=>{ setEditingGoal(null); setShowGoalForm(true); }}
-                  className="text-sm font-bold text-indigo-400">+ Crear la primera</button>
+                  className="text-sm font-bold text-violet-400">+ Crear la primera</button>
               </div>
             ) : (
               <>
                 {/* Resumen total */}
-                <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center">
+                <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl p-4 flex justify-between items-center">
                   <div>
                     <p className="text-xs text-zinc-500 font-semibold">Total guardado</p>
-                    <p className="text-xl font-black text-indigo-300">${formatNumber(goals.reduce((a,g)=>a+g.current,0))}</p>
+                    <p className="text-xl font-black text-violet-300">${formatNumber(goals.reduce((a,g)=>a+g.current,0))}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-zinc-500 font-semibold">Total metas</p>
@@ -10366,7 +15564,7 @@ export default function App() {
             </div>
             <div className="flex gap-2">
               <button onClick={()=>{ setEditingDebt(null); setShowDebtForm(true); }}
-                className="p-2.5 bg-indigo-600 rounded-xl active:scale-90 transition-transform">
+                className="p-2.5 bg-violet-600 rounded-xl active:scale-90 transition-transform">
                 <Plus className="w-5 h-5"/>
               </button>
               <button onClick={()=>setShowDebtsModal(false)} className="p-2.5 bg-zinc-900 rounded-xl">
@@ -10382,7 +15580,7 @@ export default function App() {
                 <p className="text-sm font-semibold text-zinc-600">Sin deudas registradas</p>
                 <p className="text-xs text-zinc-700">Llevá el registro de lo que te deben y lo que debés</p>
                 <button onClick={()=>{ setEditingDebt(null); setShowDebtForm(true); }}
-                  className="text-sm font-bold text-indigo-400">+ Agregar la primera</button>
+                  className="text-sm font-bold text-violet-400">+ Agregar la primera</button>
               </div>
             ) : (
               <>
@@ -10483,7 +15681,7 @@ export default function App() {
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                  <LayoutGrid className="w-5 h-5 text-indigo-400"/> Personalizar Home
+                  <LayoutGrid className="w-5 h-5 text-violet-400"/> Personalizar Home
                 </h3>
                 <p className="text-xs text-zinc-600 mt-0.5">Arrastrá ⠿ para reordenar · S/M/L para tamaño</p>
               </div>
@@ -10522,8 +15720,16 @@ export default function App() {
 
             <div className="px-6 py-3 border-t border-white/8 flex gap-2">
               <button onClick={() => { setHiddenWidgets(new Set()); localStorage.removeItem(HIDDEN_WIDGETS_KEY); haptic(12); }}
-                className="flex-1 py-2.5 text-xs font-bold text-indigo-400 bg-indigo-600/10 rounded-xl active:opacity-60">
+                className="flex-1 py-2.5 text-xs font-bold text-violet-400 bg-violet-600/10 rounded-xl active:opacity-60">
                 Mostrar todos
+              </button>
+              <button onClick={() => {
+                const all = new Set(WIDGET_LIST.map(w => w.id));
+                setHiddenWidgets(all);
+                localStorage.setItem(HIDDEN_WIDGETS_KEY, JSON.stringify([...all]));
+                haptic(12);
+              }} className="flex-1 py-2.5 text-xs font-bold text-rose-400 bg-rose-500/10 rounded-xl active:opacity-60">
+                Ocultar todos
               </button>
               <button onClick={() => {
                 setWidgetOrder(WIDGET_LIST.map(w => w.id));
@@ -10551,10 +15757,10 @@ export default function App() {
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl transition-all ${isDictandoHome ? 'bg-rose-600 animate-pulse' : 'bg-indigo-600/30'}`}>
+                <div className={`p-2 rounded-xl transition-all ${isDictandoHome ? 'bg-rose-600 animate-pulse' : 'bg-violet-600/30'}`}>
                   {isDictandoHome
                     ? <Mic className="w-5 h-5 text-white"/>
-                    : <MicOff className="w-5 h-5 text-indigo-400"/>
+                    : <MicOff className="w-5 h-5 text-violet-400"/>
                   }
                 </div>
                 <div>
@@ -10656,8 +15862,407 @@ export default function App() {
             <button
               onClick={saveVoiceDraft}
               disabled={voiceDraftSaving || !voiceDraft.amount || !voiceDraft.category}
-              className="w-full py-4 bg-indigo-600 rounded-2xl text-base font-black text-white active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              className="w-full py-4 bg-violet-600 rounded-2xl text-base font-black text-white active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               {voiceDraftSaving ? 'Guardando…' : 'Guardar movimiento ✅'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Detalle Ingresos / Gastos (Home)
+      ════════════════════════════════ */}
+      {/* ════════════════════════════════
+          (Drawer de distribución eliminado — ahora se edita directamente por cuenta)
+      ════════════════════════════════ */}
+
+      {/* ════════════════════════════════
+          MODAL: Detalle Disponible por categoría (desde Home)
+      ════════════════════════════════ */}
+      {homeDetailType === 'DISPONIBLE' && (() => {
+        const savingsAmt  = Math.round(homeStats.income * (strategy.savingsPercent||0) / 100);
+        const investAmt   = Math.round(homeStats.income * (strategy.investmentPercent||0) / 100);
+        // Categorías con presupuesto asignado
+        const catsWithBudget = activeCategories.GASTO.filter(cat => getAggregatedBudget(cat) > 0);
+        // Calcular disponible presupuestado (según plan)
+        const totalBudgetsAmt = activeCategories.GASTO.reduce((acc, cat) => {
+          return acc + getAggregatedBudget(cat);
+        }, 0);
+        const dispPresupuestado = homeStats.income - savingsAmt - investAmt - totalBudgetsAmt;
+        return (
+          <div className="fixed inset-0 z-[200] flex flex-col bg-black">
+            {/* Header */}
+            <div className="px-6 pt-[calc(env(safe-area-inset-top)+20px)] pb-5 border-b border-white/8 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </p>
+                <h3 className="text-2xl font-black text-violet-400 flex items-center gap-2">
+                  <Wallet className="w-6 h-6"/> Disponible
+                </h3>
+                <p className="text-3xl font-black text-white mt-0.5">${formatNumber(homeStats.available)}</p>
+                <p className="text-xs text-zinc-600 mt-0.5">Ingresos − Gastos − Ahorro − Inversión</p>
+              </div>
+              <button onClick={()=>setHomeDetailType(null)} className="p-2.5 bg-zinc-900 rounded-2xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-[calc(env(safe-area-inset-bottom)+24px)]">
+              <div className="px-5 pt-5 space-y-5">
+
+                {/* Resumen de cómo se compone */}
+                <div className="bg-zinc-900/60 rounded-2xl border border-white/5 overflow-hidden">
+                  {[
+                    { label: 'Ingresos del mes',  value: homeStats.income,           color: 'text-emerald-400', sign: '+' },
+                    { label: `Ahorro (${strategy.savingsPercent||0}%)`,    value: savingsAmt,   color: 'text-zinc-400',   sign: '−' },
+                    { label: `Inversión (${strategy.investmentPercent||0}%)`, value: investAmt,  color: 'text-zinc-400',   sign: '−' },
+                    { label: 'Gastos del mes',     value: homeStats.expenses,         color: 'text-rose-400',    sign: '−' },
+                  ].map(({ label, value, color, sign }, i, arr) => (
+                    <div key={label} className={`flex items-center justify-between px-4 py-3 ${i < arr.length-1 ? 'border-b border-white/5' : ''}`}>
+                      <span className="text-sm text-zinc-400">{label}</span>
+                      <span className={`text-sm font-bold ${color}`}>{sign} ${formatNumber(value)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-4 py-3 bg-violet-600/10 border-t border-violet-500/20">
+                    <span className="text-sm font-bold text-zinc-200">= Saldo disponible</span>
+                    <span className={`text-base font-black ${homeStats.available >= 0 ? 'text-white' : 'text-rose-400'}`}>${formatNumber(homeStats.available)}</span>
+                  </div>
+                </div>
+
+                {/* Disponible por categoría según presupuesto */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">Por categoría (presupuesto)</p>
+                    {dispPresupuestado !== 0 && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${dispPresupuestado >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                        {dispPresupuestado >= 0 ? 'Sin asignar' : 'Excedido'}: ${formatNumber(Math.abs(dispPresupuestado))}
+                      </span>
+                    )}
+                  </div>
+                  {catsWithBudget.length === 0 ? (
+                    <div className="bg-zinc-900/40 rounded-2xl border border-white/5 px-5 py-8 text-center">
+                      <p className="text-zinc-600 text-sm mb-1">Sin presupuestos asignados</p>
+                      <p className="text-zinc-700 text-xs">Configurá límites en el tab Presupuesto</p>
+                      <button onClick={()=>{ setHomeDetailType(null); setActiveTab('budget'); haptic(8); }}
+                        className="mt-4 px-4 py-2 bg-violet-700/15 border border-violet-500/30 rounded-xl text-xs font-bold text-violet-400 active:opacity-60">
+                        Ir a Presupuesto →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {catsWithBudget.map(cat => {
+                        const mode = budgetModes[cat] || '$';
+                        const raw  = getAggregatedBudget(cat);
+                        const limit = raw;
+                        const spent = homeStats.expenseByCategory[cat] || 0;
+                        const remaining = limit - spent;
+                        const pct = limit > 0 ? Math.min(100, Math.round((spent/limit)*100)) : 0;
+                        const isOver = remaining < 0;
+                        const barColor = isOver ? '#f43f5e' : pct > 80 ? '#f59e0b' : '#7c3aed';
+                        return (
+                          <div key={cat} className="bg-zinc-900/60 rounded-2xl px-4 py-3.5 border border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{getEmoji(cat)}</span>
+                                <span className="text-sm font-semibold text-zinc-200">{cat}</span>
+                                {mode === '%' && <span className="text-[9px] text-zinc-600 bg-zinc-800 rounded-full px-1.5">{raw}%</span>}
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-sm font-black ${isOver ? 'text-rose-400' : 'text-white'}`}>
+                                  {isOver ? '−' : ''}${formatNumber(Math.abs(remaining))}
+                                </p>
+                                <p className="text-[9px] text-zinc-600">{isOver ? 'excedido' : 'restante'}</p>
+                              </div>
+                            </div>
+                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-1.5">
+                              <div className="h-full rounded-full transition-all"
+                                style={{ width:`${pct}%`, backgroundColor: barColor }}/>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-zinc-600 font-semibold">
+                              <span>Gastado ${formatNumber(spent)}</span>
+                              <span>Límite ${formatNumber(limit)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {homeDetailType && homeDetailType !== 'DISPONIBLE' && (() => {
+        const isIngreso = homeDetailType === 'INGRESO';
+        const homeMonthTxs = homeAccount ? monthTxs.filter(t => t.account === homeAccount) : monthTxs;
+        const txs = homeMonthTxs.filter(t => t.type === homeDetailType).sort((a,b) => new Date(b.date) - new Date(a.date));
+        const total = txs.reduce((s,t) => s + Number(t.amount), 0);
+        // Agrupar por categoría
+        const byCat = {};
+        txs.forEach(t => {
+          if (!byCat[t.category]) byCat[t.category] = { total: 0, txs: [] };
+          byCat[t.category].total += Number(t.amount);
+          byCat[t.category].txs.push(t);
+        });
+        const catList = Object.entries(byCat).sort((a,b) => b[1].total - a[1].total);
+        const accentColor = isIngreso ? 'emerald' : 'rose';
+        return (
+          <div className="fixed inset-0 z-[200] flex flex-col bg-black">
+            {/* Header */}
+            <div className="px-6 pt-[calc(env(safe-area-inset-top)+20px)] pb-5 border-b border-white/8 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </p>
+                <h3 className={`text-2xl font-black ${isIngreso ? 'text-emerald-400' : 'text-rose-400'} flex items-center gap-2`}>
+                  {isIngreso ? <ArrowUpRight className="w-6 h-6"/> : <ArrowDownLeft className="w-6 h-6"/>}
+                  {isIngreso ? tl('incomesLabel') : tl('expensesTitle')}
+                </h3>
+                <p className="text-3xl font-black text-white mt-0.5">${formatNumber(total)}</p>
+              </div>
+              <button onClick={()=>setHomeDetailType(null)} className="p-2.5 bg-zinc-900 rounded-2xl">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-[calc(env(safe-area-inset-bottom)+24px)]">
+              {txs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 space-y-3">
+                  <p className="text-4xl">{isIngreso ? '💰' : '🧾'}</p>
+                  <p className="text-sm font-semibold text-zinc-600">Sin {isIngreso ? 'ingresos' : 'gastos'} este mes</p>
+                </div>
+              ) : (
+                <div className="px-5 pt-5 space-y-5">
+                  {/* Resumen por categoría */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-3">Por categoría</p>
+                    <div className="space-y-2">
+                      {catList.map(([cat, data]) => {
+                        const pct = total > 0 ? Math.round((data.total / total) * 100) : 0;
+                        const catColor = chartData.find(d=>d.cat===cat)?.color || (isIngreso ? '#10b981' : '#f43f5e');
+                        return (
+                          <div key={cat} className="bg-zinc-900/60 rounded-2xl px-4 py-3 border border-white/5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{getEmoji(cat)}</span>
+                                <span className="text-sm font-semibold text-zinc-200">{cat}</span>
+                                <span className="text-[10px] font-semibold text-zinc-600 bg-zinc-800 rounded-full px-1.5 py-0.5">{data.txs.length}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-white">${formatNumber(data.total)}</p>
+                                <p className="text-[10px] text-zinc-600 font-semibold">{pct}%</p>
+                              </div>
+                            </div>
+                            {/* Barra de proporción */}
+                            <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{width:`${pct}%`, backgroundColor: catColor}}/>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Lista de transacciones */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-3">Movimientos ({txs.length})</p>
+                    <div className="space-y-2">
+                      {txs.map(t => {
+                        const d = new Date(t.date);
+                        const catColor = chartData.find(c=>c.cat===t.category)?.color || (isIngreso ? '#10b981' : '#f43f5e');
+                        return (
+                          <div key={t.id} className="flex items-center gap-3 bg-zinc-900/50 rounded-2xl px-4 py-3 border border-white/5">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                              style={{backgroundColor:`${catColor}18`}}>
+                              {getEmoji(t.category)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-zinc-200 truncate">{t.category}</p>
+                              {t.note && t.note.trim() && (
+                                <p className="text-[11px] text-zinc-600 truncate mt-0.5">{t.note}</p>
+                              )}
+                              <p className="text-[10px] text-zinc-700 mt-0.5 font-medium">
+                                {d.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </p>
+                            </div>
+                            <p className={`text-sm font-black flex-shrink-0 ${isIngreso ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              ${formatNumber(Number(t.amount))}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════
+          MODAL: Picker de mes (Historial)
+      ════════════════════════════════ */}
+      {showHistoryMonthPicker && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center md:items-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setShowHistoryMonthPicker(false)}/>
+          <div className="relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] md:rounded-[2rem] border border-white/8 p-6 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-black text-white text-lg">Elegir mes</h3>
+              <button onClick={()=>setShowHistoryMonthPicker(false)} className="p-2 bg-zinc-900 rounded-xl">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+
+            {/* Opción Todos los meses */}
+            <button
+              onClick={() => { setAllMonths(true); setSelectedHistoryMonth(null); setShowHistoryMonthPicker(false); haptic(8); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border mb-4 transition-all
+                ${allMonths ? 'bg-violet-600 border-violet-500/40 text-white' : 'bg-zinc-900/60 border-white/8 text-zinc-400'}`}>
+              <Calendar className="w-4 h-4 flex-shrink-0"/>
+              <span className="font-bold text-sm flex-1 text-left">Todos los meses</span>
+              {allMonths && <Check className="w-4 h-4"/>}
+            </button>
+
+            {/* Grilla de meses por año */}
+            <div className="overflow-y-auto max-h-[50vh] space-y-4 no-scrollbar">
+              {Object.entries(
+                availableYearMonths.reduce((acc, ym) => {
+                  if (!acc[ym.year]) acc[ym.year] = [];
+                  acc[ym.year].push(ym);
+                  return acc;
+                }, {})
+              ).sort(([a],[b]) => Number(b) - Number(a)).map(([year, months]) => (
+                <div key={year}>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-2">{year}</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {months.map(ym => {
+                      const isCurrent = currentDate.getFullYear()===ym.year && currentDate.getMonth()===ym.month;
+                      const isSelected = !allMonths && (
+                        selectedHistoryMonth
+                          ? selectedHistoryMonth.year===ym.year && selectedHistoryMonth.month===ym.month
+                          : isCurrent
+                      );
+                      return (
+                        <button key={`${ym.year}-${ym.month}`}
+                          onClick={() => {
+                            if (isCurrent) {
+                              setAllMonths(false); setSelectedHistoryMonth(null);
+                            } else {
+                              setAllMonths(false); setSelectedHistoryMonth({ year: ym.year, month: ym.month });
+                            }
+                            setShowHistoryMonthPicker(false); haptic(8);
+                          }}
+                          className={`py-2.5 rounded-xl text-xs font-bold transition-all
+                            ${isSelected ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'bg-zinc-900/60 border border-white/8 text-zinc-400 active:bg-zinc-800'}`}>
+                          {MONTHS[ym.month].slice(0,3)}
+                          {isCurrent && !isSelected && <span className="block text-[8px] text-violet-400 mt-0.5">hoy</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════
+          MODAL: Filtro de categorías (Historial)
+      ════════════════════════════════ */}
+      {showCatFilter && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center md:items-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setShowCatFilter(false)}/>
+          <div className="relative w-full max-w-md bg-zinc-950 rounded-t-[2rem] md:rounded-[2rem] border border-white/8 p-6 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-white text-lg">Categorías</h3>
+              <div className="flex items-center gap-2">
+                {filterCategories.size > 0 && (
+                  <button onClick={() => { setFilterCategories(new Set()); haptic(6); }}
+                    className="text-xs font-bold text-zinc-500 px-3 py-1.5 bg-zinc-900 rounded-lg active:opacity-60">
+                    Limpiar
+                  </button>
+                )}
+                <button onClick={()=>setShowCatFilter(false)} className="p-2 bg-zinc-900 rounded-xl">
+                  <X className="w-4 h-4"/>
+                </button>
+              </div>
+            </div>
+
+            {/* Seleccionar todas */}
+            <button
+              onClick={() => {
+                if (filterCategories.size === filterableCats.length && filterableCats.length > 0) {
+                  setFilterCategories(new Set());
+                } else {
+                  setFilterCategories(new Set(filterableCats));
+                }
+                haptic(8);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border mb-3 transition-all
+                ${filterCategories.size === filterableCats.length && filterableCats.length > 0
+                  ? 'bg-violet-600 border-violet-500/40 text-white'
+                  : 'bg-zinc-900/60 border-white/8 text-zinc-400'}`}>
+              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
+                ${filterCategories.size === filterableCats.length && filterableCats.length > 0 ? 'bg-white border-white' : filterCategories.size > 0 ? 'border-violet-500' : 'border-zinc-600'}`}>
+                {filterCategories.size === filterableCats.length && filterableCats.length > 0
+                  ? <Check className="w-3 h-3 text-violet-600"/>
+                  : filterCategories.size > 0
+                  ? <div className="w-2 h-0.5 bg-violet-400 rounded"/>
+                  : null}
+              </div>
+              <span className="font-bold text-sm flex-1 text-left">Todas las categorías</span>
+              <span className="text-xs text-zinc-500">{filterableCats.length}</span>
+            </button>
+
+            {/* Lista de categorías */}
+            <div className="overflow-y-auto max-h-[50vh] space-y-1.5 no-scrollbar">
+              {filterableCats.map(cat => {
+                const isChecked = filterCategories.has(cat);
+                const catColor = chartData.find(d=>d.cat===cat)?.color || '#6366f1';
+                const baseForCount = allMonths ? transactions : selectedHistoryMonth
+                  ? transactions.filter(t => { const d=new Date(t.date); return d.getFullYear()===selectedHistoryMonth.year && d.getMonth()===selectedHistoryMonth.month; })
+                  : monthTxs;
+                const catTxCount = baseForCount.filter(t => (filterType==='ALL' || t.type===filterType) && t.category===cat).length;
+                return (
+                  <button key={cat}
+                    onClick={() => {
+                      setFilterCategories(prev => {
+                        const next = new Set(prev);
+                        if (next.has(cat)) next.delete(cat); else next.add(cat);
+                        return next;
+                      });
+                      haptic(6);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all
+                      ${isChecked ? 'bg-zinc-800 border-white/12' : 'bg-zinc-900/40 border-white/5 active:bg-zinc-800/60'}`}>
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
+                        ${isChecked ? 'border-transparent' : 'border-zinc-600'}`}
+                      style={isChecked ? {backgroundColor: catColor} : {}}>
+                      {isChecked && <Check className="w-3 h-3 text-white"/>}
+                    </div>
+                    <span className="text-sm">{getEmoji(cat)}</span>
+                    <span className={`text-sm font-semibold flex-1 text-left ${isChecked ? 'text-white' : 'text-zinc-400'}`}>{cat}</span>
+                    <span className="text-xs text-zinc-600 font-medium">{catTxCount}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Botón aplicar */}
+            <button
+              onClick={() => { setShowCatFilter(false); haptic(10); }}
+              className="w-full mt-4 py-3.5 bg-violet-600 rounded-2xl text-sm font-black text-white active:scale-[0.97] transition-all">
+              {filterCategories.size === 0
+                ? 'Mostrar todas'
+                : `Ver ${filterCategories.size} categoría${filterCategories.size !== 1 ? 's' : ''}`}
             </button>
           </div>
         </div>
@@ -10773,6 +16378,254 @@ export default function App() {
         <PlazoFijoCalc onClose={() => setShowPlazoFijo(false)} />
       )}
 
+      {/* ── MP OAUTH LOADING OVERLAY ─────────────────────── */}
+      {mpOAuthLoading && (
+        <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center gap-6">
+          <WalletLogo provider="mercadopago" size={72} className="rounded-2xl shadow-2xl shadow-sky-500/30"/>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-black">Conectando Mercado Pago</p>
+            <p className="text-sm text-zinc-400">Intercambiando credenciales OAuth…</p>
+          </div>
+          <div className="flex gap-1.5">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-sky-400 animate-bounce" style={{ animationDelay: `${i*0.15}s` }}/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── CONNECT WALLET MODAL ─────────────────────────── */}
+      {showWalletConnect && (
+        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-xl flex items-end justify-center">
+          <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {walletConnectStep > 1 && (
+                  <button onClick={() => setWalletConnectStep(s => s-1)} className="p-1.5 bg-zinc-900 rounded-xl">
+                    <ChevronLeft className="w-4 h-4"/>
+                  </button>
+                )}
+                <h3 className="text-base font-black">
+                  {walletConnectStep === 1 ? 'Elegí una billetera' : walletConnectStep === 2 ? 'Configurar' : 'Confirmar'}
+                </h3>
+              </div>
+              <button onClick={() => { setShowWalletConnect(false); setWalletConnectStep(1); setWalletConnectProv(null); setWalletConnectCreds({}); setWalletConnectName(''); }}
+                className="p-2 bg-zinc-900 rounded-full"><X className="w-4 h-4"/></button>
+            </div>
+
+            {/* Step 1: Choose provider */}
+            {walletConnectStep === 1 && (
+              <div className="grid grid-cols-2 gap-3">
+                {Object.values(WALLET_PROVIDERS).map(prov => (
+                  <button key={prov.id}
+                    onClick={() => { if (!prov.comingSoon) { setWalletConnectProv(prov.id); setWalletConnectStep(2); } }}
+                    className={`relative flex flex-col items-center gap-2 p-4 rounded-3xl border transition-all
+                      ${prov.comingSoon ? 'opacity-40 cursor-not-allowed ' + prov.bgClass + ' ' + prov.borderClass
+                        : 'active:scale-95 ' + prov.bgClass + ' ' + prov.borderClass}`}>
+                    <WalletLogo provider={prov.id} size={44} className="rounded-xl"/>
+                    <span className="text-xs font-black text-center leading-tight">{prov.name}</span>
+                    {prov.comingSoon && (
+                      <span className="absolute top-2 right-2 text-[9px] bg-zinc-700 text-zinc-400 rounded-full px-1.5 py-0.5 font-bold">Próx.</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Step 2: Enter credentials */}
+            {walletConnectStep === 2 && walletConnectProv && (() => {
+              const prov = WALLET_PROVIDERS[walletConnectProv];
+              const isMP = prov.id === 'mercadopago';
+              return (
+                <div className="space-y-4">
+                  {/* Provider header */}
+                  <div className={`flex items-center gap-3 p-4 rounded-2xl ${prov.bgClass} border ${prov.borderClass}`}>
+                    <WalletLogo provider={prov.id} size={40} className="rounded-xl flex-shrink-0"/>
+                    <div>
+                      <p className="font-black text-sm">{prov.name}</p>
+                      {prov.helpText && <p className="text-xs text-zinc-400 mt-0.5">{prov.helpText}</p>}
+                    </div>
+                  </div>
+
+                  {/* ── Mercado Pago: OAuth button (primary) + manual (secondary) ── */}
+                  {isMP && (
+                    <>
+                      {/* OAuth — recommended */}
+                      <button onClick={startMPOAuth}
+                        className="w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+                        style={{ background: '#009EE3', color: 'white' }}>
+                        <WalletLogo provider="mercadopago" size={24} className="rounded-md"/>
+                        Conectar con Mercado Pago
+                      </button>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-white/10"/>
+                        <span className="text-xs text-zinc-600 font-semibold">o</span>
+                        <div className="flex-1 h-px bg-white/10"/>
+                      </div>
+
+                      {/* Manual toggle */}
+                      <button onClick={() => setMpManualToken(v => !v)}
+                        className="w-full py-3 rounded-2xl border border-white/10 text-xs text-zinc-500 font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <span>{mpManualToken ? '▲' : '▼'}</span>
+                        Usar Access Token manualmente
+                      </button>
+
+                      {/* Manual token input (collapsed by default) */}
+                      {mpManualToken && (
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Access Token</p>
+                            <input
+                              type="text"
+                              placeholder="APP_USR-..."
+                              value={walletConnectCreds.access_token || ''}
+                              onChange={e => setWalletConnectCreds(p => ({ ...p, access_token: e.target.value }))}
+                              className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-mono focus:outline-none focus:border-violet-500/60 text-zinc-200"
+                            />
+                          </div>
+                          <a href={prov.helpUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-xs text-sky-400 underline">
+                            Cómo obtener mi Access Token →
+                          </a>
+                          <button onClick={() => setWalletConnectStep(3)}
+                            disabled={!walletConnectCreds.access_token?.trim()}
+                            className="w-full py-4 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40">
+                            Continuar con token manual
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* ── Otros providers: flujo estándar con campos ── */}
+                  {!isMP && (
+                    <>
+                      {prov.fields.map(field => (
+                        <div key={field.key} className="space-y-1.5">
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">{field.label}</p>
+                          <input
+                            type={field.type === 'password' ? 'text' : field.type}
+                            placeholder={field.placeholder}
+                            value={walletConnectCreds[field.key] || ''}
+                            onChange={e => setWalletConnectCreds(p => ({ ...p, [field.key]: e.target.value }))}
+                            className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-mono focus:outline-none focus:border-violet-500/60 text-zinc-200"
+                          />
+                        </div>
+                      ))}
+                      {prov.helpUrl && (
+                        <a href={prov.helpUrl} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center gap-2 text-xs ${prov.textClass} underline`}>
+                          Cómo obtener mis credenciales →
+                        </a>
+                      )}
+                      <button onClick={() => setWalletConnectStep(3)}
+                        disabled={prov.fields.some(f => !walletConnectCreds[f.key]?.trim())}
+                        className="w-full py-4 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40">
+                        Continuar
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Step 3: Name + confirm */}
+            {walletConnectStep === 3 && walletConnectProv && (() => {
+              const prov = WALLET_PROVIDERS[walletConnectProv];
+              return (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Nombre de la billetera</p>
+                    <input
+                      type="text"
+                      placeholder={prov.name}
+                      value={walletConnectName}
+                      onChange={e => setWalletConnectName(e.target.value)}
+                      className="w-full bg-zinc-900 rounded-2xl p-4 border border-white/10 text-sm font-bold focus:outline-none focus:border-violet-500/60 text-zinc-200"
+                    />
+                  </div>
+                  <div className={`p-4 rounded-2xl ${prov.bgClass} border ${prov.borderClass} space-y-1`}>
+                    <p className="text-xs font-semibold text-zinc-400">Resumen</p>
+                    <p className="font-black">{walletConnectName.trim() || prov.name}</p>
+                    <p className={`text-xs ${prov.textClass}`}>{prov.name}</p>
+                    {prov.fields.length > 0 && (
+                      <p className="text-xs text-zinc-600 font-mono truncate">
+                        {prov.fields[0].key}: {walletConnectCreds[prov.fields[0].key]?.slice(0,12)}...
+                      </p>
+                    )}
+                  </div>
+                  <button onClick={connectWallet} disabled={walletConnectLoading}
+                    className="w-full py-4 bg-violet-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50">
+                    {walletConnectLoading ? 'Conectando...' : 'Conectar billetera'}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── WALLET MOVEMENTS DETAIL ──────────────────────── */}
+      {selectedWallet && (
+        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-xl flex items-end justify-center">
+          <div className="w-full max-w-md bg-zinc-950 rounded-t-[2.5rem] border-t border-white/10 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[90vh] flex flex-col">
+            {/* Header */}
+            {(() => {
+              const prov = WALLET_PROVIDERS[selectedWallet.provider] || WALLET_PROVIDERS.manual;
+              const isSyncing = syncingWalletId === selectedWallet.id;
+              return (
+                <div className="px-6 pt-6 pb-4 flex items-center gap-3 border-b border-white/5 flex-shrink-0">
+                  <WalletLogo provider={selectedWallet.provider} size={40} className="rounded-xl flex-shrink-0"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black truncate">{selectedWallet.name}</p>
+                    <p className="text-sm font-black text-white">{fmtMoney(selectedWallet.balance || 0)}</p>
+                  </div>
+                  <button onClick={() => syncWallet(selectedWallet)} disabled={isSyncing}
+                    className={`p-2.5 rounded-2xl ${prov.bgClass} border ${prov.borderClass} active:scale-95 transition-all disabled:opacity-50`}>
+                    <RefreshCw className={`w-4 h-4 ${prov.textClass} ${isSyncing?'animate-spin':''}`}/>
+                  </button>
+                  <button onClick={() => { setSelectedWallet(null); setWalletMovements([]); }}
+                    className="p-2.5 bg-zinc-900 rounded-2xl active:scale-95 transition-all ml-1">
+                    <X className="w-4 h-4"/>
+                  </button>
+                </div>
+              );
+            })()}
+            {/* Movements list */}
+            <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
+              {walletMovements.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-zinc-600 text-sm">Sin movimientos guardados</p>
+                  <p className="text-zinc-700 text-xs mt-1">Sincronizá para importar tus movimientos</p>
+                </div>
+              ) : walletMovements.map(m => (
+                <div key={m.id} className="flex items-center gap-3 bg-zinc-900/60 rounded-2xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{m.description || 'Sin descripción'}</p>
+                    <p className="text-xs text-zinc-600">{new Date(m.date).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'2-digit'})}</p>
+                    {m.status === 'synced' && <p className="text-[10px] text-emerald-500 font-bold">✓ importado</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={`text-sm font-black ${m.type === 'GASTO' ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {m.type === 'GASTO' ? '-' : '+'}{fmtMoney(m.amount)}
+                    </p>
+                    {m.status !== 'synced' && (
+                      <button onClick={() => importWalletMovement(m, selectedWallet.id)}
+                        className="text-[10px] text-violet-400 font-bold mt-0.5 active:opacity-70">
+                        Importar →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input oculto para importar JSON */}
       <input
         ref={importFileRef}
@@ -10834,7 +16687,7 @@ function PlazoFijoCalc({ onClose }) {
             type="text" inputMode="numeric" value={monto ? Number(monto).toLocaleString('es-AR') : ''}
             onChange={e => setMonto(e.target.value.replace(/\D/g, ''))}
             placeholder="0"
-            className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-xl font-black text-white focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-700"/>
+            className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-xl font-black text-white focus:outline-none focus:border-violet-500/40 placeholder:text-zinc-700"/>
         </div>
 
         {/* TNA + Días */}
@@ -10845,7 +16698,7 @@ function PlazoFijoCalc({ onClose }) {
               type="text" inputMode="decimal" value={tna}
               onChange={e => setTna(e.target.value)}
               placeholder="100"
-              className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-lg font-black text-white focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-700"/>
+              className="w-full bg-zinc-900/60 border border-white/10 rounded-2xl px-4 py-4 text-lg font-black text-white focus:outline-none focus:border-violet-500/40 placeholder:text-zinc-700"/>
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-zinc-400 ml-1">Plazo</label>
@@ -10853,7 +16706,7 @@ function PlazoFijoCalc({ onClose }) {
               {['30','60','90'].map(d => (
                 <button key={d} onClick={() => setDias(d)}
                   className={`flex-1 py-4 rounded-2xl text-xs font-black transition-all active:scale-90
-                    ${dias === d ? 'bg-indigo-600 text-white shadow-lg' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
+                    ${dias === d ? 'bg-violet-600 text-white shadow-lg' : 'bg-zinc-900 text-zinc-500 border border-white/8'}`}>
                   {d}d
                 </button>
               ))}
@@ -10882,14 +16735,14 @@ function PlazoFijoCalc({ onClose }) {
             </div>
 
             {/* Total a cobrar */}
-            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4">
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total a cobrar</span>
                 <span className="text-2xl font-black text-white">${fmt(result.totalNeto)}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-zinc-600">
                 <span>TNA efectiva neta</span>
-                <span className="text-indigo-300 font-bold">{result.tnaEfNeta.toFixed(2)}%</span>
+                <span className="text-violet-300 font-bold">{result.tnaEfNeta.toFixed(2)}%</span>
               </div>
             </div>
 
@@ -10903,7 +16756,7 @@ function PlazoFijoCalc({ onClose }) {
                   return (
                     <div key={d}
                       className={`rounded-xl p-3 border text-center transition-all
-                        ${d === dias ? 'bg-indigo-600/20 border-indigo-500/30' : 'bg-zinc-900/40 border-white/5'}`}>
+                        ${d === dias ? 'bg-violet-700/15 border-violet-500/30' : 'bg-zinc-900/40 border-white/5'}`}>
                       <p className="text-[10px] text-zinc-500 font-semibold">{d} días</p>
                       <p className="text-sm font-black text-white mt-1">+${fmt(ni)}</p>
                       <p className="text-[9px] text-zinc-600 mt-0.5">neto</p>
@@ -10954,6 +16807,21 @@ function GlobalStyles() {
         100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
       }
       .animate-confetti-fall { animation: confetti-fall ease-in forwards; }
+
+      /* ── Light Theme ── */
+      .light-theme {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      .light-theme img,
+      .light-theme video,
+      .light-theme svg rect,
+      .light-theme [class*="glass-"],
+      .light-theme .emoji-native {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      .light-theme span[style*="font-size"] {
+        filter: invert(1) hue-rotate(180deg);
+      }
     `}</style>
   );
 }
