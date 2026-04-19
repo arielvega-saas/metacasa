@@ -54,9 +54,19 @@ struct SettingsView: View {
 
             Section("Gestión del hogar") {
                 NavigationLink {
+                    HouseholdSettingsView()
+                } label: {
+                    Label("Editar hogar", systemImage: "house.fill")
+                }
+                NavigationLink {
                     HouseholdMembersView()
                 } label: {
                     Label("Miembros e invitaciones", systemImage: "person.3.fill")
+                }
+                NavigationLink {
+                    ManageCategoriesView()
+                } label: {
+                    Label("Categorías", systemImage: "tag.fill")
                 }
             }
 
