@@ -19,7 +19,7 @@ struct Goal: Codable, Identifiable, Hashable, Sendable {
     let createdBy: UUID
     let createdAt: Date?
     var updatedAt: Date?
-    let completedAt: Date?
+    var completedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id

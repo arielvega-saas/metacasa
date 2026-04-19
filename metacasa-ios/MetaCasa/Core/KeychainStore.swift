@@ -1,10 +1,13 @@
 import Foundation
-import KeychainAccess
+@preconcurrency import KeychainAccess
 
 /// Wrapper simple sobre KeychainAccess con la accesibilidad más restrictiva
 /// (sólo desbloqueable cuando el device tiene passcode y sólo en este device).
+///
+/// `nonisolated(unsafe)` es seguro acá porque la lib KeychainAccess delega
+/// al Security framework (thread-safe) y nosotros solo leemos/escribimos keys.
 enum KeychainStore {
-    private static let keychain: Keychain = {
+    nonisolated(unsafe) private static let keychain: Keychain = {
         Keychain(service: Config.bundleId)
             .synchronizable(false)
             .accessibility(.whenPasscodeSetThisDeviceOnly)

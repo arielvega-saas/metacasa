@@ -30,7 +30,7 @@ struct Subscription: Codable, Identifiable, Hashable, Sendable {
     var productId: String
     var entitlementId: String
     var store: SubscriptionStore
-    var environment: Environment
+    var environment: SubscriptionEnvironment
     var status: SubscriptionStatus
     var periodType: PeriodKind?
     var purchasedAt: Date?
@@ -62,7 +62,7 @@ enum SubscriptionStore: String, Codable, Hashable, Sendable {
     case promotional
 }
 
-enum Environment: String, Codable, Hashable, Sendable {
+enum SubscriptionEnvironment: String, Codable, Hashable, Sendable {
     case production
     case sandbox
 }
