@@ -40,8 +40,8 @@ actor BudgetService {
             throw NSError(domain: "BudgetService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Fecha inválida"])
         }
 
-        if let existing = try? await fetchPeriod(householdId: householdId, containing: now), let p = existing as BudgetPeriod? {
-            return p
+        if let maybePeriod = try? await fetchPeriod(householdId: householdId, containing: now), let existing = maybePeriod {
+            return existing
         }
 
         struct Payload: Encodable {

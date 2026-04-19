@@ -30,20 +30,48 @@ struct MainTabView: View {
     }
 }
 
-/// Agrupador de pantallas secundarias (Cuentas, Metas, Ajustes, Paywall).
+/// Agrupador de pantallas secundarias (Cuentas, Metas, Recurrentes, Miembros, Paywall, Ajustes).
 struct MoreView: View {
     var body: some View {
         NavigationStack {
             List {
                 Section("Organización") {
-                    NavigationLink("Cuentas") { AccountsView() }
-                    NavigationLink("Metas") { GoalsView() }
+                    NavigationLink {
+                        AccountsView()
+                    } label: {
+                        Label("Cuentas", systemImage: "wallet.pass.fill")
+                    }
+                    NavigationLink {
+                        GoalsView()
+                    } label: {
+                        Label("Metas", systemImage: "target")
+                    }
+                    NavigationLink {
+                        RecurringListView()
+                    } label: {
+                        Label("Recurrentes", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+                Section("Hogar") {
+                    NavigationLink {
+                        HouseholdMembersView()
+                    } label: {
+                        Label("Miembros e invitaciones", systemImage: "person.3.fill")
+                    }
                 }
                 Section("Premium") {
-                    NavigationLink("Upgrade") { PaywallView() }
+                    NavigationLink {
+                        PaywallView()
+                    } label: {
+                        Label("Upgrade", systemImage: "crown.fill")
+                    }
                 }
                 Section("App") {
-                    NavigationLink("Ajustes") { SettingsView() }
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Ajustes", systemImage: "gearshape.fill")
+                    }
                 }
             }
             .navigationTitle("Más")

@@ -6,6 +6,7 @@ struct TransactionListView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var searchText = ""
+    @State private var editingTx: Transaction?
 
     var filtered: [Transaction] {
         guard !searchText.isEmpty else { return transactions }
@@ -34,8 +35,11 @@ struct TransactionListView: View {
                             ForEach(groupedByDay.keys.sorted(by: >), id: \.self) { day in
                                 Section {
                                     ForEach(groupedByDay[day] ?? []) { tx in
-                                        TransactionRow(transaction: tx, currency: householdCurrency)
-                                            .listRowBackground(Color.clear)
+                                        Button { editingTx = tx } label: {
+                                            TransactionRow(transaction: tx, currency: householdCurrency)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .listRowBackground(Color.clear)
                                     }
                                     .onDelete { indexSet in
                                         Task { await delete(at: indexSet, in: day) }
@@ -56,6 +60,9 @@ struct TransactionListView: View {
             .searchable(text: $searchText, prompt: "Buscar por categoría o nota")
             .refreshable { await load() }
             .task { await load() }
+            .sheet(item: $editingTx) { tx in
+                EditTransactionView(transaction: tx) { await load() }
+            }
         }
     }
 

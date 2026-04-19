@@ -52,6 +52,14 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Gestión del hogar") {
+                NavigationLink {
+                    HouseholdMembersView()
+                } label: {
+                    Label("Miembros e invitaciones", systemImage: "person.3.fill")
+                }
+            }
+
             Section("App") {
                 HStack {
                     Text("Versión")

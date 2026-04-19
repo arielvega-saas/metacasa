@@ -38,6 +38,28 @@ actor TransactionService {
             .execute()
     }
 
+    func update(_ transaction: Transaction) async throws -> Transaction {
+        try await client
+            .from("transactions")
+            .update(transaction)
+            .eq("id", value: transaction.id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func fetchOne(id: UUID) async throws -> Transaction? {
+        let rows: [Transaction] = try await client
+            .from("transactions")
+            .select()
+            .eq("id", value: id)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
     func totals(householdId: UUID, from: Date, to: Date) async throws -> (ingresos: Decimal, gastos: Decimal) {
         let txs = try await fetchForPeriod(householdId: householdId, from: from, to: to, limit: 1000)
         let ing = txs.filter { $0.type == .ingreso }.reduce(Decimal(0)) { $0 + $1.amount }

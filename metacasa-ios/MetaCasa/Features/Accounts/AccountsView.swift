@@ -22,7 +22,10 @@ struct AccountsView: View {
                 } else {
                     List {
                         ForEach(accounts) { a in
-                            accountRow(a).listRowBackground(Color.clear)
+                            NavigationLink(destination: destination(for: a)) {
+                                accountRow(a)
+                            }
+                            .listRowBackground(Color.clear)
                         }
                     }
                     .listStyle(.plain)
@@ -41,6 +44,18 @@ struct AccountsView: View {
         }
         .task { await load() }
         .refreshable { await load() }
+    }
+
+    @ViewBuilder
+    private func destination(for account: Account) -> some View {
+        if account.type == .creditCard {
+            CreditCardDetailView(account: account)
+        } else {
+            Text(account.name)
+                .font(.mcH2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.appBackground)
+        }
     }
 
     private func accountRow(_ a: Account) -> some View {

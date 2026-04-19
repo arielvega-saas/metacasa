@@ -92,7 +92,7 @@ actor HouseholdService {
     }
 
     /// Acepta una invitación por token. Agrega al caller como miembro del hogar correspondiente.
-    /// Requiere una RPC `accept_household_invitation(token text)` en Supabase (pendiente de implementar).
+    /// Requiere la RPC `accept_household_invitation(invite_token text)` en Supabase (creada en migration 20260419121100).
     func acceptInvitation(token: String) async throws -> UUID {
         struct Params: Encodable { let invite_token: String }
         let householdId: UUID = try await client
@@ -100,5 +100,73 @@ actor HouseholdService {
             .execute()
             .value
         return householdId
+    }
+
+    func listInvitations(householdId: UUID, onlyPending: Bool = true) async throws -> [HouseholdInvitation] {
+        var q = client
+            .from("household_invitations")
+            .select()
+            .eq("household_id", value: householdId)
+
+        if onlyPending {
+            q = q.eq("status", value: "pending")
+        }
+
+        return try await q
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func revokeInvitation(id: UUID) async throws {
+        struct Patch: Encodable { let status: String }
+        try await client
+            .from("household_invitations")
+            .update(Patch(status: "revoked"))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    func removeMember(householdId: UUID, userId: UUID) async throws {
+        try await client
+            .from("household_members")
+            .delete()
+            .eq("household_id", value: householdId)
+            .eq("user_id", value: userId)
+            .execute()
+    }
+
+    func updateMemberRole(householdId: UUID, userId: UUID, role: MemberRole) async throws {
+        struct Patch: Encodable { let role: String }
+        try await client
+            .from("household_members")
+            .update(Patch(role: role.rawValue))
+            .eq("household_id", value: householdId)
+            .eq("user_id", value: userId)
+            .execute()
+    }
+
+    func renameHousehold(id: UUID, name: String) async throws -> Household {
+        struct Patch: Encodable { let name: String }
+        return try await client
+            .from("households")
+            .update(Patch(name: name))
+            .eq("id", value: id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func updateCurrency(householdId: UUID, currency: String) async throws -> Household {
+        struct Patch: Encodable { let default_currency: String }
+        return try await client
+            .from("households")
+            .update(Patch(default_currency: currency.uppercased()))
+            .eq("id", value: householdId)
+            .select()
+            .single()
+            .execute()
+            .value
     }
 }
