@@ -20,46 +20,46 @@ struct AddRecurringView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Tipo") {
-                    Picker("Tipo", selection: $type) {
-                        Text("Gasto").tag(TxType.gasto)
-                        Text("Ingreso").tag(TxType.ingreso)
+                Section("form.section.type") {
+                    Picker("form.section.type", selection: $type) {
+                        Text("tx.type.expense.label").tag(TxType.gasto)
+                        Text("tx.type.income.label").tag(TxType.ingreso)
                     }
                     .pickerStyle(.segmented)
                 }
-                Section("Importe y categoría") {
-                    TextField("Monto", text: $amountStr).keyboardType(.decimalPad)
-                    Picker("Categoría", selection: $category) {
+                Section("form.section.amountCategory") {
+                    TextField("form.field.amount", text: $amountStr).keyboardType(.decimalPad)
+                    Picker("form.section.category", selection: $category) {
                         let cats = type == .gasto ? CategoryCatalog.defaultGastos : CategoryCatalog.defaultIngresos
                         ForEach(cats, id: \.self) { c in
                             HStack { Text(CategoryCatalog.emoji(for: c)); Text(c) }.tag(c)
                         }
                     }
-                    TextField("Nota (opcional)", text: $note)
+                    TextField("form.field.noteOptional", text: $note)
                 }
-                Section("Frecuencia") {
-                    Picker("Frecuencia", selection: $frequency) {
+                Section("form.section.frequency") {
+                    Picker("form.section.frequency", selection: $frequency) {
                         ForEach(Frequency.allCases, id: \.self) { f in
-                            Text(f.label).tag(f)
+                            Text(f.labelKey).tag(f)
                         }
                     }
-                    DatePicker("Empieza", selection: $startDate, displayedComponents: .date)
-                    Toggle("Con fecha de fin", isOn: $hasEndDate)
+                    DatePicker("form.field.starts", selection: $startDate, displayedComponents: .date)
+                    Toggle("form.field.hasEndDate", isOn: $hasEndDate)
                     if hasEndDate {
-                        DatePicker("Termina", selection: $endDate, displayedComponents: .date)
+                        DatePicker("form.field.ends", selection: $endDate, displayedComponents: .date)
                     }
                 }
                 if let msg = errorMessage {
                     Section { Text(msg).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Nuevo recurrente")
+            .navigationTitle(Text("recurring.new"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("action.cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isLoading ? "Guardando..." : "Guardar") {
+                    Button(isLoading ? String(localized: "action.saving") : String(localized: "action.save")) {
                         Task { await submit() }
                     }
                     .disabled(isLoading || CurrencyFormatter.parse(amountStr) == nil)
@@ -78,12 +78,16 @@ struct AddRecurringView: View {
         guard let hid = appState.currentHouseholdId,
               let amount = CurrencyFormatter.parse(amountStr), amount > 0
         else {
-            errorMessage = "Datos incompletos"; return
+            errorMessage = String(localized: "error.incomplete"); return
+        }
+        guard let uid = appState.currentUserId else {
+            errorMessage = String(localized: "error.sessionUnavailable"); return
         }
         isLoading = true
         defer { isLoading = false }
         do {
-            _ = try await RecurringService.shared.create(
+            let created = try await RecurringService.shared.create(
+                userId: uid,
                 householdId: hid,
                 type: type,
                 amount: amount,
@@ -93,9 +97,15 @@ struct AddRecurringView: View {
                 endDate: hasEndDate ? endDate : nil,
                 note: note.isEmpty ? nil : note
             )
+            let currency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
+            if NotificationPreferences.shared.recurring {
+                await NotificationService.shared.scheduleRecurringReminder(recurring: created, currency: currency)
+            }
+            Haptics.play(.success)
             await onSaved()
             dismiss()
         } catch {
+            Haptics.play(.error)
             errorMessage = error.localizedDescription
         }
     }

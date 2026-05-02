@@ -4,8 +4,26 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>es</string>
+    <!-- Permite que se usen strings de locales distintos al del usuario
+         cuando un key no existe en su locale preferido. Evita que keys
+         sin traducción específica (ej. es-AR sólo tiene action.add, el
+         resto cae a es) aparezcan como la cadena cruda. -->
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
+    <!-- Solo listamos las variantes "base" (sin región). iOS aplica region
+         stripping para matchear: es-AR → es, en-US → en, pt-BR → pt-BR (match
+         directo). Si en el futuro querés overrides regionales específicos,
+         agregalos aquí Y como localización separada en Localizable.xcstrings. -->
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>es</string>
+        <string>en</string>
+        <string>pt-BR</string>
+    </array>
+    <!-- Nombre default del app icon. Se sobrescribe por locale desde
+         InfoPlist.xcstrings (es → MetaCasa, en → MetaHome). -->
     <key>CFBundleDisplayName</key>
-    <string>Home Finance</string>
+    <string>MetaCasa</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -70,5 +88,18 @@
     <!-- Privacy - Speech Recognition (para futura voice input) -->
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Opcional: reconocemos tu voz para registrar movimientos rápido.</string>
+
+    <!-- Privacy - Photo Library (para adjuntar recibos al asistente) -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Podés enviar fotos de recibos al asistente para que las lea y cargue la transacción automáticamente.</string>
+
+    <!-- Privacy - Camera (para escanear recibos) -->
+    <key>NSCameraUsageDescription</key>
+    <string>Usamos la cámara para escanear recibos y convertirlos en transacciones.</string>
+
+    <!-- Live Activities support (Lock Screen + Dynamic Island).
+         Habilita ActivityKit para mostrar el próximo vencimiento. -->
+    <key>NSSupportsLiveActivities</key>
+    <true/>
 </dict>
 </plist>

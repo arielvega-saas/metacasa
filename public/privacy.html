@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — MetaCasa</title>
+  <meta name="description" content="MetaCasa privacy policy — qué datos recolectamos, cómo los usamos, tus derechos.">
+  <style>
+    :root {
+      --bg: #0a0f0c;
+      --surface: #121a16;
+      --text: #e8efe9;
+      --text-muted: #9aa6a0;
+      --accent: #87a98c;
+      --border: rgba(135, 169, 140, 0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--surface);
+      padding: 44px 36px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    h1 {
+      font-family: "New York", Georgia, serif;
+      font-size: 36px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--text);
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 32px 0 12px;
+      color: var(--accent);
+    }
+    p, li { font-size: 16px; color: var(--text); }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+    .meta { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
+    .warning {
+      background: rgba(255, 180, 80, 0.08);
+      border-left: 3px solid #d4a85a;
+      padding: 14px 18px;
+      margin: 32px 0 0;
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Privacy Policy</h1>
+    <p class="meta">MetaCasa — Última actualización: 2026-05-01</p>
+
+    <p>MetaCasa (en adelante, "la app") es una herramienta de gestión de finanzas personales del hogar. Este documento describe qué datos recolectamos, cómo los usamos y los derechos que tenés sobre ellos.</p>
+
+    <h2>1. Qué datos recolectamos</h2>
+    <ul>
+      <li><strong>Datos de cuenta:</strong> email y contraseña (hasheada con bcrypt) para autenticarte.</li>
+      <li><strong>Datos financieros cargados por vos:</strong> transacciones, cuentas, categorías, presupuestos, metas, deudas, vencimientos y configuraciones.</li>
+      <li><strong>Datos del hogar:</strong> nombre, miembros invitados (por email), moneda base, zona horaria.</li>
+      <li><strong>Datos de suscripción</strong> (si usás Premium): identificador anónimo de RevenueCat + estado del entitlement (activo/expirado/trial).</li>
+      <li><strong>Datos técnicos mínimos:</strong> identificador de dispositivo para sesión + logs de error agregados (sin datos personales ni financieros específicos).</li>
+      <li><strong>Voz</strong> (solo si usás el asistente por voz): el audio se transcribe on-device con Apple Speech, NO se sube. El texto resultante se envía a un proxy server que lo reenvía a Anthropic (LLM) y ElevenLabs (síntesis de voz). Ver sección 6.</li>
+    </ul>
+    <p><strong>NO recolectamos:</strong> tu ubicación, contactos, fotos, historial de navegación, sensores del dispositivo, ni ningún otro dato que no sea esencial para la app.</p>
+
+    <h2>2. Dónde se guardan</h2>
+    <ul>
+      <li>Tus datos financieros se guardan en Supabase (Postgres cifrado at-rest con AES-256, región us-east-1, EE.UU.). Las RLS policies garantizan que solo vos y los miembros de tu hogar pueden leerlos.</li>
+      <li>Tokens OAuth de wallets (si conectás MercadoPago/Uala/etc.) se cifran server-side con pgp_sym_encrypt antes de guardarse — nunca quedan en texto plano.</li>
+      <li>Los tokens de sesión (JWT + refresh token) se guardan localmente en tu iPhone vía Keychain, cifrado por iOS con tu passcode/biometría.</li>
+    </ul>
+
+    <h2>3. Quién ve tus datos</h2>
+    <ul>
+      <li>Solamente vos, y los miembros de tu hogar que hayas invitado explícitamente por email.</li>
+      <li>El desarrollador no tiene acceso al contenido de tus transacciones. Puede ver métricas agregadas anonimizadas (ej. cantidad de usuarios activos) y logs de error sin datos personales.</li>
+      <li>RevenueCat recibe solo un identificador hasheado de usuario y el estado de tu suscripción. NUNCA recibe datos financieros tuyos.</li>
+    </ul>
+
+    <h2>4. Tus derechos (GDPR / CCPA / LFPDPPP)</h2>
+    <ul>
+      <li><strong>Acceso:</strong> ver todos tus datos en la app, en cualquier momento.</li>
+      <li><strong>Portabilidad / Export:</strong> Más → Ajustes → Datos → Backup. Genera un JSON completo descargable.</li>
+      <li><strong>Rectificación:</strong> editar transacciones, cuentas, categorías y otros datos directamente en la app.</li>
+      <li><strong>Eliminación:</strong> Más → Ajustes → Hogar → Eliminar hogar (irreversible, borra todo en cascada). Para eliminar la cuenta completa de auth, enviá un email a soporte; eliminamos todo dentro de 30 días.</li>
+      <li><strong>Restringir procesamiento:</strong> podés desactivar el asistente IA en Ajustes para que ningún dato se envíe a Anthropic/ElevenLabs.</li>
+      <li><strong>Retirar consentimiento:</strong> podés cerrar tu cuenta en cualquier momento.</li>
+      <li><strong>Presentar quejas:</strong> ante la autoridad de protección de datos de tu país.</li>
+    </ul>
+
+    <h2>5. Seguridad</h2>
+    <ul>
+      <li>Cifrado en tránsito: HTTPS + TLS 1.3 obligatorio para toda comunicación.</li>
+      <li>Cifrado at-rest: AES-256 en Postgres (Supabase) + Keychain en iOS.</li>
+      <li>Tokens OAuth de wallets cifrados con pgp_sym_encrypt + Vault.</li>
+      <li>Row Level Security (RLS) en backend — tus datos no son accesibles por otros users aunque conozcan tu identificador.</li>
+      <li>Biometría opcional (Face ID / Touch ID) para abrir la app.</li>
+      <li>Auditorías periódicas de seguridad vía Supabase Advisors.</li>
+    </ul>
+
+    <h2>6. Terceros</h2>
+    <p>Compartimos lo mínimo necesario con:</p>
+    <ul>
+      <li><strong>Supabase</strong> (Postgres + Edge Functions): backend principal. Política: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></li>
+      <li><strong>RevenueCat</strong> (suscripciones): solo identificador hasheado + estado. Política: <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">revenuecat.com/privacy</a></li>
+      <li><strong>Anthropic</strong> (LLM Claude Haiku 4.5): solo si usás el asistente. Recibe el contenido de tus mensajes + un resumen de tu situación financiera para responderte. Anthropic no entrena modelos con tu data según su política. Detalle: <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a></li>
+      <li><strong>ElevenLabs</strong> (síntesis de voz): solo si usás voice mode. Recibe el texto de la respuesta del asistente para convertirlo a audio. Política: <a href="https://elevenlabs.io/privacy" target="_blank" rel="noopener">elevenlabs.io/privacy</a></li>
+      <li><strong>Apple</strong> (App Store, StoreKit, Speech, Push Notifications): según políticas de Apple Inc.</li>
+    </ul>
+    <p>El audio del asistente NO se almacena en nuestros servidores. Las respuestas del LLM tampoco se persisten — solo el texto del intercambio queda guardado localmente en tu iPhone.</p>
+
+    <h2>7. Menores</h2>
+    <p>La app no está dirigida a menores de 13 años (COPPA) ni a menores de 16 años en jurisdicciones GDPR. No recolectamos conscientemente datos de menores. Si nos enterás que un menor cargó datos, los borramos.</p>
+
+    <h2>8. Retención de datos</h2>
+    <p>Mantenemos tus datos mientras tu cuenta esté activa. Después de eliminar la cuenta: backups de seguridad pueden retener datos hasta 90 días por razones técnicas, después se eliminan permanentemente.</p>
+
+    <h2>9. Transferencias internacionales</h2>
+    <p>Tus datos se procesan en EE.UU. (Supabase region us-east-1). Si vivís en Unión Europea / Reino Unido, esto constituye una transferencia internacional. Confiamos en las cláusulas contractuales tipo (Standard Contractual Clauses) de Supabase para legitimarla.</p>
+
+    <h2>10. Cambios</h2>
+    <p>Podemos actualizar esta política. Los cambios se notificarán dentro de la app y a la versión publicada en la URL pública. El uso continuado implica aceptación.</p>
+
+    <h2>11. Contacto</h2>
+    <p>Dudas o pedidos sobre privacidad: <a href="mailto:privacy@metacasa.app">privacy@metacasa.app</a></p>
+
+    <div class="warning">
+      ⚠️ <strong>Aviso legal:</strong> este documento es un punto de partida razonable pero no reemplaza revisión legal. Antes de lanzar a producción consultá con asesor legal en tu jurisdicción para adaptarlo a GDPR (UE/UK), CCPA/CPRA (California), LFPDPPP (México), LGPD (Brasil), Ley 25.326 (Argentina), u otros marcos aplicables a tu mercado objetivo.
+    </div>
+
+    <div class="footer">
+      <p>MetaCasa · <a href="/terms.html">Terms of Service</a></p>
+    </div>
+  </main>
+</body>
+</html>

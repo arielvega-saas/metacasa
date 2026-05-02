@@ -1,30 +1,29 @@
 import Foundation
-import Supabase
 
 actor RecurringService {
     static let shared = RecurringService()
     private init() {}
 
-    private var client: SupabaseClient { SupabaseService.client }
-
     func fetchAll(householdId: UUID, includeInactive: Bool = false) async throws -> [RecurringTransaction] {
-        var q = client
-            .from("recurring_transactions")
-            .select()
-            .eq("household_id", value: householdId)
-
+        var q = PgQuery().eq("household_id", householdId)
         if !includeInactive {
-            q = q.eq("active", value: true)
+            q = q.eq("active", true)
         }
-
-        return try await q
-            .order("next_date", ascending: true)
-            .execute()
-            .value
+        q = q.order("next_date", ascending: true)
+        return try await SupabaseRPC.select(from: "recurring_transactions", query: q)
     }
 
-    func create(householdId: UUID, type: TxType, amount: Decimal, category: String, frequency: Frequency, startDate: Date, endDate: Date? = nil, note: String? = nil) async throws -> RecurringTransaction {
-        let userId = try await client.auth.session.user.id
+    func create(
+        userId: UUID,
+        householdId: UUID,
+        type: TxType,
+        amount: Decimal,
+        category: String,
+        frequency: Frequency,
+        startDate: Date,
+        endDate: Date? = nil,
+        note: String? = nil
+    ) async throws -> RecurringTransaction {
         struct Payload: Encodable {
             let household_id: UUID
             let user_id: UUID
@@ -49,29 +48,22 @@ actor RecurringService {
             next_date: startDate,
             note: note
         )
-        return try await client
-            .from("recurring_transactions")
-            .insert(payload)
-            .select()
-            .single()
-            .execute()
-            .value
+        return try await SupabaseRPC.insert(into: "recurring_transactions", payload: payload)
     }
 
     func deactivate(id: UUID) async throws {
         struct Patch: Encodable { let active: Bool }
-        try await client
-            .from("recurring_transactions")
-            .update(Patch(active: false))
-            .eq("id", value: id)
-            .execute()
+        try await SupabaseRPC.updateVoid(
+            table: "recurring_transactions",
+            payload: Patch(active: false),
+            query: PgQuery().eq("id", id)
+        )
     }
 
     func delete(id: UUID) async throws {
-        try await client
-            .from("recurring_transactions")
-            .delete()
-            .eq("id", value: id)
-            .execute()
+        try await SupabaseRPC.delete(
+            from: "recurring_transactions",
+            query: PgQuery().eq("id", id)
+        )
     }
 }

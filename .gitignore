@@ -61,3 +61,11 @@ android/app/build/
 android/local.properties
 *.keystore
 *.jks
+
+# iOS native (Xcode + xcodegen)
+metacasa-ios/build/
+metacasa-ios/build */
+metacasa-ios/DerivedData/
+
+# Supabase CLI temp
+supabase/.temp/

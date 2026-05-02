@@ -93,7 +93,7 @@ struct HouseholdSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Editar hogar")
+        .navigationTitle(Text("Editar hogar"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if let h = currentHousehold { viewModel.loadFrom(h) }
@@ -166,12 +166,10 @@ struct HouseholdSettingsView: View {
     private func deleteHousehold() async {
         guard let hid = appState.currentHouseholdId else { return }
         do {
-            // Usamos una RPC genérica via delete on households (RLS solo permite al owner)
-            _ = try await SupabaseService.client
-                .from("households")
-                .delete()
-                .eq("id", value: hid)
-                .execute()
+            try await SupabaseRPC.delete(
+                from: "households",
+                query: PgQuery().eq("id", hid)
+            )
             appState.households.removeAll { $0.id == hid }
             appState.currentHouseholdId = appState.households.first?.id
             dismiss()

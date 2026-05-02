@@ -76,7 +76,7 @@ struct CurrencyPickerSheet: View {
                 }
             }
             .searchable(text: $search, prompt: "Buscar moneda o código")
-            .navigationTitle("Moneda")
+            .navigationTitle(Text("Moneda"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

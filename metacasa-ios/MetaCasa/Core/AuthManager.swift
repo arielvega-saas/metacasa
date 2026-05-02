@@ -5,6 +5,10 @@ struct AuthSession: Sendable, Hashable {
     let userId: UUID
     let email: String?
     let expiresAt: Date?
+    /// Guardado en memoria porque supabase-swift v2 tiene issues propagando
+    /// la session al PostgREST client. Lo inyectamos manualmente en cada request.
+    let accessToken: String
+    let refreshToken: String
 }
 
 enum AuthError: LocalizedError {
@@ -39,9 +43,17 @@ final class AuthManager {
         }
     }
 
-    func signIn(email: String, password: String) async throws -> AuthSession {
-        try await client.auth.signIn(email: email, password: password)
+    /// Pide a supabase-swift que devuelva una session válida — el accessor
+    /// `client.auth.session` ejecuta un refresh transparente si el access token
+    /// está expirado o cerca de expirar, usando el refresh_token guardado.
+    /// Lanza si el refresh_token también caducó (sesión perdida → forzar relogin).
+    func refreshSession() async throws -> AuthSession {
         let session = try await client.auth.session
+        return Self.map(session)
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthSession {
+        let session = try await client.auth.signIn(email: email, password: password)
         return Self.map(session)
     }
 
@@ -67,7 +79,9 @@ final class AuthManager {
         AuthSession(
             userId: session.user.id,
             email: session.user.email,
-            expiresAt: Date(timeIntervalSince1970: session.expiresAt)
+            expiresAt: Date(timeIntervalSince1970: session.expiresAt),
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken
         )
     }
 }

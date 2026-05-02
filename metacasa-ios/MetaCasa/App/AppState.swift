@@ -19,23 +19,28 @@ final class AppState {
 
     /// Llamado al abrir la app. Intenta restaurar la sesión y, si existe,
     /// pide biometría antes de exponer la UI con datos.
+    /// En simulator se saltea biometría (no hay Face ID real).
+    /// En device real, si la biometría falla (cancela, no enrollada), NO forzamos
+    /// logout: mantenemos la sesión y dejamos que la app abra. Si el usuario quiere
+    /// re-bloquear con biometría, lo puede activar desde Ajustes (pendiente).
     func bootstrap() async {
         isBootstrapping = true
         defer { isBootstrapping = false }
         do {
             session = try await AuthManager.shared.restoreSession()
+            await TokenHolder.shared.set(session?.accessToken)
             if session != nil {
-                // Biometría obligatoria para abrir la app con sesión activa.
+                #if !targetEnvironment(simulator)
                 if BiometricAuth.isAvailable {
                     isBiometricLocked = true
                     let ok = (try? await BiometricAuth.authenticate()) ?? false
                     isBiometricLocked = !ok
+                    // Si falla, solo logueamos advertencia — no forzamos signOut.
                     if !ok {
-                        // Si falla la biometría, forzamos logout.
-                        await signOut()
-                        return
+                        lastError = "Biometría no verificada. Tu sesión sigue activa."
                     }
                 }
+                #endif
                 try await loadHouseholds()
             }
         } catch {
@@ -52,19 +57,25 @@ final class AppState {
 
     func signIn(email: String, password: String) async throws {
         session = try await AuthManager.shared.signIn(email: email, password: password)
+        await TokenHolder.shared.set(session?.accessToken)
         try await loadHouseholds()
     }
 
     func signUp(email: String, password: String) async throws {
         session = try await AuthManager.shared.signUp(email: email, password: password)
+        await TokenHolder.shared.set(session?.accessToken)
         try await loadHouseholds()
     }
 
     func signOut() async {
         await AuthManager.shared.signOut()
+        await TokenHolder.shared.set(nil)
         session = nil
         currentHouseholdId = nil
         households = []
+        // Limpiamos el índice de Spotlight para que no queden items de la
+        // cuenta previa visibles en la búsqueda del sistema.
+        await SpotlightIndexer.deleteAll()
     }
 
     func switchHousehold(to id: UUID) {

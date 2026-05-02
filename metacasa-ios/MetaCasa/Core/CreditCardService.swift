@@ -1,30 +1,22 @@
 import Foundation
-import Supabase
 
 actor CreditCardService {
     static let shared = CreditCardService()
     private init() {}
 
-    private var client: SupabaseClient { SupabaseService.client }
-
     func fetchDetails(accountId: UUID) async throws -> CreditCardDetails? {
-        let rows: [CreditCardDetails] = try await client
-            .from("credit_cards")
-            .select()
-            .eq("account_id", value: accountId)
-            .execute()
-            .value
-        return rows.first
+        try await SupabaseRPC.selectFirst(
+            from: "credit_cards",
+            query: PgQuery().eq("account_id", accountId)
+        )
     }
 
     func upsert(_ details: CreditCardDetails) async throws -> CreditCardDetails {
-        try await client
-            .from("credit_cards")
-            .upsert(details, onConflict: "account_id")
-            .select()
-            .single()
-            .execute()
-            .value
+        try await SupabaseRPC.upsert(
+            into: "credit_cards",
+            payload: details,
+            onConflict: "account_id"
+        )
     }
 
     /// Cálculo del pago mínimo sugerido según porcentaje configurado.

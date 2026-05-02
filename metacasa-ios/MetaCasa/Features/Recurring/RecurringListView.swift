@@ -31,7 +31,7 @@ struct RecurringListView: View {
                 }
             }
         }
-        .navigationTitle("Recurrentes")
+        .navigationTitle(Text("Recurrentes"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }

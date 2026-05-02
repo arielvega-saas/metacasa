@@ -55,7 +55,7 @@ struct HouseholdMembersView: View {
                 VStack { Spacer(); Text(msg).foregroundStyle(.red).padding() }
             }
         }
-        .navigationTitle("Hogar")
+        .navigationTitle(Text("Hogar"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showInvite = true } label: { Image(systemName: "person.badge.plus") }

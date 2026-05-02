@@ -35,10 +35,10 @@ struct AuthFlowView: View {
                 .scaledToFit()
                 .frame(width: 72, height: 72)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
-            Text("Home Finance")
+            Text("auth.login.title")
                 .font(.mcDisplay)
                 .foregroundStyle(Color.textPrimary)
-            Text("Gestioná las finanzas de tu hogar")
+            Text("auth.login.subtitle")
                 .font(.mcBody)
                 .foregroundStyle(Color.textMuted)
                 .multilineTextAlignment(.center)
@@ -47,10 +47,10 @@ struct AuthFlowView: View {
     }
 }
 
-// MARK: - Helper estilizado compartido por inputs
+// MARK: - Helpers estilizados compartidos por inputs
 
 struct MCTextField: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var text: String
     var keyboard: UIKeyboardType = .default
     var secure: Bool = false
@@ -58,7 +58,8 @@ struct MCTextField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
+            Text(title)
+                .textCase(.uppercase)
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
             Group {
@@ -75,6 +76,62 @@ struct MCTextField: View {
             .foregroundStyle(Color.textPrimary)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
+            .background(Color.appSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.appBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+}
+
+/// Campo de contraseña con ojito para mostrar/ocultar.
+/// Conserva el foco y el cursor al alternar.
+struct MCPasswordField: View {
+    let title: LocalizedStringKey
+    @Binding var text: String
+    @State private var isRevealed = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .textCase(.uppercase)
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            HStack(spacing: 8) {
+                Group {
+                    if isRevealed {
+                        TextField("", text: $text)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .focused($focused)
+                    } else {
+                        SecureField("", text: $text)
+                            .textContentType(.password)
+                            .focused($focused)
+                    }
+                }
+                .font(.mcBody)
+                .foregroundStyle(Color.textPrimary)
+
+                Button {
+                    isRevealed.toggle()
+                    // Mantener foco al alternar
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        focused = true
+                    }
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color.textMuted)
+                        .frame(width: 32, height: 32)
+                }
+                .accessibilityLabel(isRevealed ? "Ocultar contraseña" : "Mostrar contraseña")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .background(Color.appSurface)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

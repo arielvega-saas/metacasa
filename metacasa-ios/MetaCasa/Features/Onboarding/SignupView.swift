@@ -14,8 +14,8 @@ struct SignupView: View {
     var body: some View {
         VStack(spacing: 16) {
             MCTextField(title: "Email", text: $email, keyboard: .emailAddress)
-            MCTextField(title: "Contraseña (mínimo 8)", text: $password, secure: true)
-            MCTextField(title: "Confirmá contraseña", text: $confirmPassword, secure: true)
+            MCPasswordField(title: "Contraseña (mínimo 8)", text: $password)
+            MCPasswordField(title: "Confirmá contraseña", text: $confirmPassword)
 
             if let msg = errorMessage {
                 Text(msg).font(.mcCaption).foregroundStyle(Color.brandDanger)

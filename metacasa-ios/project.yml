@@ -21,7 +21,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "0.1.0"
-    DEVELOPMENT_TEAM: ""  # Completar con tu Team ID de Apple Developer
+    DEVELOPMENT_TEAM: "XNYGQKU4V5"  # Personal Team — Ariel Vega
     GENERATE_INFOPLIST_FILE: NO
     INFOPLIST_FILE: MetaCasa/Supporting/Info.plist
     CODE_SIGN_ENTITLEMENTS: MetaCasa/Supporting/MetaCasa.entitlements
@@ -36,6 +36,9 @@ packages:
   KeychainAccess:
     url: https://github.com/kishikawakatsumi/KeychainAccess
     from: "4.2.2"
+  CoreXLSX:
+    url: https://github.com/CoreOffice/CoreXLSX
+    from: "0.14.2"
 
 targets:
   MetaCasa:
@@ -46,6 +49,8 @@ targets:
       - path: MetaCasa
         excludes:
           - "**/*.md"
+        # Lista explícita de locales soportados en el String Catalog.
+        # Xcode 15+ compila .xcstrings automáticamente si está en sources.
     resources:
       - path: MetaCasa/Supporting/Assets.xcassets
     dependencies:
@@ -55,6 +60,8 @@ targets:
         product: RevenueCat
       - package: KeychainAccess
         product: KeychainAccess
+      - package: CoreXLSX
+        product: CoreXLSX
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app
@@ -63,3 +70,23 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
+        ENABLE_TESTABILITY: YES
+    scheme:
+      testTargets:
+        - MetaCasaTests
+      gatherCoverageData: true
+
+  MetaCasaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MetaCasaTests
+    dependencies:
+      - target: MetaCasa
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Home Finance.app/Home Finance"

@@ -104,11 +104,15 @@ struct AddAccountView: View {
         guard let hid = appState.currentHouseholdId else {
             errorMessage = "Hogar no disponible"; return
         }
+        guard let uid = appState.currentUserId else {
+            errorMessage = "Sesión no disponible"; return
+        }
         isLoading = true
         defer { isLoading = false }
 
         do {
             let account = try await AccountService.shared.create(
+                userId: uid,
                 householdId: hid,
                 name: name,
                 type: type,

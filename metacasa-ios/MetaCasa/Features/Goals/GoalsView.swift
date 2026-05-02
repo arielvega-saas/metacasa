@@ -42,9 +42,9 @@ struct GoalsView: View {
                     ProgressView().tint(.white)
                 } else if viewModel.goals.isEmpty {
                     ContentUnavailableView(
-                        "Sin metas todavía",
+                        String(localized: "goals.empty"),
                         systemImage: "target",
-                        description: Text("Tocá + para crear tu primera meta de ahorro.")
+                        description: Text("goals.empty.hint")
                     )
                 } else {
                     ScrollView {
@@ -62,7 +62,7 @@ struct GoalsView: View {
                 }
             }
         }
-        .navigationTitle("Metas")
+        .navigationTitle(Text("more.goals"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }
@@ -110,10 +110,10 @@ struct GoalRow: View {
             ProgressView(value: goal.progress)
                 .tint(goal.status == .completed ? .brandSuccess : .brandPrimary)
             HStack {
-                Text(CurrencyFormatter.format(goal.currentAmount, currency: goal.currency))
+                MoneyText(amount: goal.currentAmount, currency: goal.currency)
                     .font(.mcCaption).foregroundStyle(Color.textMuted)
                 Text("/").font(.mcCaption).foregroundStyle(Color.textDim)
-                Text(CurrencyFormatter.format(goal.targetAmount, currency: goal.currency))
+                MoneyText(amount: goal.targetAmount, currency: goal.currency)
                     .font(.mcCaption).foregroundStyle(Color.textMuted)
                 Spacer()
                 Text("\(Int(goal.progress * 100))%")

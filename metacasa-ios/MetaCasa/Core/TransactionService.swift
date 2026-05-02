@@ -1,63 +1,69 @@
 import Foundation
-import Supabase
 
 actor TransactionService {
     static let shared = TransactionService()
     private init() {}
 
-    private var client: SupabaseClient { SupabaseService.client }
-
     func fetchForPeriod(householdId: UUID, from: Date, to: Date, limit: Int = 200) async throws -> [Transaction] {
-        try await client
-            .from("transactions")
-            .select()
-            .eq("household_id", value: householdId)
-            .gte("date", value: from)
-            .lte("date", value: to)
-            .order("date", ascending: false)
-            .limit(limit)
-            .execute()
-            .value
+        try await SupabaseRPC.select(
+            from: "transactions",
+            query: PgQuery()
+                .eq("household_id", householdId)
+                .gte("date", from)
+                .lte("date", to)
+                .order("date", ascending: false)
+                .limit(limit)
+        )
     }
 
     func insert(_ input: NewTransactionInput) async throws -> Transaction {
-        try await client
-            .from("transactions")
-            .insert(input)
-            .select()
-            .single()
-            .execute()
-            .value
+        try await SupabaseRPC.insert(into: "transactions", payload: input)
     }
 
     func delete(id: UUID) async throws {
-        try await client
-            .from("transactions")
-            .delete()
-            .eq("id", value: id)
-            .execute()
+        try await SupabaseRPC.delete(
+            from: "transactions",
+            query: PgQuery().eq("id", id)
+        )
     }
 
     func update(_ transaction: Transaction) async throws -> Transaction {
-        try await client
-            .from("transactions")
-            .update(transaction)
-            .eq("id", value: transaction.id)
-            .select()
-            .single()
-            .execute()
-            .value
+        // Solo mandamos los campos editables (evita colisiones con columnas
+        // generadas / read-only como period_year / period_month).
+        struct Patch: Encodable {
+            let account_id: UUID?
+            let type: String
+            let amount: Decimal
+            let currency_original: String?
+            let category: String
+            let subcategory: String?
+            let account: String?
+            let note: String?
+            let date: Date
+        }
+        let patch = Patch(
+            account_id: transaction.accountId,
+            type: transaction.type.rawValue,
+            amount: transaction.amount,
+            currency_original: transaction.currencyOriginal,
+            category: transaction.category,
+            subcategory: transaction.subcategory,
+            account: transaction.account,
+            note: transaction.note,
+            date: transaction.date
+        )
+        return try await SupabaseRPC.update(
+            table: "transactions",
+            payload: patch,
+            query: PgQuery().eq("id", transaction.id)
+        )
     }
 
     func fetchOne(id: UUID) async throws -> Transaction? {
-        let rows: [Transaction] = try await client
-            .from("transactions")
-            .select()
-            .eq("id", value: id)
-            .limit(1)
-            .execute()
-            .value
-        return rows.first
+        try await SupabaseRPC.selectFirst(
+            from: "transactions",
+            query: PgQuery().eq("id", id)
+        )
     }
 
     func totals(householdId: UUID, from: Date, to: Date) async throws -> (ingresos: Decimal, gastos: Decimal) {

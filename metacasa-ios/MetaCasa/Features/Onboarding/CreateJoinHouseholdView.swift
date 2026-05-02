@@ -42,7 +42,7 @@ struct CreateJoinHouseholdView: View {
                 .resizable().scaledToFit()
                 .frame(width: 72, height: 72)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
-            Text("Home Finance")
+            Text("app.name")
                 .font(.mcH1)
                 .foregroundStyle(Color.textPrimary)
             Text("Creá un hogar nuevo o unite a uno con invite.")
@@ -112,10 +112,15 @@ struct CreateJoinHouseholdView: View {
     @MainActor
     private func submitCreate() async {
         errorMessage = nil
+        guard let session = appState.session else {
+            errorMessage = "Sesión no disponible. Volvé a iniciar sesión."
+            return
+        }
         isLoading = true
         defer { isLoading = false }
         do {
             let h = try await HouseholdService.shared.create(
+                accessToken: session.accessToken,
                 name: householdName,
                 defaultCurrency: currency.uppercased()
             )

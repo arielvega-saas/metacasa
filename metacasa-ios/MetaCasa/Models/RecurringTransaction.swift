@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct RecurringTransaction: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
@@ -39,12 +40,22 @@ struct RecurringTransaction: Codable, Identifiable, Hashable, Sendable {
 enum Frequency: String, Codable, Hashable, Sendable, CaseIterable {
     case daily, weekly, monthly, yearly
 
+    /// LocalizedStringKey para usar directamente en Text en SwiftUI.
+    var labelKey: LocalizedStringKey {
+        switch self {
+        case .daily: "freq.daily"
+        case .weekly: "freq.weekly"
+        case .monthly: "freq.monthly"
+        case .yearly: "freq.yearly"
+        }
+    }
+
     var label: String {
         switch self {
-        case .daily: "Diario"
-        case .weekly: "Semanal"
-        case .monthly: "Mensual"
-        case .yearly: "Anual"
+        case .daily: String(localized: "freq.daily")
+        case .weekly: String(localized: "freq.weekly")
+        case .monthly: String(localized: "freq.monthly")
+        case .yearly: String(localized: "freq.yearly")
         }
     }
 

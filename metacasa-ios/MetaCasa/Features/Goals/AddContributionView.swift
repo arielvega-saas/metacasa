@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AddContributionView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     let goal: Goal
     let onSaved: (GoalContribution) async -> Void
 
@@ -24,7 +25,7 @@ struct AddContributionView: View {
                     Section { Text(msg).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Nuevo aporte")
+            .navigationTitle(Text("Nuevo aporte"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { dismiss() }
@@ -45,10 +46,14 @@ struct AddContributionView: View {
         guard let amt = CurrencyFormatter.parse(amount), amt > 0 else {
             errorMessage = "Monto inválido"; return
         }
+        guard let uid = appState.currentUserId else {
+            errorMessage = "Sesión no disponible"; return
+        }
         isLoading = true
         defer { isLoading = false }
         do {
             let c = try await GoalService.shared.contribute(
+                userId: uid,
                 goalId: goal.id,
                 amount: amt,
                 notes: notes.isEmpty ? nil : notes

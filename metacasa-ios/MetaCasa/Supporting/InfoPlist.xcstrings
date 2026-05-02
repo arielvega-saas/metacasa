@@ -1,0 +1,21 @@
+{
+  "sourceLanguage" : "es",
+  "version" : "1.0",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Nombre visible del app icon en el Home Screen. Localizado por idioma: español → MetaCasa, inglés → MetaHome.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "MetaHome" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } }
+      }
+    },
+    "CFBundleName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "MetaHome" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } }
+      }
+    }
+  }
+}

@@ -11,4 +11,9 @@ export default defineConfig({
   build: {
     copyPublicDir: false,
   },
+  server: {
+    watch: {
+      ignored: ['**/build/**', '**/dist/**'],
+    },
+  },
 })

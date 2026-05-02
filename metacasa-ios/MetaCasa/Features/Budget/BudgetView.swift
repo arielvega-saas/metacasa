@@ -84,7 +84,7 @@ struct BudgetView: View {
                 }
                 .refreshable { await load() }
             }
-            .navigationTitle("Presupuesto")
+            .navigationTitle(Text("tab.budget"))
             .task { await load() }
             .sheet(isPresented: $showEditor) { allocEditor }
         }
@@ -102,11 +102,14 @@ struct BudgetView: View {
 
     private var readyToAssignCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("DISPONIBLE PARA ASIGNAR").font(.mcLabel).foregroundStyle(Color.textMuted)
+            Text("budget.available").font(.mcLabel).foregroundStyle(Color.textMuted)
+            // `.balance`: si sobreasignaste envelopes y el remanente queda
+            // negativo, muestra "-$X" rojo (señal de alerta); si queda
+            // positivo (plata por asignar), verde.
             AmountLabel(
                 amount: viewModel.period?.readyToAssign ?? 0,
                 currency: householdCurrency,
-                kind: .neutro
+                kind: .balance
             ).font(.mcDisplay)
             if let p = viewModel.period {
                 Text(periodLabel(p))
@@ -119,9 +122,9 @@ struct BudgetView: View {
 
     private var envelopesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Categorías").font(.mcH2).foregroundStyle(Color.textPrimary)
+            Text("budget.categories").font(.mcH2).foregroundStyle(Color.textPrimary)
             if viewModel.envelopes.isEmpty {
-                Text("Aún no asignaste a ninguna categoría este mes.")
+                Text("budget.empty")
                     .font(.mcBody)
                     .foregroundStyle(Color.textMuted)
                     .padding(.vertical, 12)
@@ -144,19 +147,22 @@ struct BudgetView: View {
                     Text(CategoryCatalog.emoji(for: env.category))
                     Text(env.category).font(.mcBody.weight(.bold)).foregroundStyle(Color.textPrimary)
                     Spacer()
+                    // `.balance`: remaining puede ser positivo (te sobra) o
+                    // negativo (over-budget). El kind decide signo + color
+                    // automáticamente — no necesitamos la rama isOverBudget.
                     AmountLabel(
                         amount: env.remaining,
                         currency: householdCurrency,
-                        kind: env.isOverBudget ? .gasto : .ingreso
+                        kind: .balance
                     ).font(.mcBody.weight(.bold))
                 }
                 ProgressView(value: env.percentUsed)
                     .tint(env.percentUsed > 0.95 ? .brandDanger : env.percentUsed > 0.8 ? .brandWarning : .brandSuccess)
                 HStack {
-                    Text(CurrencyFormatter.format(env.spent, currency: householdCurrency))
+                    MoneyText(amount: env.spent, currency: householdCurrency)
                         .font(.mcCaption).foregroundStyle(Color.textMuted)
                     Text("/").font(.mcCaption).foregroundStyle(Color.textDim)
-                    Text(CurrencyFormatter.format(env.allocated, currency: householdCurrency))
+                    MoneyText(amount: env.allocated, currency: householdCurrency)
                         .font(.mcCaption).foregroundStyle(Color.textMuted)
                 }
             }
@@ -173,7 +179,7 @@ struct BudgetView: View {
         } label: {
             HStack {
                 Image(systemName: "plus.circle.fill")
-                Text("Asignar monto a categoría")
+                Text("budget.assign")
             }
         }
         .buttonStyle(MCSecondaryButton())
@@ -209,7 +215,7 @@ struct BudgetView: View {
                 }
                 .disabled(editingCategory.isEmpty || CurrencyFormatter.parse(editingAmount) == nil)
             }
-            .navigationTitle("Asignar")
+            .navigationTitle(Text("Asignar"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { showEditor = false }

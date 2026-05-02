@@ -14,6 +14,8 @@ struct Account: Codable, Identifiable, Hashable, Sendable {
     var displayOrder: Int
     var isActive: Bool
     var notes: String?
+    var ownership: AccountOwnership = .personal
+    var ownerUserId: UUID?
     let createdBy: UUID
     let createdAt: Date?
     var updatedAt: Date?
@@ -32,9 +34,33 @@ struct Account: Codable, Identifiable, Hashable, Sendable {
         case displayOrder = "display_order"
         case isActive = "is_active"
         case notes
+        case ownership
+        case ownerUserId = "owner_user_id"
         case createdBy = "created_by"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+}
+
+/// Pertenencia de la cuenta dentro del hogar.
+/// - `personal`: asignada a una persona (waterfall distribuye remanente entre estas).
+/// - `shared`: del hogar, gastos compartidos (presupuesto común).
+/// - `external`: cuenta externa informativa (no afecta waterfall, ej. billetera externa).
+enum AccountOwnership: String, Codable, Hashable, Sendable, CaseIterable {
+    case personal, shared, external
+    var label: String {
+        switch self {
+        case .personal: return "Personal"
+        case .shared:   return "Compartida"
+        case .external: return "Externa"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .personal: return "person.fill"
+        case .shared:   return "person.2.fill"
+        case .external: return "arrow.up.right.square"
+        }
     }
 }
 

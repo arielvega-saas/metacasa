@@ -15,9 +15,9 @@ struct AccountsView: View {
                     ProgressView().tint(.white)
                 } else if accounts.isEmpty {
                     ContentUnavailableView(
-                        "Sin cuentas",
+                        String(localized: "accounts.empty"),
                         systemImage: "wallet.pass",
-                        description: Text("Creá una para empezar a organizar tus saldos")
+                        description: Text("accounts.empty.hint")
                     )
                 } else {
                     List {
@@ -33,7 +33,7 @@ struct AccountsView: View {
                 }
             }
         }
-        .navigationTitle("Cuentas")
+        .navigationTitle(Text("more.accounts"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }
@@ -72,9 +72,11 @@ struct AccountsView: View {
                 Text(a.type.label).font(.mcCaption).foregroundStyle(Color.textMuted)
             }
             Spacer()
-            Text(CurrencyFormatter.format(a.startingBalance, currency: a.currency))
+            // `.balance`: saldos normales positivos se ven neutros; cuentas
+            // con saldo negativo (tarjetas de crédito, préstamos) se renderean
+            // en rojo con "-$X" para señalar deuda.
+            AmountLabel(amount: a.startingBalance, currency: a.currency, kind: .balance)
                 .font(.mcBody.weight(.bold))
-                .foregroundStyle(Color.textPrimary)
         }
         .padding(.vertical, 8)
     }

@@ -12,8 +12,8 @@ struct LoginView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            MCTextField(title: "Email", text: $email, keyboard: .emailAddress)
-            MCTextField(title: "Contraseña", text: $password, secure: true)
+            MCTextField(title: "auth.field.email", text: $email, keyboard: .emailAddress)
+            MCPasswordField(title: "auth.field.password", text: $password)
 
             if let msg = errorMessage {
                 Text(msg)
@@ -28,7 +28,7 @@ struct LoginView: View {
                 if isLoading {
                     ProgressView().tint(.white)
                 } else {
-                    Text("Ingresar")
+                    Text("auth.button.signin")
                 }
             }
             .buttonStyle(MCPrimaryButton())
@@ -36,12 +36,19 @@ struct LoginView: View {
             .padding(.top, 6)
 
             HStack(spacing: 20) {
-                Button("¿Olvidaste la contraseña?") { showResetConfirm = true }
-                    .font(.mcCaption)
-                    .foregroundStyle(Color.textMuted)
-                Button("Crear cuenta", action: onSwitchToSignup)
-                    .font(.mcCaption.weight(.bold))
-                    .foregroundStyle(Color.brandPrimary)
+                Button {
+                    showResetConfirm = true
+                } label: {
+                    Text("auth.link.forgot")
+                }
+                .font(.mcCaption)
+                .foregroundStyle(Color.textMuted)
+
+                Button(action: onSwitchToSignup) {
+                    Text("auth.button.signup")
+                }
+                .font(.mcCaption.weight(.bold))
+                .foregroundStyle(Color.brandPrimary)
             }
             .padding(.top, 4)
         }
@@ -53,7 +60,7 @@ struct LoginView: View {
             Button("Enviar") {
                 Task { await resetPassword() }
             }
-            Button("Cancelar", role: .cancel) {}
+            Button("action.cancel", role: .cancel) {}
         }
     }
 
@@ -72,12 +79,12 @@ struct LoginView: View {
     @MainActor
     private func resetPassword() async {
         guard !email.isEmpty else {
-            errorMessage = "Ingresá tu email arriba primero"
+            errorMessage = String(localized: "Ingresá tu email arriba primero")
             return
         }
         do {
             try await AuthManager.shared.resetPassword(email: email)
-            errorMessage = "Te enviamos un email a \(email). Revisá tu bandeja."
+            errorMessage = String(localized: "Te enviamos un email a \(email). Revisá tu bandeja.")
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -1,23 +1,16 @@
 import Foundation
-import Supabase
 
 actor CategoryService {
     static let shared = CategoryService()
     private init() {}
 
-    private var client: SupabaseClient { SupabaseService.client }
-
     /// Trae el blob de categorías custom del hogar.
     /// Si todavía no existe, devuelve nil (el cliente debe mergear con los defaults).
     func fetch(householdId: UUID) async throws -> CategoriesBlob? {
-        let rows: [CategoriesBlob] = try await client
-            .from("categories")
-            .select()
-            .eq("household_id", value: householdId)
-            .limit(1)
-            .execute()
-            .value
-        return rows.first
+        try await SupabaseRPC.selectFirst(
+            from: "categories",
+            query: PgQuery().eq("household_id", householdId)
+        )
     }
 
     /// Upsert del blob. PK es household_id.
@@ -27,13 +20,11 @@ actor CategoryService {
             let household_id: UUID
             let data: CategoriesData
         }
-        return try await client
-            .from("categories")
-            .upsert(Payload(household_id: householdId, data: data), onConflict: "household_id")
-            .select()
-            .single()
-            .execute()
-            .value
+        return try await SupabaseRPC.upsert(
+            into: "categories",
+            payload: Payload(household_id: householdId, data: data),
+            onConflict: "household_id"
+        )
     }
 
     /// Combina defaults + custom. Si hay coincidencia de nombre, gana la custom (permite

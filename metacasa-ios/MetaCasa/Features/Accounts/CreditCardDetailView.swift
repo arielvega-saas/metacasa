@@ -83,6 +83,8 @@ struct CreditCardDetailView: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("SALDO DEL RESUMEN").font(.mcLabel).foregroundStyle(Color.textMuted)
+            // `.gasto`: la deuda del resumen es dinero que DEBÉS → siempre
+            // con "-" rojo, como convención fintech.
             AmountLabel(amount: stmt, currency: account.currency, kind: .gasto).font(.mcAmount)
 
             Divider().background(Color.appBorder).padding(.vertical, 6)
@@ -90,17 +92,18 @@ struct CreditCardDetailView: View {
             HStack {
                 Text("Mínimo (\(formatPct(d.minimumPaymentPct)))").font(.mcCaption).foregroundStyle(Color.textMuted)
                 Spacer()
-                Text(CurrencyFormatter.format(minPay, currency: account.currency))
+                // `.gasto`: el mínimo es dinero que vas a PAGAR (sale) →
+                // mismo criterio que el resto de expenses, "-$X" rojo.
+                AmountLabel(amount: minPay, currency: account.currency, kind: .gasto)
                     .font(.mcBody.weight(.bold))
-                    .foregroundStyle(Color.textPrimary)
             }
             HStack {
                 Text("Interés si pagás solo el mínimo (\(formatPct(d.interestRateMonthly))/mes)")
                     .font(.mcCaption).foregroundStyle(Color.textMuted)
                 Spacer()
-                Text(CurrencyFormatter.format(interestIfMin, currency: account.currency))
+                // `.gasto`: costo proyectado del interés, "-$X" rojo.
+                AmountLabel(amount: interestIfMin, currency: account.currency, kind: .gasto)
                     .font(.mcBody.weight(.bold))
-                    .foregroundStyle(Color.brandDanger)
             }
 
             if let date = d.lastStatementDate {

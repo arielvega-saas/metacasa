@@ -19,15 +19,15 @@ struct AddGoalView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Datos") {
-                    TextField("Nombre (ej: Viaje a Europa)", text: $name)
-                    TextField("Monto objetivo", text: $targetAmount).keyboardType(.decimalPad)
-                    Toggle("Con fecha objetivo", isOn: $hasTargetDate)
+                Section("form.section.data") {
+                    TextField("form.field.goalName", text: $name)
+                    TextField("form.field.goalTarget", text: $targetAmount).keyboardType(.decimalPad)
+                    Toggle("form.field.hasTargetDate", isOn: $hasTargetDate)
                     if hasTargetDate {
-                        DatePicker("Fecha", selection: $targetDate, displayedComponents: .date)
+                        DatePicker("form.field.date", selection: $targetDate, displayedComponents: .date)
                     }
                 }
-                Section("Icono") {
+                Section("form.section.icon") {
                     ScrollView(.horizontal) {
                         HStack {
                             ForEach(icons, id: \.self) { i in
@@ -41,20 +41,22 @@ struct AddGoalView: View {
                         }
                     }
                 }
-                Section("Prioridad") {
-                    Stepper("Prioridad: \(priority)", value: $priority, in: 0...10)
+                Section("form.section.priority") {
+                    Stepper(value: $priority, in: 0...10) {
+                        Text("form.priority.format \(priority)")
+                    }
                 }
                 if let msg = errorMessage {
                     Section { Text(msg).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Nueva meta")
+            .navigationTitle(Text("goal.new"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("action.cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isLoading ? "Guardando..." : "Guardar") {
+                    Button(isLoading ? String(localized: "action.saving") : String(localized: "action.save")) {
                         Task { await submit() }
                     }
                     .disabled(isLoading || name.isEmpty || CurrencyFormatter.parse(targetAmount) == nil)
@@ -67,16 +69,20 @@ struct AddGoalView: View {
     private func submit() async {
         errorMessage = nil
         guard let amount = CurrencyFormatter.parse(targetAmount), amount > 0 else {
-            errorMessage = "Ingresá un monto objetivo válido"; return
+            errorMessage = String(localized: "goal.invalidAmount"); return
         }
         guard let hid = appState.currentHouseholdId else {
-            errorMessage = "Hogar no disponible"; return
+            errorMessage = String(localized: "goal.householdMissing"); return
+        }
+        guard let uid = appState.currentUserId else {
+            errorMessage = String(localized: "error.sessionUnavailable"); return
         }
         let currency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
         isLoading = true
         defer { isLoading = false }
         do {
-            _ = try await GoalService.shared.create(
+            let created = try await GoalService.shared.create(
+                userId: uid,
                 householdId: hid,
                 name: name,
                 targetAmount: amount,
@@ -85,9 +91,14 @@ struct AddGoalView: View {
                 icon: icon,
                 priority: priority
             )
+            if NotificationPreferences.shared.goals {
+                await NotificationService.shared.scheduleGoalReminder(goal: created)
+            }
+            Haptics.play(.success)
             await onSaved()
             dismiss()
         } catch {
+            Haptics.play(.error)
             errorMessage = error.localizedDescription
         }
     }
