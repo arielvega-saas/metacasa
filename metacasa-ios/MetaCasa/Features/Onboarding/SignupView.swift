@@ -42,9 +42,12 @@ struct SignupView: View {
                 .foregroundStyle(Color.brandPrimary)
                 .padding(.top, 4)
 
-            Text("Al registrarte aceptás nuestros Términos y Política de Privacidad.")
+            // Apple App Store pide que Privacy y Terms sean accesibles desde
+            // el signup flow con links clickeables (no solo texto plano).
+            Text(LocalizedStringKey("Al registrarte aceptás nuestros [Términos](https://metacasa-app-cf592.web.app/terms.html) y [Política de Privacidad](https://metacasa-app-cf592.web.app/privacy.html)."))
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
+                .tint(Color.brandPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
         }
