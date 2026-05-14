@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistente IA — Disclosure — MetaCasa</title>
+  <meta name="description" content="Cómo funciona el Asistente IA de MetaCasa, qué datos procesa, dónde, y bajo qué bases legales.">
+  <style>
+    :root {
+      --bg: #0a0f0c;
+      --surface: #121a16;
+      --surface-2: #1a2520;
+      --text: #e8efe9;
+      --text-muted: #9aa6a0;
+      --text-dim: #6b7872;
+      --accent: #87a98c;
+      --accent-soft: rgba(135, 169, 140, 0.18);
+      --border: rgba(135, 169, 140, 0.18);
+      --danger: #d97366;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--surface);
+      padding: 44px 36px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 8px;
+      font-family: "New York", "SF Pro Serif", Georgia, serif;
+      font-weight: 700;
+    }
+    .updated {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 32px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 36px 0 12px;
+      color: var(--accent);
+      font-family: "New York", "SF Pro Serif", Georgia, serif;
+    }
+    h3 {
+      font-size: 16px;
+      margin: 24px 0 8px;
+      color: var(--text);
+    }
+    p, li { font-size: 15px; color: var(--text); }
+    li { margin-bottom: 8px; }
+    .pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    .box {
+      background: var(--surface-2);
+      padding: 16px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin: 16px 0;
+    }
+    .no-list li::marker {
+      content: "❌ ";
+      color: var(--danger);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--accent); font-weight: 600; }
+    a { color: var(--accent); }
+    code {
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Disclosure del Asistente IA</h1>
+    <div class="updated">Última actualización: 13 de mayo de 2026</div>
+
+    <p>
+      Este documento describe cómo funciona el Asistente IA de MetaCasa,
+      qué datos procesa, dónde, y bajo qué bases legales. Es requerido por
+      App Store Review (Guideline 5.1.1 + AI/ML transparency) y referencia
+      para vos como usuario.
+    </p>
+
+    <h2>¿Qué es el Asistente IA?</h2>
+    <p>
+      Un coach financiero conversacional embebido en MetaCasa. Tres modos:
+    </p>
+    <ul>
+      <li><strong>Chat de texto</strong> — respuestas en lenguaje natural sobre tus finanzas.</li>
+      <li><strong>Voz</strong> — Apple Speech (STT on-device) + Anthropic Claude Haiku 4.5 (cloud) + ElevenLabs Malena (TTS streaming).</li>
+      <li><strong>Vision multimodal</strong> — escaneo de recibos con Apple Vision (OCR on-device) + Claude vision (parsing estructurado opcional).</li>
+    </ul>
+    <p>
+      22+ acciones agentic disponibles: cargar transacciones, marcar facturas
+      pagadas, transferir entre cuentas, asignar presupuestos, comparar meses,
+      proyectar balance, validar facturas electrónicas CFDI (México) y ARCA
+      (Argentina), categorizar gastos, detectar anomalías, calcular Health
+      Score, sugerir ahorros, etc.
+    </p>
+
+    <h2>Privacidad por capa — qué se procesa dónde</h2>
+
+    <h3>100% on-device <span class="pill">nunca sale del iPhone</span></h3>
+    <ul>
+      <li>Reconocimiento de voz (Apple Speech framework)</li>
+      <li>OCR de recibos (Apple Vision framework)</li>
+      <li>Statistical fallback (cuando elegís "Solo on-device")</li>
+      <li>Persistencia de tu historial de chat (JSON encriptado con <code>completeFileProtection</code>)</li>
+      <li>Categorización heurística (<code>categorize_transaction</code>)</li>
+    </ul>
+
+    <h3>En la nube <span class="pill">solo con tu consentimiento explícito</span></h3>
+    <p>Cuando aceptás el sheet de consentimiento al primer uso del Asistente, las siguientes piezas se procesan en la nube vía proxies seguros:</p>
+
+    <div class="box">
+      <strong>Anthropic Claude Haiku 4.5</strong> (LLM principal)
+      <ul>
+        <li><strong>Lo que se envía</strong>: tu pregunta + un resumen JSON compacto de tu estado financiero (montos, categorías, fechas, IDs internos).</li>
+        <li><strong>Lo que NO se envía</strong>: tu email, contraseña, tarjetas de crédito, datos biométricos, ubicación.</li>
+        <li><strong>Procesamiento</strong>: vía nuestro Edge Function <code>ai-proxy</code> (Supabase) que valida tu JWT antes de forwardear. La API key de Anthropic nunca se expone al cliente.</li>
+        <li><strong>Política de Anthropic</strong>: <strong>NO entrenan modelos con consultas de API</strong>. Logs de la API se retienen 30 días para detección de abuso y se eliminan después.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <strong>ElevenLabs</strong> (TTS — solo voice mode)
+      <ul>
+        <li><strong>Lo que se envía</strong>: el texto de la respuesta del asistente para ser convertido a audio.</li>
+        <li><strong>Lo que NO se envía</strong>: tu identidad personal.</li>
+        <li><strong>Voz</strong>: Malena rioplatense (voice_id <code>p7AwDmKvTdoHTBuueGvP</code>).</li>
+      </ul>
+    </div>
+
+    <h3>Datos persistidos en tu iPhone</h3>
+    <ul>
+      <li><strong>Chat sessions</strong>: guardados en <code>Documents/chat-sessions/{householdId}/</code> con <code>completeFileProtection</code>. Encriptados a nivel sistema cuando el iPhone está bloqueado.</li>
+      <li><strong>Resúmenes de sesiones</strong>: generados por Claude Haiku al cerrar el chat. Sirven para memoria entre sesiones. También locales.</li>
+      <li><strong>Backups</strong>: si exportás JSON, vos controlás dónde lo guardás.</li>
+    </ul>
+
+    <h2>Tu control sobre el Asistente</h2>
+    <p>Podés gestionar todo desde <strong>Ajustes → Avanzado → Privacidad del Asistente IA</strong>:</p>
+    <ol>
+      <li><strong>Toggle "Procesamiento en la nube"</strong> — alterna el consentimiento global. Si está OFF, el asistente solo usa modos on-device o el fallback estadístico.</li>
+      <li><strong>Toggle "Forzar solo on-device"</strong> — incluso con consent ON, podés forzar que esa sesión no use cloud. Más lento, pero garantizado privado.</li>
+      <li><strong>Botón "Revocar consentimiento y borrar historial"</strong> — revoca consent + elimina todos los chat sessions y resúmenes persistidos del hogar activo.</li>
+    </ol>
+    <p>Estos controles son <strong>inmediatos y persistentes</strong>. La próxima vez que abras el chat, te pedimos consent de nuevo.</p>
+
+    <h2>Base legal</h2>
+    <ul>
+      <li><strong>Consentimiento explícito</strong>: requerido por GDPR (UE), LGPD (Brasil), LFPDPPP (México), Habeas Data (Argentina). El sheet de consent al primer uso es la base legal primaria.</li>
+      <li><strong>Interés legítimo</strong>: para detección de abuso y observabilidad básica (Sentry — captura solo stack traces, no datos personales identificables).</li>
+      <li><strong>Cumplimiento contractual</strong>: Anthropic y ElevenLabs operan bajo DPAs (Data Processing Agreements) que requieren cumplir las regulaciones de tu jurisdicción.</li>
+    </ul>
+
+    <h2>Lo que el Asistente NO hace</h2>
+    <ul class="no-list">
+      <li>No usa tu data para entrenar modelos (Anthropic NO entrena con consultas API).</li>
+      <li>No vende ni comparte tu información con terceros para publicidad.</li>
+      <li>No accede a tus cuentas bancarias reales — solo procesa lo que vos cargás manualmente o importás.</li>
+      <li>No ejecuta transferencias bancarias reales fuera de la app. Las "transferencias" son anotaciones contables entre cuentas internas de tu hogar.</li>
+      <li>No da consejos de inversión específicos ("comprá Bitcoin", "vendé tales acciones"). Solo asesoría general.</li>
+      <li>No invierte por vos.</li>
+    </ul>
+
+    <h2>¿Qué pasa si rechazás el consent?</h2>
+    <p>
+      Podés seguir usando MetaCasa al 100%. El asistente cae al <strong>Tier 3 statistical fallback</strong>
+      (motor determinístico local) que responde preguntas simples sobre tus datos sin LLM. Las funciones
+      nativas de la app (cargar transacciones, presupuesto, metas, reportes, etc.) no se afectan.
+    </p>
+
+    <h2>Proveedores y modelos vigentes</h2>
+    <table>
+      <thead>
+        <tr><th>Servicio</th><th>Proveedor</th><th>Modelo / Voz</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LLM principal</td><td>Anthropic</td><td>claude-haiku-4-5-20251001 (200K tokens, tools, vision)</td></tr>
+        <tr><td>TTS streaming</td><td>ElevenLabs</td><td>Malena rioplatense (<code>p7AwDmKvTdoHTBuueGvP</code>)</td></tr>
+        <tr><td>STT</td><td>Apple</td><td>Speech framework (on-device)</td></tr>
+        <tr><td>Vision OCR</td><td>Apple</td><td>Vision framework (on-device)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Contacto</h2>
+    <p>
+      Para revocar consent fuera de la app, ejercer derechos GDPR/LGPD/LFPDPPP, o reportar un incidente de privacidad:
+    </p>
+    <ul>
+      <li>Email: <a href="mailto:privacidad@metacasa.app">privacidad@metacasa.app</a></li>
+      <li><a href="/privacy.html">Política de Privacidad completa</a></li>
+      <li><a href="/terms.html">Términos de Servicio</a></li>
+    </ul>
+
+    <p style="margin-top:32px; color:var(--text-dim); font-size:13px; font-style:italic;">
+      Este documento es parte del compromiso de transparencia de MetaCasa con sus usuarios y con
+      App Store Review Guideline 5.1.1.
+    </p>
+  </div>
+</body>
+</html>

@@ -140,6 +140,19 @@ struct SettingsView: View {
                         .foregroundStyle(Color.textMuted)
                 }
             }
+            // Asistente IA disclosure — required por Apple Review 5.1.1 para
+            // apps con AI cloud. El HTML completo vive en el PWA.
+            Link(destination: URL(string: "https://metacasa-app-cf592.web.app/assistant-ai.html")!) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.caption2)
+                    Text("Cómo procesamos tu data en el Asistente IA")
+                        .font(.mcCaption.weight(.semibold))
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.caption2)
+                }
+                .foregroundStyle(Color.brandPrimary)
+            }
             Text("v\(Config.appVersion) (\(Config.buildNumber))")
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
