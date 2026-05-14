@@ -83,17 +83,29 @@ struct WelcomeTourView: View {
         VStack(spacing: 28) {
             Spacer()
 
-            // Icono hero grande con halo sage.
+            // Icono hero — la pantalla de privacidad usa un doble-anillo
+            // "premium" para enfatizar el commitment de privacy. Las demas
+            // mantienen el halo simple sage.
             ZStack {
+                // Outer halo (todas las pantallas)
                 Circle()
                     .fill(Color.brandPrimary.opacity(0.15))
                     .frame(width: 180, height: 180)
                     .blur(radius: 12)
+                // Ring extra de privacy en pantalla 5
+                if page.premiumIcon {
+                    Circle()
+                        .stroke(Color.brandPrimary.opacity(0.25), lineWidth: 1)
+                        .frame(width: 168, height: 168)
+                }
                 Circle()
                     .fill(Color.appSurface)
                     .frame(width: 140, height: 140)
                     .overlay(
-                        Circle().stroke(Color.brandPrimary.opacity(0.3), lineWidth: 1)
+                        Circle().stroke(
+                            Color.brandPrimary.opacity(page.premiumIcon ? 0.5 : 0.3),
+                            lineWidth: page.premiumIcon ? 1.5 : 1
+                        )
                     )
                 Image(systemName: page.icon)
                     .font(.system(size: 56, weight: .regular))
@@ -107,23 +119,26 @@ struct WelcomeTourView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
 
+                // Contraste WCAG 4.5:1+ — subimos de textMuted a primary 0.78.
                 Text(LocalizedStringKey(page.bodyKey))
                     .font(.mcBody)
-                    .foregroundStyle(Color.textMuted)
+                    .foregroundStyle(Color.textPrimary.opacity(0.78))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // Bullets secundarios si los hay.
+            // Bullets secundarios si los hay. La pantalla 5 (privacy) usa
+            // checkmark.shield.fill para reforzar "guarantee"; las demas
+            // mantienen sparkle para sugerir "smart features".
             if !page.bullets.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(page.bullets, id: \.self) { bulletKey in
                         HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: "sparkle")
-                                .font(.caption)
+                            Image(systemName: page.bulletIcon)
+                                .font(page.premiumIcon ? .subheadline : .caption)
                                 .foregroundStyle(Color.brandPrimary)
-                                .padding(.top, 4)
+                                .padding(.top, 2)
                             Text(LocalizedStringKey(bulletKey))
                                 .font(.mcCaption)
                                 .foregroundStyle(Color.textPrimary)
@@ -226,6 +241,13 @@ private struct TourPage: Sendable {
     let titleKey: String
     let bodyKey: String
     let bullets: [String]
+    /// SF Symbol para los bullets de esta página. "sparkle" para features
+    /// inteligentes (default), "checkmark.shield.fill" para garantías de
+    /// privacidad/seguridad.
+    var bulletIcon: String = "sparkle"
+    /// Si true, el icono hero recibe el doble-anillo "premium" para enfatizar
+    /// el commitment (usado en la pantalla 5 de privacidad).
+    var premiumIcon: Bool = false
 
     static let allPages: [TourPage] = [
         TourPage(
@@ -271,7 +293,9 @@ private struct TourPage: Sendable {
                 "tour.page5.b1",
                 "tour.page5.b2",
                 "tour.page5.b3"
-            ]
+            ],
+            bulletIcon: "checkmark.shield.fill",
+            premiumIcon: true
         )
     ]
 }
