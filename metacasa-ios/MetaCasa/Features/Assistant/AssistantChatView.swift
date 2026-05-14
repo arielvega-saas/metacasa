@@ -659,6 +659,57 @@ private struct MessageRow: View {
         }
     }
 
+    /// Tool result UI: si el message del asistente empieza con un emoji de
+    /// status (✅ success, ⚠️ warning, ❌ error), lo renderizamos como una
+    /// "card" distintiva con border + icon en lugar del bubble normal. Hace
+    /// que los resultados de tool calls (add_transaction, mark_bill_paid,
+    /// set_budget, etc.) se sientan como confirmaciones visuales premium
+    /// vs solo un wall of text.
+    private enum ToolResultKind {
+        case success    // ✅
+        case warning    // ⚠️
+        case error      // ❌
+
+        var color: Color {
+            switch self {
+            case .success: .brandSuccess
+            case .warning: .brandWarning
+            case .error:   .brandDanger
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .success: "checkmark.circle.fill"
+            case .warning: "exclamationmark.triangle.fill"
+            case .error:   "xmark.circle.fill"
+            }
+        }
+    }
+
+    private var toolResultKind: ToolResultKind? {
+        guard message.role == .assistant else { return nil }
+        let trimmed = message.content.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("✅") { return .success }
+        if trimmed.hasPrefix("⚠️") || trimmed.hasPrefix("⚠")  { return .warning }
+        if trimmed.hasPrefix("❌") { return .error }
+        return nil
+    }
+
+    /// Texto sin el emoji prefix — el icon de la card ya lo representa.
+    private var contentStrippedOfEmoji: String {
+        guard let _ = toolResultKind else { return message.content }
+        let trimmed = message.content.trimmingCharacters(in: .whitespaces)
+        let stripChars: [String] = ["✅", "⚠️", "⚠", "❌"]
+        for char in stripChars {
+            if trimmed.hasPrefix(char) {
+                return String(trimmed.dropFirst(char.count))
+                    .trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return trimmed
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             if message.role == .user { Spacer(minLength: 40) }
@@ -668,18 +719,22 @@ private struct MessageRow: View {
                     attachmentView(attachment)
                 }
                 if !message.content.isEmpty {
-                    renderedContent
-                        .font(.body)
-                        .foregroundStyle(message.role == .user ? Color(hex: "#0E1312") : Color.textPrimary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(message.role == .user ? Color.brandPrimary : Color.appSurface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(message.role == .user ? Color.clear : Color.appBorder, lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .textSelection(.enabled)
+                    if let kind = toolResultKind {
+                        toolResultCard(kind: kind)
+                    } else {
+                        renderedContent
+                            .font(.body)
+                            .foregroundStyle(message.role == .user ? Color(hex: "#0E1312") : Color.textPrimary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(message.role == .user ? Color.brandPrimary : Color.appSurface)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(message.role == .user ? Color.clear : Color.appBorder, lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .textSelection(.enabled)
+                    }
                 }
                 if !message.actions.isEmpty {
                     actionButtons
@@ -691,6 +746,32 @@ private struct MessageRow: View {
         .fullScreenCover(item: $imageViewerImage) { wrapper in
             ImageViewer(image: wrapper.image)
         }
+    }
+
+    private func toolResultCard(kind: ToolResultKind) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: kind.icon)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(kind.color)
+                .padding(.top, 1)
+            Text(contentStrippedOfEmoji)
+                .font(.body)
+                .foregroundStyle(Color.textPrimary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(kind.color.opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(kind.color.opacity(0.3), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.95).combined(with: .opacity),
+            removal: .opacity
+        ))
     }
 
     @ViewBuilder
