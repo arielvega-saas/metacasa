@@ -31,6 +31,8 @@ enum AnthropicToolBuilder {
             setBudgetEnvelope(),
             transferBetweenAccounts(),
             categorizeTransaction(),
+            validateCFDI(),
+            validateARCA(),
         ]
     }
 
@@ -301,6 +303,28 @@ enum AnthropicToolBuilder {
             inputSchema: schemaDict(obj([
                 ("text", string("Free-text description to classify")),
             ], required: ["text"]))
+        )
+    }
+
+    private static func validateCFDI() -> APITool {
+        APITool(
+            name: "validate_cfdi",
+            description: "Parse and validate a Mexican CFDI 4.0 electronic invoice from QR text or verification URL. Extracts UUID, RFCs, total, validates formats. Returns verification URL for live status check at verificacfdi.sat.gob.mx.",
+            inputSchema: schemaDict(obj([
+                ("qrText", string("QR text or full verification URL from a CFDI 4.0 receipt")),
+            ], required: ["qrText"]))
+        )
+    }
+
+    private static func validateARCA() -> APITool {
+        APITool(
+            name: "validate_arca",
+            description: "Parse and validate an Argentine ARCA electronic invoice via CAE (14 digits) and optional invoice number (format XXXX-XXXXXXXX). Returns format validation + parsed components. Live verification against WSFEv1 requires user's Clave Fiscal + certificate.",
+            inputSchema: schemaDict(obj([
+                ("cae", string("The CAE of the invoice (14 digits)")),
+                ("comprobante", string("Optional invoice number in format 0001-00000123")),
+                ("total", number("Optional total amount of the invoice")),
+            ], required: ["cae"]))
         )
     }
 

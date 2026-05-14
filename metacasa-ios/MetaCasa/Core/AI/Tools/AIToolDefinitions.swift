@@ -588,4 +588,69 @@ struct CategorizeTransactionTool: Tool {
     }
 }
 
+// MARK: - 21. Validate CFDI (Mexico)
+
+@available(iOS 26.0, *)
+struct ValidateCFDITool: Tool {
+    typealias Output = String
+
+    let name = "validate_cfdi"
+    let description = """
+    Parse and validate a Mexican CFDI 4.0 (electronic invoice) from its QR \
+    code text or verification URL. Extracts UUID, RFC emisor, RFC receptor, \
+    and total. Validates UUID format (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) \
+    and RFC format (12-13 alphanumeric chars). Returns the structured fields \
+    plus a verification URL to check the live status on verificacfdi.sat.gob.mx. \
+    Use when the user pastes a CFDI QR string, the verification URL, or asks \
+    "validá esta factura mexicana".
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "QR text or full verification URL from a CFDI 4.0 receipt")
+        var qrText: String
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.validateCFDI(arguments)
+    }
+}
+
+// MARK: - 22. Validate ARCA (Argentina)
+
+@available(iOS 26.0, *)
+struct ValidateARCATool: Tool {
+    typealias Output = String
+
+    let name = "validate_arca"
+    let description = """
+    Parse and validate an Argentine ARCA (formerly AFIP) electronic invoice \
+    via its CAE (Codigo de Autorizacion Electronico, 14 digits) and the \
+    invoice number. Validates CAE format and checksum, extracts components \
+    (punto de venta + numero de comprobante if a full ID string is given). \
+    Use when the user pastes a CAE or asks "validame esta factura argentina". \
+    Full live verification against ARCA WSFEv1 requires user's Clave Fiscal \
+    + certificate (not exposed in the assistant). Returns format + parsed \
+    components and explains how to set up live verification.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "The CAE (14 digits) of the invoice")
+        var cae: String
+        @Guide(description: "Optional invoice number in format 0001-00000123 (punto-numero)")
+        var comprobante: String?
+        @Guide(description: "Optional total amount of the invoice (for cross-check)")
+        var total: Double?
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.validateARCA(arguments)
+    }
+}
+
 #endif

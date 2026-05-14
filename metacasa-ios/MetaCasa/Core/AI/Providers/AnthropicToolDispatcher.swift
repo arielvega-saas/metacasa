@@ -213,6 +213,26 @@ enum AnthropicToolDispatcher {
                 CategorizeTransactionTool.Arguments(text: text)
             )
 
+        case "validate_cfdi":
+            guard let qrText = input["qrText"]?.stringValue else {
+                return "Error: qrText required (the QR text or verification URL)"
+            }
+            return try await handler.validateCFDI(
+                ValidateCFDITool.Arguments(qrText: qrText)
+            )
+
+        case "validate_arca":
+            guard let cae = input["cae"]?.stringValue else {
+                return "Error: cae required (the 14-digit CAE)"
+            }
+            return try await handler.validateARCA(
+                ValidateARCATool.Arguments(
+                    cae: cae,
+                    comprobante: input["comprobante"]?.stringValue,
+                    total: input["total"]?.doubleValue
+                )
+            )
+
         default:
             return "Error: unknown tool '\(name)'"
         }

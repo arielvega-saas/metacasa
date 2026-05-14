@@ -1009,6 +1009,172 @@ final class AIToolHandler: @unchecked Sendable {
     }
     #endif
 
+    // MARK: - 21. Validate CFDI (Mexico)
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func validateCFDI(_ p: ValidateCFDITool.Arguments) async throws -> String {
+        let input = p.qrText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else {
+            return "Error: pasame el QR text o la URL de verificacion del CFDI"
+        }
+
+        // Pattern: UUID = 8-4-4-4-12 hex (32 hex digits con dashes).
+        let uuidPattern = #"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"#
+        // RFC SAT MX: 3-4 chars iniciales + 6 digits fecha + 3 homoclave (=12-13 chars).
+        let rfcPattern = #"[A-Z&Ñ]{3,4}[0-9]{6}[0-9A-Z]{3}"#
+
+        var uuid: String?
+        var rfcEmisor: String?
+        var rfcReceptor: String?
+        var total: String?
+
+        // Caso 1: URL completa con query params.
+        if input.contains("verificacfdi") || input.contains("?id=") || input.contains("&re=") {
+            if let url = URL(string: input),
+               let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                for q in comps.queryItems ?? [] {
+                    switch q.name.lowercased() {
+                    case "id": uuid = q.value
+                    case "re": rfcEmisor = q.value
+                    case "rr": rfcReceptor = q.value
+                    case "tt": total = q.value
+                    default: break
+                    }
+                }
+            }
+        }
+        // Caso 2: QR text plano con "?re=...&rr=..." pero sin schema.
+        if uuid == nil, let urlLike = input.range(of: "id=") {
+            let after = input[urlLike.upperBound...]
+            let parts = after.split(separator: "&")
+            for part in parts {
+                let kv = part.split(separator: "=", maxSplits: 1)
+                guard kv.count == 2 else { continue }
+                let val = String(kv[1]).removingPercentEncoding ?? String(kv[1])
+                switch String(kv[0]).lowercased() {
+                case "id": uuid = val
+                case "re": rfcEmisor = val
+                case "rr": rfcReceptor = val
+                case "tt": total = val
+                default: break
+                }
+            }
+        }
+        // Caso 3: solo UUID pelado.
+        if uuid == nil,
+           let m = input.range(of: uuidPattern, options: .regularExpression) {
+            uuid = String(input[m])
+        }
+
+        guard let extractedUUID = uuid else {
+            return "No detecte un UUID de CFDI valido en el input. Formato esperado: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (32 hex). El QR de una factura mexicana tiene typicamente una URL de verificacfdi.facturaelectronica.sat.gob.mx con parametros id, re, rr, tt."
+        }
+
+        // Validar formato UUID estricto.
+        let uuidValid = extractedUUID.range(of: "^" + uuidPattern + "$", options: .regularExpression) != nil
+
+        // Validar formato RFCs si los tenemos.
+        var rfcEmisorValid: Bool? = nil
+        if let r = rfcEmisor?.uppercased() {
+            rfcEmisorValid = r.range(of: "^" + rfcPattern + "$", options: .regularExpression) != nil
+            rfcEmisor = r
+        }
+        var rfcReceptorValid: Bool? = nil
+        if let r = rfcReceptor?.uppercased() {
+            rfcReceptorValid = r.range(of: "^" + rfcPattern + "$", options: .regularExpression) != nil
+            rfcReceptor = r
+        }
+
+        var lines: [String] = []
+        lines.append("📄 CFDI 4.0 — datos extraidos:")
+        lines.append("• UUID: \(extractedUUID) \(uuidValid ? "✓" : "⚠️ formato no valido")")
+        if let r = rfcEmisor {
+            lines.append("• RFC Emisor: \(r) \((rfcEmisorValid ?? false) ? "✓" : "⚠️")")
+        }
+        if let r = rfcReceptor {
+            lines.append("• RFC Receptor: \(r) \((rfcReceptorValid ?? false) ? "✓" : "⚠️")")
+        }
+        if let t = total {
+            lines.append("• Total: $\(t) MXN")
+        }
+
+        // Si tenemos los 4 campos, ofrecemos URL de verificacion oficial.
+        if let r = rfcEmisor, let rr = rfcReceptor, let t = total, uuidValid {
+            let verifyURL = "https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=\(extractedUUID)&re=\(r)&rr=\(rr)&tt=\(t)"
+            lines.append("")
+            lines.append("Para verificar estado vigente/cancelado contra SAT, abrime:")
+            lines.append(verifyURL)
+        } else {
+            lines.append("")
+            lines.append("Faltan datos (RFC emisor, RFC receptor o total) para armar la URL de verificacion oficial.")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+    #endif
+
+    // MARK: - 22. Validate ARCA (Argentina)
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func validateARCA(_ p: ValidateARCATool.Arguments) async throws -> String {
+        let cae = p.cae.trimmingCharacters(in: .whitespaces)
+
+        // El CAE de ARCA es un numero de 14 digitos (sin dashes ni espacios).
+        let caePattern = "^[0-9]{14}$"
+        let caeFormatValid = cae.range(of: caePattern, options: .regularExpression) != nil
+
+        var lines: [String] = []
+        lines.append("🇦🇷 ARCA — analisis de comprobante electronico:")
+        lines.append("• CAE: \(cae) \(caeFormatValid ? "✓ formato valido (14 digitos)" : "⚠️ formato invalido — el CAE son 14 digitos sin dashes")")
+
+        // Verificar fecha de vencimiento embebida en CAE — los primeros 8 chars
+        // de un CAE codifican typicamente YYYYMMDD pero esto varia. Lo dejamos
+        // como informativo.
+        if caeFormatValid {
+            let prefix = String(cae.prefix(8))
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyyMMdd"
+            fmt.locale = Locale(identifier: "en_US_POSIX")
+            if let date = fmt.date(from: prefix) {
+                let outFmt = DateFormatter()
+                outFmt.dateStyle = .medium
+                outFmt.locale = Locale(identifier: "es_AR")
+                lines.append("• Posible fecha asociada al CAE: \(outFmt.string(from: date))")
+            }
+        }
+
+        if let comprobante = p.comprobante {
+            // Formato esperado: XXXX-XXXXXXXX (punto de venta - numero).
+            let comprobantePattern = #"^[0-9]{4,5}-[0-9]{1,8}$"#
+            let comprobanteValid = comprobante.range(of: comprobantePattern, options: .regularExpression) != nil
+            lines.append("• Comprobante: \(comprobante) \(comprobanteValid ? "✓" : "⚠️ formato esperado: 0001-00000123")")
+            if comprobanteValid {
+                let parts = comprobante.split(separator: "-")
+                if parts.count == 2 {
+                    lines.append("  Punto de venta: \(parts[0])")
+                    lines.append("  Numero: \(parts[1])")
+                }
+            }
+        }
+
+        if let total = p.total {
+            let formatted = Money.format(Decimal(total), currency: "ARS", style: .compact)
+            lines.append("• Total declarado: \(formatted)")
+        }
+
+        lines.append("")
+        if caeFormatValid {
+            lines.append("✅ Formato del CAE valido. La verificacion contra los Web Services de ARCA (WSFEv1/WSFEX) requiere tu Clave Fiscal + certificado digital. Para activarlo en MetaCasa, andate a Ajustes → Integraciones fiscales (proximamente).")
+        } else {
+            lines.append("⚠️ El formato del CAE no es valido. Verifica que copiaste los 14 digitos completos del comprobante original (sin dashes, espacios ni letras).")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func expandUUID(_ s: String) -> String {
