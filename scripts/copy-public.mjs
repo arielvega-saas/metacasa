@@ -17,6 +17,7 @@ const files = [
   'apple-touch-icon-v2.png',
   'privacy.html',
   'terms.html',
+  'assistant-ai.html',
 ];
 
 for (const file of files) {
