@@ -31,6 +31,11 @@ actor AnthropicProvider {
         case apiError(status: Int, detail: String)
         case invalidResponse
         case toolLoopExceeded
+        /// Anthropic decidió invocar una tool durante un stream — necesitamos
+        /// fallback al método no-streaming porque el loop de tool_use requiere
+        /// el response completo. El caller atrapa este error y reintenta con
+        /// `respond(...)`.
+        case toolCallInStream
 
         var errorDescription: String? {
             switch self {
@@ -44,6 +49,8 @@ actor AnthropicProvider {
                 "Respuesta inválida del asistente cloud."
             case .toolLoopExceeded:
                 "El asistente se quedó dando vueltas. Probá reformulando la pregunta."
+            case .toolCallInStream:
+                "Necesito ejecutar una acción — cambiando a modo no-streaming."
             }
         }
     }
@@ -126,6 +133,152 @@ actor AnthropicProvider {
         }
 
         throw AnthropicError.toolLoopExceeded
+    }
+
+    /// Envía un mensaje al cloud LLM con **streaming SSE** — emite deltas de
+    /// texto a medida que el modelo los genera. TTFT cae de ~3s (no-streaming)
+    /// a ~500ms. Para chat texto da experiencia tipo ChatGPT moderna.
+    ///
+    /// **Limitación**: si el modelo decide invocar una tool durante el stream,
+    /// throw `toolCallInStream` — el caller debe atrapar y caer al método
+    /// `respond(...)` no-streaming, que maneja el loop tool_use → tool_result
+    /// → continue. La razón: parsear tool_use inputs JSON parcial es frágil.
+    ///
+    /// Voice mode NO usa este método (encola oraciones completas para TTS).
+    nonisolated func respondStream(
+        message: String,
+        context: FinancialContext,
+        accessToken: String,
+        history: [ChatTurn] = [],
+        voiceMode: Bool = false,
+        pastSummaries: [String] = []
+    ) -> AsyncThrowingStream<String, Error> {
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    try await self.streamProxy(
+                        message: message,
+                        context: context,
+                        accessToken: accessToken,
+                        history: history,
+                        voiceMode: voiceMode,
+                        pastSummaries: pastSummaries,
+                        onDelta: { delta in continuation.yield(delta) }
+                    )
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Implementación interna del streaming. Llama al edge function ai-proxy
+    /// con `stream: true`, lee la respuesta como text/event-stream, parsea
+    /// líneas `data: {json}` y extrae los `content_block_delta` con
+    /// `delta.type == "text_delta"`. Throw `toolCallInStream` si detecta
+    /// un `content_block_start` con `content_block.type == "tool_use"`.
+    private func streamProxy(
+        message: String,
+        context: FinancialContext,
+        accessToken: String,
+        history: [ChatTurn],
+        voiceMode: Bool,
+        pastSummaries: [String],
+        onDelta: @escaping (String) -> Void
+    ) async throws {
+        let systemPrompt = AISystemPromptV2.build(
+            context: context,
+            query: message,
+            voiceMode: voiceMode,
+            pastSummaries: pastSummaries
+        )
+
+        // Construir messages (mismo flow que respond, pero sin imagen — el
+        // streaming inicial es solo para chat texto).
+        var messages: [APIMessage] = history.flatMap { turn -> [APIMessage] in
+            switch turn {
+            case .user(let text):
+                return [APIMessage(role: "user", content: .text(text))]
+            case .assistant(let text):
+                return [APIMessage(role: "assistant", content: .text(text))]
+            }
+        }
+        messages.append(APIMessage(role: "user", content: .text(message)))
+
+        let url = Config.supabaseURL.appendingPathComponent("functions/v1/ai-proxy")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        req.setValue(Config.supabaseAnonKey, forHTTPHeaderField: "apikey")
+
+        let body = ProxyRequest(
+            system: [SystemBlock(type: "text", text: systemPrompt, cacheControl: CacheControl(type: "ephemeral"))],
+            messages: messages,
+            tools: AnthropicToolBuilder.allTools(),
+            maxTokens: maxOutputTokens,
+            temperature: 0.7,
+            stream: true
+        )
+
+        let encoder = JSONEncoder()
+        req.httpBody = try encoder.encode(body)
+
+        let (asyncBytes, urlResponse) = try await URLSession.shared.bytes(for: req)
+        guard let http = urlResponse as? HTTPURLResponse else {
+            throw AnthropicError.invalidResponse
+        }
+
+        if http.statusCode == 429 {
+            throw AnthropicError.rateLimitExceeded(daily: 0, monthly: 0)
+        }
+        if http.statusCode >= 400 {
+            // Drenar body para diagnostic.
+            var detail = ""
+            for try await line in asyncBytes.lines {
+                detail += line + "\n"
+                if detail.count > 500 { break }
+            }
+            throw AnthropicError.apiError(status: http.statusCode, detail: detail)
+        }
+
+        // Parser SSE: cada evento tiene la forma:
+        //   event: <type>\n
+        //   data: <json>\n
+        //   \n
+        // Solo nos interesan las líneas `data: ...`. Ignoramos `event:` y
+        // separadores vacíos.
+        for try await line in asyncBytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let jsonStr = String(line.dropFirst(6))
+            guard let data = jsonStr.data(using: .utf8) else { continue }
+
+            // Detectar tool_use temprano para cortar el stream.
+            // Estructura de content_block_start con tool_use:
+            //   {"type":"content_block_start","index":N,"content_block":{"type":"tool_use",...}}
+            if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let type = obj["type"] as? String
+
+                if type == "content_block_start",
+                   let block = obj["content_block"] as? [String: Any],
+                   (block["type"] as? String) == "tool_use" {
+                    throw AnthropicError.toolCallInStream
+                }
+
+                if type == "content_block_delta",
+                   let delta = obj["delta"] as? [String: Any],
+                   (delta["type"] as? String) == "text_delta",
+                   let text = delta["text"] as? String {
+                    onDelta(text)
+                }
+
+                if type == "message_stop" {
+                    return
+                }
+            }
+        }
     }
 
     /// Extrae UNA o VARIAS transacciones de UNA o VARIAS imágenes (recibos,
@@ -411,9 +564,10 @@ private struct ProxyRequest: Encodable {
     let tools: [APITool]
     let maxTokens: Int
     let temperature: Double
+    var stream: Bool = false
 
     enum CodingKeys: String, CodingKey {
-        case system, messages, tools, temperature
+        case system, messages, tools, temperature, stream
         case maxTokens = "max_tokens"
     }
 }

@@ -940,6 +940,59 @@ final class AssistantViewModel {
             await AuthManager.shared.ensureFreshToken()
             let context = try await FinancialContextBuilder.build(appState: appState)
             let allowCloud = PrivacyManager.shared.canUseCloudAssistant
+
+            // ─── STREAMING FAST PATH ─────────────────────────────────────
+            // Si el user permitió cloud y tenemos token, intentamos streaming
+            // SSE: TTFT cae de ~3s a ~500ms. El user ve typing effect mientras
+            // Claude genera. Si el modelo decide invocar una tool, cae al
+            // método no-streaming (que maneja el loop tool_use).
+            if allowCloud,
+               let token = await TokenHolder.shared.get(),
+               appState.currentHouseholdId != nil,
+               appState.currentUserId != nil {
+                let placeholder = AssistantMessage(role: .assistant, content: "")
+                let placeholderId = placeholder.id
+                messages.append(placeholder)
+                isThinking = false  // ya tenemos UI visible — el typing reemplaza el indicator
+
+                var fullText = ""
+                do {
+                    for try await delta in AnthropicProvider.shared.respondStream(
+                        message: msg,
+                        context: context,
+                        accessToken: token,
+                        history: history,
+                        pastSummaries: pastSummaries
+                    ) {
+                        fullText += delta
+                        if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
+                            messages[idx].content = fullText
+                        }
+                    }
+                    // Stream completó OK.
+                    if !fullText.isEmpty {
+                        if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
+                            persist(messages[idx], appState: appState)
+                        }
+                        return
+                    }
+                    // Stream vacío — limpiar y caer al fallback.
+                    messages.removeAll { $0.id == placeholderId }
+                } catch AnthropicProvider.AnthropicError.toolCallInStream {
+                    // El modelo quiere invocar una tool — cae al non-streaming.
+                    messages.removeAll { $0.id == placeholderId }
+                    isThinking = true
+                } catch {
+                    // Otro error de streaming — log y fallback.
+                    NSLog("[Stream] failed: \(error.localizedDescription), falling back")
+                    messages.removeAll { $0.id == placeholderId }
+                    isThinking = true
+                }
+            }
+
+            // ─── FALLBACK NON-STREAMING ──────────────────────────────────
+            // Usado cuando: no hay consent cloud, no hay token, stream falló,
+            // o el modelo invocó una tool (necesita loop completo).
             let response = await AIAssistantService.shared.ask(
                 message: msg,
                 context: context,
