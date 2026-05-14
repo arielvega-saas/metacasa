@@ -39,6 +39,9 @@ packages:
   CoreXLSX:
     url: https://github.com/CoreOffice/CoreXLSX
     from: "0.14.2"
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "8.40.0"
 
 targets:
   MetaCasa:
@@ -62,6 +65,8 @@ targets:
         product: KeychainAccess
       - package: CoreXLSX
         product: CoreXLSX
+      - package: Sentry
+        product: Sentry
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app

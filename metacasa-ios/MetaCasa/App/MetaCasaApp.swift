@@ -12,6 +12,10 @@ struct MetaCasaApp: App {
     @State private var onboarding = OnboardingProgress()
 
     init() {
+        // Sentry primero — captura crashes tempranos que ocurran durante
+        // bootstrap. No-op silencioso si SENTRY_DSN no está configurado.
+        ObservabilityService.boot()
+
         // Solo NSException handler — el `signal(SIGTRAP)` handler con `exit()`
         // observado interfería con operaciones normales.
         NSSetUncaughtExceptionHandler { exception in
@@ -51,6 +55,8 @@ struct MetaCasaApp: App {
                     await IntentDonations.donateAll()
                 }
                 .onChange(of: appState.currentUserId) { _, newUid in
+                    // Sentry user tag: solo UUID, nunca email (PII).
+                    ObservabilityService.setUser(userId: newUid)
                     Task { @MainActor in
                         if let uid = newUid {
                             await RevenueCatService.shared.login(userId: uid)
