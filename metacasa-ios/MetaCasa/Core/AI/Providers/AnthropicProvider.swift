@@ -122,6 +122,178 @@ actor AnthropicProvider {
         throw AnthropicError.toolLoopExceeded
     }
 
+    /// Extrae UNA o VARIAS transacciones de UNA o VARIAS imágenes (recibos,
+    /// tickets, screenshots de listados de wallet, etc.) usando Claude Haiku
+    /// con visión. Las imágenes van directo al modelo — no hay OCR intermedio.
+    /// El modelo procesa todas las imágenes en una sola request y devuelve un
+    /// array con TODOS los gastos detectados, indistintamente de qué imagen
+    /// vinieron.
+    func parseImageReceipts(jpegDatas: [Data], accessToken: String) async throws -> [ParsedReceipt] {
+        guard !jpegDatas.isEmpty else { return [] }
+
+        let system = """
+        Sos un experto en analizar imágenes de recibos, tickets, comprobantes y screenshots de listados de transacciones (de wallets como MercadoPago, Naranja X, Brubank, Uala, o cualquier app financiera). Tu única salida debe ser un JSON válido — sin explicaciones, sin markdown, sin bloques de código.
+
+        Estructura esperada:
+        {"transactions": [
+          {"amount": <número decimal positivo>, "date": "<YYYY-MM-DD o null>", "merchant": "<nombre o null>", "currency": "<código ISO o null>", "category": "<categoría o null>"}
+        ]}
+
+        Si te paso varias imágenes, agregá los gastos de TODAS al mismo array (no las separes).
+
+        REGLAS DE LECTURA DE MONTOS — críticas, leelas con atención:
+        - Mirá el número exactamente como aparece. NO redondees, NO inventes decimales que no están.
+        - El separador de miles en español rioplatense es "." y el decimal es ",". "$ 23.100" = 23100.00 (veintitres mil cien). "$ 1.250,50" = 1250.50.
+        - El separador de miles en inglés es "," y el decimal es ".". "$1,250.50" = 1250.50.
+        - Si ves "$ 4.090" sin coma decimal → es 4090, NO 4.09 ni 4090.00 con .00 espureo.
+        - Si ves "$23.100" → es 23100, NO 23.10.
+        - Cuando hay duda entre un número grande sin decimales y uno pequeño con decimales, mirá el contexto: en Argentina los gastos de wallet suelen ser miles ($1.000-$50.000), no centavos.
+        - Solo tomá el monto del gasto en sí, ignorá saldos, totales acumulados, números de operación, CBU/alias, fechas.
+
+        REGLAS GENERALES:
+        - Si es UN ticket/recibo de compra → un solo elemento por imagen.
+        - Si es un LISTADO de movimientos de wallet → un elemento por cada gasto.
+        - Solo incluí GASTOS (transferencias enviadas, pagos, débitos). Ignorá ingresos, transferencias recibidas y saldos.
+        - amount: SIEMPRE positivo (valor absoluto del gasto).
+        - merchant: nombre limpio del comercio o destinatario. Sin "Transferencia a", sin CUIT, sin números de operación, sin "Pago de servicio".
+        - currency: detectá por símbolo o contexto. "$" en wallets argentinas (Naranja X, Mercado Pago, Brubank, Uala) → "ARS". "R$" → "BRL". "€" → "EUR". null si no hay info clara.
+        - date: si la fila no tiene fecha pero hay un encabezado cercano (ej. "4 de mayo"), usá esa. Año actual si no se ve.
+        - category: una de "Alimentación", "Transporte", "Salud", "Suscripciones", "Servicios", "Ropa", "Entretenimiento", "Educación", "Hogar", "Transferencias", "Otros".
+
+        Si no identificás NINGÚN gasto → devolvé {"transactions": []}.
+        """
+
+        var blocks: [APIBlock] = jpegDatas.map { APIBlock(image: $0) }
+        let prompt = jpegDatas.count == 1
+            ? "Identificá todos los gastos de esta imagen y devolveme el JSON."
+            : "Identificá todos los gastos de las \(jpegDatas.count) imágenes y devolveme el JSON consolidado."
+        blocks.append(APIBlock(type: "text", text: prompt))
+
+        let response = try await callProxy(
+            accessToken: accessToken,
+            system: system,
+            tools: [],
+            messages: [APIMessage(role: "user", content: .blocks(blocks))]
+        )
+
+        let jsonText = Self.extractText(from: response)
+        return try Self.decodeReceiptsJSON(jsonText)
+    }
+
+    private static func decodeReceiptsJSON(_ raw: String) throws -> [ParsedReceipt] {
+        let cleaned = raw
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let data = cleaned.data(using: .utf8) else {
+            throw AnthropicError.invalidResponse
+        }
+
+        struct ReceiptDTO: Decodable {
+            let amount: Double?
+            let date: String?
+            let merchant: String?
+            let currency: String?
+            let category: String?
+        }
+        struct Wrapper: Decodable {
+            let transactions: [ReceiptDTO]
+        }
+
+        let wrapper = try JSONDecoder().decode(Wrapper.self, from: data)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+
+        return wrapper.transactions.compactMap { dto -> ParsedReceipt? in
+            guard let amount = dto.amount, amount > 0 else { return nil }
+            let date: Date? = dto.date.flatMap { dateFormatter.date(from: $0) }
+            return ParsedReceipt(
+                amount: Decimal(amount),
+                date: date,
+                merchant: dto.merchant?.isEmpty == false ? dto.merchant : nil,
+                currency: dto.currency?.isEmpty == false ? dto.currency : nil,
+                category: dto.category?.isEmpty == false ? dto.category : nil,
+                rawLines: []
+            )
+        }
+    }
+
+    /// Extrae datos estructurados de un recibo a partir del texto OCR usando
+    /// Claude Haiku. Mucho más robusto que el parser regex en `ReceiptParser`
+    /// — entiende formatos sin decimales, líneas de header de ticket, idiomas
+    /// mezclados y devuelve la categoría sugerida ya en español.
+    func parseReceipt(text: String, accessToken: String) async throws -> ParsedReceipt {
+        let system = """
+        Sos un parser de recibos y tickets de compra. Recibís el texto crudo extraído por OCR (puede estar desordenado o con errores) y respondés ÚNICAMENTE con un objeto JSON válido — sin explicaciones, sin markdown, sin código de bloque.
+
+        Estructura esperada:
+        {"amount": <número con decimales o null>, "date": "<YYYY-MM-DD o null>", "merchant": "<nombre del comercio o null>", "currency": "<USD|ARS|EUR|BRL|MXN|UYU|CLP|PEN|COP o null>", "category": "<categoría sugerida o null>"}
+
+        Reglas:
+        - amount: el TOTAL pagado (no subtotales, no códigos de barras, no números de transacción ni CUIT).
+        - merchant: solo el nombre del comercio. NO incluyas "Ticket Nº", "CUIT", domicilios, ni números.
+        - currency: detectá por símbolo ($, €, R$), código (USD, ARS) o contexto. null si no es claro.
+        - category: una de "Alimentación", "Transporte", "Salud", "Suscripciones", "Servicios", "Ropa", "Entretenimiento", "Educación", "Hogar", "Otros". Devolvé null si no podés inferir.
+        - Si NO podés determinar un campo con razonable confianza, devolvé null para ese campo.
+        """
+
+        let response = try await callProxy(
+            accessToken: accessToken,
+            system: system,
+            tools: [],
+            messages: [APIMessage(role: "user", content: .text("Texto OCR del recibo:\n\(text)"))]
+        )
+
+        let jsonText = Self.extractText(from: response)
+        return try Self.decodeReceiptJSON(jsonText, rawText: text)
+    }
+
+    private static func decodeReceiptJSON(_ raw: String, rawText: String) throws -> ParsedReceipt {
+        let cleaned = raw
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let data = cleaned.data(using: .utf8) else {
+            throw AnthropicError.invalidResponse
+        }
+
+        struct ReceiptDTO: Decodable {
+            let amount: Double?
+            let date: String?
+            let merchant: String?
+            let currency: String?
+            let category: String?
+        }
+
+        let dto = try JSONDecoder().decode(ReceiptDTO.self, from: data)
+
+        let date: Date? = {
+            guard let dateStr = dto.date, !dateStr.isEmpty else { return nil }
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            f.locale = Locale(identifier: "en_US_POSIX")
+            return f.date(from: dateStr)
+        }()
+
+        let amount: Decimal? = dto.amount.flatMap {
+            $0 > 0 ? Decimal($0) : nil
+        }
+
+        return ParsedReceipt(
+            amount: amount,
+            date: date,
+            merchant: dto.merchant?.isEmpty == false ? dto.merchant : nil,
+            currency: dto.currency?.isEmpty == false ? dto.currency : nil,
+            category: dto.category?.isEmpty == false ? dto.category : nil,
+            rawLines: rawText.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        )
+    }
+
     // MARK: - Tool execution
 
     @MainActor
@@ -164,7 +336,7 @@ actor AnthropicProvider {
         messages: [APIMessage]
     ) async throws -> APIResponse {
         let url = Config.supabaseURL.appendingPathComponent("functions/v1/ai-proxy")
-        var req = URLRequest(url: url)
+        var req = URLRequest(url: url, timeoutInterval: 45)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -284,6 +456,17 @@ enum APIContent: Codable, Sendable {
     }
 }
 
+struct ImageSource: Codable, Sendable {
+    let type: String       // "base64"
+    let mediaType: String  // "image/jpeg"
+    let data: String       // base64-encoded bytes
+
+    enum CodingKeys: String, CodingKey {
+        case type, data
+        case mediaType = "media_type"
+    }
+}
+
 struct APIBlock: Codable, Sendable {
     let type: String
     var text: String?
@@ -292,9 +475,10 @@ struct APIBlock: Codable, Sendable {
     var input: [String: AnyJSON]?
     var toolUseId: String?
     var content: String?
+    var source: ImageSource?
 
     enum CodingKeys: String, CodingKey {
-        case type, text, id, name, input
+        case type, text, id, name, input, source
         case toolUseId = "tool_use_id"
         case content
     }
@@ -310,6 +494,15 @@ struct APIBlock: Codable, Sendable {
         self.text = text
     }
 
+    init(image jpegData: Data) {
+        self.type = "image"
+        self.source = ImageSource(
+            type: "base64",
+            mediaType: "image/jpeg",
+            data: jpegData.base64EncodedString()
+        )
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         type = try c.decode(String.self, forKey: .type)
@@ -319,6 +512,7 @@ struct APIBlock: Codable, Sendable {
         input = try c.decodeIfPresent([String: AnyJSON].self, forKey: .input)
         toolUseId = try c.decodeIfPresent(String.self, forKey: .toolUseId)
         content = try c.decodeIfPresent(String.self, forKey: .content)
+        source = try c.decodeIfPresent(ImageSource.self, forKey: .source)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -330,6 +524,7 @@ struct APIBlock: Codable, Sendable {
         try c.encodeIfPresent(input, forKey: .input)
         try c.encodeIfPresent(toolUseId, forKey: .toolUseId)
         try c.encodeIfPresent(content, forKey: .content)
+        try c.encodeIfPresent(source, forKey: .source)
     }
 }
 

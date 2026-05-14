@@ -77,6 +77,32 @@ actor AIAssistantService {
         return .unknown
     }
 
+    private struct TimeoutError: Error, LocalizedError {
+        let seconds: TimeInterval
+        var errorDescription: String? {
+            "se demoró más de \(Int(seconds))s sin responder"
+        }
+    }
+
+    /// Race entre `operation` y un sleep de `seconds`. Si el sleep gana, lanza
+    /// `TimeoutError`. Garantiza que ningún tier se quede colgado para siempre
+    /// y deje el spinner del UI sin liberar.
+    private static func withTimeout<T: Sendable>(
+        seconds: TimeInterval,
+        operation: @Sendable @escaping () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw TimeoutError(seconds: seconds)
+            }
+            let first = try await group.next()!
+            group.cancelAll()
+            return first
+        }
+    }
+
     func ask(
         message: String,
         context: FinancialContext,
@@ -91,12 +117,14 @@ actor AIAssistantService {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             do {
-                let response = try await FoundationModelsProvider.ask(
-                    message: message,
-                    context: context,
-                    householdId: householdId,
-                    userId: userId
-                )
+                let response = try await Self.withTimeout(seconds: 30) {
+                    try await FoundationModelsProvider.ask(
+                        message: message,
+                        context: context,
+                        householdId: householdId,
+                        userId: userId
+                    )
+                }
                 NSLog("[AI] Tier 1 (FoundationModels) success")
                 return response
             } catch {
@@ -122,15 +150,17 @@ actor AIAssistantService {
         }
 
         do {
-            let response = try await AnthropicProvider.shared.respond(
-                message: message,
-                context: context,
-                householdId: hid,
-                userId: uid,
-                accessToken: accessToken,
-                history: history,
-                voiceMode: voiceMode
-            )
+            let response = try await Self.withTimeout(seconds: 60) {
+                try await AnthropicProvider.shared.respond(
+                    message: message,
+                    context: context,
+                    householdId: hid,
+                    userId: uid,
+                    accessToken: accessToken,
+                    history: history,
+                    voiceMode: voiceMode
+                )
+            }
             NSLog("[AI] Tier 2 (Anthropic Cloud) success")
             return response
         } catch let error as AnthropicProvider.AnthropicError {

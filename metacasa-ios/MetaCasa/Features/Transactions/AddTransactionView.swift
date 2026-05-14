@@ -28,7 +28,7 @@ struct AddTransactionView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .bottom) {
                 Color.appBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 20) {
@@ -42,17 +42,6 @@ struct AddTransactionView: View {
                         if let msg = errorMessage {
                             Text(msg).font(.mcCaption).foregroundStyle(Color.brandDanger)
                         }
-                        Button {
-                            Task { await submit() }
-                        } label: {
-                            if isLoading {
-                                ProgressView().tint(.white)
-                            } else {
-                                Text(type == .gasto ? "tx.button.save_expense" : "tx.button.save_income")
-                            }
-                        }
-                        .buttonStyle(MCPrimaryButton())
-                        .disabled(isLoading || parseAmount() == nil)
 
                         if parseAmount() != nil {
                             Button {
@@ -71,8 +60,10 @@ struct AddTransactionView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 120)   // espacio para el sticky save bar
                 }
+
+                stickySaveBar
             }
             .navigationTitle(Text("tx.new"))
             .task {
@@ -104,15 +95,42 @@ struct AddTransactionView: View {
     }
 
     private var typeToggle: some View {
-        Picker("Tipo", selection: $type) {
-            Text("tx.type.expense").tag(TxType.gasto)
-            Text("tx.type.income").tag(TxType.ingreso)
+        HStack(spacing: 10) {
+            typePill(kind: .gasto,   icon: "arrow.down", label: "tx.type.expense", color: .brandDanger)
+            typePill(kind: .ingreso, icon: "arrow.up",   label: "tx.type.income",  color: .brandSuccess)
         }
-        .pickerStyle(.segmented)
+    }
+
+    private func typePill(kind: TxType, icon: String, label: LocalizedStringKey, color: Color) -> some View {
+        let isSelected = type == kind
+        return Button {
+            Haptics.play(.selection)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                type = kind
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.subheadline.weight(.bold))
+                Text(label).font(.mcBody.weight(.semibold))
+            }
+            .foregroundStyle(isSelected ? Color(hex: "#0E1312") : Color.textPrimary)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(isSelected ? color.opacity(0.6) : Color.appSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? color : Color.appBorder, lineWidth: isSelected ? 1.5 : 1)
+            )
+            .scaleEffect(isSelected ? 1.02 : 1)
+        }
+        .buttonStyle(.plain)
+        .pressableScale(0.97)
     }
 
     private var amountField: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             // Label con el currency code visible.
             HStack {
                 Text("tx.field.amount").font(.mcLabel).foregroundStyle(Color.textMuted)
@@ -125,24 +143,40 @@ struct AddTransactionView: View {
                     .clipShape(Capsule())
             }
 
+            // Card del monto: serif hero + gradiente sage→champagne + glow al
+            // tener un valor positivo. El monto es el "héroe" del flow.
             HStack(spacing: 8) {
-                // Símbolo de moneda + amount en SERIF (Midnight Sage typography):
-                // el monto es el héroe, debe leerse como número editorial premium.
                 Text(currencySymbol)
-                    .font(.mcSerifHero)
-                    .foregroundStyle(type == .gasto ? Color.brandDanger : Color.brandSuccess)
+                    .font(.mcSerifDisplay)
+                    .foregroundStyle(amountColor)
 
                 TextField("0", text: $amountStr)
                     .keyboardType(.decimalPad)
                     .font(.mcSerifHero)
-                    .foregroundStyle(type == .gasto ? Color.brandDanger : Color.brandSuccess)
+                    .foregroundStyle(amountColor)
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 20).padding(.vertical, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(
+                    colors: [Color.brandPrimary.opacity(0.10), Color.brandSecondary.opacity(0.06)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .glowIfPositive((parseAmount() ?? 0) > 0, radius: 20)
+            .opacity(amountStr.isEmpty ? 0.65 : 1)
+            .animation(.easeOut(duration: 0.3), value: amountStr.isEmpty)
+
+            // Quick amounts: shortcuts +1k / +5k / +10k / +50k / Limpiar
+            HStack(spacing: 8) {
+                ForEach([1000, 5000, 10000, 50000], id: \.self) { v in
+                    quickAmountChip(v)
+                }
+                quickClearChip
+            }
 
             // Preview en tiempo real con puntos de miles + símbolo moneda.
-            // Confirma al user lo que se va a registrar.
             if let amount = parseAmount() {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
@@ -156,6 +190,77 @@ struct AddTransactionView: View {
                 .animation(.easeOut(duration: 0.15), value: amount)
             }
         }
+    }
+
+    private var amountColor: Color {
+        if amountStr.isEmpty { return Color.textDim }
+        return type == .gasto ? Color.brandDanger : Color.brandSuccess
+    }
+
+    private func quickAmountChip(_ value: Int) -> some View {
+        Button {
+            let cur = parseAmount() ?? 0
+            let new = cur + Decimal(value)
+            // "1000.0" → "1000". Mantenemos decimales si los había.
+            var str = "\(new)"
+            if str.hasSuffix(".0") { str = String(str.dropLast(2)) }
+            amountStr = str
+            Haptics.play(.impactLight)
+        } label: {
+            Text("+\(value.formatted(.number.notation(.compactName)))")
+                .font(.mcCaption.weight(.semibold))
+                .foregroundStyle(Color.textPrimary)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Capsule().fill(Color.appSurface))
+                .overlay(Capsule().stroke(Color.appBorder, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .pressableScale(0.96)
+    }
+
+    private var quickClearChip: some View {
+        Button {
+            amountStr = ""
+            Haptics.play(.selection)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "xmark").font(.caption2.weight(.bold))
+                Text("Limpiar").font(.mcCaption.weight(.semibold))
+            }
+            .foregroundStyle(Color.brandDanger)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Capsule().fill(Color.brandDanger.opacity(0.10)))
+            .overlay(Capsule().stroke(Color.brandDanger.opacity(0.3), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .pressableScale(0.96)
+    }
+
+    /// Sticky save bar al fondo del view. Background sólido + divider + shadow
+    /// superior para separarlo visualmente del scroll content.
+    private var stickySaveBar: some View {
+        VStack(spacing: 0) {
+            Divider().background(Color.appBorder.opacity(0.5))
+            Button {
+                Task { await submit() }
+            } label: {
+                if isLoading {
+                    ProgressView().tint(.white)
+                } else {
+                    Label {
+                        Text(type == .gasto ? "tx.button.save_expense" : "tx.button.save_income")
+                    } icon: {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+            .buttonStyle(MCPrimaryButton())
+            .disabled(isLoading || parseAmount() == nil)
+            .opacity(parseAmount() == nil ? 0.55 : 1)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .background(Color.appSurface.shadow(.drop(color: .black.opacity(0.08), radius: 12, y: -4)))
     }
 
     /// Moneda del hogar activo (cae a USD si no hay).
@@ -290,23 +395,22 @@ struct AddTransactionView: View {
     }
 
     private var categoryPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("tx.field.category").font(.mcLabel).foregroundStyle(Color.textMuted)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(availableCategoryItems, id: \.name) { cat in
-                        Button { category = cat.name } label: {
-                            HStack(spacing: 6) {
-                                Text(cat.emoji ?? CategoryCatalog.emoji(for: cat.name))
-                                Text(cat.name).font(.mcCaption.weight(.bold))
+                        MCChip(
+                            icon: cat.emoji ?? CategoryCatalog.emoji(for: cat.name),
+                            label: cat.name,
+                            isSelected: category == cat.name,
+                            action: {
+                                category = cat.name
                             }
-                            .padding(.horizontal, 14).padding(.vertical, 10)
-                            .background(category == cat.name ? Color.brandPrimary : Color.appSurface)
-                            .foregroundStyle(category == cat.name ? Color.white : Color.textPrimary)
-                            .clipShape(Capsule())
-                        }
+                        )
                     }
                 }
+                .padding(.horizontal, 1)  // espacio para que el border 1.5pt del selected no se recorte
             }
 
             // Subcategorías (si la categoría tiene definidas)
@@ -318,28 +422,22 @@ struct AddTransactionView: View {
                     .padding(.top, 4)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        // "Sin subcategoría" (deselect)
-                        Button {
-                            subcategory = nil
-                        } label: {
-                            Text("tx.field.subcategory.none")
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(subcategory == nil ? Color.brandPrimary.opacity(0.2) : Color.appSurface)
-                                .foregroundStyle(subcategory == nil ? Color.brandPrimary : Color.textMuted)
-                                .clipShape(Capsule())
-                        }
+                        MCChip(
+                            icon: nil,
+                            label: String(localized: "tx.field.subcategory.none"),
+                            isSelected: subcategory == nil,
+                            action: { subcategory = nil }
+                        )
                         ForEach(availableSubcategories, id: \.self) { sub in
-                            Button { subcategory = sub } label: {
-                                Text(sub)
-                                    .font(.caption.weight(.medium))
-                                    .padding(.horizontal, 10).padding(.vertical, 6)
-                                    .background(subcategory == sub ? Color.brandPrimary : Color.appSurface)
-                                    .foregroundStyle(subcategory == sub ? Color.white : Color.textPrimary)
-                                    .clipShape(Capsule())
-                            }
+                            MCChip(
+                                icon: nil,
+                                label: sub,
+                                isSelected: subcategory == sub,
+                                action: { subcategory = sub }
+                            )
                         }
                     }
+                    .padding(.horizontal, 1)
                 }
             }
         }

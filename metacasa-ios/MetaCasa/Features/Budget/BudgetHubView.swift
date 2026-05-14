@@ -289,36 +289,59 @@ struct BudgetHubView: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(Color.white.opacity(0.07), lineWidth: 1)
         )
+        // Swipe horizontal sobre el header para cambiar de mes. El threshold
+        // de 50pt evita disparar sobre micro-gestos. Los chevrons quedan como
+        // alternativa accesible.
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    if value.translation.width < -50 {
+                        Haptics.play(.selection)
+                        viewModel.changeMonth(delta: 1)
+                        Task { await reload() }
+                    } else if value.translation.width > 50 {
+                        Haptics.play(.selection)
+                        viewModel.changeMonth(delta: -1)
+                        Task { await reload() }
+                    }
+                }
+        )
     }
 
     private var summaryTiles: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             summaryTile(
                 icon: "arrow.down.circle.fill",
                 labelKey: "budget.income",
                 amount: viewModel.ingresosMes,
                 kind: .ingreso,
-                color: .brandSuccess
+                color: .brandSuccess,
+                glow: viewModel.ingresosMes > 0
             )
             summaryTile(
                 icon: "dot.arrowtriangles.up.right.down.left.circle",
                 labelKey: "budget.assigned",
                 amount: viewModel.totalAssigned,
                 kind: .neutro,
-                color: .brandPrimary
+                color: .brandPrimary,
+                // Asignado glow si gastado está dentro del budget. Premia al
+                // usuario por mantenerse en presupuesto.
+                glow: viewModel.totalAssigned > 0 && viewModel.totalSpent <= viewModel.totalAssigned
             )
             summaryTile(
                 icon: "arrow.up.circle.fill",
                 labelKey: "budget.spent",
                 amount: viewModel.totalSpent,
                 kind: .gasto,
-                color: .brandDanger
+                color: .brandDanger,
+                // Gastar nunca es "positivo" semánticamente — sin glow.
+                glow: false
             )
         }
     }
 
-    private func summaryTile(icon: String, labelKey: LocalizedStringKey, amount: Decimal, kind: AmountLabel.Kind, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func summaryTile(icon: String, labelKey: LocalizedStringKey, amount: Decimal, kind: AmountLabel.Kind, color: Color, glow: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Image(systemName: icon).font(.caption).foregroundStyle(color)
                 Text(labelKey).font(.caption2.weight(.bold)).foregroundStyle(Color.textMuted)
@@ -326,10 +349,11 @@ struct BudgetHubView: View {
             AmountLabel(amount: amount, currency: householdCurrency, kind: kind)
                 .font(.mcSerifInline)
         }
-        .padding(10)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.appSurface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glowIfPositive(glow, radius: 14)
     }
 
     @ViewBuilder
@@ -378,31 +402,76 @@ struct BudgetHubView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "tray")
-                .font(.largeTitle)
-                .foregroundStyle(Color.textMuted)
-            Text("budget.empty.title")
-                .font(.mcBody.weight(.semibold))
-                .foregroundStyle(Color.textPrimary)
-            Text("budget.empty.hint")
-                .font(.caption)
-                .foregroundStyle(Color.textMuted)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 18) {
+            EnvelopesIllustration()
+                .frame(width: 140, height: 100)
+
+            VStack(spacing: 6) {
+                Text("budget.empty.title")
+                    .font(.mcSerifTitle)
+                    .foregroundStyle(Color.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text("budget.empty.hint")
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textMuted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
+            }
+
             Button {
                 Haptics.play(.impactMedium)
                 editorState = EditorState(existing: nil)
             } label: {
-                Label("budget.addCategory", systemImage: "plus.circle.fill")
+                Label("budget.addCategory", systemImage: "plus")
                     .font(.subheadline.weight(.bold))
             }
             .buttonStyle(MCPrimaryButton())
+            .frame(maxWidth: 260)
             .padding(.top, 4)
         }
-        .padding(24)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
         .background(Color.appSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.appBorder, lineWidth: 1)
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+    }
+
+    /// Tres "sobres" apilados en perspectiva — sage, champagne, coral.
+    /// Diferencia visual al instante vs el `tray` SF Symbol genérico.
+    private struct EnvelopesIllustration: View {
+        var body: some View {
+            ZStack {
+                envelope(.brandSecondary, w: 86, h: 60)
+                    .offset(x: -22, y: 8)
+                    .rotationEffect(.degrees(-8))
+                envelope(.brandDanger, w: 86, h: 60)
+                    .offset(x: 22, y: 8)
+                    .rotationEffect(.degrees(8))
+                envelope(.brandPrimary, w: 92, h: 64)
+            }
+        }
+
+        private func envelope(_ color: Color, w: CGFloat, h: CGFloat) -> some View {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(color.opacity(0.22))
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(color.opacity(0.6), lineWidth: 1)
+                // "Solapa" del sobre
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: 0))
+                    p.addLine(to: CGPoint(x: w / 2, y: h * 0.45))
+                    p.addLine(to: CGPoint(x: w, y: 0))
+                }
+                .stroke(color.opacity(0.6), lineWidth: 1)
+            }
+            .frame(width: w, height: h)
+        }
     }
 
     private func envelopeRow(_ env: BudgetHubViewModel.EnvelopeWithAllocation) -> some View {

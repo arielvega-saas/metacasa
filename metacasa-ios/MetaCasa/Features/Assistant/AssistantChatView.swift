@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import Observation
+import VisionKit
 
 /// Chat multimodal del asistente financiero.
 ///
@@ -24,9 +25,16 @@ struct AssistantChatView: View {
     @State private var speech = SpeechRecognizerService.shared
 
     // Attachment pickers
-    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showFilePicker = false
+    @State private var showPhotoPicker = false
     @State private var showVoiceMode = false
+    @State private var showScanner = false
+
+    // UX polish (Sprint 2026-05-06)
+    @State private var showPrivacyExplainer = false
+    @FocusState private var inputFocused: Bool
+    @State private var thinkingPulse: [Bool] = [false, false, false]
 
     var body: some View {
         NavigationStack {
@@ -64,11 +72,9 @@ struct AssistantChatView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Color(hex: "#0E1312"))
                         }
-                        VStack(alignment: .leading, spacing: 0) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("assistant.title").font(.headline)
-                            Text("assistant.subtitle")
-                                .font(.caption2)
-                                .foregroundStyle(Color.textMuted)
+                            privacyBadge
                         }
                     }
                 }
@@ -89,9 +95,16 @@ struct AssistantChatView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .task { viewModel.seedWelcome() }
-            .onChange(of: selectedPhoto) { _, newValue in
-                Task { await handlePhotoPick(newValue) }
+            .onChange(of: selectedPhotos) { _, newValue in
+                guard !newValue.isEmpty else { return }
+                Task { await handlePhotosPick(newValue) }
             }
+            .photosPicker(
+                isPresented: $showPhotoPicker,
+                selection: $selectedPhotos,
+                maxSelectionCount: 10,
+                matching: .images
+            )
             .fileImporter(
                 isPresented: $showFilePicker,
                 allowedContentTypes: [.commaSeparatedText, .plainText, .spreadsheet, UTType(filenameExtension: "csv") ?? .plainText, UTType(filenameExtension: "xlsx") ?? .plainText],
@@ -103,7 +116,43 @@ struct AssistantChatView: View {
                 VoiceConversationView()
                     .environment(appState)
             }
+            .sheet(isPresented: $showScanner) {
+                DocumentScannerView { images in
+                    showScanner = false
+                    guard !images.isEmpty else { return }
+                    Task { await viewModel.handleImages(images, appState: appState) }
+                } onCancel: {
+                    showScanner = false
+                }
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showPrivacyExplainer) {
+                PrivacyExplainerSheet()
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
         }
+    }
+
+    // MARK: - Privacy badge
+
+    private var privacyBadge: some View {
+        Button {
+            Haptics.play(.selection)
+            showPrivacyExplainer = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9, weight: .bold))
+                Text("On-device · Privado")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundStyle(Color.brandPrimary)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Capsule().fill(Color.brandPrimary.opacity(0.12)))
+            .overlay(Capsule().stroke(Color.brandPrimary.opacity(0.3), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Background
@@ -158,48 +207,90 @@ struct AssistantChatView: View {
 
     private var thinkingBubble: some View {
         HStack {
-            HStack(spacing: 6) {
-                ProgressView().scaleEffect(0.7)
+            HStack(alignment: .center, spacing: 6) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(Color.brandPrimary)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(thinkingPulse[i] ? 1.0 : 0.55)
+                        .opacity(thinkingPulse[i] ? 1.0 : 0.35)
+                        .animation(
+                            .easeInOut(duration: 0.6)
+                                .repeatForever()
+                                .delay(Double(i) * 0.15),
+                            value: thinkingPulse[i]
+                        )
+                }
                 Text("assistant.thinking")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             .background(Color.appSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.appBorder, lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .onAppear {
+                for i in 0..<3 { thinkingPulse[i] = true }
+            }
             Spacer()
         }
     }
 
     private var quickSuggestions: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("assistant.quickStart").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            ForEach(suggestionsList, id: \.self) { s in
+        VStack(alignment: .leading, spacing: 10) {
+            Text("assistant.quickStart")
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            ForEach(suggestionsList, id: \.raw) { s in
                 Button {
-                    viewModel.input = s
+                    Haptics.play(.selection)
+                    viewModel.input = s.raw
                     Task { await viewModel.send(appState: appState) }
                 } label: {
-                    HStack {
-                        Text(s).font(.callout)
+                    HStack(spacing: 12) {
+                        Image(systemName: s.icon)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.brandPrimary)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.brandPrimary.opacity(0.12)))
+                        Text(s.raw)
+                            .font(.callout)
+                            .foregroundStyle(Color.textPrimary)
+                            .multilineTextAlignment(.leading)
                         Spacer()
-                        Image(systemName: "arrow.up.right").font(.caption)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.textDim)
                     }
-                    .foregroundStyle(Color.brandPrimary)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(Color.brandPrimary.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(.horizontal, 14).padding(.vertical, 12)
+                    .background(Color.appSurface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.appBorder, lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .pressableScale(0.97)
             }
         }
     }
 
-    private let suggestionsList: [String] = [
-        "¿Cómo voy este mes?",
-        "¿Dónde gasto más?",
-        "Hacé un presupuesto para el próximo mes",
-        "¿Cuánto me va a quedar a fin de mes?",
-        "¿Cómo voy con mis metas?"
+    private struct QuickSuggestion: Hashable {
+        let icon: String
+        let raw: String
+    }
+
+    private let suggestionsList: [QuickSuggestion] = [
+        .init(icon: "chart.bar.fill",         raw: "¿Cómo voy este mes?"),
+        .init(icon: "mappin.and.ellipse",     raw: "¿Dónde gasto más?"),
+        .init(icon: "calendar",               raw: "Hacé un presupuesto para el próximo mes"),
+        .init(icon: "chart.pie.fill",         raw: "¿Cuánto me va a quedar a fin de mes?"),
+        .init(icon: "flag.fill",              raw: "¿Cómo voy con mis metas?")
     ]
 
     // MARK: - Input bar
@@ -225,6 +316,17 @@ struct AssistantChatView: View {
 
     private var attachmentsMenu: some View {
         Menu {
+            if VNDocumentCameraViewController.isSupported {
+                Button {
+                    showScanner = true
+                } label: {
+                    Label {
+                        Text("Escanear recibo")
+                    } icon: {
+                        Image(systemName: "doc.viewfinder")
+                    }
+                }
+            }
             Button {
                 showFilePicker = true
             } label: {
@@ -234,7 +336,9 @@ struct AssistantChatView: View {
                     Image(systemName: "doc")
                 }
             }
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+            Button {
+                showPhotoPicker = true
+            } label: {
                 Label {
                     Text("assistant.attachment.photo")
                 } icon: {
@@ -257,9 +361,17 @@ struct AssistantChatView: View {
             .textFieldStyle(.plain)
             .font(.body)
             .lineLimit(1...5)
-            .padding(.horizontal, 14).padding(.vertical, 10)
+            .focused($inputFocused)
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .frame(minHeight: 48)
             .background(Color.appSurfaceInset)
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(inputFocused ? Color.brandPrimary.opacity(0.5) : Color.clear, lineWidth: 1)
+                    .animation(.easeOut(duration: 0.2), value: inputFocused)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .glowIfPositive(inputFocused, radius: 22)
             .submitLabel(.send)
             .disabled(speech.isRecording)
             .onSubmit {
@@ -280,9 +392,9 @@ struct AssistantChatView: View {
                 Task { await viewModel.send(appState: appState) }
             } label: {
                 Image(systemName: "arrow.up")
-                    .font(.headline.weight(.bold))
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(Color(hex: "#0E1312"))
-                    .frame(width: 38, height: 38)
+                    .frame(width: 48, height: 48)
                     .background(Color.brandPrimary)
                     .overlay(
                         Circle().stroke(Color.brandSecondary.opacity(0.4), lineWidth: 1)
@@ -290,19 +402,21 @@ struct AssistantChatView: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .pressableScale(0.94, haptic: .impactLight)
         } else {
             // Mic
             Button {
                 Task { await toggleMic() }
             } label: {
                 Image(systemName: speech.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.headline.weight(.medium))
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(speech.isRecording ? .white : Color.textPrimary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 48, height: 48)
                     .background(speech.isRecording ? Color.brandDanger : Color.appSurfaceInset)
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .pressableScale(0.94, haptic: .impactLight)
         }
     }
 
@@ -390,20 +504,24 @@ struct AssistantChatView: View {
         }
     }
 
-    private func handlePhotoPick(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
-        defer { selectedPhoto = nil }
+    private func handlePhotosPick(_ items: [PhotosPickerItem]) async {
+        defer { selectedPhotos = [] }
 
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data) else {
-                viewModel.appendSystem("No pude leer esa imagen.")
-                return
+        var images: [UIImage] = []
+        for item in items {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) else { continue }
+                images.append(image)
+            } catch {
+                NSLog("[Photo] failed to load item: \(error.localizedDescription)")
             }
-            await viewModel.handleImage(image, appState: appState)
-        } catch {
-            viewModel.appendSystem("Error al cargar la imagen: \(error.localizedDescription)")
         }
+        guard !images.isEmpty else {
+            viewModel.appendSystem("No pude leer las imágenes seleccionadas.")
+            return
+        }
+        await viewModel.handleImages(images, appState: appState)
     }
 
     private func handleFilePick(result: Result<[URL], Error>) async {
@@ -419,11 +537,93 @@ struct AssistantChatView: View {
     }
 }
 
+// MARK: - Privacy explainer
+
+private struct PrivacyExplainerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.brandPrimary.opacity(0.18))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "lock.fill")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(Color.brandPrimary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tu privacidad, primero")
+                        .font(.mcSerifTitle)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("Qué procesamos en tu dispositivo y qué no")
+                        .font(.mcCaption)
+                        .foregroundStyle(Color.textMuted)
+                }
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                privacyRow(
+                    icon: "iphone",
+                    title: "En tu iPhone",
+                    body: "Reconocimiento de voz, OCR de recibos y comandos rápidos corren on-device con Apple Speech y Vision. Nada sale del teléfono."
+                )
+                privacyRow(
+                    icon: "cloud",
+                    title: "En la nube (solo cuando hace falta)",
+                    body: "Si tu pregunta requiere razonamiento complejo o entender una imagen, la enviamos a Claude (Anthropic). Nunca compartimos saldos, ni números de tarjeta, ni emails."
+                )
+                privacyRow(
+                    icon: "hand.raised.fill",
+                    title: "Vos mandás",
+                    body: "Podés activar el modo solo on-device en Ajustes — más lento para preguntas largas, pero garantizado offline."
+                )
+            }
+
+            Spacer()
+
+            Button { dismiss() } label: {
+                Text("Entendido")
+            }
+            .buttonStyle(MCPrimaryButton())
+        }
+        .padding(24)
+        .background(Color.appBackground.ignoresSafeArea())
+    }
+
+    private func privacyRow(icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.brandPrimary)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color.brandPrimary.opacity(0.12)))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.mcBody.weight(.bold))
+                    .foregroundStyle(Color.textPrimary)
+                Text(body)
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
 // MARK: - Message Row
+
+private struct IdentifiableImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
 
 private struct MessageRow: View {
     let message: AssistantMessage
     let onActionTap: (AssistantAction) -> Void
+    @State private var imageViewerImage: IdentifiableImage?
 
     /// Renderiza el contenido con soporte para markdown (bold, italic, links).
     /// Si el parser falla (markdown malformado), cae a texto plano.
@@ -472,17 +672,25 @@ private struct MessageRow: View {
 
             if message.role != .user { Spacer(minLength: 40) }
         }
+        .fullScreenCover(item: $imageViewerImage) { wrapper in
+            ImageViewer(image: wrapper.image)
+        }
     }
 
     @ViewBuilder
     private func attachmentView(_ attachment: AssistantAttachment) -> some View {
         switch attachment {
         case .image(let image):
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(maxWidth: 220, maxHeight: 180)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Button {
+                imageViewerImage = IdentifiableImage(image: image)
+            } label: {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: 220, maxHeight: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
         case .file(_, let name):
             HStack(spacing: 10) {
                 Image(systemName: "doc.fill")
@@ -548,6 +756,7 @@ struct AssistantAction: Sendable, Identifiable {
 
     enum Kind: Sendable {
         case createTransactionFromReceipt(ParsedReceipt)
+        case createMultipleTransactions([ParsedReceipt])
         case importCSV(URL)
         case importParsed(ParsedImport)
         case discard
@@ -630,41 +839,104 @@ final class AssistantViewModel {
 
     // MARK: - Image → OCR → Receipt
 
-    func handleImage(_ image: UIImage, appState: AppState) async {
+    func handleImages(_ images: [UIImage], appState: AppState) async {
+        guard !images.isEmpty else { return }
         Haptics.play(.impactLight)
-        messages.append(AssistantMessage(role: .user, content: "", attachment: .image(image)))
+        for img in images {
+            messages.append(AssistantMessage(role: .user, content: "", attachment: .image(img)))
+        }
         isThinking = true
         defer { isThinking = false }
 
-        do {
-            let text = try await OCRService.extractText(from: image)
-            guard !text.isEmpty else {
-                messages.append(AssistantMessage(
-                    role: .assistant,
-                    content: "No pude leer texto en esa imagen. Probá con más luz o enfocando mejor el recibo."
-                ))
-                return
+        // Tier preferido: mandar las imágenes DIRECTO a Claude vision en una
+        // sola request multimodal. Mucho más eficiente que llamadas separadas
+        // y le da contexto cruzado al modelo. Si falla, fallback OCR.
+        if let token = await TokenHolder.shared.get() {
+            let jpegDatas = images.compactMap { Self.compressedJPEGData(from: $0) }
+            if !jpegDatas.isEmpty {
+                do {
+                    let receipts = try await AnthropicProvider.shared
+                        .parseImageReceipts(jpegDatas: jpegDatas, accessToken: token)
+                    appendImageResultMessage(receipts: receipts)
+                    return
+                } catch {
+                    NSLog("[Receipt] Claude vision failed (\(error.localizedDescription)), falling back to OCR")
+                }
             }
+        }
 
-            let parsed = ReceiptParser.parse(text: text)
-            let response = formatReceiptPreview(parsed)
-            let actions: [AssistantAction] = parsed.amount != nil ? [
-                AssistantAction(label: "Crear transacción", icon: "plus.circle.fill", destructive: false, kind: .createTransactionFromReceipt(parsed)),
+        // Fallback: OCR sobre cada imagen + parser regex (solo recibos únicos).
+        var allReceipts: [ParsedReceipt] = []
+        for image in images {
+            do {
+                let text = try await OCRService.extractText(from: image)
+                guard !text.isEmpty else { continue }
+                let parsed = ReceiptParser.parse(text: text)
+                if parsed.amount != nil { allReceipts.append(parsed) }
+            } catch {
+                NSLog("[OCR] failed: \(error.localizedDescription)")
+            }
+        }
+        appendImageResultMessage(receipts: allReceipts)
+    }
+
+    private func appendImageResultMessage(receipts: [ParsedReceipt]) {
+        if receipts.isEmpty {
+            messages.append(AssistantMessage(
+                role: .assistant,
+                content: "No detecté gastos identificables en esa imagen. Probá con un recibo más claro o un screenshot que muestre montos y comercios."
+            ))
+            return
+        }
+        if receipts.count == 1 {
+            let receipt = receipts[0]
+            let response = formatReceiptPreview(receipt)
+            let actions: [AssistantAction] = receipt.amount != nil ? [
+                AssistantAction(label: "Crear transacción", icon: "plus.circle.fill", destructive: false, kind: .createTransactionFromReceipt(receipt)),
                 AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
             ] : []
-
-            messages.append(AssistantMessage(
-                role: .assistant,
-                content: response,
-                attachment: nil,
-                actions: actions
-            ))
-        } catch {
-            messages.append(AssistantMessage(
-                role: .assistant,
-                content: "No pude procesar la imagen: \(error.localizedDescription)"
-            ))
+            messages.append(AssistantMessage(role: .assistant, content: response, attachment: nil, actions: actions))
+            return
         }
+        // Listado: mostrar resumen con N items + 1 acción bulk.
+        let preview = formatReceiptsListPreview(receipts)
+        let actions: [AssistantAction] = [
+            AssistantAction(label: "Crear las \(receipts.count)", icon: "plus.rectangle.on.rectangle", destructive: false, kind: .createMultipleTransactions(receipts)),
+            AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
+        ]
+        messages.append(AssistantMessage(role: .assistant, content: preview, attachment: nil, actions: actions))
+    }
+
+    private func formatReceiptsListPreview(_ receipts: [ParsedReceipt]) -> String {
+        var lines = ["📋 Detecté \(receipts.count) gastos:\n"]
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .short
+        dateFormatter.locale = AppLocaleStorage.effectiveLocale
+        for r in receipts.prefix(15) {
+            let amount = r.amount.map { Money.format($0, currency: r.currency ?? "USD", style: .compact) } ?? "?"
+            let merchant = r.merchant ?? "—"
+            let date = r.date.map { dateFormatter.string(from: $0) } ?? ""
+            let cat = r.category.map { " · \($0)" } ?? ""
+            lines.append("• \(amount) · \(merchant)\(cat) \(date)")
+        }
+        if receipts.count > 15 {
+            lines.append("• … y \(receipts.count - 15) más")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func compressedJPEGData(from image: UIImage, maxDimension: CGFloat = 1568, quality: CGFloat = 0.8) -> Data? {
+        let longSide = max(image.size.width, image.size.height)
+        if longSide <= maxDimension {
+            return image.jpegData(compressionQuality: quality)
+        }
+        let scale = maxDimension / longSide
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        return resized.jpegData(compressionQuality: quality)
     }
 
     private func formatReceiptPreview(_ parsed: ParsedReceipt) -> String {
@@ -785,6 +1057,8 @@ final class AssistantViewModel {
         switch action.kind {
         case .createTransactionFromReceipt(let receipt):
             await createTransaction(from: receipt, appState: appState)
+        case .createMultipleTransactions(let receipts):
+            await createMultipleTransactions(from: receipts, appState: appState)
         case .importCSV(let url):
             appendSystem("Abrí el tab Transacciones > botón Importar para procesar el archivo con preview y mapping completo.")
             _ = url
@@ -872,5 +1146,168 @@ final class AssistantViewModel {
                 content: "No pude crear la transacción: \(error.localizedDescription)"
             ))
         }
+    }
+
+    private func createMultipleTransactions(from receipts: [ParsedReceipt], appState: AppState) async {
+        guard let hid = appState.currentHouseholdId,
+              let uid = appState.currentUserId else {
+            appendSystem("Falta hogar o sesión activa.")
+            return
+        }
+        let defaultCurrency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
+
+        isThinking = true
+        defer { isThinking = false }
+
+        var inserted = 0
+        var failed = 0
+        for receipt in receipts {
+            guard let amount = receipt.amount else { failed += 1; continue }
+            let input = NewTransactionInput(
+                householdId: hid,
+                userId: uid,
+                accountId: nil,
+                type: .gasto,
+                amount: amount,
+                currencyOriginal: receipt.currency ?? defaultCurrency,
+                category: receipt.category ?? "Otro",
+                subcategory: nil,
+                note: receipt.merchant.map { "De foto: \($0)" },
+                date: receipt.date ?? Date()
+            )
+            do {
+                _ = try await TransactionService.shared.insert(input)
+                inserted += 1
+            } catch {
+                failed += 1
+            }
+        }
+
+        Haptics.play(.success)
+        let summary = failed == 0
+            ? "✅ \(inserted) transacciones creadas con éxito."
+            : "⚠️ \(inserted) creadas, \(failed) fallaron."
+        messages.append(AssistantMessage(role: .assistant, content: summary))
+    }
+}
+
+// MARK: - Document Scanner (VisionKit)
+
+/// Wrapper SwiftUI de `VNDocumentCameraViewController`. Ofrece auto-crop,
+/// corrección de perspectiva y enhance — la misma cámara que usa Notes para
+/// escanear documentos. El usuario puede capturar varias páginas en un solo
+/// session; cada página vuelve como UIImage limpia.
+private struct DocumentScannerView: UIViewControllerRepresentable {
+    let onComplete: ([UIImage]) -> Void
+    let onCancel: () -> Void
+
+    func makeUIViewController(context: Context) -> VNDocumentCameraViewController {
+        let vc = VNDocumentCameraViewController()
+        vc.delegate = context.coordinator
+        return vc
+    }
+
+    func updateUIViewController(_ uiViewController: VNDocumentCameraViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onComplete: onComplete, onCancel: onCancel)
+    }
+
+    final class Coordinator: NSObject, VNDocumentCameraViewControllerDelegate {
+        let onComplete: ([UIImage]) -> Void
+        let onCancel: () -> Void
+
+        init(onComplete: @escaping ([UIImage]) -> Void, onCancel: @escaping () -> Void) {
+            self.onComplete = onComplete
+            self.onCancel = onCancel
+        }
+
+        func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
+            var pages: [UIImage] = []
+            for i in 0..<scan.pageCount {
+                pages.append(scan.imageOfPage(at: i))
+            }
+            onComplete(pages)
+        }
+
+        func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
+            onCancel()
+        }
+
+        func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: any Error) {
+            NSLog("[Scanner] failed: \(error.localizedDescription)")
+            onCancel()
+        }
+    }
+}
+
+// MARK: - Image Viewer (fullscreen con zoom)
+
+private struct ImageViewer: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnifyGesture()
+                        .onChanged { value in
+                            scale = max(1, min(lastScale * value.magnification, 6))
+                        }
+                        .onEnded { _ in
+                            lastScale = scale
+                            if scale <= 1.05 {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    offset = .zero
+                                    lastOffset = .zero
+                                }
+                            }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard scale > 1 else { return }
+                            offset = CGSize(
+                                width: lastOffset.width + value.translation.width,
+                                height: lastOffset.height + value.translation.height
+                            )
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        if scale > 1 {
+                            scale = 1; lastScale = 1
+                            offset = .zero; lastOffset = .zero
+                        } else {
+                            scale = 2.5; lastScale = 2.5
+                        }
+                    }
+                }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.55))
+                    .padding()
+            }
+        }
+        .statusBarHidden()
     }
 }

@@ -21,7 +21,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "0.1.0"
-    DEVELOPMENT_TEAM: "XNYGQKU4V5"  # Personal Team — Ariel Vega
+    DEVELOPMENT_TEAM: "K84H562MWX"  # Personal Team — ARIEL JOSUE VEGA GUERRERO
     GENERATE_INFOPLIST_FILE: NO
     INFOPLIST_FILE: MetaCasa/Supporting/Info.plist
     CODE_SIGN_ENTITLEMENTS: MetaCasa/Supporting/MetaCasa.entitlements

@@ -215,19 +215,42 @@ struct TransactionListView: View {
     // MARK: - Content for mode
 
     private var viewModePicker: some View {
-        HStack {
-            Picker("", selection: $viewMode) {
-                ForEach(TransactionViewMode.allCases, id: \.self) { mode in
-                    Label {
-                        Text(LocalizedStringKey(mode.localizationKey))
-                    } icon: {
-                        Image(systemName: mode.icon)
-                    }
-                    .tag(mode)
-                }
+        HStack(spacing: 8) {
+            ForEach(TransactionViewMode.allCases, id: \.self) { mode in
+                viewModePill(mode)
             }
-            .pickerStyle(.segmented)
+            Spacer()
         }
+        .padding(.horizontal, 4)
+    }
+
+    private func viewModePill(_ mode: TransactionViewMode) -> some View {
+        let isSelected = viewMode == mode
+        return Button {
+            Haptics.play(.selection)
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.7)) {
+                viewMode = mode
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: mode.icon)
+                    .font(.caption.weight(.bold))
+                Text(LocalizedStringKey(mode.localizationKey))
+                    .font(.mcCaption.weight(.semibold))
+            }
+            .foregroundStyle(isSelected ? Color(hex: "#0E1312") : Color.textPrimary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(isSelected ? Color.brandPrimary : Color.appSurface))
+            .overlay(
+                Capsule().stroke(isSelected ? Color.brandPrimary : Color.appBorder,
+                                 lineWidth: isSelected ? 1.5 : 1)
+            )
+            .scaleEffect(isSelected ? 1.04 : 1)
+            .animation(.spring(response: 0.32, dampingFraction: 0.68), value: isSelected)
+        }
+        .buttonStyle(.plain)
+        .pressableScale(0.97)
     }
 
     @ViewBuilder
@@ -259,12 +282,22 @@ struct TransactionListView: View {
                         }
                         .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
-                        .swipeActions {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 Task { await deleteTransaction(tx) }
                             } label: {
                                 Label("action.delete", systemImage: "trash")
                             }
+                            .tint(Color.brandDanger)
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                Haptics.play(.selection)
+                                editingTx = tx
+                            } label: {
+                                Label("action.edit", systemImage: "pencil")
+                            }
+                            .tint(Color.brandPrimary)
                         }
                     }
                 } header: {
