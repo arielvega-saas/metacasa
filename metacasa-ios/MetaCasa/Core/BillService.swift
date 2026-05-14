@@ -66,7 +66,7 @@ actor BillService {
             let recurring: Bool
             let created_by: UUID
         }
-        return try await SupabaseRPC.insert(
+        let inserted: Bill = try await SupabaseRPC.insert(
             into: "bills",
             payload: Payload(
                 household_id: householdId,
@@ -82,6 +82,12 @@ actor BillService {
                 created_by: userId
             )
         )
+        // Auto-agendar las 3 notifications: pre, day-of, overdue.
+        // Si el user no autorizó notifs, NotificationService no-op.
+        if await MainActor.run(body: { NotificationPreferences.shared.bills }) {
+            await NotificationService.shared.scheduleBillFullAlerts(bill: inserted)
+        }
+        return inserted
     }
 
     func update(_ bill: Bill) async throws -> Bill {
@@ -111,11 +117,20 @@ actor BillService {
             note: bill.note,
             recurring: bill.recurring
         )
-        return try await SupabaseRPC.update(
+        let updated: Bill = try await SupabaseRPC.update(
             table: "bills",
             payload: patch,
             query: PgQuery().eq("id", bill.id)
         )
+        // Re-agendar las 3 alerts si due_date / amount cambiaron. Si el bill
+        // quedó como pagado, cancelar todas las pendientes (no notificar nada
+        // ya pagado).
+        if updated.paidAt != nil {
+            NotificationService.shared.cancelBillAlerts(billId: updated.id)
+        } else if await MainActor.run(body: { NotificationPreferences.shared.bills }) {
+            await NotificationService.shared.scheduleBillFullAlerts(bill: updated)
+        }
+        return updated
     }
 
     func markPaid(id: UUID) async throws {
@@ -129,9 +144,14 @@ actor BillService {
             payload: Patch(status: "paid", paid_at: iso.string(from: Date())),
             query: PgQuery().eq("id", id)
         )
+        // Cancelar las 3 notifs agendadas — pre, day-of, overdue. El user
+        // pagó: no tiene sentido seguir alertando.
+        NotificationService.shared.cancelBillAlerts(billId: id)
     }
 
     func delete(id: UUID) async throws {
         try await SupabaseRPC.delete(from: "bills", query: PgQuery().eq("id", id))
+        // Cancelar notifs pendientes del bill eliminado.
+        NotificationService.shared.cancelBillAlerts(billId: id)
     }
 }

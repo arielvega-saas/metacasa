@@ -1618,6 +1618,10 @@
 
     "Cómo procesamos tu data en el Asistente IA" : { "comment" : "Settings footer link to assistant-ai disclosure", "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "How we process your data in the AI Assistant" } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Como processamos seus dados no Assistente IA" } } } },
 
-    "Escanear recibo" : { "comment" : "Attachments menu — scan receipt option", "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Scan receipt" } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Digitalizar recibo" } } } }
+    "Escanear recibo" : { "comment" : "Attachments menu — scan receipt option", "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Scan receipt" } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Digitalizar recibo" } } } },
+
+    "Alertas de presupuesto excedido" : { "comment" : "Notification toggle for envelope overspend alerts", "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Budget exceeded alerts" } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Alertas de orçamento excedido" } } } },
+    "Alertas de movimientos atípicos" : { "comment" : "Notification toggle for anomaly detection alerts", "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Atypical transaction alerts" } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Alertas de movimentos atípicos" } } } },
+    "Alertas de presupuesto se disparan al pasar 80%, 100% y 120% del límite por categoría. Alertas de movimientos atípicos detectan cargos duplicados, montos inusuales y primeras veces en una categoría con monto alto." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Budget alerts fire when you cross 80%, 100% and 120% of the category limit. Atypical transaction alerts detect duplicate charges, unusual amounts, and first-time-in-category with high amount." } }, "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Alertas de orçamento disparam ao passar de 80%, 100% e 120% do limite por categoria. Alertas de movimentos atípicos detectam cobranças duplicadas, valores incomuns e primeiras vezes numa categoria com valor alto." } } } }
   }
 }

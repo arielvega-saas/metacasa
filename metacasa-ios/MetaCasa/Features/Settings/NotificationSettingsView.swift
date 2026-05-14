@@ -67,10 +67,24 @@ struct NotificationSettingsView: View {
                             Image(systemName: "arrow.triangle.2.circlepath")
                         }
                     }
+                    Toggle(isOn: $prefs.envelopeOverspend) {
+                        Label {
+                            Text("Alertas de presupuesto excedido")
+                        } icon: {
+                            Image(systemName: "chart.pie.fill")
+                        }
+                    }
+                    Toggle(isOn: $prefs.anomalies) {
+                        Label {
+                            Text("Alertas de movimientos atípicos")
+                        } icon: {
+                            Image(systemName: "exclamationmark.shield.fill")
+                        }
+                    }
                 } header: {
                     Text("notif.section.what")
                 } footer: {
-                    Text("notif.footer.what")
+                    Text("Alertas de presupuesto se disparan al pasar 80%, 100% y 120% del límite por categoría. Alertas de movimientos atípicos detectan cargos duplicados, montos inusuales y primeras veces en una categoría con monto alto.")
                 }
 
                 if prefs.bills {
