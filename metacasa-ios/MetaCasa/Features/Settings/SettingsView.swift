@@ -102,6 +102,10 @@ struct SettingsView: View {
         ) {
             PrivacyToggleRow()
             rowDivider
+            navRow(icon: "sparkles.rectangle.stack", labelKey: "Privacidad del Asistente IA") {
+                AssistantPrivacyView()
+            }
+            rowDivider
             BiometricsStatusRow()
             rowDivider
             actionRow(icon: "rectangle.portrait.and.arrow.right",
