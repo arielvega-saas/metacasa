@@ -176,6 +176,43 @@ enum AnthropicToolDispatcher {
                 ComparePeriodsTool.Arguments(periodA: a, periodB: b)
             )
 
+        case "set_budget_envelope":
+            guard let category = input["category"]?.stringValue,
+                  let amount = input["amount"]?.doubleValue else {
+                return "Error: category and amount required"
+            }
+            return try await handler.setBudgetEnvelope(
+                SetBudgetEnvelopeTool.Arguments(
+                    category: category,
+                    amount: amount,
+                    subcategory: input["subcategory"]?.stringValue,
+                    month: input["month"]?.stringValue
+                )
+            )
+
+        case "transfer_between_accounts":
+            guard let from = input["fromAccountId"]?.stringValue,
+                  let to = input["toAccountId"]?.stringValue,
+                  let amount = input["amount"]?.doubleValue else {
+                return "Error: fromAccountId, toAccountId, amount required"
+            }
+            return try await handler.transferBetweenAccounts(
+                TransferBetweenAccountsTool.Arguments(
+                    fromAccountId: from,
+                    toAccountId: to,
+                    amount: amount,
+                    note: input["note"]?.stringValue
+                )
+            )
+
+        case "categorize_transaction":
+            guard let text = input["text"]?.stringValue else {
+                return "Error: text required"
+            }
+            return try await handler.categorizeTransaction(
+                CategorizeTransactionTool.Arguments(text: text)
+            )
+
         default:
             return "Error: unknown tool '\(name)'"
         }

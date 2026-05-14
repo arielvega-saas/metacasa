@@ -86,8 +86,13 @@ finanzas,presupuesto,gastos,ahorro,hogar,familia,deudas,metas,YNAB,envelope,arge
 ### What's New (en cada release)
 ```
 v1.0 — Lanzamiento inicial
-• Asistente IA con voz nativa argentina (Malena, rioplatense)
-• Presupuesto envelope por categoría
+• Asistente IA conversacional con MEMORIA entre sesiones — recuerda lo que hablaste la semana pasada
+• Voz nativa argentina (Malena, rioplatense) con auto-VAD: hablale como a un amigo
+• Vision multimodal: sacale foto a un recibo y el asistente lo carga solo
+• 20 acciones agentic: cargar gasto, transferir entre cuentas, marcar factura pagada, asignar presupuesto, comparar meses, proyectar balance
+• 7 atajos Siri: "Hey Siri, ver balance en MetaCasa"
+• Privacidad: consent explícito + modo solo on-device opcional (Ajustes → Privacidad del Asistente IA)
+• Presupuesto envelope por categoría con rollover
 • Multi-usuario por hogar
 • Multi-moneda (27 monedas)
 • Reportes Health Score y Pareto 80/20
@@ -178,8 +183,13 @@ finance,budget,expenses,savings,household,family,debt,goals,YNAB,envelope,multic
 ### What's New
 ```
 v1.0 — Initial launch
-• AI assistant with natural voice
-• Envelope-style category budgeting
+• Conversational AI assistant with cross-session MEMORY — recalls what you discussed last week
+• Natural voice mode with auto-VAD: just talk to it
+• Multimodal vision: take a photo of a receipt and the assistant logs it
+• 20 agentic actions: log expense, transfer between accounts, mark bill paid, set budget, compare months, project balance
+• 7 Siri Shortcuts: "Hey Siri, check my balance in MetaCasa"
+• Privacy: explicit consent + optional on-device-only mode (Settings → Assistant Privacy)
+• Envelope-style category budgeting with rollover
 • Multi-user per household
 • Multi-currency support (27 currencies)
 • Health Score & Pareto 80/20 reports
@@ -260,11 +270,17 @@ finanças,orçamento,gastos,poupança,lar,família,dívidas,metas,YNAB,envelope,
 ### What's New
 ```
 v1.0 — Lançamento inicial
-• Assistente IA com voz natural
-• Orçamento envelope por categoria
+• Assistente IA conversacional com MEMÓRIA entre sessões — lembra o que você falou na semana passada
+• Modo voz com auto-VAD: fale com ele como com um amigo
+• Visão multimodal: tire uma foto de um recibo e o assistente registra
+• 20 ações agentic: registrar despesa, transferir entre contas, marcar fatura paga, definir orçamento, comparar meses, projetar saldo
+• 7 atalhos Siri: "Hey Siri, ver saldo no MetaCasa"
+• Privacidade: consentimento explícito + modo somente on-device opcional
+• Orçamento envelope por categoria com rollover
 • Multi-usuário por lar
 • Multi-moeda (27 moedas)
 • Relatórios Health Score e Pareto 80/20
+• Backup completo em JSON
 ```
 
 ---

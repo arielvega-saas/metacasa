@@ -75,7 +75,9 @@ enum AppKnowledgeBase {
     • Plan Editor (visual Sankey con sliders de estrategia).
     • Calculadora Plazo Fijo (interés + total + TEA + equivalente mensual).
     • Help Center (16 tópicos con búsqueda).
-    • Asistente IA flotante (sparkles abajo-derecha, on-device con FoundationModels).
+    • Asistente IA flotante (sparkles abajo-derecha). Modos: chat texto, voz (Apple Speech + Claude Haiku 4.5 + ElevenLabs Malena rioplatense), vision multimodal (escanear recibos). Memoria persistente entre sesiones — el asistente recuerda lo conversado la semana pasada via resúmenes generados por Claude Haiku al cerrar cada sesión. 20 tools agentic disponibles para acciones directas (cargar gasto/ingreso, transferir entre cuentas, marcar factura pagada, asignar presupuesto, comparar meses, proyectar balance, categorizar transacción, sugerir ahorros, detectar anomalías, validar salud financiera, analizar inflación).
+    • Privacidad del Asistente IA (Ajustes → Avanzado → Privacidad del Asistente IA). Toggles: "Procesamiento en la nube" (consent para usar Claude) y "Forzar solo on-device" (mantiene todo en el iPhone, más lento pero garantizado privado). Botón "Revocar consentimiento y borrar historial" limpia los chat sessions persistidos del hogar.
+    • Siri Shortcuts (7 atajos disponibles): "Hey Siri, ver balance / cargar gasto / registrar ingreso / dónde gasto más / salud financiera / próximos vencimientos / hablar con el asistente". Aparecen en Spotlight, Lock Screen suggestions y app Shortcuts.
     • Preferencias: apariencia (light/dark/auto), idioma (es-AR/en/pt-BR), notificaciones, biometría.
     • Backup JSON full (export + restore con detección de duplicados).
     • Paywall Premium (RevenueCat).
@@ -185,6 +187,41 @@ enum AppKnowledgeBase {
     1) Más → Premium.
     2) Al pie: "Restaurar compras".
     3) Apple valida contra tu Apple ID. Si hay compra activa, vuelve.
+
+    Cambiar privacidad del Asistente IA:
+    1) Más → Ajustes → Avanzado → "Privacidad del Asistente IA".
+    2) Toggle "Procesamiento en la nube": ON = puede usar Claude para consultas complejas; OFF = solo modo offline/statistical.
+    3) Toggle "Forzar solo on-device" (visible si consent ON): obliga a usar solo Apple Intelligence on-device, más lento pero ningún dato sale del iPhone.
+    4) Botón "Revocar consentimiento y borrar historial": resetea el consent y borra los chat sessions guardados del hogar activo. Al volver a abrir el chat te pide consent de nuevo.
+
+    Usar Siri Shortcuts:
+    1) Decí "Hey Siri, ver balance en MetaCasa" (o cualquiera de los 7 atajos disponibles).
+    2) También aparecen en Spotlight (deslizá abajo en home screen → buscar "MetaCasa").
+    3) Podés crear atajos personalizados en la app Shortcuts (iOS) eligiendo cualquier acción de MetaCasa.
+    4) Atajos disponibles: ver balance, cargar gasto, registrar ingreso, dónde gasto más, mi salud financiera, próximos vencimientos, hablar con el asistente.
+
+    Conversar con el Asistente IA con memoria:
+    1) Tocá el botón flotante con sparkles (abajo-derecha).
+    2) La primera vez te pide consent (Apple Review 5.1.1) — aceptás o elegís solo on-device.
+    3) Chateá normalmente. Cada mensaje se guarda encriptado en tu iPhone.
+    4) Al cerrar el sheet, Claude Haiku resume la conversación en 2-3 oraciones.
+    5) Cuando volvés a abrir, el asistente recuerda los últimos 3 resúmenes — podés decir "como te dije ayer, mi meta es X" y entiende.
+
+    Escanear un recibo con el Asistente:
+    1) Abrí el chat del Asistente → tocá el paperclip (📎).
+    2) Elegí: Escanear recibo (cámara VisionKit con auto-crop) / Foto / Archivo.
+    3) Capturá el recibo. La app corre OCR on-device + Claude vision para extraer monto, fecha, comercio, categoría sugerida.
+    4) Tocá "Crear transacción" — se carga directo. O "Descartar" si no es lo que esperabas.
+
+    Transferir entre cuentas desde el asistente:
+    1) En el chat decí: "transfer 100k de cuenta corriente a ahorro".
+    2) El asistente busca tus cuentas con get_accounts, te muestra cuáles encontró.
+    3) Confirmás → ejecuta transfer_between_accounts: crea 2 transacciones linkeadas (gasto en origen + ingreso en destino) con categoría "Transferencia".
+
+    Setear un presupuesto desde el asistente:
+    1) Decí "asigná 50000 a Alimentación".
+    2) El asistente confirma el monto y la categoría.
+    3) Ejecuta set_budget_envelope → la asignación queda visible en el tab Presupuesto.
 
     Empezar de cero / restablecer toda la información:
     1) Más → Ajustes → Hogar → "Editar hogar".

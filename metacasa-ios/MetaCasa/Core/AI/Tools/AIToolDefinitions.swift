@@ -493,4 +493,99 @@ struct ComparePeriodsTool: Tool {
     }
 }
 
+// MARK: - 18. Set Budget Envelope
+
+@available(iOS 26.0, *)
+struct SetBudgetEnvelopeTool: Tool {
+    typealias Output = String
+
+    let name = "set_budget_envelope"
+    let description = """
+    Set or update the allocated amount for a category in the current month's \
+    envelope budget. Use when the user says "asigna 50000 a Alimentacion" or \
+    "presupuesto para Restaurantes a 30000". Confirm with the user before \
+    calling if the change is large.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Category name (e.g. 'Alimentacion', 'Transporte')")
+        var category: String
+        @Guide(description: "Allocated amount as a positive number")
+        var amount: Double
+        @Guide(description: "Optional subcategory")
+        var subcategory: String?
+        @Guide(description: "Month in yyyy-MM format (default: current month)")
+        var month: String?
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.setBudgetEnvelope(arguments)
+    }
+}
+
+// MARK: - 19. Transfer Between Accounts
+
+@available(iOS 26.0, *)
+struct TransferBetweenAccountsTool: Tool {
+    typealias Output = String
+
+    let name = "transfer_between_accounts"
+    let description = """
+    Move money between two of the user's accounts (e.g. from Checking to \
+    Savings). Creates two linked transactions: one expense in the source \
+    account and one income in the destination account. Always confirm \
+    with the user before executing — use get_accounts first to find the \
+    correct UUIDs.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "UUID of the source account (where money comes from)")
+        var fromAccountId: String
+        @Guide(description: "UUID of the destination account (where money goes)")
+        var toAccountId: String
+        @Guide(description: "Amount to transfer as a positive number")
+        var amount: Double
+        @Guide(description: "Optional note for both legs of the transfer")
+        var note: String?
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.transferBetweenAccounts(arguments)
+    }
+}
+
+// MARK: - 20. Categorize Transaction
+
+@available(iOS 26.0, *)
+struct CategorizeTransactionTool: Tool {
+    typealias Output = String
+
+    let name = "categorize_transaction"
+    let description = """
+    Suggest a category for a transaction based on its description, merchant \
+    name or note. Useful when the user mentions an expense without specifying \
+    the category. Returns the most likely category from common LatAm finance \
+    taxonomy (Alimentacion, Transporte, Servicios, Salud, Entretenimiento, \
+    Hogar, Educacion, Sueldo, etc.) plus a 0-1 confidence score.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Free-text description (merchant name, note, or context)")
+        var text: String
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.categorizeTransaction(arguments)
+    }
+}
+
 #endif

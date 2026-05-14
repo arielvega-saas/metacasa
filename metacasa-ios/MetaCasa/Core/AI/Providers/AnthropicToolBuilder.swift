@@ -28,6 +28,9 @@ enum AnthropicToolBuilder {
             analyzeInflation(),
             markBillPaid(),
             comparePeriods(),
+            setBudgetEnvelope(),
+            transferBetweenAccounts(),
+            categorizeTransaction(),
         ]
     }
 
@@ -262,6 +265,42 @@ enum AnthropicToolBuilder {
                 ("periodA", string("First period in yyyy-MM format (e.g. 2026-04)")),
                 ("periodB", string("Second period in yyyy-MM format (e.g. 2026-03 or 2025-04 for YoY)")),
             ], required: ["periodA", "periodB"]))
+        )
+    }
+
+    private static func setBudgetEnvelope() -> APITool {
+        APITool(
+            name: "set_budget_envelope",
+            description: "Set or update the allocated amount for a category in the envelope budget. Confirm with user before calling.",
+            inputSchema: schemaDict(obj([
+                ("category", string("Category name (e.g. 'Alimentacion')")),
+                ("amount", number("Allocated amount, positive number")),
+                ("subcategory", string("Optional subcategory")),
+                ("month", string("Month in yyyy-MM format (default: current)")),
+            ], required: ["category", "amount"]))
+        )
+    }
+
+    private static func transferBetweenAccounts() -> APITool {
+        APITool(
+            name: "transfer_between_accounts",
+            description: "Move money between two accounts. Creates a linked expense + income pair. Use get_accounts first to find UUIDs. Always confirm with user.",
+            inputSchema: schemaDict(obj([
+                ("fromAccountId", string("UUID of the source account")),
+                ("toAccountId", string("UUID of the destination account")),
+                ("amount", number("Amount to transfer, positive number")),
+                ("note", string("Optional note for both legs")),
+            ], required: ["fromAccountId", "toAccountId", "amount"]))
+        )
+    }
+
+    private static func categorizeTransaction() -> APITool {
+        APITool(
+            name: "categorize_transaction",
+            description: "Suggest a category from text (merchant name, note). Returns category + confidence. Pure on-device heuristic, no network.",
+            inputSchema: schemaDict(obj([
+                ("text", string("Free-text description to classify")),
+            ], required: ["text"]))
         )
     }
 

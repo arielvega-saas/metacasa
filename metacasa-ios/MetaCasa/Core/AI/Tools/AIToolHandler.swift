@@ -869,6 +869,146 @@ final class AIToolHandler: @unchecked Sendable {
     }
     #endif
 
+    // MARK: - 18. Set Budget Envelope
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func setBudgetEnvelope(_ p: SetBudgetEnvelopeTool.Arguments) async throws -> String {
+        guard p.amount >= 0 else {
+            return "Error: el monto debe ser >= 0"
+        }
+        let cal = Calendar.current
+        let date: Date = {
+            if let m = p.month {
+                let fmt = DateFormatter()
+                fmt.dateFormat = "yyyy-MM"
+                fmt.locale = Locale(identifier: "en_US_POSIX")
+                return fmt.date(from: m) ?? Date()
+            }
+            return Date()
+        }()
+        do {
+            let period = try await BudgetService.shared.ensurePeriodForMonth(
+                householdId: householdId, containing: date
+            )
+            _ = try await BudgetService.shared.upsertAllocation(
+                periodId: period.id,
+                category: p.category,
+                subcategory: p.subcategory ?? "",
+                allocated: Decimal(p.amount),
+                currency: currency
+            )
+            let formatted = Money.format(Decimal(p.amount), currency: currency, style: .compact)
+            let sub = (p.subcategory?.isEmpty == false) ? " > \(p.subcategory!)" : ""
+            let monthFmt = DateFormatter()
+            monthFmt.dateFormat = "yyyy-MM"
+            monthFmt.locale = Locale(identifier: "en_US_POSIX")
+            let periodLabel = monthFmt.string(from: period.periodStart)
+            return "✅ Presupuesto seteado: \(p.category)\(sub) = \(formatted) para \(periodLabel)."
+        } catch {
+            return "Error al setear presupuesto: \(error.localizedDescription)"
+        }
+        _ = cal
+    }
+    #endif
+
+    // MARK: - 19. Transfer Between Accounts
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func transferBetweenAccounts(_ p: TransferBetweenAccountsTool.Arguments) async throws -> String {
+        guard p.amount > 0 else {
+            return "Error: el monto debe ser mayor a cero"
+        }
+        guard let fromId = UUID(uuidString: p.fromAccountId),
+              let toId = UUID(uuidString: p.toAccountId) else {
+            return "Error: account IDs deben ser UUIDs validos"
+        }
+        guard fromId != toId else {
+            return "Error: la cuenta origen y destino no pueden ser la misma"
+        }
+        let amount = Decimal(p.amount)
+        let now = Date()
+        let baseNote = p.note?.isEmpty == false ? p.note! : "Transferencia entre cuentas"
+
+        // Leg 1: gasto en cuenta origen
+        let expense = NewTransactionInput(
+            householdId: householdId,
+            userId: userId,
+            accountId: fromId,
+            type: .gasto,
+            amount: amount,
+            currencyOriginal: nil,
+            category: "Transferencia",
+            subcategory: nil,
+            note: "→ \(baseNote)",
+            date: now
+        )
+        // Leg 2: ingreso en cuenta destino
+        let income = NewTransactionInput(
+            householdId: householdId,
+            userId: userId,
+            accountId: toId,
+            type: .ingreso,
+            amount: amount,
+            currencyOriginal: nil,
+            category: "Transferencia",
+            subcategory: nil,
+            note: "← \(baseNote)",
+            date: now
+        )
+
+        do {
+            _ = try await TransactionService.shared.insert(expense)
+            _ = try await TransactionService.shared.insert(income)
+            let formatted = Money.format(amount, currency: currency, style: .compact)
+            return "✅ Transferencia ejecutada: \(formatted) movido entre cuentas. Se crearon 2 transacciones linkeadas."
+        } catch {
+            return "Error en la transferencia: \(error.localizedDescription). Si solo se ejecuto la primera pierna, hace falta corregir manualmente desde Movimientos."
+        }
+    }
+    #endif
+
+    // MARK: - 20. Categorize Transaction
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func categorizeTransaction(_ p: CategorizeTransactionTool.Arguments) async throws -> String {
+        let text = p.text.lowercased()
+        guard !text.isEmpty else {
+            return "Error: necesito un texto descriptivo para categorizar"
+        }
+
+        // Heuristica determinista basada en keywords LATAM-friendly.
+        // No requiere red — es rapida y no consume tokens del LLM.
+        let patterns: [(category: String, keywords: [String], confidence: Double)] = [
+            ("Alimentacion", ["super", "mercado", "verduleria", "carniceria", "panaderia", "almacen", "coto", "carrefour", "dia", "jumbo", "disco"], 0.92),
+            ("Restaurantes", ["restaurante", "bar", "cafe", "rappi", "pedidos ya", "uber eats", "delivery", "pizza", "sushi"], 0.90),
+            ("Transporte", ["uber", "cabify", "didi", "taxi", "subte", "colectivo", "tren", "ypf", "axion", "shell", "nafta", "combustible", "estacionamiento", "peaje"], 0.92),
+            ("Servicios", ["luz", "edenor", "edesur", "metrogas", "gas", "agua", "aysa", "internet", "fibertel", "telecentro", "movistar", "claro", "personal", "telecom"], 0.94),
+            ("Streaming", ["netflix", "spotify", "disney", "hbo", "amazon prime", "apple music", "youtube premium"], 0.95),
+            ("Salud", ["farmacia", "farmacity", "doctor", "clinica", "hospital", "obra social", "osde", "swiss medical"], 0.92),
+            ("Entretenimiento", ["cine", "teatro", "concierto", "show", "boleto"], 0.85),
+            ("Hogar", ["sodimac", "easy", "ikea", "ferreteria", "mueble", "limpieza"], 0.85),
+            ("Educacion", ["universidad", "curso", "udemy", "coursera", "libreria", "libro"], 0.88),
+            ("Ropa", ["zara", "h&m", "indumentaria", "ropa", "calzado"], 0.85),
+            ("Sueldo", ["sueldo", "salario", "haberes", "pago mensual"], 0.96),
+            ("Freelance", ["freelance", "honorarios", "factura"], 0.85),
+        ]
+
+        var best: (String, Double) = ("Otro", 0.3)
+        for p in patterns {
+            for kw in p.keywords {
+                if text.contains(kw) && p.confidence > best.1 {
+                    best = (p.category, p.confidence)
+                }
+            }
+        }
+
+        return "Sugerencia: \(best.0) (confianza \(String(format: "%.0f", best.1 * 100))%). Si no es correcto, indicame la categoria correcta."
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func expandUUID(_ s: String) -> String {
