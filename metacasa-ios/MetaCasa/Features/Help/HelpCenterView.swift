@@ -344,35 +344,93 @@ enum HelpContent {
             title: "Asistente IA",
             topics: [
                 HelpTopic(id: "assistant", emoji: "✨", title: "Cómo usar el asistente IA",
-                    summary: "Tu asesor financiero dentro de la app",
+                    summary: "Tu coach financiero con 3 modos: chat, voz y vision",
                     content: """
-                    Tocá el botón circular sage con ícono de estrella arriba-derecha (visible desde cualquier pantalla una vez que iniciaste sesión). Se abre el chat.
+                    Tocá el botón circular sage con sparkles abajo-derecha (visible desde cualquier pantalla una vez que iniciaste sesión). Se abre el chat.
 
-                    El asistente combina DOS roles:
+                    El asistente tiene **3 modos** de interacción:
 
-                    1) **Coach de finanzas** — analiza tus datos reales y da consejos accionables.
-                    • "¿Cómo voy este mes?" → resumen de ingresos/gastos/balance.
+                    1) **Chat texto** — escribí cualquier pregunta o pedido.
+                    2) **Voz** — tap del waveform arriba del chat → modo voz tipo ChatGPT con voz nativa argentina (Malena, rioplatense). Auto-VAD: te escucha hasta que dejás de hablar.
+                    3) **Vision** — tocá el paperclip 📎 → "Sacar foto", "Foto" o "Escanear recibo". Te lee el monto, comercio, categoría y te propone crear la transacción.
+
+                    Y combina DOS roles:
+
+                    **A) Coach financiero** — analiza tus datos reales:
+                    • "¿Cómo voy este mes?" → resumen ingresos/gastos/balance/savings rate.
                     • "¿Dónde gasto más?" → top categorías con % del total.
-                    • "Hacé un presupuesto para el próximo mes" → propuesta basada en historial.
-                    • "¿Cuánto me va a quedar a fin de mes?" → proyección lineal.
-                    • "¿Cómo voy con mis metas?" → progreso de cada meta.
-                    • "¿Qué deuda debería priorizar?" → snowball vs avalanche con tus números.
-                    • "¿Estoy gastando más que el mes pasado?" → comparación con delta.
-                    • "¿Mi Health Score es bueno?" → interpretación del puntaje 0-100.
+                    • "Comparame marzo con febrero" → side-by-side con deltas.
+                    • "¿Cuánto me va a quedar a fin de mes?" → proyección.
+                    • "¿Cómo voy con mis metas?" → progreso + ETA.
+                    • "¿Qué deuda debería priorizar?" → snowball vs avalanche.
+                    • "¿Mi Health Score es bueno?" → puntaje 0-100 desglosado.
+                    • "Detectá anomalías" → cargos inusuales, duplicados.
+                    • "Cómo me afecta la inflación" → análisis precio-cantidad (LATAM).
 
-                    2) **Guía experta de la app** — te explica cómo hacer cualquier cosa.
+                    **B) Acciones directas** (22 acciones agentic):
+                    • "Cargá un gasto de $X en Y" → te confirma + lo crea.
+                    • "Transferí $X de Checking a Savings" → 2 transacciones linkeadas.
+                    • "Marcá la factura de luz como pagada" → busca + confirma + marca.
+                    • "Asigná $50.000 a Alimentación en el presupuesto" → upsert envelope.
+                    • "Categorizá este gasto: Edenor" → "Servicios, confianza 94%".
+                    • "Validá este CFDI" (México) o "verificá este CAE" (Argentina) → parseo formal + URL de verificación oficial SAT/ARCA.
+
+                    **C) Guía experta de la app** — te explica cómo hacer cualquier cosa:
                     • "¿Cómo agrego una transacción?"
                     • "¿Cómo funciona el envelope budget?"
-                    • "¿Qué es el Plan Editor?"
                     • "¿Cómo invito a alguien al hogar?"
-                    • "¿Qué es Pareto 80/20?"
-                    • "¿Cómo hago backup de mis datos?"
-                    • "¿Qué incluye Premium?"
-                    • "¿Cómo activo notificaciones?"
+                    • "¿Cómo hago backup?"
 
-                    El asistente tiene un **mapa completo de la app** y un **glosario de finanzas** incorporados. Podés preguntar en lenguaje natural cualquier cosa sobre ambos dominios.
+                    **Memoria entre sesiones**: el asistente recuerda lo que charlaron antes. Al cerrar el chat, genera un resumen y la próxima vez retoma el contexto. Podés decir "como te dije ayer, mi meta de viaje..." y entiende.
 
-                    Privacidad: tus datos financieros NO salen de tu iPhone. El LLM funciona on-device (Apple Intelligence / FoundationModels) en iOS 26+. En versiones anteriores o si el modelo local no está disponible, el asistente usa análisis estadísticos determinísticos sin LLM. En ambos casos, ninguna data personal viaja a servidores externos.
+                    Privacidad: voz (Apple Speech) y OCR de recibos (Apple Vision) corren **siempre on-device** — no salen del iPhone. Las preguntas complejas se procesan con Claude (Anthropic) **solo con tu consentimiento explícito**. Podés activar "Solo on-device" en Ajustes → Privacidad del Asistente IA.
+                    """),
+                HelpTopic(id: "assistant-privacy", emoji: "🔒", title: "Privacidad y consentimiento del asistente",
+                    summary: "Cómo controlar qué procesa el asistente y dónde",
+                    content: """
+                    El asistente tiene **tres capas de privacidad** bajo tu control directo:
+
+                    **1) Consent explícito al primer uso**
+                    La primera vez que abrís el chat, te aparece un sheet con 3 puntos:
+                    • Qué se procesa en tu iPhone (voz, OCR, persistencia).
+                    • Qué se envía a Claude (Anthropic) — y qué NO (emails, tarjetas, contraseñas).
+                    • Política de Anthropic: no entrenan modelos con tus consultas.
+
+                    Tenés 2 opciones: "Aceptar y continuar" (modo completo) o "Usar solo on-device" (más lento pero todo on-device).
+
+                    **2) Toggles en Ajustes → Avanzado → Privacidad del Asistente IA**
+                    • Toggle "Procesamiento en la nube" — alterna el consentimiento global. Si está OFF, el asistente solo usa modos on-device + fallback estadístico.
+                    • Toggle "Forzar solo on-device" — incluso con consent ON, fuerza usar solo Apple Intelligence on-device. Más lento, garantizado privado.
+
+                    **3) Revocar y borrar**
+                    Botón rojo "Revocar consentimiento y borrar historial":
+                    • Revoca el consent global.
+                    • Borra todos los chat sessions persistidos (incluyendo los resúmenes para memoria).
+                    • La próxima vez que abras el chat, te pedimos consent de nuevo desde cero.
+
+                    **Detalles técnicos**: el historial de chat se guarda en `Documents/chat-sessions/{householdId}/` con `completeFileProtection` (encriptado a nivel sistema cuando el iPhone está bloqueado). Los resúmenes los genera Claude Haiku al cerrar cada sesión.
+
+                    Más detalle público (link en Settings → footer): https://metacasa-app-cf592.web.app/assistant-ai.html
+                    """),
+                HelpTopic(id: "assistant-siri", emoji: "🎙️", title: "Atajos de Siri",
+                    summary: "Hablale a Siri sin abrir la app",
+                    content: """
+                    MetaCasa expone **7 atajos** a Siri / Spotlight / Shortcuts. Decí "Hey Siri" + cualquiera:
+
+                    • "Ver balance en MetaCasa" → balance del mes con voz.
+                    • "Cargar gasto en MetaCasa" → pide monto + categoría, lo carga.
+                    • "Registrar ingreso en MetaCasa" → mismo flow para ingreso.
+                    • "Dónde gasto más en MetaCasa" → top 3 categorías del mes.
+                    • "Mi salud financiera en MetaCasa" → Health Score 0-100.
+                    • "Próximos vencimientos en MetaCasa" → bills pendientes 7 días.
+                    • "Hablar con el asistente de MetaCasa" → abre el chat.
+
+                    Los atajos también aparecen en:
+                    • **Spotlight** (deslizá abajo en home screen → buscar "MetaCasa").
+                    • **Lock Screen** — Siri sugiere atajos según patrones de uso.
+                    • **App Shortcuts** (iOS) — podés crear shortcuts personalizados, agruparlos con otros atajos, automatizarlos.
+
+                    Privacidad: las donaciones de App Intents viven solo en el dispositivo. No se sincronizan vía iCloud ni se envían a nuestros servidores.
                     """),
                 HelpTopic(id: "assistant-limits", emoji: "⚠️", title: "Qué NO puede hacer el asistente",
                     summary: "Guardrails y alcance",
@@ -385,6 +443,8 @@ enum HelpContent {
                     • **Proyecciones infalibles** — cuando estima, aclara la asunción ("asumiendo que mantenés el gasto actual...").
                     • **Reemplazar un contador o asesor real** — para decisiones importantes (tomar deuda grande, comprar propiedad), avisa que es orientativo.
                     • **Salir del scope** — si preguntás de política, chismes, programación, salud, redirige amablemente.
+                    • **Transferir plata real fuera de la app** — la acción "transferir entre cuentas" es contable (anotación entre tus cuentas internas), NO inicia una transferencia bancaria en el banco.
+                    • **Ejecutar acciones sensibles sin confirmación** — siempre te pide "¿confirmás?" antes de crear/borrar/transferir.
 
                     Si notás una respuesta rara o inventada, reportalo a soporte — ayuda a mejorar el modelo.
                     """)
