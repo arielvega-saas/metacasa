@@ -59,9 +59,15 @@ actor AnthropicProvider {
         userId: UUID,
         accessToken: String,
         history: [ChatTurn] = [],
-        voiceMode: Bool = false
+        voiceMode: Bool = false,
+        pastSummaries: [String] = []
     ) async throws -> String {
-        let systemPrompt = AISystemPromptV2.build(context: context, query: message, voiceMode: voiceMode)
+        let systemPrompt = AISystemPromptV2.build(
+            context: context,
+            query: message,
+            voiceMode: voiceMode,
+            pastSummaries: pastSummaries
+        )
         let toolHandler = await AIToolHandler(
             householdId: householdId,
             userId: userId,

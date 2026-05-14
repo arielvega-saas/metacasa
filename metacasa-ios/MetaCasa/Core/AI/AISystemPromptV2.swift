@@ -46,11 +46,17 @@ enum AISystemPromptV2 {
     ///   base (overview + howTo + glossary + principles). Anthropic Claude
     ///   tiene context window grande (200k) y se beneficia. FoundationModels
     ///   on-device pasa `false` para evitar overflow del context window de 4k.
+    /// - pastSummaries: resúmenes de sesiones de conversación previas, generados
+    ///   por Claude Haiku al cerrar cada sesión (ver `ChatPersistenceService`).
+    ///   Se inyectan como bloque `=== PREVIOUS CONVERSATIONS ===` para memoria
+    ///   conversacional efectivamente "infinita" sin saturar el context window
+    ///   con todos los turnos pasados literales.
     static func build(
         context: FinancialContext,
         query: String = "",
         voiceMode: Bool = false,
-        useFullKnowledge: Bool = true
+        useFullKnowledge: Bool = true,
+        pastSummaries: [String] = []
     ) -> String {
         let appName = String(localized: "app.name")
         let curr = context.currency
@@ -61,6 +67,7 @@ enum AISystemPromptV2 {
         let financialDataBlock = financialDataSection(context: context, currency: curr)
         let voiceBlock = voiceMode ? voiceModeOverrides() : ""
         let enrichedBlock = enrichedSignals(context: context, currency: curr)
+        let memoryBlock = pastConversationsSection(summaries: pastSummaries)
 
         return """
         You are a senior personal finance advisor embedded in \(appName). You speak with the calm, evidence-based authority of a CFP — not a chatbot. You combine deep app knowledge with personalized financial coaching.
@@ -143,6 +150,7 @@ enum AISystemPromptV2 {
 
         \(knowledgeBlock)
 
+        \(memoryBlock)
         === LIVE USER FINANCIAL DATA ===
 
         \(financialDataBlock)
@@ -176,6 +184,31 @@ enum AISystemPromptV2 {
         case "AUD": return "dólares australianos"
         default: return code.lowercased()
         }
+    }
+
+    // MARK: - Past conversations memory
+
+    /// Inyecta resúmenes de sesiones de chat previas (top 3 más recientes)
+    /// para que el modelo tenga continuidad entre sesiones — el user puede
+    /// referirse a algo que habló la semana pasada y el asistente lo entiende.
+    /// Si no hay resúmenes, retorna string vacío (no inflama el prompt).
+    private static func pastConversationsSection(summaries: [String]) -> String {
+        guard !summaries.isEmpty else { return "" }
+        let lines = summaries.enumerated().map { idx, s in
+            "  \(idx + 1). \(s)"
+        }.joined(separator: "\n")
+        return """
+        === PREVIOUS CONVERSATIONS (memory) ===
+        Resúmenes de las últimas conversaciones con este usuario. Si en el
+        mensaje actual hace referencia ambigua a algo previo ("eso que te
+        dije ayer", "la meta del viaje"), usá estos resúmenes para entender
+        el contexto. NO los repitas verbatim en tu respuesta — son contexto
+        interno, no info pedida. Si nada es relevante, ignorá este bloque.
+
+        \(lines)
+
+
+        """
     }
 
     // MARK: - Voice mode overrides

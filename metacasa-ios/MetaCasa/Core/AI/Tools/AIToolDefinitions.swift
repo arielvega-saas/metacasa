@@ -439,4 +439,58 @@ struct AnalyzeInflationTool: Tool {
     }
 }
 
+// MARK: - 16. Mark Bill Paid
+
+@available(iOS 26.0, *)
+struct MarkBillPaidTool: Tool {
+    typealias Output = String
+
+    let name = "mark_bill_paid"
+    let description = """
+    Mark a bill/upcoming payment as paid. First use get_bills to find the \
+    correct bill by name or date, then pass its UUID. Always confirm with \
+    the user before executing this tool.
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "UUID of the bill to mark as paid")
+        var billId: String
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.markBillPaid(arguments)
+    }
+}
+
+// MARK: - 17. Compare Periods
+
+@available(iOS 26.0, *)
+struct ComparePeriodsTool: Tool {
+    typealias Output = String
+
+    let name = "compare_periods"
+    let description = """
+    Compare two time periods side by side: income, expenses, balance, \
+    savings rate, top categories, and per-category deltas. Useful for \
+    "compare March vs February" or "this month vs same month last year".
+    """
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "First period in yyyy-MM format (e.g. 2026-04)")
+        var periodA: String
+        @Guide(description: "Second period in yyyy-MM format (e.g. 2026-03 or 2025-04 for YoY)")
+        var periodB: String
+    }
+
+    let handler: AIToolHandler
+
+    func call(arguments: Arguments) async throws -> String {
+        try await handler.comparePeriods(arguments)
+    }
+}
+
 #endif

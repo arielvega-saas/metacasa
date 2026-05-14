@@ -21,8 +21,10 @@ import VisionKit
 struct AssistantChatView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
+    @Environment(PrivacyManager.self) private var privacy
     @State private var viewModel = AssistantViewModel.shared
     @State private var speech = SpeechRecognizerService.shared
+    @State private var showConsentSheet = false
 
     // Attachment pickers
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -94,7 +96,21 @@ struct AssistantChatView: View {
             }
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-            .task { viewModel.seedWelcome() }
+            .task {
+                await viewModel.bootstrap(appState: appState)
+                // Apple Review 5.1.1 + GDPR/CCPA: pedir consent explícito
+                // antes de cualquier request a Claude. Si el user ya aceptó,
+                // este sheet no aparece. La decisión persiste en UserDefaults.
+                if !privacy.assistantCloudConsent {
+                    showConsentSheet = true
+                }
+            }
+            .onDisappear { viewModel.closeSession(appState: appState) }
+            .sheet(isPresented: $showConsentSheet) {
+                AssistantConsentSheet(privacy: privacy)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.hidden)
+            }
             .onChange(of: selectedPhotos) { _, newValue in
                 guard !newValue.isEmpty else { return }
                 Task { await handlePhotosPick(newValue) }
@@ -775,11 +791,78 @@ final class AssistantViewModel {
     var input: String = ""
     var isThinking: Bool = false
 
+    /// Resúmenes de conversaciones anteriores cargados desde disco. Se inyectan
+    /// al system prompt del LLM como `=== PREVIOUS CONVERSATIONS ===` para
+    /// memoria conversacional persistente entre sesiones.
+    private var pastSummaries: [String] = []
+
+    /// Tracking de la sesión persistida. Si el hogar cambia, re-bootstrap.
+    private var loadedHouseholdId: UUID?
+
     var canSend: Bool {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    func seedWelcome() {
+    // MARK: - Lifecycle
+
+    /// Bootstrap del chat al abrir el sheet. Carga la sesión persistida del
+    /// hogar activo (si existe), hidrata el array `messages` con los mensajes
+    /// históricos, y carga los últimos 3 resúmenes para inyectar al prompt.
+    /// Si el hogar cambió desde el último bootstrap, re-hidrata (multi-hogar
+    /// safety — sin leak cruzado).
+    func bootstrap(appState: AppState) async {
+        guard let hid = appState.currentHouseholdId,
+              let uid = appState.currentUserId else {
+            seedWelcomeIfEmpty()
+            return
+        }
+
+        if loadedHouseholdId == hid && !messages.isEmpty {
+            // Mismo hogar y ya hay contenido — no recargar, mantener estado UI.
+            return
+        }
+
+        let session = await ChatPersistenceService.shared
+            .loadCurrent(householdId: hid, userId: uid)
+
+        // Hidratar messages con el contenido persistido. Solo user/assistant
+        // (system messages son efímeros y no se persisten).
+        messages = session.messages.map { rec in
+            AssistantMessage(
+                role: {
+                    switch rec.role {
+                    case .user: return .user
+                    case .assistant: return .assistant
+                    case .system: return .system
+                    }
+                }(),
+                content: rec.content
+            )
+        }
+        loadedHouseholdId = hid
+        seedWelcomeIfEmpty()
+
+        // Cargar resúmenes en background — no bloquea la UI.
+        pastSummaries = await ChatPersistenceService.shared
+            .recentSummaries(householdId: hid, limit: 3)
+    }
+
+    /// Cierra la sesión actual al dismissar el chat. Si tuvo >4 mensajes,
+    /// dispara el resumen via Claude Haiku en background. Fire-and-forget.
+    func closeSession(appState: AppState) {
+        guard let hid = appState.currentHouseholdId,
+              let uid = appState.currentUserId else { return }
+        Task.detached {
+            let token = await TokenHolder.shared.get()
+            await ChatPersistenceService.shared.closeAndSummarize(
+                householdId: hid,
+                userId: uid,
+                accessToken: token
+            )
+        }
+    }
+
+    private func seedWelcomeIfEmpty() {
         guard messages.isEmpty else { return }
         messages.append(AssistantMessage(
             role: .assistant,
@@ -787,8 +870,38 @@ final class AssistantViewModel {
         ))
     }
 
+    /// Public alias mantenido para compatibilidad con el `.task` existente.
+    /// Llamadores nuevos deberían usar `bootstrap(appState:)`.
+    func seedWelcome() {
+        seedWelcomeIfEmpty()
+    }
+
     func appendSystem(_ text: String) {
         messages.append(AssistantMessage(role: .system, content: text))
+    }
+
+    // MARK: - Persistence helper
+
+    /// Persiste un mensaje user/assistant en la sesión actual (no system).
+    private func persist(_ msg: AssistantMessage, appState: AppState, hadAttachment: Bool = false) {
+        guard let hid = appState.currentHouseholdId,
+              let uid = appState.currentUserId,
+              msg.role != .system else { return }
+        let role: ChatMessageRecord.Role = msg.role == .user ? .user : .assistant
+        let record = ChatMessageRecord(
+            id: msg.id,
+            role: role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            hadAttachment: hadAttachment
+        )
+        Task.detached {
+            await ChatPersistenceService.shared.appendMessage(
+                record,
+                householdId: hid,
+                userId: uid
+            )
+        }
     }
 
     // MARK: - Text send
@@ -814,26 +927,38 @@ final class AssistantViewModel {
             .suffix(8)
             .map { $0 }
 
-        messages.append(AssistantMessage(role: .user, content: msg))
+        let userMsg = AssistantMessage(role: .user, content: msg)
+        messages.append(userMsg)
+        persist(userMsg, appState: appState)
         input = ""
         isThinking = true
         defer { isThinking = false }
 
         do {
+            // Refresh proactivo del JWT — sin esto el asistente cae con 401
+            // después de 1h. supabase-swift auto-refresha con refresh_token.
+            await AuthManager.shared.ensureFreshToken()
             let context = try await FinancialContextBuilder.build(appState: appState)
+            let allowCloud = PrivacyManager.shared.canUseCloudAssistant
             let response = await AIAssistantService.shared.ask(
                 message: msg,
                 context: context,
                 householdId: appState.currentHouseholdId,
                 userId: appState.currentUserId,
-                history: history
+                history: history,
+                pastSummaries: pastSummaries,
+                allowCloud: allowCloud
             )
-            messages.append(AssistantMessage(role: .assistant, content: response))
+            let reply = AssistantMessage(role: .assistant, content: response)
+            messages.append(reply)
+            persist(reply, appState: appState)
         } catch {
-            messages.append(AssistantMessage(
+            let errMsg = AssistantMessage(
                 role: .assistant,
                 content: "No pude leer tus datos ahora mismo (\(error.localizedDescription))."
-            ))
+            )
+            messages.append(errMsg)
+            persist(errMsg, appState: appState)
         }
     }
 
@@ -843,10 +968,19 @@ final class AssistantViewModel {
         guard !images.isEmpty else { return }
         Haptics.play(.impactLight)
         for img in images {
-            messages.append(AssistantMessage(role: .user, content: "", attachment: .image(img)))
+            let userMsg = AssistantMessage(role: .user, content: "", attachment: .image(img))
+            messages.append(userMsg)
+            // Persistimos un placeholder para que en el resumen futuro el LLM
+            // sepa que en ese turno hubo una imagen (no persistimos la image
+            // raw — pesada y ya consumida).
+            persist(userMsg, appState: appState, hadAttachment: true)
         }
         isThinking = true
         defer { isThinking = false }
+
+        // Refresh proactivo del JWT — sin esto vision falla con 401 si pasó
+        // > 1h desde que el user abrió la app.
+        await AuthManager.shared.ensureFreshToken()
 
         // Tier preferido: mandar las imágenes DIRECTO a Claude vision en una
         // sola request multimodal. Mucho más eficiente que llamadas separadas
@@ -857,7 +991,7 @@ final class AssistantViewModel {
                 do {
                     let receipts = try await AnthropicProvider.shared
                         .parseImageReceipts(jpegDatas: jpegDatas, accessToken: token)
-                    appendImageResultMessage(receipts: receipts)
+                    appendImageResultMessage(receipts: receipts, appState: appState)
                     return
                 } catch {
                     NSLog("[Receipt] Claude vision failed (\(error.localizedDescription)), falling back to OCR")
@@ -877,15 +1011,17 @@ final class AssistantViewModel {
                 NSLog("[OCR] failed: \(error.localizedDescription)")
             }
         }
-        appendImageResultMessage(receipts: allReceipts)
+        appendImageResultMessage(receipts: allReceipts, appState: appState)
     }
 
-    private func appendImageResultMessage(receipts: [ParsedReceipt]) {
+    private func appendImageResultMessage(receipts: [ParsedReceipt], appState: AppState) {
         if receipts.isEmpty {
-            messages.append(AssistantMessage(
+            let m = AssistantMessage(
                 role: .assistant,
                 content: "No detecté gastos identificables en esa imagen. Probá con un recibo más claro o un screenshot que muestre montos y comercios."
-            ))
+            )
+            messages.append(m)
+            persist(m, appState: appState)
             return
         }
         if receipts.count == 1 {
@@ -895,7 +1031,9 @@ final class AssistantViewModel {
                 AssistantAction(label: "Crear transacción", icon: "plus.circle.fill", destructive: false, kind: .createTransactionFromReceipt(receipt)),
                 AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
             ] : []
-            messages.append(AssistantMessage(role: .assistant, content: response, attachment: nil, actions: actions))
+            let m = AssistantMessage(role: .assistant, content: response, attachment: nil, actions: actions)
+            messages.append(m)
+            persist(m, appState: appState)
             return
         }
         // Listado: mostrar resumen con N items + 1 acción bulk.
@@ -904,7 +1042,9 @@ final class AssistantViewModel {
             AssistantAction(label: "Crear las \(receipts.count)", icon: "plus.rectangle.on.rectangle", destructive: false, kind: .createMultipleTransactions(receipts)),
             AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
         ]
-        messages.append(AssistantMessage(role: .assistant, content: preview, attachment: nil, actions: actions))
+        let m = AssistantMessage(role: .assistant, content: preview, attachment: nil, actions: actions)
+        messages.append(m)
+        persist(m, appState: appState)
     }
 
     private func formatReceiptsListPreview(_ receipts: [ParsedReceipt]) -> String {
@@ -1048,7 +1188,9 @@ final class AssistantViewModel {
                 at: 0
             )
         }
-        messages.append(AssistantMessage(role: .assistant, content: summary, actions: actions))
+        let m = AssistantMessage(role: .assistant, content: summary, actions: actions)
+        messages.append(m)
+        persist(m, appState: appState)
     }
 
     // MARK: - Action handlers
@@ -1102,7 +1244,9 @@ final class AssistantViewModel {
         let msg = failed == 0
             ? "✅ \(inserted) transacciones importadas con éxito."
             : "⚠️ \(inserted) importadas, \(failed) fallaron."
-        messages.append(AssistantMessage(role: .assistant, content: msg))
+        let m = AssistantMessage(role: .assistant, content: msg)
+        messages.append(m)
+        persist(m, appState: appState)
     }
 
     private func createTransaction(from receipt: ParsedReceipt, appState: AppState) async {
@@ -1135,16 +1279,20 @@ final class AssistantViewModel {
         do {
             _ = try await TransactionService.shared.insert(input)
             Haptics.play(.success)
-            messages.append(AssistantMessage(
+            let m = AssistantMessage(
                 role: .assistant,
                 content: "✅ Transacción creada: gasto de \(Money.format(amount, currency: currency, style: .compact)) en \(receipt.category ?? "Otro")."
-            ))
+            )
+            messages.append(m)
+            persist(m, appState: appState)
         } catch {
             Haptics.play(.error)
-            messages.append(AssistantMessage(
+            let m = AssistantMessage(
                 role: .assistant,
                 content: "No pude crear la transacción: \(error.localizedDescription)"
-            ))
+            )
+            messages.append(m)
+            persist(m, appState: appState)
         }
     }
 
@@ -1187,7 +1335,9 @@ final class AssistantViewModel {
         let summary = failed == 0
             ? "✅ \(inserted) transacciones creadas con éxito."
             : "⚠️ \(inserted) creadas, \(failed) fallaron."
-        messages.append(AssistantMessage(role: .assistant, content: summary))
+        let m = AssistantMessage(role: .assistant, content: summary)
+        messages.append(m)
+        persist(m, appState: appState)
     }
 }
 

@@ -762,6 +762,113 @@ final class AIToolHandler: @unchecked Sendable {
     }
     #endif
 
+    // MARK: - 16. Mark Bill Paid
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func markBillPaid(_ p: MarkBillPaidTool.Arguments) async throws -> String {
+        guard let uuid = UUID(uuidString: p.billId) else {
+            return "Error: billId no es un UUID válido"
+        }
+        do {
+            try await BillService.shared.markPaid(id: uuid)
+            return "✅ Factura marcada como pagada."
+        } catch {
+            return "Error al marcar la factura: \(error.localizedDescription)"
+        }
+    }
+    #endif
+
+    // MARK: - 17. Compare Periods
+
+    #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
+    func comparePeriods(_ p: ComparePeriodsTool.Arguments) async throws -> String {
+        let cal = Calendar.current
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+
+        guard let dateA = fmt.date(from: p.periodA),
+              let dateB = fmt.date(from: p.periodB) else {
+            return "Error: períodos deben estar en formato yyyy-MM (ej: 2026-04)"
+        }
+
+        func rangeFor(_ d: Date) -> (Date, Date) {
+            let comps = cal.dateComponents([.year, .month], from: d)
+            let start = cal.date(from: comps) ?? d
+            let end = cal.date(byAdding: DateComponents(month: 1, second: -1), to: start) ?? d
+            return (start, end)
+        }
+
+        let (startA, endA) = rangeFor(dateA)
+        let (startB, endB) = rangeFor(dateB)
+
+        async let totalsA = TransactionService.shared.totals(householdId: householdId, from: startA, to: endA)
+        async let totalsB = TransactionService.shared.totals(householdId: householdId, from: startB, to: endB)
+        async let txA = TransactionService.shared.fetchForPeriod(householdId: householdId, from: startA, to: endA, limit: 5000)
+        async let txB = TransactionService.shared.fetchForPeriod(householdId: householdId, from: startB, to: endB, limit: 5000)
+
+        let (tA, tB) = try await (totalsA, totalsB)
+        let (allA, allB) = try await (txA, txB)
+
+        // Compute top categories inline (no dedicated service method exists).
+        func topCategories(_ txs: [Transaction]) -> [(category: String, total: Decimal)] {
+            var sums: [String: Decimal] = [:]
+            for t in txs where t.type == .gasto {
+                sums[t.category, default: 0] += t.amount
+            }
+            return sums.map { ($0.key, $0.value) }
+                .sorted { $0.1 > $1.1 }
+                .prefix(5)
+                .map { ($0.0, $0.1) }
+        }
+        let catsA = topCategories(allA)
+        let catsB = topCategories(allB)
+
+        let balA = tA.ingresos - tA.gastos
+        let balB = tB.ingresos - tB.gastos
+        let svgRateA: Int = tA.ingresos > 0 ? Int(((balA / tA.ingresos) as NSDecimalNumber).doubleValue * 100) : 0
+        let svgRateB: Int = tB.ingresos > 0 ? Int(((balB / tB.ingresos) as NSDecimalNumber).doubleValue * 100) : 0
+
+        let deltaIng = tA.ingresos - tB.ingresos
+        let deltaGas = tA.gastos - tB.gastos
+        let deltaBal = balA - balB
+
+        func fmtAmount(_ d: Decimal) -> String {
+            Money.format(d, currency: currency, style: .compact)
+        }
+        func fmtDelta(_ d: Decimal) -> String {
+            let sign = d >= 0 ? "+" : ""
+            return "\(sign)\(fmtAmount(d))"
+        }
+
+        var lines: [String] = []
+        lines.append("\(p.periodA) vs \(p.periodB) (\(currency)):")
+        lines.append("• Ingresos: \(fmtAmount(tA.ingresos)) vs \(fmtAmount(tB.ingresos)) — Δ \(fmtDelta(deltaIng))")
+        lines.append("• Gastos: \(fmtAmount(tA.gastos)) vs \(fmtAmount(tB.gastos)) — Δ \(fmtDelta(deltaGas))")
+        lines.append("• Balance: \(fmtAmount(balA)) vs \(fmtAmount(balB)) — Δ \(fmtDelta(deltaBal))")
+        lines.append("• Savings rate: \(svgRateA)% vs \(svgRateB)%")
+
+        if !catsA.isEmpty {
+            lines.append("")
+            lines.append("Top categorías \(p.periodA):")
+            for (i, c) in catsA.prefix(5).enumerated() {
+                lines.append("  \(i+1). \(c.category): \(fmtAmount(c.total))")
+            }
+        }
+        if !catsB.isEmpty {
+            lines.append("")
+            lines.append("Top categorías \(p.periodB):")
+            for (i, c) in catsB.prefix(5).enumerated() {
+                lines.append("  \(i+1). \(c.category): \(fmtAmount(c.total))")
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func expandUUID(_ s: String) -> String {

@@ -26,6 +26,8 @@ enum AnthropicToolBuilder {
             getAccounts(),
             getBills(),
             analyzeInflation(),
+            markBillPaid(),
+            comparePeriods(),
         ]
     }
 
@@ -239,6 +241,27 @@ enum AnthropicToolBuilder {
                 ("monthsBack", int("Months to compare (default 3)")),
                 ("category", string("Focus on a category (optional)")),
             ]))
+        )
+    }
+
+    private static func markBillPaid() -> APITool {
+        APITool(
+            name: "mark_bill_paid",
+            description: "Mark a bill as paid. Use get_bills first to find the UUID, then pass it here. Always confirm with the user before calling.",
+            inputSchema: schemaDict(obj([
+                ("billId", string("UUID of the bill to mark as paid")),
+            ], required: ["billId"]))
+        )
+    }
+
+    private static func comparePeriods() -> APITool {
+        APITool(
+            name: "compare_periods",
+            description: "Compare two months side by side: income, expenses, balance, savings rate, top categories with deltas. Periods in yyyy-MM.",
+            inputSchema: schemaDict(obj([
+                ("periodA", string("First period in yyyy-MM format (e.g. 2026-04)")),
+                ("periodB", string("Second period in yyyy-MM format (e.g. 2026-03 or 2025-04 for YoY)")),
+            ], required: ["periodA", "periodB"]))
         )
     }
 

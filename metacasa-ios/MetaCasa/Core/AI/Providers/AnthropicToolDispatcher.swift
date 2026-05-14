@@ -159,6 +159,23 @@ enum AnthropicToolDispatcher {
                 )
             )
 
+        case "mark_bill_paid":
+            guard let id = input["billId"]?.stringValue else {
+                return "Error: billId required"
+            }
+            return try await handler.markBillPaid(
+                MarkBillPaidTool.Arguments(billId: id)
+            )
+
+        case "compare_periods":
+            guard let a = input["periodA"]?.stringValue,
+                  let b = input["periodB"]?.stringValue else {
+                return "Error: periodA and periodB required (yyyy-MM)"
+            }
+            return try await handler.comparePeriods(
+                ComparePeriodsTool.Arguments(periodA: a, periodB: b)
+            )
+
         default:
             return "Error: unknown tool '\(name)'"
         }

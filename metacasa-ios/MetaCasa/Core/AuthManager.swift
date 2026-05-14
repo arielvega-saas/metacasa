@@ -52,6 +52,26 @@ final class AuthManager {
         return Self.map(session)
     }
 
+    /// Asegura que `TokenHolder` tenga un access_token vigente. supabase-swift
+    /// hace auto-refresh con el refresh_token si el access está vencido o
+    /// próximo a vencer. Esto es necesario para flows long-running como el
+    /// Asistente IA, donde la app puede estar abierta > 1 hora y sin esto
+    /// caería con 401 silenciosamente.
+    ///
+    /// Retorna el token vigente, o `nil` si la sesión está perdida
+    /// (refresh_token vencido → user debe re-loguear desde la app).
+    @discardableResult
+    func ensureFreshToken() async -> String? {
+        do {
+            let session = try await client.auth.session
+            let mapped = Self.map(session)
+            await TokenHolder.shared.set(mapped.accessToken)
+            return mapped.accessToken
+        } catch {
+            return nil
+        }
+    }
+
     func signIn(email: String, password: String) async throws -> AuthSession {
         let session = try await client.auth.signIn(email: email, password: password)
         return Self.map(session)

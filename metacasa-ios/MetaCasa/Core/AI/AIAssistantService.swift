@@ -103,13 +103,18 @@ actor AIAssistantService {
         }
     }
 
+    /// - allowCloud: si `false`, salta Tier 2 (Claude cloud) — útil cuando
+    ///   el user activó "Solo on-device" en PrivacyManager. El asistente cae
+    ///   a Tier 1 (FoundationModels) o Tier 3 (statistical fallback).
     func ask(
         message: String,
         context: FinancialContext,
         householdId: UUID? = nil,
         userId: UUID? = nil,
         history: [ChatTurn] = [],
-        voiceMode: Bool = false
+        voiceMode: Bool = false,
+        pastSummaries: [String] = [],
+        allowCloud: Bool = true
     ) async -> String {
         var debugTrace: [String] = []
 
@@ -136,6 +141,12 @@ actor AIAssistantService {
         #endif
 
         // Tier 2: Cloud LLM (Claude Haiku 4.5 via Edge Function).
+        // Si el user activó "Solo on-device" en PrivacyManager, saltamos
+        // directo al statistical fallback (Tier 3).
+        guard allowCloud else {
+            debugTrace.append("Tier 2 skipped: user set on-device-only")
+            return debugWrap(debugTrace, fallback: statisticalFallback(message: message, context: context))
+        }
         guard let hid = householdId else {
             debugTrace.append("Tier 2 skipped: no householdId")
             return debugWrap(debugTrace, fallback: statisticalFallback(message: message, context: context))
@@ -158,7 +169,8 @@ actor AIAssistantService {
                     userId: uid,
                     accessToken: accessToken,
                     history: history,
-                    voiceMode: voiceMode
+                    voiceMode: voiceMode,
+                    pastSummaries: pastSummaries
                 )
             }
             NSLog("[AI] Tier 2 (Anthropic Cloud) success")
