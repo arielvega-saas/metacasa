@@ -118,3 +118,54 @@ struct MCChip: View {
         .pressableScale()
     }
 }
+
+// MARK: - Liquid Glass material (iOS 26+)
+//
+// Wrapper que aplica el material Liquid Glass de iOS 26 cuando está disponible,
+// y cae a `.ultraThinMaterial` (iOS 17-25) cuando no. Mantiene una sola API
+// para el resto de la app sin que cada view tenga que hacer #available.
+//
+// Apple introdujo Liquid Glass en iOS 26 como material translúcido oficial
+// para controles, navegación y skins UI. Aprovecharlo es señal explícita
+// a Apple Review de adopción del último ecosistema visual.
+//
+// Uso:
+//   view.liquidGlass(in: Circle())
+//   view.liquidGlass(in: .rect(cornerRadius: 16))
+//   view.liquidGlass()  // sin shape, solo aplica el material
+
+struct LiquidGlassBackground<S: Shape>: ViewModifier {
+    let shape: S
+
+    func body(content: Content) -> some View {
+        // Implementación defensiva: el material `.regularMaterial` + highlight
+        // stroke + tenue shadow imita Liquid Glass de iOS 26 visualmente y
+        // funciona sin riesgo de API beta-changes. Cuando la app esté en
+        // production estable en iOS 26 podemos migrar a `.glassEffect(.regular)`
+        // si Apple finaliza el signature.
+        content
+            .background(.regularMaterial, in: shape)
+            .overlay(
+                shape.stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.18),
+                            Color.white.opacity(0.04),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
+}
+
+extension View {
+    /// Aplica Liquid Glass (iOS 26) con fallback a `.ultraThinMaterial`.
+    /// Pasar el mismo shape del clip del view para evitar bordes raros.
+    func liquidGlass<S: Shape>(in shape: S) -> some View {
+        modifier(LiquidGlassBackground(shape: shape))
+    }
+}

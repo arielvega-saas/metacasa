@@ -56,10 +56,10 @@ struct AssistantChatView: View {
                         Image(systemName: "xmark")
                             .font(.footnote.weight(.bold))
                             .frame(width: 32, height: 32)
-                            .background(Color.appSurface)
-                            .clipShape(Circle())
+                            .liquidGlass(in: Circle())
                     }
                     .buttonStyle(.plain)
+                    .pressableScale()
                 }
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 8) {
@@ -366,9 +366,9 @@ struct AssistantChatView: View {
                 .font(.title3.weight(.medium))
                 .foregroundStyle(Color.textPrimary)
                 .frame(width: 38, height: 38)
-                .background(Color.appSurface)
-                .clipShape(Circle())
+                .liquidGlass(in: Circle())
         }
+        .pressableScale()
     }
 
     private var textInput: some View {

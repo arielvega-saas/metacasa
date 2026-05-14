@@ -84,9 +84,10 @@ struct VoiceConversationView: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(Color.textPrimary)
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .liquidGlass(in: Circle())
             }
             .buttonStyle(.plain)
+            .pressableScale()
 
             Spacer()
 
@@ -97,9 +98,10 @@ struct VoiceConversationView: View {
                     .font(.headline.weight(.medium))
                     .foregroundStyle(Color.textPrimary)
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .liquidGlass(in: Circle())
             }
             .buttonStyle(.plain)
+            .pressableScale()
         }
     }
 
