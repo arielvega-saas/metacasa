@@ -113,7 +113,7 @@
          RevenueCat dashboard antes del submit. Sin esto, paywall queda
          en placeholder mode. Ver APP_STORE_CHECKLIST.md paso 4. -->
     <key>REVENUECAT_API_KEY</key>
-    <string>appl_REPLACE_WITH_REAL_KEY_FROM_REVENUECAT_DASHBOARD</string>
+    <string>appl_mJefXoJQLCqrPEtqgXKSlacJUkW</string>
 
     <!-- Sentry DSN (observabilidad de crashes en producción).
          OPCIONAL — si no querés Sentry, dejá vacío y el SDK no se inicializa.
