@@ -249,6 +249,9 @@ struct HomeView: View {
     @State private var showAnnual = false
     @State private var showStrategySettings = false
     @State private var showDashboardEditor = false
+    /// Cuando el user toca Saldo / Ingresos / Gastos, presentamos el
+    /// desglose (composición del importe) — estilo Mercado Pago.
+    @State private var breakdownMode: BalanceBreakdownMode?
     // PDF share del mes — se genera on-demand y luego se abre el share sheet.
     @State private var isBuildingPDF = false
     @State private var pendingPDFURL: URL?
@@ -328,6 +331,15 @@ struct HomeView: View {
             .task { await reload() }
             .sheet(isPresented: $showCompare) { CompareMonthsView() }
             .sheet(isPresented: $showAnnual) { AnnualView() }
+            .sheet(item: $breakdownMode) { mode in
+                BalanceBreakdownView(
+                    mode: mode,
+                    transactions: viewModel.recentTransactions,
+                    ingresos: viewModel.totalIngresos,
+                    gastos: viewModel.totalGastos,
+                    currency: householdCurrency
+                )
+            }
             .sheet(isPresented: $showStrategySettings) {
                 PlanEditorView(
                     strategy: currentStrategy,
@@ -427,7 +439,11 @@ struct HomeView: View {
                     privacy.toggle()
                 },
                 onCompareTap: { showCompare = true },
-                onAnnualTap: { showAnnual = true }
+                onAnnualTap: { showAnnual = true },
+                onTap: {
+                    Haptics.play(.selection)
+                    breakdownMode = .balance
+                }
             )
         case .stats:
             StatsRow(
@@ -435,7 +451,11 @@ struct HomeView: View {
                 gastos: viewModel.totalGastos,
                 incomeSpark: viewModel.incomeSparkline,
                 expenseSpark: viewModel.expenseSparkline,
-                currency: householdCurrency
+                currency: householdCurrency,
+                onTap: { mode in
+                    Haptics.play(.selection)
+                    breakdownMode = mode
+                }
             )
         case .insight:
             InsightCard(viewModel: viewModel, currency: householdCurrency)
@@ -573,6 +593,7 @@ private struct HeroBalanceCard: View {
     let onToggleHide: () -> Void
     let onCompareTap: () -> Void
     let onAnnualTap: () -> Void
+    var onTap: () -> Void = {}
 
     private var delta: Decimal { balance - prevBalance }
     private var improved: Bool { delta >= 0 }
@@ -640,6 +661,11 @@ private struct HeroBalanceCard: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.brandPrimary.opacity(0.15), lineWidth: 1)
         )
+        // Toda la card es tappable → desglose. Los chips internos (ojo,
+        // comparar, anual) son Buttons y SwiftUI les da prioridad, así
+        // que siguen funcionando sin disparar el desglose.
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
     }
 
     private var deltaText: String {
@@ -889,6 +915,7 @@ private struct StatsRow: View {
     let incomeSpark: [Decimal]
     let expenseSpark: [Decimal]
     let currency: String
+    var onTap: (BalanceBreakdownMode) -> Void = { _ in }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -900,6 +927,8 @@ private struct StatsRow: View {
                 color: .brandSuccess,
                 icon: "arrow.down.circle.fill"
             )
+            .contentShape(Rectangle())
+            .onTapGesture { onTap(.ingresos) }
             statTile(
                 title: "Gastos",
                 amount: gastos,
@@ -908,6 +937,8 @@ private struct StatsRow: View {
                 color: .brandDanger,
                 icon: "arrow.up.circle.fill"
             )
+            .contentShape(Rectangle())
+            .onTapGesture { onTap(.gastos) }
         }
     }
 
@@ -1773,4 +1804,232 @@ struct NetWorthCard: View {
         }
     }
 }
+
+// MARK: - Balance breakdown (tap en Saldo / Ingresos / Gastos)
+
+/// Modo del desglose. Define qué transacciones se muestran y el copy.
+enum BalanceBreakdownMode: String, Identifiable {
+    case balance, ingresos, gastos
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .balance:  "Saldo del mes"
+        case .ingresos: "Ingresos del mes"
+        case .gastos:   "Gastos del mes"
+        }
+    }
+}
+
+/// Sheet que muestra CÓMO está compuesto el importe que el user tocó en el
+/// Home (Saldo / Ingresos / Gastos). Igual que Mercado Pago / Revolut: tap
+/// en un total → desglose por categoría con barras + lista de movimientos.
+struct BalanceBreakdownView: View {
+    let mode: BalanceBreakdownMode
+    let transactions: [Transaction]
+    let ingresos: Decimal
+    let gastos: Decimal
+    let currency: String
+    @Environment(\.dismiss) private var dismiss
+
+    private var balance: Decimal { ingresos - gastos }
+
+    private var relevantTxs: [Transaction] {
+        switch mode {
+        case .ingresos: transactions.filter { $0.type == .ingreso }
+        case .gastos:   transactions.filter { $0.type == .gasto }
+        case .balance:  transactions
+        }
+    }
+
+    private var headlineAmount: Decimal {
+        switch mode {
+        case .ingresos: ingresos
+        case .gastos:   gastos
+        case .balance:  balance
+        }
+    }
+
+    private var byCategory: [(category: String, total: Decimal, pct: Double)] {
+        let txs: [Transaction]
+        let denom: Decimal
+        switch mode {
+        case .ingresos: txs = transactions.filter { $0.type == .ingreso }; denom = ingresos
+        case .gastos:   txs = transactions.filter { $0.type == .gasto };   denom = gastos
+        case .balance:  txs = transactions.filter { $0.type == .gasto };   denom = gastos
+        }
+        var sums: [String: Decimal] = [:]
+        for t in txs { sums[t.category, default: 0] += t.amount }
+        let d = (denom as NSDecimalNumber).doubleValue
+        return sums.map { (cat, total) -> (category: String, total: Decimal, pct: Double) in
+            let p = d > 0 ? (total as NSDecimalNumber).doubleValue / d : 0
+            return (cat, total, p)
+        }
+        .sorted { $0.total > $1.total }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        headline
+                        if mode == .balance { balanceSummary }
+                        if !byCategory.isEmpty { categorySection }
+                        movementsSection
+                    }
+                    .padding(20)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle(mode.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var headline: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(mode == .gastos ? "Total gastado" : (mode == .ingresos ? "Total ingresado" : "Saldo neto"))
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            Text(Money.format(headlineAmount, currency: currency, style: .auto))
+                .font(.mcSerifHero)
+                .foregroundStyle(mode == .gastos ? Color.brandDanger : (mode == .ingresos ? Color.brandSuccess : Color.textPrimary))
+            Text("\(relevantTxs.count) movimiento\(relevantTxs.count == 1 ? "" : "s")")
+                .font(.mcCaption)
+                .foregroundStyle(Color.textDim)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var balanceSummary: some View {
+        HStack(spacing: 12) {
+            summaryTile("Ingresos", ingresos, .brandSuccess, "arrow.down.circle.fill")
+            summaryTile("Gastos", gastos, .brandDanger, "arrow.up.circle.fill")
+        }
+    }
+
+    private func summaryTile(_ t: String, _ amt: Decimal, _ c: Color, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).foregroundStyle(c).font(.caption)
+                Text(t).font(.mcCaption).foregroundStyle(Color.textMuted)
+            }
+            Text(Money.format(amt, currency: currency, style: .compact))
+                .font(.mcSerifAmount)
+                .foregroundStyle(Color.textPrimary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.appSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var categorySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(mode == .ingresos ? "Por origen" : "Por categoría")
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            ForEach(byCategory.prefix(12), id: \.category) { row in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(row.category)
+                            .font(.mcBody)
+                            .foregroundStyle(Color.textPrimary)
+                        Spacer()
+                        Text(Money.format(row.total, currency: currency, style: .compact))
+                            .font(.mcBody.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(Color.textPrimary)
+                        Text("\(Int(row.pct * 100))%")
+                            .font(.mcCaption.monospacedDigit())
+                            .foregroundStyle(Color.textDim)
+                            .frame(width: 42, alignment: .trailing)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.appSurfaceInset).frame(height: 6)
+                            Capsule()
+                                .fill(mode == .ingresos ? Color.brandSuccess : Color.brandPrimary)
+                                .frame(width: max(4, geo.size.width * row.pct), height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.appSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var movementsSection: some View {
+        let sorted = relevantTxs.sorted { $0.date > $1.date }
+        let shown = Array(sorted.prefix(50))
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Movimientos")
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            if shown.isEmpty {
+                Text("Sin movimientos este mes.")
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textDim)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(shown) { tx in
+                    movementRow(tx)
+                    if tx.id != shown.last?.id {
+                        Divider().background(Color.appBorder)
+                    }
+                }
+                if relevantTxs.count > 50 {
+                    Text("… y \(relevantTxs.count - 50) más. Vé al tab Movimientos para verlos todos.")
+                        .font(.mcCaption)
+                        .foregroundStyle(Color.textDim)
+                        .padding(.top, 6)
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.appSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func movementRow(_ tx: Transaction) -> some View {
+        let isGasto = tx.type == .gasto
+        let df = DateFormatter()
+        df.dateFormat = "dd MMM"
+        df.locale = AppLocaleStorage.effectiveLocale
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((isGasto ? Color.brandDanger : Color.brandSuccess).opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: isGasto ? "arrow.up.right" : "arrow.down.left")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(isGasto ? Color.brandDanger : Color.brandSuccess)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tx.note?.isEmpty == false ? tx.note! : tx.category)
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textPrimary)
+                    .lineLimit(1)
+                Text("\(tx.category) · \(df.string(from: tx.date))")
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textMuted)
+            }
+            Spacer()
+            Text((isGasto ? "−" : "+") + Money.format(tx.amount, currency: currency, style: .compact))
+                .font(.mcBody.weight(.semibold).monospacedDigit())
+                .foregroundStyle(isGasto ? Color.textPrimary : Color.brandSuccess)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
 
