@@ -409,6 +409,78 @@ actor AnthropicProvider {
         return try Self.decodeReceiptJSON(jsonText, rawText: text)
     }
 
+    /// Normaliza el texto crudo de un resumen bancario / wallet (extraído de
+    /// un PDF con PDFKit) a un CSV que `TransactionCSVImporter` entiende.
+    ///
+    /// Claude hace el trabajo pesado: entiende la tabla, parsea montos en
+    /// formato local ($ -4.990,00 → 4990.00), infiere categorías, y — clave —
+    /// **filtra movimientos internos que NO son gastos reales** (ej. "Reserva
+    /// por gastos Ahorro" de MercadoPago es una transferencia a la sub-cuenta
+    /// de ahorro del mismo usuario, no un gasto).
+    ///
+    /// Devuelve un CSV con header `fecha,tipo,monto,categoria,nota`:
+    ///  - fecha: YYYY-MM-DD
+    ///  - tipo: GASTO o INGRESO
+    ///  - monto: positivo siempre (el signo lo da el tipo)
+    ///  - categoria: inferida (Alimentación, Transporte, Servicios, etc.)
+    ///  - nota: descripción / comercio original
+    func parseStatementToCSV(statementText: String, accessToken: String) async throws -> String {
+        let system = """
+        Sos un parser experto de resúmenes de cuenta bancarios y de billeteras virtuales \
+        (MercadoPago, Brubank, Ualá, Naranja X, bancos tradicionales, tarjetas de crédito) \
+        de Argentina y LatAm. Recibís el texto crudo extraído de un PDF (la tabla puede \
+        estar desordenada, con descripciones partidas en varias líneas).
+
+        Tu tarea: devolver ÚNICAMENTE un CSV válido — sin explicaciones, sin markdown, sin \
+        bloque de código. Primera línea EXACTA el header:
+        fecha,tipo,monto,categoria,nota
+
+        Reglas de cada fila:
+        - fecha: formato YYYY-MM-DD. Convertí desde DD-MM-YYYY u otros formatos.
+        - tipo: "GASTO" si el movimiento resta dinero (valor negativo, "Pago", "Compra", \
+          "Transferencia enviada", "Pago de cuota", "Pago de suscripción"). "INGRESO" si \
+          suma ("Ingreso de dinero", "Transferencia recibida", "Devolución", "Rendimientos").
+        - monto: número positivo SIEMPRE, con punto decimal (sin símbolo $, sin separador \
+          de miles). Ej: "$ -4.990,00" → 4990.00 ; "$ 2.378.355,00" → 2378355.00
+        - categoria: inferí una de: Alimentación, Transporte, Servicios, Salud, \
+          Suscripciones, Entretenimiento, Ropa, Educación, Hogar, Transferencias, \
+          Ingresos, Inversiones, Otros. Para "Pago ARCOS DORADOS" → Alimentación. \
+          "Compra Mercado Libre" → Otros. "Transferencia enviada <persona>" → \
+          Transferencias. "Pago de suscripción Meli+" → Suscripciones. \
+          "Rendimientos" → Inversiones. "Pago de cuota Créditos" → Servicios.
+        - nota: la descripción original limpia (sin IDs de operación, sin saldos). \
+          Colapsá descripciones multilínea en una sola línea. Si tiene comas, encerrá \
+          el campo entre comillas dobles.
+
+        EXCLUÍ COMPLETAMENTE estas filas (NO las pongas en el CSV):
+        - "Reserva por gastos Ahorro", "Reserva programada", "Reserva por gastos" — son \
+          movimientos internos a la sub-cuenta de ahorro del MISMO usuario, no gastos reales.
+        - Filas que sean claramente el saldo inicial/final o totales del resumen.
+        - Si un "Pago" tiene una "Devolución" del mismo monto e ID, igual incluí ambos \
+          (el usuario decide después) pero categorizá la devolución como Ingresos.
+
+        Si no podés determinar la fecha o el monto de una fila, omitila. Mejor menos \
+        filas correctas que filas con datos inventados. NO inventes movimientos.
+        """
+
+        let response = try await callProxy(
+            accessToken: accessToken,
+            system: system,
+            tools: [],
+            messages: [APIMessage(role: "user", content: .text("Texto del resumen de cuenta:\n\n\(statementText)"))]
+        )
+
+        let csv = Self.extractText(from: response)
+            .replacingOccurrences(of: "```csv", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard csv.lowercased().contains("fecha") && csv.contains(",") else {
+            throw AnthropicError.invalidResponse
+        }
+        return csv
+    }
+
     private static func decodeReceiptJSON(_ raw: String, rawText: String) throws -> ParsedReceipt {
         let cleaned = raw
             .replacingOccurrences(of: "```json", with: "")

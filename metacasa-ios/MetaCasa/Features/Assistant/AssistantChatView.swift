@@ -123,7 +123,7 @@ struct AssistantChatView: View {
             )
             .fileImporter(
                 isPresented: $showFilePicker,
-                allowedContentTypes: [.commaSeparatedText, .plainText, .spreadsheet, UTType(filenameExtension: "csv") ?? .plainText, UTType(filenameExtension: "xlsx") ?? .plainText],
+                allowedContentTypes: [.pdf, .commaSeparatedText, .plainText, .spreadsheet, UTType(filenameExtension: "csv") ?? .plainText, UTType(filenameExtension: "xlsx") ?? .plainText],
                 allowsMultipleSelection: false
             ) { result in
                 Task { await handleFilePick(result: result) }
@@ -1280,10 +1280,65 @@ final class AssistantViewModel {
             return
         }
 
-        messages.append(AssistantMessage(
+        // 3. PDF → resumen de cuenta de wallet/banco. Extraemos texto con
+        // PDFKit, Claude lo normaliza a CSV (filtrando movimientos internos
+        // tipo "Reserva por gastos Ahorro"), y seguimos el flujo de import.
+        if ext == "pdf" {
+            let extracted: String
+            do {
+                extracted = try PDFStatementService.extractText(from: url)
+            } catch {
+                let m = AssistantMessage(
+                    role: .assistant,
+                    content: "❌ \(error.localizedDescription)"
+                )
+                messages.append(m)
+                persist(m, appState: appState)
+                return
+            }
+
+            await AuthManager.shared.ensureFreshToken()
+            guard PrivacyManager.shared.canUseCloudAssistant,
+                  let token = await TokenHolder.shared.get() else {
+                let m = AssistantMessage(
+                    role: .assistant,
+                    content: "Para leer un PDF de resumen necesito procesarlo con la IA en la nube. Activá \"Procesamiento en la nube\" en Ajustes → Privacidad del Asistente IA, o convertí el resumen a CSV/Excel desde tu banco."
+                )
+                messages.append(m)
+                persist(m, appState: appState)
+                return
+            }
+
+            do {
+                let csv = try await AnthropicProvider.shared.parseStatementToCSV(
+                    statementText: extracted,
+                    accessToken: token
+                )
+                let lines = csv.components(separatedBy: .newlines).filter { !$0.isEmpty }
+                // -1 por la fila header.
+                await presentCSVPreview(
+                    fileName: name,
+                    csv: csv,
+                    rowCount: max(0, lines.count - 1),
+                    appState: appState
+                )
+            } catch {
+                let m = AssistantMessage(
+                    role: .assistant,
+                    content: "❌ No pude interpretar el resumen del PDF (\(error.localizedDescription)). Probá exportar el resumen en CSV o Excel desde tu banco/wallet — esos formatos son más confiables."
+                )
+                messages.append(m)
+                persist(m, appState: appState)
+            }
+            return
+        }
+
+        let m = AssistantMessage(
             role: .assistant,
-            content: "No reconozco ese tipo de archivo. Soporto CSV, TSV, XLS, XLSX."
-        ))
+            content: "No reconozco ese tipo de archivo. Soporto PDF (resumen de banco/wallet), CSV, TSV, XLS, XLSX."
+        )
+        messages.append(m)
+        persist(m, appState: appState)
     }
 
     /// Parsea el CSV con `TransactionCSVImporter`, resume en el chat y ofrece
