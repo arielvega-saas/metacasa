@@ -140,10 +140,13 @@ struct AssistantChatView: View {
                 ParsedTransactionsSheet(
                     parsed: item.parsed,
                     currency: appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "ARS",
-                    onImport: {
-                        Task { await viewModel.handleAction(
-                            AssistantAction(label: "", icon: "", destructive: false, kind: .importParsed(item.parsed)),
-                            appState: appState
+                    categories: viewModel.importCategories,
+                    onImport: { edits in
+                        Task { await viewModel.commitImport(
+                            parsed: item.parsed,
+                            appState: appState,
+                            force: true,
+                            categoryEdits: edits
                         ) }
                     }
                 )
@@ -887,6 +890,10 @@ struct AssistantAction: Sendable, Identifiable {
         case createMultipleTransactions([ParsedReceipt])
         case importCSV(URL)
         case importParsed(ParsedImport)
+        /// Importa TODAS las filas válidas incluyendo las marcadas como
+        /// duplicadas (el user decidió cargarlas igual — ej. resubió un PDF
+        /// que ya importó pero quiere los movimientos de nuevo).
+        case importParsedForce(ParsedImport)
         /// Abre un sheet con el detalle completo de todas las transacciones
         /// detectadas (antes de importar), para que el user las revise como
         /// en el Asistente de Mercado Pago.
@@ -910,6 +917,10 @@ final class AssistantViewModel {
     /// presenta un sheet con TODAS las transacciones detectadas para que
     /// las revise (estilo Mercado Pago) antes de importar.
     var parsedDetailToShow: IdentifiableParsedImport?
+    /// Categorías de gasto del hogar (defaults + custom merged), para que en
+    /// el sheet de detalle el user pueda re-asignar la categoría/subcategoría
+    /// de cada movimiento con un selector. Se cargan al abrir el sheet.
+    var importCategories: [CategoryItem] = []
 
     /// Resúmenes de conversaciones anteriores cargados desde disco. Se inyectan
     /// al system prompt del LLM como `=== PREVIOUS CONVERSATIONS ===` para
@@ -1477,14 +1488,31 @@ final class AssistantViewModel {
                 lines.append("_… y \(valid.count - preview.count) más. Tocá \"Ver todo\" para revisarlas._")
             }
         }
+        // Total de filas con datos (válidas + duplicadas) — sirve para
+        // permitir "Ver todo" e "Importar igual" aunque todo sea duplicado.
+        let importableCount = parsed.rows.filter { $0.isValid }.count
+        let allDuplicates = parsed.validCount == 0 && parsed.duplicateCount > 0
+
         lines.append("")
-        lines.append("¿Importo las \(parsed.validCount)? Revisalas primero si querés.")
+        if allDuplicates {
+            lines.append("Estas \(parsed.duplicateCount) ya las habías importado antes (las detecté como duplicadas, no se cargan dos veces). Igual podés revisarlas con **Ver todo**, o forzar la carga con **Importar igual**.")
+        } else {
+            lines.append("¿Importo las \(parsed.validCount)? Revisalas primero con **Ver todo** si querés.")
+        }
 
         var actions: [AssistantAction] = []
-        if parsed.validCount > 0 {
-            actions.append(
-                AssistantAction(label: "Importar \(parsed.validCount)", icon: "arrow.down.doc.fill", destructive: false, kind: .importParsed(parsed))
-            )
+        // "Ver todo" SIEMPRE disponible si hay filas con datos — el user
+        // pidió poder ver el detalle aunque estén duplicadas.
+        if importableCount > 0 {
+            if parsed.validCount > 0 {
+                actions.append(
+                    AssistantAction(label: "Importar \(parsed.validCount)", icon: "arrow.down.doc.fill", destructive: false, kind: .importParsed(parsed))
+                )
+            } else if allDuplicates {
+                actions.append(
+                    AssistantAction(label: "Importar igual \(importableCount)", icon: "arrow.down.doc.fill", destructive: false, kind: .importParsedForce(parsed))
+                )
+            }
             actions.append(
                 AssistantAction(label: "Ver todo", icon: "list.bullet.rectangle", destructive: false, kind: .viewParsedDetail(parsed))
             )
@@ -1510,8 +1538,16 @@ final class AssistantViewModel {
             appendSystem("Abrí el tab Transacciones > botón Importar para procesar el archivo con preview y mapping completo.")
             _ = url
         case .importParsed(let parsed):
-            await commitImport(parsed: parsed, appState: appState)
+            await commitImport(parsed: parsed, appState: appState, force: false)
+        case .importParsedForce(let parsed):
+            await commitImport(parsed: parsed, appState: appState, force: true)
         case .viewParsedDetail(let parsed):
+            // Cargar las categorías de gasto del hogar para el selector
+            // inline. Si falla, el sheet usa solo defaults (no bloquea).
+            if let hid = appState.currentHouseholdId {
+                let blob = try? await CategoryService.shared.fetch(householdId: hid)
+                importCategories = CategoryService.merged(custom: blob?.data, type: .gasto)
+            }
             parsedDetailToShow = IdentifiableParsedImport(parsed: parsed)
         case .discard:
             appendSystem("Descartado. 👍")
@@ -1519,19 +1555,40 @@ final class AssistantViewModel {
     }
 
     @MainActor
-    private func commitImport(parsed: ParsedImport, appState: AppState) async {
+    func commitImport(
+        parsed: ParsedImport,
+        appState: AppState,
+        force: Bool = false,
+        categoryEdits: [UUID: CategoryAssignment] = [:]
+    ) async {
         guard let hid = appState.currentHouseholdId,
               let uid = appState.currentUserId else {
             appendSystem("Falta sesión o hogar activo.")
             return
         }
         let defaultCurrency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
-        let inputs = TransactionCSVImporter.buildInputs(
-            from: parsed,
-            householdId: hid,
-            userId: uid,
-            defaultCurrency: defaultCurrency
-        )
+
+        // Construimos los inputs manualmente para poder aplicar las ediciones
+        // de categoría/subcategoría que hizo el user en el sheet de detalle.
+        // Si force=true, importamos también las marcadas como duplicadas.
+        let inputs: [NewTransactionInput] = parsed.rows.compactMap { row in
+            guard row.isValid else { return nil }
+            if row.isDuplicate && !force { return nil }
+            guard let date = row.date, let type = row.type, let amount = row.amount else { return nil }
+            let edit = categoryEdits[row.id]
+            return NewTransactionInput(
+                householdId: hid,
+                userId: uid,
+                accountId: nil,
+                type: type,
+                amount: amount,
+                currencyOriginal: row.currency ?? defaultCurrency,
+                category: edit?.category ?? row.category ?? "Otros",
+                subcategory: edit?.subcategory ?? row.subcategory,
+                note: row.note,
+                date: date
+            )
+        }
 
         isThinking = true
         defer { isThinking = false }
@@ -1781,25 +1838,58 @@ struct IdentifiableParsedImport: Identifiable {
 /// fecha, scrolleable. El user las revisa antes de importar — igual que el
 /// Asistente de Mercado Pago muestra el detalle de movimientos. Botón
 /// "Importar" sticky abajo.
+/// Sección precomputada (NO se recalcula en cada render — fix del freeze).
+struct ParsedDaySection: Identifiable {
+    let id = UUID()
+    let day: String
+    let rows: [ParsedImportRow]
+}
+
+/// Asignación de categoría editada por el user para una fila del import.
+struct CategoryAssignment: Sendable, Hashable {
+    var category: String
+    var subcategory: String?
+}
+
 struct ParsedTransactionsSheet: View {
-    let parsed: ParsedImport
     let currency: String
-    let onImport: () -> Void
+    let categories: [CategoryItem]
+    /// Recibe las ediciones de categoría que hizo el user (row.id → asignación).
+    let onImport: ([UUID: CategoryAssignment]) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    private var valid: [ParsedImportRow] {
-        parsed.rows.filter { $0.isValid && !$0.isDuplicate }
-    }
+    /// Ediciones del user. Arranca vacío — cada fila usa su categoría sugerida
+    /// por Claude hasta que el user la cambie con el selector.
+    @State private var edits: [UUID: CategoryAssignment] = [:]
 
-    private var grouped: [(day: String, rows: [ParsedImportRow])] {
+    // ─── DATOS PRECOMPUTADOS EN init ─────────────────────────────────────
+    // Antes `valid` y `grouped` eran computed properties que se recalculaban
+    // en CADA evaluación del body (crear DateFormatter + Dictionary(grouping)
+    // + sort, multiplicado por los 3-4 accesos a valid.count). Con muchas
+    // filas eso congelaba la UI. Ahora se computan UNA sola vez acá.
+    private let validCount: Int
+    private let sections: [ParsedDaySection]
+    private let hasImportable: Bool
+
+    init(parsed: ParsedImport, currency: String, categories: [CategoryItem], onImport: @escaping ([UUID: CategoryAssignment]) -> Void) {
+        self.currency = currency
+        self.categories = categories
+        self.onImport = onImport
+
+        // Mostramos válidas + duplicadas (las duplicadas con badge). El user
+        // pidió poder ver TODO aunque ya estén cargadas.
+        let shown = parsed.rows.filter { $0.isValid }
+        self.validCount = shown.filter { !$0.isDuplicate }.count
+        self.hasImportable = !shown.filter { !$0.isDuplicate }.isEmpty
+
         let df = DateFormatter()
         df.dateFormat = "EEEE d 'de' MMMM"
         df.locale = AppLocaleStorage.effectiveLocale
-        let dict = Dictionary(grouping: valid) { row -> String in
+        let dict = Dictionary(grouping: shown) { row -> String in
             row.date.map { df.string(from: $0) } ?? "Sin fecha"
         }
-        return dict
-            .map { (day: $0.key, rows: $0.value) }
+        self.sections = dict
+            .map { ParsedDaySection(day: $0.key, rows: $0.value.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }) }
             .sorted { ($0.rows.first?.date ?? .distantPast) > ($1.rows.first?.date ?? .distantPast) }
     }
 
@@ -1809,7 +1899,7 @@ struct ParsedTransactionsSheet: View {
                 Color.appBackground.ignoresSafeArea()
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 22, pinnedViews: [.sectionHeaders]) {
-                        ForEach(grouped, id: \.day) { section in
+                        ForEach(sections) { section in
                             Section {
                                 ForEach(section.rows) { row in
                                     rowView(row)
@@ -1828,28 +1918,30 @@ struct ParsedTransactionsSheet: View {
                     .padding(.bottom, 100)
                 }
 
-                VStack {
-                    Spacer()
-                    Button {
-                        onImport()
-                        dismiss()
-                    } label: {
-                        Text("Importar \(valid.count) transacciones")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(MCPrimaryButton())
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.appBackground.opacity(0), Color.appBackground],
-                            startPoint: .top, endPoint: .bottom
+                if hasImportable {
+                    VStack {
+                        Spacer()
+                        Button {
+                            onImport(edits)
+                            dismiss()
+                        } label: {
+                            Text("Importar \(validCount) transacciones")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(MCPrimaryButton())
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.appBackground.opacity(0), Color.appBackground],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                            .ignoresSafeArea()
                         )
-                        .ignoresSafeArea()
-                    )
+                    }
                 }
             }
-            .navigationTitle("\(valid.count) movimientos")
+            .navigationTitle("\(sections.reduce(0) { $0 + $1.rows.count }) movimientos")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1859,11 +1951,25 @@ struct ParsedTransactionsSheet: View {
         }
     }
 
+    /// Categoría efectiva de una fila: la editada por el user o la sugerida.
+    private func effectiveCategory(_ row: ParsedImportRow) -> String {
+        edits[row.id]?.category ?? row.category ?? "Otros"
+    }
+    private func effectiveSub(_ row: ParsedImportRow) -> String? {
+        if let e = edits[row.id] { return e.subcategory }
+        return row.subcategory
+    }
+    private func emoji(for catName: String) -> String {
+        categories.first(where: { $0.name == catName })?.emoji ?? "🏷️"
+    }
+
     private func rowView(_ row: ParsedImportRow) -> some View {
         let isGasto = row.type == .gasto
         let amountStr = row.amount.map {
             (isGasto ? "−" : "+") + Money.format($0, currency: currency, style: .compact)
         } ?? "?"
+        let cat = effectiveCategory(row)
+        let sub = effectiveSub(row)
         return HStack(spacing: 12) {
             ZStack {
                 Circle()
@@ -1873,14 +1979,63 @@ struct ParsedTransactionsSheet: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(isGasto ? Color.brandDanger : Color.brandSuccess)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.note ?? row.category ?? "Movimiento")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(row.note ?? cat)
                     .font(.mcBody)
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
-                Text(row.category ?? "Sin categoría")
-                    .font(.mcCaption)
-                    .foregroundStyle(Color.textMuted)
+                HStack(spacing: 6) {
+                    // Selector de categoría tappable — el corazón de la feature.
+                    Menu {
+                        ForEach(categories) { item in
+                            if let subs = item.subcategories, !subs.isEmpty {
+                                Menu("\(item.emoji ?? "🏷️") \(item.name)") {
+                                    Button("— sin subcategoría —") {
+                                        edits[row.id] = CategoryAssignment(category: item.name, subcategory: nil)
+                                        Haptics.play(.selection)
+                                    }
+                                    ForEach(subs, id: \.self) { s in
+                                        Button(s) {
+                                            edits[row.id] = CategoryAssignment(category: item.name, subcategory: s)
+                                            Haptics.play(.selection)
+                                        }
+                                    }
+                                }
+                            } else {
+                                Button("\(item.emoji ?? "🏷️") \(item.name)") {
+                                    edits[row.id] = CategoryAssignment(category: item.name, subcategory: nil)
+                                    Haptics.play(.selection)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(emoji(for: cat))
+                                .font(.caption2)
+                            Text(sub.map { "\(cat) · \($0)" } ?? cat)
+                                .font(.mcCaption.weight(.medium))
+                                .foregroundStyle(edits[row.id] != nil ? Color.brandPrimary : Color.textMuted)
+                                .lineLimit(1)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(Color.textDim)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule().fill(edits[row.id] != nil ? Color.brandPrimary.opacity(0.12) : Color.appSurfaceInset)
+                        )
+                    }
+                    if row.isDuplicate {
+                        Text("ya cargada")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.brandWarning)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Color.brandWarning.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
             }
             Spacer()
             Text(amountStr)
@@ -1889,6 +2044,7 @@ struct ParsedTransactionsSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .opacity(row.isDuplicate ? 0.55 : 1)
     }
 }
 

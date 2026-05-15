@@ -39,9 +39,14 @@ packages:
   CoreXLSX:
     url: https://github.com/CoreOffice/CoreXLSX
     from: "0.14.2"
-  Sentry:
-    url: https://github.com/getsentry/sentry-cocoa
-    from: "8.40.0"
+  # Sentry temporalmente deshabilitado: la descarga del XCFramework
+  # binario de releases de GitHub falla en esta red. ObservabilityService
+  # usa #if canImport(Sentry) → no-op sin el package. Re-activar cuando
+  # la red permita bajar el artifact (descomentar + agregar la dependency
+  # abajo + xcodegen generate).
+  # Sentry:
+  #   url: https://github.com/getsentry/sentry-cocoa
+  #   from: "8.40.0"
 
 targets:
   MetaCasa:
@@ -65,8 +70,8 @@ targets:
         product: KeychainAccess
       - package: CoreXLSX
         product: CoreXLSX
-      - package: Sentry
-        product: Sentry
+      # - package: Sentry
+      #   product: Sentry
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app
