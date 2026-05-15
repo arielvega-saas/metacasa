@@ -3,6 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 import Observation
 import VisionKit
+import PDFKit
 
 /// Chat multimodal del asistente financiero.
 ///
@@ -131,6 +132,21 @@ struct AssistantChatView: View {
             .fullScreenCover(isPresented: $showVoiceMode) {
                 VoiceConversationView()
                     .environment(appState)
+            }
+            .sheet(item: Binding(
+                get: { viewModel.parsedDetailToShow },
+                set: { viewModel.parsedDetailToShow = $0 }
+            )) { item in
+                ParsedTransactionsSheet(
+                    parsed: item.parsed,
+                    currency: appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "ARS",
+                    onImport: {
+                        Task { await viewModel.handleAction(
+                            AssistantAction(label: "", icon: "", destructive: false, kind: .importParsed(item.parsed)),
+                            appState: appState
+                        ) }
+                    }
+                )
             }
             .sheet(isPresented: $showScanner) {
                 DocumentScannerView { images in
@@ -640,6 +656,7 @@ private struct MessageRow: View {
     let message: AssistantMessage
     let onActionTap: (AssistantAction) -> Void
     @State private var imageViewerImage: IdentifiableImage?
+    @State private var pdfToView: IdentifiableFileURL?
 
     /// Renderiza el contenido con soporte para markdown (bold, italic, links).
     /// Si el parser falla (markdown malformado), cae a texto plano.
@@ -746,6 +763,9 @@ private struct MessageRow: View {
         .fullScreenCover(item: $imageViewerImage) { wrapper in
             ImageViewer(image: wrapper.image)
         }
+        .sheet(item: $pdfToView) { item in
+            PDFViewerSheet(url: item.url, name: item.name)
+        }
     }
 
     private func toolResultCard(kind: ToolResultKind) -> some View {
@@ -788,18 +808,29 @@ private struct MessageRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
-        case .file(_, let name):
-            HStack(spacing: 10) {
-                Image(systemName: "doc.fill")
-                    .foregroundStyle(Color.brandPrimary)
-                Text(name)
-                    .font(.caption.monospaced())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+        case .file(let url, let name):
+            Button {
+                pdfToView = IdentifiableFileURL(url: url, name: name)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: name.lowercased().hasSuffix(".pdf") ? "doc.richtext.fill" : "doc.fill")
+                        .foregroundStyle(Color.brandPrimary)
+                    Text(name)
+                        .font(.caption.monospaced())
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if name.lowercased().hasSuffix(".pdf") {
+                        Image(systemName: "eye")
+                            .font(.caption2)
+                            .foregroundStyle(Color.textMuted)
+                    }
+                }
+                .padding(10)
+                .background(Color.appSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .padding(10)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .buttonStyle(.plain)
+            .disabled(!name.lowercased().hasSuffix(".pdf"))
         }
     }
 
@@ -856,6 +887,10 @@ struct AssistantAction: Sendable, Identifiable {
         case createMultipleTransactions([ParsedReceipt])
         case importCSV(URL)
         case importParsed(ParsedImport)
+        /// Abre un sheet con el detalle completo de todas las transacciones
+        /// detectadas (antes de importar), para que el user las revise como
+        /// en el Asistente de Mercado Pago.
+        case viewParsedDetail(ParsedImport)
         case discard
     }
 }
@@ -871,6 +906,10 @@ final class AssistantViewModel {
     var messages: [AssistantMessage] = []
     var input: String = ""
     var isThinking: Bool = false
+    /// Cuando el user toca "Ver todo" en el preview de import, la vista
+    /// presenta un sheet con TODAS las transacciones detectadas para que
+    /// las revise (estilo Mercado Pago) antes de importar.
+    var parsedDetailToShow: IdentifiableParsedImport?
 
     /// Resúmenes de conversaciones anteriores cargados desde disco. Se inyectan
     /// al system prompt del LLM como `=== PREVIOUS CONVERSATIONS ===` para
@@ -1309,11 +1348,22 @@ final class AssistantViewModel {
                 return
             }
 
+            // Feedback visible: el parsing con Claude tarda ~10-20s. Sin
+            // esto el user piensa que la app se tildó. Mostramos un mensaje
+            // de progreso que removemos cuando llega el resultado.
+            let progress = AssistantMessage(
+                role: .assistant,
+                content: "📄 Analizando el resumen con IA… esto puede tardar unos segundos. Estoy filtrando movimientos internos y categorizando cada gasto."
+            )
+            let progressId = progress.id
+            messages.append(progress)
+
             do {
                 let csv = try await AnthropicProvider.shared.parseStatementToCSV(
                     statementText: extracted,
                     accessToken: token
                 )
+                messages.removeAll { $0.id == progressId }
                 let lines = csv.components(separatedBy: .newlines).filter { !$0.isEmpty }
                 // -1 por la fila header.
                 await presentCSVPreview(
@@ -1323,6 +1373,7 @@ final class AssistantViewModel {
                     appState: appState
                 )
             } catch {
+                messages.removeAll { $0.id == progressId }
                 let m = AssistantMessage(
                     role: .assistant,
                     content: "❌ No pude interpretar el resumen del PDF (\(error.localizedDescription)). Probá exportar el resumen en CSV o Excel desde tu banco/wallet — esos formatos son más confiables."
@@ -1358,26 +1409,91 @@ final class AssistantViewModel {
         )) ?? []
 
         let parsed = TransactionCSVImporter.parse(text: csv, existing: existing)
-        let summary = """
-        📄 **\(fileName)** — \(rowCount) filas.
 
-        Detecté:
-        • ✅ \(parsed.validCount) transacciones válidas
-        • 📋 \(parsed.duplicateCount) duplicadas (se saltean)
-        • ⚠️ \(parsed.errorCount) con errores
+        // ─── DETALLE RICO (estilo Mercado Pago) ──────────────────────────
+        // En vez de solo "33 válidas", mostramos: breakdown por categoría con
+        // totales, gastos vs ingresos, y las primeras transacciones. El user
+        // VE qué se va a cargar antes de confirmar, sin tener que preguntar.
+        let valid = parsed.rows.filter { $0.isValid && !$0.isDuplicate }
+        let curr = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "ARS"
 
-        ¿Querés importarlas ahora?
-        """
-        var actions: [AssistantAction] = [
-            AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
-        ]
+        var gastosTotal: Decimal = 0
+        var ingresosTotal: Decimal = 0
+        var byCategory: [String: (count: Int, total: Decimal)] = [:]
+        for r in valid {
+            guard let amt = r.amount, let t = r.type else { continue }
+            if t == .gasto {
+                gastosTotal += amt
+                let cat = r.category ?? "Otros"
+                let cur = byCategory[cat] ?? (0, 0)
+                byCategory[cat] = (cur.count + 1, cur.total + amt)
+            } else {
+                ingresosTotal += amt
+            }
+        }
+        let topCats = byCategory
+            .sorted { $0.value.total > $1.value.total }
+            .prefix(6)
+
+        var lines: [String] = []
+        lines.append("📄 **\(fileName)** — \(rowCount) movimientos analizados.")
+        lines.append("")
+        lines.append("**Resumen:**")
+        lines.append("• ✅ \(parsed.validCount) para importar  ·  📋 \(parsed.duplicateCount) duplicadas  ·  ⚠️ \(parsed.errorCount) con error")
+        if gastosTotal > 0 {
+            lines.append("• 💸 Gastos: **\(Money.format(gastosTotal, currency: curr, style: .compact))**")
+        }
+        if ingresosTotal > 0 {
+            lines.append("• 💰 Ingresos: **\(Money.format(ingresosTotal, currency: curr, style: .compact))**")
+        }
+
+        if !topCats.isEmpty {
+            lines.append("")
+            lines.append("**Por categoría:**")
+            for (cat, info) in topCats {
+                lines.append("• \(cat) — \(Money.format(info.total, currency: curr, style: .compact)) (\(info.count))")
+            }
+            if byCategory.count > topCats.count {
+                lines.append("• … y \(byCategory.count - topCats.count) categorías más")
+            }
+        }
+
+        // Primeras 8 transacciones individuales como vista previa.
+        let preview = valid.prefix(8)
+        if !preview.isEmpty {
+            lines.append("")
+            lines.append("**Primeros movimientos:**")
+            let df = DateFormatter()
+            df.dateFormat = "dd/MM"
+            df.locale = AppLocaleStorage.effectiveLocale
+            for r in preview {
+                let d = r.date.map { df.string(from: $0) } ?? "—"
+                let amt = r.amount.map { Money.format($0, currency: curr, style: .compact) } ?? "?"
+                let sign = r.type == .gasto ? "−" : "+"
+                let note = (r.note ?? r.category ?? "").prefix(28)
+                lines.append("`\(d)` \(sign)\(amt) · \(note)")
+            }
+            if valid.count > preview.count {
+                lines.append("_… y \(valid.count - preview.count) más. Tocá \"Ver todo\" para revisarlas._")
+            }
+        }
+        lines.append("")
+        lines.append("¿Importo las \(parsed.validCount)? Revisalas primero si querés.")
+
+        var actions: [AssistantAction] = []
         if parsed.validCount > 0 {
-            actions.insert(
-                AssistantAction(label: "Importar \(parsed.validCount)", icon: "arrow.down.doc.fill", destructive: false, kind: .importParsed(parsed)),
-                at: 0
+            actions.append(
+                AssistantAction(label: "Importar \(parsed.validCount)", icon: "arrow.down.doc.fill", destructive: false, kind: .importParsed(parsed))
+            )
+            actions.append(
+                AssistantAction(label: "Ver todo", icon: "list.bullet.rectangle", destructive: false, kind: .viewParsedDetail(parsed))
             )
         }
-        let m = AssistantMessage(role: .assistant, content: summary, actions: actions)
+        actions.append(
+            AssistantAction(label: "Descartar", icon: "trash", destructive: true, kind: .discard)
+        )
+
+        let m = AssistantMessage(role: .assistant, content: lines.joined(separator: "\n"), actions: actions)
         messages.append(m)
         persist(m, appState: appState)
     }
@@ -1395,6 +1511,8 @@ final class AssistantViewModel {
             _ = url
         case .importParsed(let parsed):
             await commitImport(parsed: parsed, appState: appState)
+        case .viewParsedDetail(let parsed):
+            parsedDetailToShow = IdentifiableParsedImport(parsed: parsed)
         case .discard:
             appendSystem("Descartado. 👍")
         }
@@ -1649,4 +1767,174 @@ private struct ImageViewer: View {
         }
         .statusBarHidden()
     }
+}
+
+// MARK: - Parsed transactions detail (estilo Mercado Pago)
+
+/// Wrapper Identifiable para presentar `ParsedImport` via `.sheet(item:)`.
+struct IdentifiableParsedImport: Identifiable {
+    let id = UUID()
+    let parsed: ParsedImport
+}
+
+/// Sheet con TODAS las transacciones detectadas del archivo, agrupadas por
+/// fecha, scrolleable. El user las revisa antes de importar — igual que el
+/// Asistente de Mercado Pago muestra el detalle de movimientos. Botón
+/// "Importar" sticky abajo.
+struct ParsedTransactionsSheet: View {
+    let parsed: ParsedImport
+    let currency: String
+    let onImport: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private var valid: [ParsedImportRow] {
+        parsed.rows.filter { $0.isValid && !$0.isDuplicate }
+    }
+
+    private var grouped: [(day: String, rows: [ParsedImportRow])] {
+        let df = DateFormatter()
+        df.dateFormat = "EEEE d 'de' MMMM"
+        df.locale = AppLocaleStorage.effectiveLocale
+        let dict = Dictionary(grouping: valid) { row -> String in
+            row.date.map { df.string(from: $0) } ?? "Sin fecha"
+        }
+        return dict
+            .map { (day: $0.key, rows: $0.value) }
+            .sorted { ($0.rows.first?.date ?? .distantPast) > ($1.rows.first?.date ?? .distantPast) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 22, pinnedViews: [.sectionHeaders]) {
+                        ForEach(grouped, id: \.day) { section in
+                            Section {
+                                ForEach(section.rows) { row in
+                                    rowView(row)
+                                }
+                            } header: {
+                                Text(section.day.capitalized)
+                                    .font(.mcLabel)
+                                    .foregroundStyle(Color.textMuted)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 16)
+                                    .background(Color.appBackground.opacity(0.95))
+                            }
+                        }
+                    }
+                    .padding(.bottom, 100)
+                }
+
+                VStack {
+                    Spacer()
+                    Button {
+                        onImport()
+                        dismiss()
+                    } label: {
+                        Text("Importar \(valid.count) transacciones")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(MCPrimaryButton())
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.appBackground.opacity(0), Color.appBackground],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                        .ignoresSafeArea()
+                    )
+                }
+            }
+            .navigationTitle("\(valid.count) movimientos")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func rowView(_ row: ParsedImportRow) -> some View {
+        let isGasto = row.type == .gasto
+        let amountStr = row.amount.map {
+            (isGasto ? "−" : "+") + Money.format($0, currency: currency, style: .compact)
+        } ?? "?"
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((isGasto ? Color.brandDanger : Color.brandSuccess).opacity(0.15))
+                    .frame(width: 38, height: 38)
+                Image(systemName: isGasto ? "arrow.up.right" : "arrow.down.left")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isGasto ? Color.brandDanger : Color.brandSuccess)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.note ?? row.category ?? "Movimiento")
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textPrimary)
+                    .lineLimit(1)
+                Text(row.category ?? "Sin categoría")
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textMuted)
+            }
+            Spacer()
+            Text(amountStr)
+                .font(.mcBody.weight(.semibold).monospacedDigit())
+                .foregroundStyle(isGasto ? Color.textPrimary : Color.brandSuccess)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
+// MARK: - PDF viewer (tappable desde el chip del chat)
+
+/// Wrapper de `PDFView` para previsualizar el PDF adjunto sin salir de la app.
+struct PDFKitView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PDFView {
+        let v = PDFView()
+        v.autoScales = true
+        v.displayMode = .singlePageContinuous
+        v.displayDirection = .vertical
+        v.backgroundColor = .black
+        let accessed = url.startAccessingSecurityScopedResource()
+        v.document = PDFDocument(url: url)
+        if accessed { url.stopAccessingSecurityScopedResource() }
+        return v
+    }
+
+    func updateUIView(_ uiView: PDFView, context: Context) {}
+}
+
+struct PDFViewerSheet: View {
+    let url: URL
+    let name: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            PDFKitView(url: url)
+                .ignoresSafeArea(edges: .bottom)
+                .navigationTitle(name)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cerrar") { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+struct IdentifiableFileURL: Identifiable {
+    let id = UUID()
+    let url: URL
+    let name: String
 }
