@@ -30,6 +30,10 @@ enum LiveActivityService {
     /// Si ya hay una activa, la actualiza en lugar de crear otra.
     @available(iOS 16.1, *)
     static func startOrUpdateNextBillActivity(bills: [Bill], currency: String) async {
+        // No tocar liveactivitiesd si el sistema/usuario no tiene Live
+        // Activities habilitadas (iPad en modo compatibilidad, ajustes off).
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
         guard let next = bills
             .filter({ $0.status == .pending })
             .sorted(by: { $0.dueDate < $1.dueDate })
@@ -75,6 +79,7 @@ enum LiveActivityService {
 
     @available(iOS 16.1, *)
     static func endAll() async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         for activity in Activity<BillReminderAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }

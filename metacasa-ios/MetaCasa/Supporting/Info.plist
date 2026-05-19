@@ -20,10 +20,10 @@
         <string>en</string>
         <string>pt-BR</string>
     </array>
-    <!-- Nombre default del app icon. Se sobrescribe por locale desde
-         InfoPlist.xcstrings (es → MetaCasa, en → MetaHome). -->
+    <!-- Nombre del app icon. DEBE coincidir con el nombre en App Store
+         ("Home Finance") — Apple Guideline 2.3.8. No localizar a otro nombre. -->
     <key>CFBundleDisplayName</key>
-    <string>MetaCasa</string>
+    <string>Home Finance</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>

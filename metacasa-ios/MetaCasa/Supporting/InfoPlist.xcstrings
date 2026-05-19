@@ -3,18 +3,18 @@
   "version" : "1.0",
   "strings" : {
     "CFBundleDisplayName" : {
-      "comment" : "Nombre visible del app icon en el Home Screen. Localizado por idioma: español → MetaCasa, inglés → MetaHome.",
+      "comment" : "App icon name. MUST match the App Store marketplace name (\"Home Finance\") in every locale — Apple Guideline 2.3.8. Do not localize to a different brand name.",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "MetaHome" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } }
       }
     },
     "CFBundleName" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "MetaHome" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } },
-        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "MetaCasa" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "Home Finance" } }
       }
     }
   }
