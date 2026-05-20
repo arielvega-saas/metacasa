@@ -78,6 +78,20 @@ final class AppState {
         await SpotlightIndexer.deleteAll()
     }
 
+    /// Elimina la cuenta del usuario actual de forma permanente. Apple
+    /// Guideline 5.1.1(v): apps con signup deben ofrecer delete in-app.
+    /// Tras éxito, limpia estado local y queda en pantalla de login.
+    func deleteAccount() async throws {
+        try await AccountDeletionService.deleteCurrentUser()
+        // El JWT ya no es válido server-side; limpiamos local sin llamar
+        // a /logout (que devolvería 401).
+        await TokenHolder.shared.set(nil)
+        session = nil
+        currentHouseholdId = nil
+        households = []
+        await SpotlightIndexer.deleteAll()
+    }
+
     func switchHousehold(to id: UUID) {
         guard households.contains(where: { $0.id == id }) else { return }
         currentHouseholdId = id

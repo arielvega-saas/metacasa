@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(OnboardingProgress.self) private var onboarding
     @State private var showSignOutConfirm = false
     @State private var showWelcomeTour = false
+    @State private var showDeleteAccountSheet = false
 
     var body: some View {
         ScrollView {
@@ -34,6 +35,9 @@ struct SettingsView: View {
         }
         .fullScreenCover(isPresented: $showWelcomeTour) {
             WelcomeTourView()
+        }
+        .sheet(isPresented: $showDeleteAccountSheet) {
+            DeleteAccountView()
         }
     }
 
@@ -112,6 +116,12 @@ struct SettingsView: View {
                       labelKey: "settings.signout",
                       destructive: true) {
                 showSignOutConfirm = true
+            }
+            rowDivider
+            actionRow(icon: "trash",
+                      labelKey: "settings.deleteAccount",
+                      destructive: true) {
+                showDeleteAccountSheet = true
             }
         }
     }

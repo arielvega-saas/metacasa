@@ -139,20 +139,62 @@ struct AssistantPrivacyView: View {
     }
 
     private var explanationCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Qué procesamos")
-                .font(.mcLabel)
-                .foregroundStyle(Color.textMuted)
-            VStack(alignment: .leading, spacing: 8) {
-                bullet("Reconocimiento de voz y OCR de recibos siempre on-device (Apple Speech + Vision).")
-                bullet("Si activás cloud: tu pregunta + un resumen de tus datos (montos, categorías) van a Claude. Nunca emails, ni tarjetas, ni contraseñas.")
-                bullet("Anthropic NO entrena modelos con consultas de su API.")
-                bullet("Tus conversaciones se guardan localmente en tu iPhone (encriptado). Podés borrarlas desde acá.")
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Qué procesamos")
+                    .font(.mcLabel)
+                    .foregroundStyle(Color.textMuted)
+                VStack(alignment: .leading, spacing: 8) {
+                    bullet("Reconocimiento de voz y OCR de recibos siempre on-device (Apple Speech + Vision).")
+                    bullet("Si activás cloud: tu pregunta + un resumen de tus datos (montos, categorías) van a Claude. Nunca emails, ni tarjetas, ni contraseñas.")
+                    bullet("Anthropic NO entrena modelos con consultas de su API.")
+                    bullet("Tus conversaciones se guardan localmente en tu iPhone (encriptado). Podés borrarlas desde acá.")
+                }
+            }
+
+            Divider().background(Color.appBorder)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Servicios de terceros que usamos")
+                    .font(.mcLabel)
+                    .foregroundStyle(Color.textMuted)
+                VStack(alignment: .leading, spacing: 10) {
+                    serviceRow(
+                        name: "Anthropic (Claude)",
+                        purpose: "LLM del Asistente IA (chat, voz, visión).",
+                        dataSent: "Tu pregunta + resumen anonimizado de transacciones."
+                    )
+                    serviceRow(
+                        name: "ElevenLabs",
+                        purpose: "Síntesis de voz (TTS) cuando usás el modo voz.",
+                        dataSent: "Solo el texto de la respuesta del asistente."
+                    )
+                    serviceRow(
+                        name: "Apple Speech + Vision",
+                        purpose: "Reconocimiento de voz y OCR de recibos.",
+                        dataSent: "Procesado on-device. Nada sale del iPhone."
+                    )
+                }
             }
         }
         .padding(16)
         .background(Color.appSurfaceInset)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func serviceRow(name: String, purpose: String, dataSent: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(name)
+                .font(.mcBody.weight(.semibold))
+                .foregroundStyle(Color.textPrimary)
+            Text(purpose)
+                .font(.mcCaption)
+                .foregroundStyle(Color.textMuted)
+            Text("Datos enviados: " + dataSent)
+                .font(.mcCaption)
+                .foregroundStyle(Color.textDim)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var revokeButton: some View {
