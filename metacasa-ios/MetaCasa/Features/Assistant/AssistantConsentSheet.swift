@@ -66,29 +66,42 @@ struct AssistantConsentSheet: View {
             row(
                 icon: "iphone",
                 title: "En tu iPhone (siempre)",
-                body: "Reconocimiento de voz, OCR de recibos y análisis básico corren on-device con Apple Speech y Vision. No salen del dispositivo."
+                body: "El reconocimiento de voz y el OCR de recibos corren on-device con Apple Speech y Vision."
             )
             row(
                 icon: "cloud",
-                title: "En la nube (solo cuando hace falta)",
-                body: "Las preguntas complejas se procesan con Claude (Anthropic). Enviamos tu pregunta + un resumen de tus datos (montos, categorías, fechas). Nunca emails, ni tarjetas, ni contraseñas."
+                title: "Qué se envía a Anthropic (Claude)",
+                body: "Para responderte enviamos a Anthropic: tus mensajes y transcripciones de voz, un resumen de tus finanzas (montos, categorías, saldos, metas) y las fotos de recibos que elijas escanear."
+            )
+            row(
+                icon: "waveform",
+                title: "Qué se envía a ElevenLabs",
+                body: "Solo en el modo voz: el texto de la respuesta del asistente se envía a ElevenLabs para convertirlo en audio."
             )
             row(
                 icon: "lock.shield.fill",
-                title: "Tu data no se usa para entrenar",
-                body: "Anthropic NO entrena modelos con consultas de su API. Las conversaciones no se guardan en servidores nuestros más allá de tu propia sesión."
+                title: "Qué NUNCA se envía",
+                body: "Nunca enviamos tus emails, contraseñas ni números de tarjeta. Anthropic y ElevenLabs no entrenan modelos de IA con tus datos."
             )
         }
     }
 
     private var legalNote: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Tus derechos")
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
-            Text("Podés revocar el consentimiento o activar el modo solo on-device en cualquier momento desde Ajustes → Privacidad. Detalles en nuestra Política de Privacidad.")
+            Text("Podés revocar el consentimiento o activar el modo solo on-device en cualquier momento desde Ajustes → Privacidad del Asistente IA.")
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
+            Link(destination: URL(string: "https://metacasa-app-cf592.web.app/privacy.html")!) {
+                HStack(spacing: 4) {
+                    Text("Leer la Política de Privacidad")
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.mcCaption.weight(.semibold))
+                .foregroundStyle(Color.brandPrimary)
+            }
         }
         .padding(14)
         .background(Color.appSurfaceInset)

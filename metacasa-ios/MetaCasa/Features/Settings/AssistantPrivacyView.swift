@@ -146,7 +146,7 @@ struct AssistantPrivacyView: View {
                     .foregroundStyle(Color.textMuted)
                 VStack(alignment: .leading, spacing: 8) {
                     bullet("Reconocimiento de voz y OCR de recibos siempre on-device (Apple Speech + Vision).")
-                    bullet("Si activás cloud: tu pregunta + un resumen de tus datos (montos, categorías) van a Claude. Nunca emails, ni tarjetas, ni contraseñas.")
+                    bullet("Si activás cloud: tus mensajes y transcripciones de voz, un resumen de tus finanzas (montos, categorías, saldos) y las fotos de recibos que escanees van a Claude. Nunca emails, ni tarjetas, ni contraseñas.")
                     bullet("Anthropic NO entrena modelos con consultas de su API.")
                     bullet("Tus conversaciones se guardan localmente en tu iPhone (encriptado). Podés borrarlas desde acá.")
                 }
@@ -162,7 +162,7 @@ struct AssistantPrivacyView: View {
                     serviceRow(
                         name: "Anthropic (Claude)",
                         purpose: "LLM del Asistente IA (chat, voz, visión).",
-                        dataSent: "Tu pregunta + resumen anonimizado de transacciones."
+                        dataSent: "Mensajes y transcripciones de voz, resumen de tus finanzas, y fotos de recibos que escanees."
                     )
                     serviceRow(
                         name: "ElevenLabs",

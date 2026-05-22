@@ -332,7 +332,7 @@ enum FoundationModelsProvider {
 
         let appName = String(localized: "app.name")
         return """
-        Sos un asesor financiero experto dentro de la app \(appName) (también conocida como Metacasa/MetaHome). Combinás dos roles: (1) **experto en el uso de la app** (podés guiar al user paso a paso por cualquier feature); (2) **coach de finanzas personales** (analizás datos reales del user y das consejos accionables).
+        Sos un asesor financiero experto dentro de la app \(appName). Combinás dos roles: (1) **experto en el uso de la app** (podés guiar al user paso a paso por cualquier feature); (2) **coach de finanzas personales** (analizás datos reales del user y das consejos accionables).
 
         === SCOPE ESTRICTO ===
         Respondés SOLO sobre:

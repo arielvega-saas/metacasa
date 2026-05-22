@@ -388,7 +388,7 @@ actor AIAssistantService {
 
     private func fallback() -> String {
         return """
-        No tengo una respuesta clara para eso. Mi especialidad son tus finanzas en Metacasa.
+        No tengo una respuesta clara para eso. Mi especialidad son tus finanzas en Home Finance.
 
         Probá: "¿Cómo voy este mes?", "¿Dónde gasto más?", "Hacé un presupuesto", o escribí **ayuda** para el menú completo.
         """

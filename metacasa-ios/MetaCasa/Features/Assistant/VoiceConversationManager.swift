@@ -58,6 +58,14 @@ final class VoiceConversationManager {
         sessionStarted = true
         state = .idle
 
+        // El modo voz envía la transcripción a Anthropic y la respuesta a
+        // ElevenLabs. Sin consentimiento de nube no arrancamos — no existe un
+        // modo voz on-device de calidad.
+        guard PrivacyManager.shared.canUseCloudAssistant else {
+            state = .error("El modo voz necesita el procesamiento en la nube. Activalo en Ajustes → Privacidad del Asistente IA.")
+            return
+        }
+
         // Pre-pedir permisos para que el primer tap no tenga delay.
         let auth = await SpeechRecognizerService.requestAuthorization()
         if auth != .authorized {
@@ -218,6 +226,13 @@ final class VoiceConversationManager {
 
         guard !userText.isEmpty else {
             state = .idle
+            return
+        }
+
+        // Defensa en profundidad: si el usuario revocó el consentimiento con
+        // el modo voz abierto, nunca enviamos la transcripción a la nube.
+        guard PrivacyManager.shared.canUseCloudAssistant else {
+            state = .error("El modo voz necesita el procesamiento en la nube. Activalo en Ajustes → Privacidad del Asistente IA.")
             return
         }
 

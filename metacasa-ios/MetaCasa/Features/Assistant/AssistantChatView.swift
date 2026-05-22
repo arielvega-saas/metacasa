@@ -32,6 +32,7 @@ struct AssistantChatView: View {
     @State private var showFilePicker = false
     @State private var showPhotoPicker = false
     @State private var showVoiceMode = false
+    @State private var showVoiceCloudAlert = false
     @State private var showScanner = false
 
     // UX polish (Sprint 2026-05-06)
@@ -83,9 +84,16 @@ struct AssistantChatView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
-                        // Pasamos la history actual al voice mode para continuidad.
-                        VoiceConversationManager.shared.bridgeFrom(messages: viewModel.messages)
-                        showVoiceMode = true
+                        if privacy.canUseCloudAssistant {
+                            // Pasamos la history actual al voice mode para continuidad.
+                            VoiceConversationManager.shared.bridgeFrom(messages: viewModel.messages)
+                            showVoiceMode = true
+                        } else {
+                            // El modo voz necesita la nube — no hay voz
+                            // on-device de calidad. Pedimos consentimiento
+                            // explícito antes de abrirlo.
+                            showVoiceCloudAlert = true
+                        }
                     } label: {
                         Image(systemName: "waveform.circle.fill")
                             .font(.title3)
@@ -132,6 +140,17 @@ struct AssistantChatView: View {
             .fullScreenCover(isPresented: $showVoiceMode) {
                 VoiceConversationView()
                     .environment(appState)
+            }
+            .alert("El modo voz usa la nube", isPresented: $showVoiceCloudAlert) {
+                Button("Activar y continuar") {
+                    privacy.assistantOnDeviceOnly = false
+                    privacy.assistantCloudConsent = true
+                    VoiceConversationManager.shared.bridgeFrom(messages: viewModel.messages)
+                    showVoiceMode = true
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("El modo voz envía tus mensajes y un resumen de tus finanzas a Anthropic (Claude), y el texto de la respuesta a ElevenLabs para convertirlo en audio. Activá el procesamiento en la nube para usarlo.")
             }
             .sheet(item: Binding(
                 get: { viewModel.parsedDetailToShow },
@@ -1162,23 +1181,25 @@ final class AssistantViewModel {
         isThinking = true
         defer { isThinking = false }
 
-        // Refresh proactivo del JWT — sin esto vision falla con 401 si pasó
-        // > 1h desde que el user abrió la app.
-        await AuthManager.shared.ensureFreshToken()
-
-        // Tier preferido: mandar las imágenes DIRECTO a Claude vision en una
-        // sola request multimodal. Mucho más eficiente que llamadas separadas
-        // y le da contexto cruzado al modelo. Si falla, fallback OCR.
-        if let token = await TokenHolder.shared.get() {
-            let jpegDatas = images.compactMap { Self.compressedJPEGData(from: $0) }
-            if !jpegDatas.isEmpty {
-                do {
-                    let receipts = try await AnthropicProvider.shared
-                        .parseImageReceipts(jpegDatas: jpegDatas, accessToken: token)
-                    appendImageResultMessage(receipts: receipts, appState: appState)
-                    return
-                } catch {
-                    NSLog("[Receipt] Claude vision failed (\(error.localizedDescription)), falling back to OCR")
+        // Tier preferido: si el usuario dio consentimiento de nube, mandamos
+        // las imágenes a Claude vision (una request multimodal — lee monto,
+        // fecha y comercio con alta precisión). Sin consentimiento NO sale
+        // ninguna foto del dispositivo: caemos al OCR on-device de abajo.
+        if PrivacyManager.shared.canUseCloudAssistant {
+            // Refresh proactivo del JWT — sin esto vision falla con 401 si
+            // pasó > 1h desde que el user abrió la app.
+            await AuthManager.shared.ensureFreshToken()
+            if let token = await TokenHolder.shared.get() {
+                let jpegDatas = images.compactMap { Self.compressedJPEGData(from: $0) }
+                if !jpegDatas.isEmpty {
+                    do {
+                        let receipts = try await AnthropicProvider.shared
+                            .parseImageReceipts(jpegDatas: jpegDatas, accessToken: token)
+                        appendImageResultMessage(receipts: receipts, appState: appState)
+                        return
+                    } catch {
+                        NSLog("[Receipt] Claude vision failed (\(error.localizedDescription)), falling back to OCR")
+                    }
                 }
             }
         }

@@ -176,7 +176,7 @@ enum AppKnowledgeBase {
 
     Cambiar idioma de la app:
     1) Más → Ajustes → Idioma.
-    2) Elegí es (MetaCasa), en (MetaHome), pt-BR (MetaCasa).
+    2) Elegí es, en o pt-BR.
     3) El nombre en el home screen del iPhone cambia automáticamente.
 
     Cambiar tema (light/dark):
@@ -195,9 +195,9 @@ enum AppKnowledgeBase {
     4) Botón "Revocar consentimiento y borrar historial": resetea el consent y borra los chat sessions guardados del hogar activo. Al volver a abrir el chat te pide consent de nuevo.
 
     Usar Siri Shortcuts:
-    1) Decí "Hey Siri, ver balance en MetaCasa" (o cualquiera de los 7 atajos disponibles).
-    2) También aparecen en Spotlight (deslizá abajo en home screen → buscar "MetaCasa").
-    3) Podés crear atajos personalizados en la app Shortcuts (iOS) eligiendo cualquier acción de MetaCasa.
+    1) Decí "Hey Siri, ver balance en Home Finance" (o cualquiera de los 7 atajos disponibles).
+    2) También aparecen en Spotlight (deslizá abajo en home screen → buscar "Home Finance").
+    3) Podés crear atajos personalizados en la app Shortcuts (iOS) eligiendo cualquier acción de Home Finance.
     4) Atajos disponibles: ver balance, cargar gasto, registrar ingreso, dónde gasto más, mi salud financiera, próximos vencimientos, hablar con el asistente.
 
     Conversar con el Asistente IA con memoria:

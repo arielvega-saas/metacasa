@@ -327,13 +327,13 @@ enum HelpContent {
                     La app expone 2 App Intents a Siri, Spotlight y la app Atajos:
 
                     1. "Agregar gasto": Siri te pide monto + categoría y lo registra en tu hogar activo sin que abras la app.
-                       • "Oye Siri, cargar gasto en MetaCasa" → voz te pide monto y categoría.
+                       • "Oye Siri, cargar gasto en Home Finance" → voz te pide monto y categoría.
 
                     2. "Ver balance del mes": Siri te lee el balance, ingresos y gastos del mes actual.
-                       • "Oye Siri, cuánto balance tengo en MetaCasa".
+                       • "Oye Siri, cuánto balance tengo en Home Finance".
 
                     Configurar:
-                    • Ajustes de iOS → Siri → Atajos → buscá MetaCasa.
+                    • Ajustes de iOS → Siri → Atajos → buscá Home Finance.
                     • O abrí la app Atajos y creá automatizaciones (ej: al salir del super, cargar gasto automático).
 
                     Requiere estar logueado en la app — si la sesión expiró, Siri te pide abrir la app para re-loguearte.
@@ -415,18 +415,18 @@ enum HelpContent {
                 HelpTopic(id: "assistant-siri", emoji: "🎙️", title: "Atajos de Siri",
                     summary: "Hablale a Siri sin abrir la app",
                     content: """
-                    MetaCasa expone **7 atajos** a Siri / Spotlight / Shortcuts. Decí "Hey Siri" + cualquiera:
+                    Home Finance expone **7 atajos** a Siri / Spotlight / Shortcuts. Decí "Hey Siri" + cualquiera:
 
-                    • "Ver balance en MetaCasa" → balance del mes con voz.
-                    • "Cargar gasto en MetaCasa" → pide monto + categoría, lo carga.
-                    • "Registrar ingreso en MetaCasa" → mismo flow para ingreso.
-                    • "Dónde gasto más en MetaCasa" → top 3 categorías del mes.
-                    • "Mi salud financiera en MetaCasa" → Health Score 0-100.
-                    • "Próximos vencimientos en MetaCasa" → bills pendientes 7 días.
-                    • "Hablar con el asistente de MetaCasa" → abre el chat.
+                    • "Ver balance en Home Finance" → balance del mes con voz.
+                    • "Cargar gasto en Home Finance" → pide monto + categoría, lo carga.
+                    • "Registrar ingreso en Home Finance" → mismo flow para ingreso.
+                    • "Dónde gasto más en Home Finance" → top 3 categorías del mes.
+                    • "Mi salud financiera en Home Finance" → Health Score 0-100.
+                    • "Próximos vencimientos en Home Finance" → bills pendientes 7 días.
+                    • "Hablar con el asistente de Home Finance" → abre el chat.
 
                     Los atajos también aparecen en:
-                    • **Spotlight** (deslizá abajo en home screen → buscar "MetaCasa").
+                    • **Spotlight** (deslizá abajo en home screen → buscar "Home Finance").
                     • **Lock Screen** — Siri sugiere atajos según patrones de uso.
                     • **App Shortcuts** (iOS) — podés crear shortcuts personalizados, agruparlos con otros atajos, automatizarlos.
 

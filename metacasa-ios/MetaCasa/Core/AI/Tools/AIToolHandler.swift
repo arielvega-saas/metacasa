@@ -1166,7 +1166,7 @@ final class AIToolHandler: @unchecked Sendable {
 
         lines.append("")
         if caeFormatValid {
-            lines.append("✅ Formato del CAE valido. La verificacion contra los Web Services de ARCA (WSFEv1/WSFEX) requiere tu Clave Fiscal + certificado digital. Para activarlo en MetaCasa, andate a Ajustes → Integraciones fiscales (proximamente).")
+            lines.append("✅ Formato del CAE valido. La verificacion contra los Web Services de ARCA (WSFEv1/WSFEX) requiere tu Clave Fiscal + certificado digital. Para activarlo en Home Finance, andate a Ajustes → Integraciones fiscales (proximamente).")
         } else {
             lines.append("⚠️ El formato del CAE no es valido. Verifica que copiaste los 14 digitos completos del comprobante original (sin dashes, espacios ni letras).")
         }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy — MetaCasa</title>
-  <meta name="description" content="MetaCasa privacy policy — qué datos recolectamos, cómo los usamos, tus derechos.">
+  <title>Privacy Policy — Home Finance</title>
+  <meta name="description" content="Home Finance privacy policy — qué datos recolectamos, cómo los usamos, tus derechos.">
   <style>
     :root {
       --bg: #0a0f0c;
@@ -64,9 +64,9 @@
 <body>
   <main class="container">
     <h1>Privacy Policy</h1>
-    <p class="meta">MetaCasa — Última actualización: 2026-05-01</p>
+    <p class="meta">Home Finance — Última actualización: 2026-05-22</p>
 
-    <p>MetaCasa (en adelante, "la app") es una herramienta de gestión de finanzas personales del hogar. Este documento describe qué datos recolectamos, cómo los usamos y los derechos que tenés sobre ellos.</p>
+    <p>Home Finance (en adelante, "la app") es una herramienta de gestión de finanzas personales del hogar. Este documento describe qué datos recolectamos, cómo los usamos y los derechos que tenés sobre ellos.</p>
 
     <h2>1. Qué datos recolectamos</h2>
     <ul>
@@ -75,9 +75,9 @@
       <li><strong>Datos del hogar:</strong> nombre, miembros invitados (por email), moneda base, zona horaria.</li>
       <li><strong>Datos de suscripción</strong> (si usás Premium): identificador anónimo de RevenueCat + estado del entitlement (activo/expirado/trial).</li>
       <li><strong>Datos técnicos mínimos:</strong> identificador de dispositivo para sesión + logs de error agregados (sin datos personales ni financieros específicos).</li>
-      <li><strong>Voz</strong> (solo si usás el asistente por voz): el audio se transcribe on-device con Apple Speech, NO se sube. El texto resultante se envía a un proxy server que lo reenvía a Anthropic (LLM) y ElevenLabs (síntesis de voz). Ver sección 6.</li>
+      <li><strong>Datos del Asistente IA</strong> (solo si lo usás, y solo después de aceptar el consentimiento explícito dentro de la app): tus mensajes de texto, las transcripciones de voz, un resumen de tu situación financiera (montos, categorías, saldos, metas) y las fotos de recibos que elijas escanear. Estos datos se envían a Anthropic y a ElevenLabs según se detalla en la sección 6. El audio de voz se transcribe on-device con Apple Speech y NO se sube; nunca enviamos emails, contraseñas ni números de tarjeta.</li>
     </ul>
-    <p><strong>NO recolectamos:</strong> tu ubicación, contactos, fotos, historial de navegación, sensores del dispositivo, ni ningún otro dato que no sea esencial para la app.</p>
+    <p><strong>NO recolectamos:</strong> tu ubicación, contactos, tu galería de fotos (solo las imágenes de recibos que vos elijas enviar al asistente), historial de navegación, sensores del dispositivo, ni ningún otro dato que no sea esencial para la app.</p>
 
     <h2>2. Dónde se guardan</h2>
     <ul>
@@ -98,7 +98,7 @@
       <li><strong>Acceso:</strong> ver todos tus datos en la app, en cualquier momento.</li>
       <li><strong>Portabilidad / Export:</strong> Más → Ajustes → Datos → Backup. Genera un JSON completo descargable.</li>
       <li><strong>Rectificación:</strong> editar transacciones, cuentas, categorías y otros datos directamente en la app.</li>
-      <li><strong>Eliminación:</strong> Más → Ajustes → Hogar → Eliminar hogar (irreversible, borra todo en cascada). Para eliminar la cuenta completa de auth, enviá un email a soporte; eliminamos todo dentro de 30 días.</li>
+      <li><strong>Eliminación:</strong> Más → Ajustes → Avanzado → "Eliminar cuenta" borra de forma permanente tu cuenta y todos tus datos. También podés eliminar un hogar individual desde Más → Ajustes → Hogar → Eliminar hogar (irreversible, borra todo en cascada).</li>
       <li><strong>Restringir procesamiento:</strong> podés desactivar el asistente IA en Ajustes para que ningún dato se envíe a Anthropic/ElevenLabs.</li>
       <li><strong>Retirar consentimiento:</strong> podés cerrar tu cuenta en cualquier momento.</li>
       <li><strong>Presentar quejas:</strong> ante la autoridad de protección de datos de tu país.</li>
@@ -119,8 +119,8 @@
     <ul>
       <li><strong>Supabase</strong> (Postgres + Edge Functions): backend principal. Política: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a></li>
       <li><strong>RevenueCat</strong> (suscripciones): solo identificador hasheado + estado. Política: <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">revenuecat.com/privacy</a></li>
-      <li><strong>Anthropic</strong> (LLM Claude Haiku 4.5): solo si usás el asistente. Recibe el contenido de tus mensajes + un resumen de tu situación financiera para responderte. Anthropic no entrena modelos con tu data según su política. Detalle: <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a></li>
-      <li><strong>ElevenLabs</strong> (síntesis de voz): solo si usás voice mode. Recibe el texto de la respuesta del asistente para convertirlo a audio. Política: <a href="https://elevenlabs.io/privacy" target="_blank" rel="noopener">elevenlabs.io/privacy</a></li>
+      <li><strong>Anthropic</strong> (LLM Claude Haiku 4.5): solo si usás el asistente y aceptaste el consentimiento dentro de la app. Recibe el contenido de tus mensajes, las transcripciones de voz, un resumen de tu situación financiera y las fotos de recibos que elijas escanear, para responderte. Anthropic no entrena modelos de IA con tu data según su política y aplica protecciones de privacidad equivalentes a las de esta política. Detalle: <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a></li>
+      <li><strong>ElevenLabs</strong> (síntesis de voz): solo si usás el modo voz. Recibe el texto de la respuesta del asistente para convertirlo a audio. ElevenLabs no entrena modelos de IA con tu data y aplica protecciones de privacidad equivalentes a las de esta política. Detalle: <a href="https://elevenlabs.io/privacy" target="_blank" rel="noopener">elevenlabs.io/privacy</a></li>
       <li><strong>Apple</strong> (App Store, StoreKit, Speech, Push Notifications): según políticas de Apple Inc.</li>
     </ul>
     <p>El audio del asistente NO se almacena en nuestros servidores. Las respuestas del LLM tampoco se persisten — solo el texto del intercambio queda guardado localmente en tu iPhone.</p>
@@ -145,7 +145,7 @@
     </div>
 
     <div class="footer">
-      <p>MetaCasa · <a href="/terms.html">Terms of Service</a></p>
+      <p>Home Finance · <a href="/terms.html">Terms of Service</a></p>
     </div>
   </main>
 </body>

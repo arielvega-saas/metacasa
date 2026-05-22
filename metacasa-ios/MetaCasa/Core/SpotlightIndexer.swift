@@ -109,7 +109,7 @@ enum SpotlightIndexer {
         if let sub = tx.subcategory, !sub.isEmpty { descParts.append(sub) }
         if let note = tx.note, !note.isEmpty { descParts.append(note) }
         attr.contentDescription = descParts.joined(separator: " · ")
-        attr.keywords = [tx.category, tx.subcategory ?? "", tx.note ?? "", "MetaCasa"].filter { !$0.isEmpty }
+        attr.keywords = [tx.category, tx.subcategory ?? "", tx.note ?? "", "Home Finance"].filter { !$0.isEmpty }
         attr.thumbnailData = nil
 
         let id = "\(Prefix.transaction.rawValue):\(tx.id.uuidString)"
@@ -130,7 +130,7 @@ enum SpotlightIndexer {
         attr.contentDescription = String(
             localized: "spotlight.goal.description \(Money.format(remaining, currency: goal.currency, style: .compact)) \(pct)"
         )
-        attr.keywords = [goal.name, "meta", "goal", "ahorro", "MetaCasa"]
+        attr.keywords = [goal.name, "meta", "goal", "ahorro", "Home Finance"]
 
         let id = "\(Prefix.goal.rawValue):\(goal.id.uuidString)"
         let item = CSSearchableItem(
