@@ -2,81 +2,72 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selected: Tab = .home
+    @State private var lastNonAddTab: Tab = .home
     @State private var showAdd = false
-    enum Tab { case home, transactions, budget, settings }
+    enum Tab: Hashable { case home, transactions, add, budget, settings }
 
     var body: some View {
-        // Midnight Sage tab bar pattern: 4 tabs + FAB circular sage
-        // sobresaliente en el centro. Tap al FAB abre AddTransaction como
-        // sheet (full screen cover) — patrón premium de apps 2025-2026.
-        ZStack(alignment: .bottom) {
-            TabView(selection: $selected) {
-                HomeView()
-                    .tabItem {
-                        Label {
-                            Text("tab.home")
-                        } icon: {
-                            Image(systemName: "house.fill")
-                        }
+        TabView(selection: $selected) {
+            HomeView()
+                .tabItem {
+                    Label {
+                        Text("tab.home")
+                    } icon: {
+                        Image(systemName: "house.fill")
                     }
-                    .tag(Tab.home)
+                }
+                .tag(Tab.home)
 
-                TransactionListView()
-                    .tabItem {
-                        Label {
-                            Text("tab.transactions")
-                        } icon: {
-                            Image(systemName: "list.bullet.rectangle.fill")
-                        }
+            TransactionListView()
+                .tabItem {
+                    Label {
+                        Text("tab.transactions")
+                    } icon: {
+                        Image(systemName: "list.bullet.rectangle.fill")
                     }
-                    .tag(Tab.transactions)
+                }
+                .tag(Tab.transactions)
 
-                BudgetHubView()
-                    .tabItem {
-                        Label {
-                            Text("tab.budget")
-                        } icon: {
-                            Image(systemName: "chart.pie.fill")
-                        }
+            Color.clear
+                .tabItem {
+                    Label {
+                        Text("tab.add")
+                    } icon: {
+                        Image(systemName: "plus.circle.fill")
                     }
-                    .tag(Tab.budget)
+                }
+                .tag(Tab.add)
+                .accessibilityLabel(Text("a11y.fab.addTransaction"))
 
-                MoreView()
-                    .tabItem {
-                        Label {
-                            Text("tab.more")
-                        } icon: {
-                            Image(systemName: "ellipsis.circle.fill")
-                        }
+            BudgetHubView()
+                .tabItem {
+                    Label {
+                        Text("tab.budget")
+                    } icon: {
+                        Image(systemName: "chart.pie.fill")
                     }
-                    .tag(Tab.settings)
-            }
-            .tint(.brandPrimary)
+                }
+                .tag(Tab.budget)
 
-            // FAB central sobresaliente — sage glow sobre el tab bar.
-            // Posicionado absoluto, sobre la línea del tab bar. El tap abre
-            // la sheet de AddTransaction (full-screen cover style).
-            Button {
+            MoreView()
+                .tabItem {
+                    Label {
+                        Text("tab.more")
+                    } icon: {
+                        Image(systemName: "ellipsis.circle.fill")
+                    }
+                }
+                .tag(Tab.settings)
+        }
+        .tint(.brandPrimary)
+        .onChange(of: selected) { _, new in
+            if new == .add {
                 Haptics.play(.impactMedium)
                 showAdd = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#0E1312"))
-                    .frame(width: 58, height: 58)
-                    .background(
-                        Circle()
-                            .fill(Color.brandPrimary)
-                            .overlay(
-                                Circle().stroke(Color.appBackground, lineWidth: 6)
-                            )
-                    )
-                    .shadow(color: Color.brandPrimary.opacity(0.35), radius: 14, y: 4)
+                selected = lastNonAddTab
+            } else {
+                lastNonAddTab = new
             }
-            .buttonStyle(.plain)
-            .offset(y: -18)
-            .accessibilityLabel(Text("a11y.fab.addTransaction"))
-            .accessibilityAddTraits(.isButton)
         }
         .sheet(isPresented: $showAdd) {
             AddTransactionView()
