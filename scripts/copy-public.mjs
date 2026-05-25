@@ -18,6 +18,7 @@ const files = [
   'privacy.html',
   'terms.html',
   'assistant-ai.html',
+  'auth-confirmed.html',
 ];
 
 for (const file of files) {

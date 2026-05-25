@@ -79,8 +79,17 @@ final class AuthManager {
 
     /// Retorna la sesión si el signup ya logueó al usuario, o lanza emailConfirmationPending
     /// si el proyecto Supabase requiere confirmación por email antes del primer login.
+    /// `redirectTo` apunta a la landing page de Firebase Hosting que el usuario
+    /// ve después de clickear el link de confirmación. Pasarlo explícito acá hace
+    /// que el flow no dependa del campo "Site URL" del dashboard de Supabase
+    /// (que históricamente quedaba en localhost del dev de la PWA).
     func signUp(email: String, password: String) async throws -> AuthSession {
-        let response = try await client.auth.signUp(email: email, password: password)
+        let redirect = URL(string: "https://metacasa-app-cf592.web.app/auth-confirmed.html")
+        let response = try await client.auth.signUp(
+            email: email,
+            password: password,
+            redirectTo: redirect
+        )
         if let s = response.session {
             return Self.map(s)
         }

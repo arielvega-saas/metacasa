@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Email confirmado — Home Finance</title>
+  <meta name="description" content="Tu cuenta de Home Finance está confirmada. Abrí la app para empezar.">
+  <meta name="theme-color" content="#0a0f0c">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <style>
+    :root {
+      --bg: #0a0f0c;
+      --surface: #121a16;
+      --text: #e8efe9;
+      --text-muted: #9aa6a0;
+      --accent: #87a98c;
+      --accent-soft: rgba(135, 169, 140, 0.14);
+      --border: rgba(135, 169, 140, 0.18);
+      --danger: #d97757;
+      --danger-soft: rgba(217, 119, 87, 0.10);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      padding: 24px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(circle at 30% 10%, rgba(135, 169, 140, 0.08), transparent 50%),
+        radial-gradient(circle at 80% 90%, rgba(135, 169, 140, 0.05), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      max-width: 440px;
+      width: 100%;
+      background: var(--surface);
+      padding: 44px 32px 36px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+    .icon svg { width: 36px; height: 36px; }
+    h1 {
+      font-family: "New York", Georgia, serif;
+      font-size: 28px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    p {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin: 0 0 8px;
+    }
+    .strong-line {
+      color: var(--text);
+      font-weight: 500;
+      margin-top: 16px;
+    }
+    .steps {
+      text-align: left;
+      margin: 28px 0 8px;
+      padding: 18px 20px;
+      background: rgba(135, 169, 140, 0.05);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      counter-reset: step;
+      list-style: none;
+    }
+    .steps li {
+      position: relative;
+      padding: 8px 0 8px 36px;
+      font-size: 15px;
+      color: var(--text);
+      counter-increment: step;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0; top: 8px;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    /* Error state */
+    .error .icon { background: var(--danger-soft); border-color: rgba(217, 119, 87, 0.3); }
+    .error .icon svg path { stroke: var(--danger); }
+    .error h1 { color: var(--text); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card" id="success">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 12.5L10 17.5L19 7.5" stroke="#87a98c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>Email confirmado</h1>
+    <p>Tu cuenta de <strong style="color: var(--accent);">Home Finance</strong> ya está lista.</p>
+
+    <ol class="steps">
+      <li>Volvé a abrir la app <strong>Home Finance</strong> en tu iPhone.</li>
+      <li>Iniciá sesión con tu email y contraseña.</li>
+      <li>Empezá a registrar tus finanzas.</li>
+    </ol>
+
+    <p class="strong-line">Podés cerrar esta página.</p>
+
+    <div class="footer">
+      ¿Problemas? Escribinos a <a href="mailto:vegaariel976@gmail.com">vegaariel976@gmail.com</a>
+    </div>
+  </main>
+
+  <main class="card error" id="error" hidden>
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 8V13M12 16.5V17M3 12C3 7.029 7.029 3 12 3C16.971 3 21 7.029 21 12C21 16.971 16.971 21 12 21C7.029 21 3 16.971 3 12Z" stroke="#d97757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>No pudimos confirmar tu email</h1>
+    <p id="error-msg">El link puede estar vencido o ya haber sido usado.</p>
+
+    <ol class="steps">
+      <li>Abrí la app <strong>Home Finance</strong> en tu iPhone.</li>
+      <li>Probá iniciar sesión con tu email y contraseña — si ya estaba confirmado, vas a poder entrar.</li>
+      <li>Si no, registrate de nuevo para recibir un link nuevo.</li>
+    </ol>
+
+    <div class="footer">
+      ¿Necesitás ayuda? Escribinos a <a href="mailto:vegaariel976@gmail.com">vegaariel976@gmail.com</a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      // Supabase devuelve errores en query string: ?error=...&error_description=...
+      // y éxito en hash: #access_token=...&type=signup
+      var qs = new URLSearchParams(window.location.search);
+      var err = qs.get('error') || qs.get('error_description');
+      if (err) {
+        document.getElementById('success').hidden = true;
+        document.getElementById('error').hidden = false;
+        var pretty = qs.get('error_description') || err;
+        try { pretty = decodeURIComponent(pretty).replace(/\+/g, ' '); } catch (e) {}
+        document.getElementById('error-msg').textContent = pretty;
+      }
+    })();
+  </script>
+</body>
+</html>
