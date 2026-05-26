@@ -1,7 +1,7 @@
 {
-  "name": "MetaCasa",
-  "short_name": "MetaCasa",
-  "description": "Gestión de finanzas del hogar",
+  "name": "Home Finance",
+  "short_name": "Home Finance",
+  "description": "Ordená tus gastos, presupuestos, deudas y metas familiares en una sola app.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",

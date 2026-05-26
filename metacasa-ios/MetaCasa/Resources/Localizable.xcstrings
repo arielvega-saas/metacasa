@@ -1316,19 +1316,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hi 👋 I'm your Home Finance assistant. I can:\n\n• Analyze your spending and projections\n• Read photos of receipts (tap 📎)\n• Import transactions from CSV\n• Voice dictation (tap 🎙️)\n\nEverything runs on-device. Your data doesn't leave your iPhone."
+            "value" : "Hi 👋 I'm your financial assistant.\n\nAsk me about your spending, budgets, goals, and habits:\n• Where did I spend the most this month?\n• How much do I have left to spend?\n• What budget should I adjust?\n• How can I reach my goal sooner?\n• Which expenses repeat every month?\n\nI can also read photos of receipts (📎) and recognize voice dictation (🎙️).\n\nThe information I share is for guidance only and is not a substitute for professional financial advice."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hola 👋 Soy tu asistente de Home Finance. Puedo:\n\n• Analizar tus gastos y proyecciones\n• Leer fotos de recibos (tap en 📎)\n• Cargar transacciones desde CSV\n• Dictado de voz (tap en 🎙️)\n\nTodo corre on-device. Tus datos no salen del iPhone."
+            "value" : "Hola 👋 Soy tu asistente financiero.\n\nPreguntame sobre tus gastos, presupuestos, metas y hábitos:\n• ¿Dónde gasté más este mes?\n• ¿Cuánto me queda disponible?\n• ¿Qué presupuesto me conviene ajustar?\n• ¿Cómo puedo llegar antes a mi meta?\n• ¿Qué gastos se repiten todos los meses?\n\nTambién puedo leer fotos de recibos (📎) y reconocer dictado de voz (🎙️).\n\nLa información que comparto es orientativa y no reemplaza asesoramiento financiero profesional."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Olá 👋 Sou seu assistente do Home Finance. Posso:\n\n• Analisar gastos e projeções\n• Ler fotos de recibos (toque em 📎)\n• Importar transações de CSV\n• Ditado de voz (toque em 🎙️)\n\nTudo roda no dispositivo. Seus dados não saem do iPhone."
+            "value" : "Olá 👋 Sou seu assistente financeiro.\n\nPergunte sobre seus gastos, orçamentos, metas e hábitos:\n• Onde gastei mais este mês?\n• Quanto tenho disponível?\n• Qual orçamento devo ajustar?\n• Como chegar mais rápido na minha meta?\n• Quais gastos se repetem todo mês?\n\nTambém posso ler fotos de recibos (📎) e reconhecer ditado de voz (🎙️).\n\nAs informações que compartilho são orientativas e não substituem o aconselhamento financeiro profissional."
           }
         }
       }
@@ -2796,19 +2796,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Assign amounts to your expense categories to start tracking your budget envelope-style."
+            "value" : "Set how much you want to spend per category and keep your month under control."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Asigná montos a tus categorías de gasto para empezar a controlar tu presupuesto tipo sobre."
+            "value" : "Definí cuánto querés gastar por categoría y mantené tu mes bajo control."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atribua valores às categorias de despesa para começar a controlar seu orçamento."
+            "value" : "Defina quanto quer gastar por categoria e mantenha o mês sob controle."
           }
         }
       }
@@ -2818,19 +2818,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No budget yet"
+            "value" : "Create your first budget"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aún no tenés presupuesto"
+            "value" : "Creá tu primer presupuesto"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ainda não há orçamento"
+            "value" : "Crie seu primeiro orçamento"
           }
         }
       }
@@ -4960,19 +4960,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Track loans with interest and project when you'll pay them off."
+            "value" : "If you have installments or pending payments, log them to keep track."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Registrá préstamos con tasa y proyectá cuándo los terminás."
+            "value" : "Si tenés cuotas o pagos pendientes, podés registrarlos para hacerles seguimiento."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Acompanhe empréstimos com juros e projete a quitação."
+            "value" : "Se você tem parcelas ou pagamentos pendentes, registre-os para acompanhar."
           }
         }
       }
@@ -4983,19 +4983,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No debts"
+            "value" : "No debts logged"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sin deudas"
+            "value" : "No tenés deudas cargadas"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sem dívidas"
+            "value" : "Você não tem dívidas registradas"
           }
         }
       }
@@ -5511,19 +5511,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Household not available"
+            "value" : "We couldn't load your household. Check your connection and try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hogar no disponible"
+            "value" : "No pudimos cargar tu hogar. Revisá tu conexión e intentá nuevamente."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Casa não disponível"
+            "value" : "Não conseguimos carregar sua casa. Verifique sua conexão e tente novamente."
           }
         }
       }
@@ -5534,19 +5534,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Missing data"
+            "value" : "No se pudo guardar. Some fields are missing — please review and try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Datos incompletos"
+            "value" : "No se pudo guardar. Faltan datos — verificalos e intentá otra vez."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dados incompletos"
+            "value" : "Não foi possível salvar. Faltam dados — verifique e tente novamente."
           }
         }
       }
@@ -5557,19 +5557,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Invalid amount"
+            "value" : "The amount looks invalid. Check it and try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Monto inválido"
+            "value" : "El monto parece inválido. Revisalo e intentá otra vez."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Valor inválido"
+            "value" : "O valor parece inválido. Verifique e tente novamente."
           }
         }
       }
@@ -8116,7 +8116,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hogar no disponible"
+            "value" : "No pudimos cargar tu hogar. Revisá tu conexión e intentá nuevamente."
           }
         },
         "pt-BR" : {
@@ -8178,19 +8178,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No goals yet"
+            "value" : "Start with a goal"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sin metas todavía"
+            "value" : "Empezá con una meta"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sem metas ainda"
+            "value" : "Comece com uma meta"
           }
         }
       }
@@ -8200,19 +8200,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap + to create your first savings goal."
+            "value" : "It could be a trip, savings, a big purchase, or an emergency fund."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tocá + para crear tu primera meta de ahorro."
+            "value" : "Puede ser un viaje, un ahorro, una compra importante o un fondo de emergencia."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toque em + para criar sua primeira meta de economia."
+            "value" : "Pode ser uma viagem, uma poupança, uma compra importante ou um fundo de emergência."
           }
         }
       }
@@ -12865,19 +12865,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not enough data yet."
+            "value" : "Not enough data yet. Once you log transactions, you'll see reports and trends."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todavía sin datos suficientes."
+            "value" : "Aún no hay datos suficientes. Cuando registres movimientos, vas a poder ver reportes y tendencias."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dados insuficientes."
+            "value" : "Dados insuficientes. Quando registrar movimentos, vai poder ver relatórios e tendências."
           }
         }
       }
@@ -14291,19 +14291,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Log expenses, track budgets, reach goals — alone or with your family in the same household."
+            "value" : "Organize income, expenses, budgets, and goals from one place."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cargá gastos, seguí presupuestos, alcanzá metas — solo/a o compartiendo el hogar con tu pareja o familia."
+            "value" : "Organizá ingresos, gastos, presupuestos y metas desde un solo lugar."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Registre gastos, acompanhe orçamentos, alcance metas — sozinho ou com a família na mesma casa."
+            "value" : "Organize receitas, gastos, orçamentos e metas em um só lugar."
           }
         }
       }
@@ -14314,19 +14314,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your household finances, in calm"
+            "value" : "Your finances, in calm"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las finanzas de tu hogar, en calma"
+            "value" : "Tus finanzas, en calma"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As finanças da sua casa, com calma"
+            "value" : "Suas finanças, com calma"
           }
         }
       }
@@ -14337,19 +14337,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Color-coded traffic light per category"
+            "value" : "Budgets by category"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Semáforo visual por categoría"
+            "value" : "Presupuestos por categoría"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Semáforo visual por categoria"
+            "value" : "Orçamentos por categoria"
           }
         }
       }
@@ -14360,19 +14360,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Visual cash flow waterfall for savings & investments"
+            "value" : "Real available balance at any moment"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cascada visual del dinero — ahorro, inversión y gastos"
+            "value" : "Disponible real en cada momento"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cascata visual do dinheiro — poupança, investimento e gastos"
+            "value" : "Saldo disponível real a qualquer momento"
           }
         }
       }
@@ -14383,19 +14383,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "See what's left \"to assign\" in real time"
+            "value" : "Alerts when you approach the limit"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ves lo que queda \"por asignar\" en vivo"
+            "value" : "Avisos cuando te acercás al límite"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Veja quanto falta \"para alocar\" em tempo real"
+            "value" : "Avisos quando você se aproxima do limite"
           }
         }
       }
@@ -14406,19 +14406,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allocate each peso before spending. Every category is an envelope that depletes as you log transactions."
+            "value" : "Build budgets by category and better understand where your money goes."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Asigná cada peso antes de gastarlo. Cada categoría es un sobre que se va vaciando con tus movimientos."
+            "value" : "Creá presupuestos por categoría y entendé mejor en qué se va tu plata."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aloque cada real antes de gastar. Cada categoria é um envelope que se esvazia com seus movimentos."
+            "value" : "Crie orçamentos por categoria e entenda melhor para onde vai seu dinheiro."
           }
         }
       }
@@ -14429,19 +14429,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Envelope budget, done right"
+            "value" : "Every dollar in its place"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Presupuesto envelope, bien hecho"
+            "value" : "Cada peso en su lugar"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Orçamento envelope, feito certo"
+            "value" : "Cada real no seu lugar"
           }
         }
       }
@@ -14452,19 +14452,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confetti animation when you hit 100%"
+            "value" : "Set amount and date"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confetti cuando llegás al 100%"
+            "value" : "Definí monto y fecha"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Confetti quando chega a 100%"
+            "value" : "Defina valor e data"
           }
         }
       }
@@ -14475,19 +14475,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Configurable monthly reminders to keep you on track"
+            "value" : "Track your progress automatically"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recordatorios mensuales configurables para no perder el ritmo"
+            "value" : "Seguí tu avance automáticamente"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lembretes mensais configuráveis para manter o ritmo"
+            "value" : "Acompanhe seu progresso automaticamente"
           }
         }
       }
@@ -14498,19 +14498,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set amount, optional target date, and contribute little by little. The app computes if you're on track."
+            "value" : "Save for concrete goals and track your progress month by month."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ponés monto, fecha opcional y contribuís de a poco. La app calcula si vas en camino a llegar."
+            "value" : "Ahorrá para objetivos concretos y seguí tu progreso mes a mes."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Defina valor, data opcional e contribua aos poucos. A app calcula se está no caminho certo."
+            "value" : "Poupe para objetivos concretos e acompanhe seu progresso mês a mês."
           }
         }
       }
@@ -14521,19 +14521,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Goals with smart ETA"
+            "value" : "Goals with dates"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Metas con fecha estimada"
+            "value" : "Metas con fecha"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Metas com previsão de chegada"
+            "value" : "Metas com data"
           }
         }
       }
@@ -14544,19 +14544,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chat, native Argentine voice, and receipt scanning"
+            "value" : "Installments and deadlines in one place"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chat, voz nativa argentina y escaneo de recibos"
+            "value" : "Cuotas y plazos en un solo lugar"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chat, voz natural e digitalização de recibos"
+            "value" : "Parcelas e prazos em um só lugar"
           }
         }
       }
@@ -14567,19 +14567,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "22 smart actions: log expense, transfer, compare months"
+            "value" : "Reminders so you don't miss a due date"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "22 acciones inteligentes: cargar gasto, transferir, comparar meses"
+            "value" : "Recordatorios para no perder vencimientos"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "22 ações inteligentes: registrar gasto, transferir, comparar meses"
+            "value" : "Lembretes para não perder vencimentos"
           }
         }
       }
@@ -14590,19 +14590,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Memory across sessions — picks up where you left off"
+            "value" : "Recurring payments handled automatically"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Memoria entre sesiones — retoma donde quedaste"
+            "value" : "Pagos recurrentes automáticos"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Memória entre sessões — retoma de onde parou"
+            "value" : "Pagamentos recorrentes automáticos"
           }
         }
       }
@@ -14613,19 +14613,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Talk to it, type, or send a photo. It knows your data and remembers what you discussed last week."
+            "value" : "Log payments, installments, and key dates to stay organized."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hablale, escribile o pegale una foto. Conoce tus datos y se acuerda de lo que charlaron la semana pasada."
+            "value" : "Registrá pagos, cuotas y fechas importantes para organizarte mejor."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fale, escreva ou envie uma foto. Conhece seus dados e lembra do que conversaram na semana passada."
+            "value" : "Registre pagamentos, parcelas e datas importantes para se organizar melhor."
           }
         }
       }
@@ -14636,19 +14636,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your AI financial coach"
+            "value" : "Debts and bills under control"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu coach financiero IA"
+            "value" : "Deudas y vencimientos bajo control"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seu coach financeiro IA"
+            "value" : "Dívidas e vencimentos sob controle"
           }
         }
       }
@@ -14659,19 +14659,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice & receipt OCR always on-device (Apple Speech + Vision)"
+            "value" : "Questions about your money, in plain language"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voz y OCR de recibos siempre on-device (Apple Speech + Vision)"
+            "value" : "Preguntas sobre tu plata, en lenguaje natural"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voz e OCR de recibos sempre no dispositivo (Apple Speech + Vision)"
+            "value" : "Perguntas sobre seu dinheiro, em linguagem natural"
           }
         }
       }
@@ -14682,19 +14682,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Face ID / Touch ID to unlock the app"
+            "value" : "Spending and category analysis"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Face ID / Touch ID para desbloquear la app"
+            "value" : "Análisis de gastos y categorías"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Face ID / Touch ID para desbloquear a app"
+            "value" : "Análise de gastos e categorias"
           }
         }
       }
@@ -14705,19 +14705,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AES-256 encryption at rest, full local JSON backup"
+            "value" : "Guidance only, not professional advice"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cifrado AES-256 at-rest, backup JSON full local"
+            "value" : "Información orientativa, no asesoramiento profesional"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Criptografia AES-256 em repouso, backup JSON local completo"
+            "value" : "Informação orientativa, não aconselhamento profissional"
           }
         }
       }
@@ -14728,19 +14728,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your finances stay on your iPhone. No tracking, no ads, no data selling. The cloud AI needs your explicit consent — and you can revoke it anytime."
+            "value" : "Get help understanding your spending, spotting habits, and improving your budget."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus finanzas se quedan en tu iPhone. Sin tracking, sin ads, sin venta de data. La IA cloud requiere tu consentimiento explícito — y podés revocarlo cuando quieras."
+            "value" : "Recibí ayuda para entender tus gastos, detectar hábitos y mejorar tu presupuesto."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suas finanças ficam no seu iPhone. Sem tracking, sem anúncios, sem venda de dados. A IA na nuvem precisa do seu consentimento explícito — e você pode revogar quando quiser."
+            "value" : "Receba ajuda para entender seus gastos, identificar hábitos e melhorar seu orçamento."
           }
         }
       }
@@ -14751,19 +14751,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Private by design"
+            "value" : "Ask the AI"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacidad por diseño"
+            "value" : "Preguntale a la IA"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacidade por design"
+            "value" : "Pergunte à IA"
           }
         }
       }
@@ -15056,19 +15056,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Invalid amount"
+            "value" : "The amount looks invalid. Check it and try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Monto inválido"
+            "value" : "El monto parece inválido. Revisalo e intentá otra vez."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Valor inválido"
+            "value" : "O valor parece inválido. Verifique e tente novamente."
           }
         }
       }
@@ -15145,19 +15145,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add your first expense or income from the + tab."
+            "value" : "Add your first expense to start seeing where your money goes."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agregá tu primer gasto o ingreso desde la pestaña +."
+            "value" : "Agregá tu primer gasto para empezar a ver en qué se va tu plata."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adicione seu primeiro gasto ou receita na aba +."
+            "value" : "Adicione seu primeiro gasto para começar a ver para onde vai seu dinheiro."
           }
         }
       }
@@ -15168,19 +15168,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No transactions yet"
+            "value" : "You haven't logged any expenses yet"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aún no hay movimientos"
+            "value" : "Todavía no registraste gastos"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ainda não há movimentos"
+            "value" : "Você ainda não registrou gastos"
           }
         }
       }

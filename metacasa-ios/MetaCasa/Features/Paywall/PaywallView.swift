@@ -28,9 +28,10 @@ struct PaywallView: View {
                         .foregroundStyle(Color.brandWarning)
                         .padding(.top, 40)
 
-                    Text("\(Text("app.name")) Premium")
+                    Text("Potenciá tu organización financiera")
                         .font(.mcH1)
                         .foregroundStyle(Color.textPrimary)
+                        .multilineTextAlignment(.center)
 
                     if hasActivePremium {
                         activeCard
@@ -58,7 +59,7 @@ struct PaywallView: View {
                             .multilineTextAlignment(.center)
                     }
 
-                    Text("Las suscripciones se gestionan en tu cuenta de App Store.")
+                    Text("Podés administrar o cancelar tu suscripción desde tu cuenta de Apple.")
                         .font(.mcCaption)
                         .foregroundStyle(Color.textDim)
                         .multilineTextAlignment(.center)
@@ -88,7 +89,7 @@ struct PaywallView: View {
     }
 
     private var pitchCard: some View {
-        Text("Llevá tu gestión financiera al siguiente nivel. Hogares ilimitados, metas, reportes avanzados, asistente IA y sin anuncios.")
+        Text("Desbloqueá herramientas avanzadas para entender mejor tu plata y tomar mejores decisiones.")
             .font(.mcBody)
             .foregroundStyle(Color.textMuted)
             .multilineTextAlignment(.center)
@@ -97,14 +98,13 @@ struct PaywallView: View {
 
     private var featuresList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            feature("Hogares ilimitados", icon: "house.fill")
-            feature("Miembros ilimitados por hogar", icon: "person.3.fill")
-            feature("Categorías personalizadas sin límite", icon: "tag.fill")
-            feature("Multi-moneda con tasas automáticas", icon: "arrow.left.arrow.right.circle.fill")
-            feature("Reportes avanzados y exportación", icon: "chart.bar.doc.horizontal.fill")
-            feature("Metas de ahorro ilimitadas", icon: "target")
-            feature("Asistente IA on-device", icon: "sparkles")
-            feature("Widgets y Live Activities", icon: "rectangle.on.rectangle")
+            feature("Asistente IA ilimitado", icon: "sparkles")
+            feature("Reportes avanzados", icon: "chart.bar.doc.horizontal.fill")
+            feature("Modo voz", icon: "waveform")
+            feature("Importación XLSX", icon: "tray.and.arrow.down.fill")
+            feature("Exportación CSV, PDF y JSON", icon: "square.and.arrow.up.fill")
+            feature("Backup automático", icon: "icloud.and.arrow.up.fill")
+            feature("Más control para hogares y familias", icon: "person.3.fill")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .mcCard()
@@ -235,13 +235,13 @@ struct PaywallView: View {
     }
 
     private var ctaLabel: String {
-        guard let package = selectedPackage else { return "Suscribirme" }
+        guard let package = selectedPackage else { return "Probar Premium" }
         let price = package.storeProduct.localizedPriceString
         if let discount = package.storeProduct.introductoryDiscount,
            discount.paymentMode == .freeTrial {
             return "Probar gratis · luego \(price)"
         }
-        return "Suscribirme · \(price)"
+        return "Desbloquear Premium · \(price)"
     }
 
     private var restoreButton: some View {
@@ -290,7 +290,7 @@ struct PaywallView: View {
                 Haptics.play(.success)
             } else {
                 Haptics.play(.warning)
-                errorMessage = "La compra se completó pero el entitlement aún no está activo. Probá en unos segundos."
+                errorMessage = "No pudimos verificar tu suscripción todavía. Probá nuevamente en unos segundos."
             }
         } catch RevenueCatService.ServiceError.userCanceled {
             // Silencioso: usuario canceló.
@@ -309,7 +309,7 @@ struct PaywallView: View {
             let ok = try await RevenueCatService.shared.restore()
             hasActivePremium = ok
             if !ok {
-                errorMessage = "No se encontraron compras previas asociadas a tu Apple ID."
+                errorMessage = "No encontramos compras previas en tu cuenta de Apple. Revisá tu cuenta o intentá más tarde."
             }
         } catch {
             errorMessage = error.localizedDescription

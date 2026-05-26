@@ -1,102 +1,84 @@
-# MetaCasa — App Store copy
+# Home Finance — App Store copy
 
 Listo para pegar en App Store Connect. Tres mercados: español (Argentina/LatAm), inglés (US/global), portugués (Brasil).
+
+> Nota de marca: la app se llama **Home Finance**. La versión anterior usaba "MetaCasa" pero Apple observó que el nombre podía confundir, por eso "Home Finance" es el único nombre comercial visible. Los datos técnicos (bundle ID `com.metacasa.app`, dominio interno, etc.) no se tocan.
 
 ---
 
 ## 🇦🇷 ESPAÑOL (es-AR / es-LA)
 
 ### App name
-`MetaCasa: Finanzas del Hogar`
+`Home Finance`
 
 ### Subtitle (30 chars max)
-`Presupuesto, metas y ahorro`
+`Presupuesto familiar con IA`
+
+Alternativas si querés rotar: `Gastos, metas y deudas`, `Tu plata, simple y clara`, `Finanzas del hogar con IA`.
 
 ### Promotional Text (170 chars, se puede actualizar sin nueva submission)
-`Tu coach financiero rioplatense con voz nativa. Anthropic Claude analiza tus gastos y te dice cómo mejorar. Multi-moneda y multi-usuario por hogar.`
+`Tu plata más clara, tu casa más tranquila. Presupuestos, gastos, metas y deudas en un solo lugar, con asistente IA que te ayuda a entender en qué se va.`
 
 ### Description
 ```
-MetaCasa es la app de finanzas del hogar que une a la familia alrededor de su plata.
+Ordená tus gastos, presupuestos, deudas y metas familiares en una sola app.
 
-✓ Asistente IA con voz nativa argentina (rioplatense, voseo)
-✓ Multi-usuario por hogar — invitá a tu pareja o familia
-✓ Multi-moneda — 27 monedas con tasas FX configurables
-✓ Privacy-first — tus datos cifrados en tránsito y en reposo
+Home Finance te ayuda a saber cuánto entra, cuánto sale, cuánto podés gastar y qué objetivos estás construyendo. Ideal para hogares, parejas y personas que quieren tener su plata más clara, sin planillas complicadas.
 
-LO QUE PODÉS HACER
+CON HOME FINANCE PODÉS:
+• Registrar ingresos y gastos en segundos
+• Crear presupuestos por categoría
+• Ver tu disponible real
+• Organizar metas con fecha
+• Controlar deudas y vencimientos
+• Compartir las finanzas con tu familia
+• Usar varias monedas
+• Importar y exportar información
 
-▸ Cargar gastos e ingresos en segundos con teclado numérico fluido
-▸ Crear presupuestos por categoría (envelope budget al estilo YNAB)
-▸ Definir metas con fecha y ETA calculado automáticamente
-▸ Registrar deudas con plan de pago tipo snowball o avalanche
-▸ Llevar vencimientos y recurrentes con recordatorios
-▸ Importar transacciones desde CSV o Excel
-▸ Exportar resumen mensual a PDF, CSV o JSON
+ASISTENTE IA
+Preguntale a la app:
+• ¿Dónde estoy gastando más?
+• ¿Cuánto me queda para fin de mes?
+• ¿Qué presupuesto me conviene armar?
+• ¿Cómo puedo llegar antes a mi meta?
+• ¿Qué gastos se repiten o se salen de lo normal?
 
-ASISTENTE IA INTELIGENTE
+La información generada por el asistente es orientativa y no reemplaza asesoramiento financiero profesional.
 
-Hablale por voz o por chat. El asistente conoce TODA tu app:
-• Te dice dónde gastás más con análisis Pareto 80/20
-• Proyecta tu balance de fin de mes con asunciones explícitas
-• Detecta anomalías (cargos duplicados, gastos atípicos)
-• Te arma un presupuesto basado en tu historial real
-• Calcula cuánto te falta para cualquier meta
+REPORTES Y CONTROL
+Visualizá tu salud financiera, compará meses, analizá categorías y entendé mejor tus hábitos de consumo.
 
-Procesado por Anthropic Claude vía proxy seguro — tus datos cifrados, sin entrenamiento de modelos.
+SEGURIDAD Y PRIVACIDAD
+Tus datos se protegen con cifrado, acceso seguro y controles de privacidad. Podés activar Face ID o Touch ID para abrir la app.
 
-REPORTES PROFESIONALES
+PLAN PREMIUM
+El plan gratuito incluye funciones esenciales. Premium desbloquea asistente IA ilimitado, reportes avanzados, modo voz, importación XLSX y backup automático.
 
-▸ Health Score 0-100 con savings rate + ratio gastos/ingresos + consistencia
-▸ Pareto 80/20 de categorías
-▸ Comparativa de meses lado a lado
-▸ Vista anual con evolución
-▸ Plan Editor visual tipo Sankey
+Podés administrar o cancelar tu suscripción desde tu cuenta de Apple.
 
-PARA HOGARES
-
-Invitá miembros por email. Cada uno carga sus transacciones, todos ven el balance compartido. Roles configurables.
-
-SEGURIDAD
-
-▸ Face ID / Touch ID opcional
-▸ Cifrado AES-256 en backend (Postgres + Vault)
-▸ Tokens OAuth de wallets cifrados con pgp_sym_encrypt
-▸ Row Level Security: tus datos son inaccesibles para otros users
-▸ Privacy Manifest completo (iOS 17+)
-
-PREMIUM
-
-Plan gratuito con todas las funciones core. Premium desbloquea: asistente IA ilimitado, reportes avanzados, voice mode, importación XLSX, backup automático.
-
-Trial gratuito 7 días, cancelás cuando quieras desde Ajustes → Apple ID.
-
----
+Empezá hoy a ordenar tu plata con más claridad.
+```
 
 Privacidad: https://metacasa-app-cf592.web.app/privacy.html
 Términos: https://metacasa-app-cf592.web.app/terms.html
 Soporte: soporte@metacasa.app
-```
 
 ### Keywords ASO (100 chars max, separados por coma sin espacios después)
 ```
-finanzas,presupuesto,gastos,ahorro,hogar,familia,deudas,metas,YNAB,envelope,argentina,multimoneda
+gastos,presupuesto,ahorro,deudas,plata,finanzas,hogar,familia,metas,vencimientos
 ```
 
 ### What's New (en cada release)
 ```
-v1.0 — Lanzamiento inicial
-• Asistente IA conversacional con MEMORIA entre sesiones — recuerda lo que hablaste la semana pasada
-• Voz nativa argentina (Malena, rioplatense) con auto-VAD: hablale como a un amigo
-• Vision multimodal: sacale foto a un recibo y el asistente lo carga solo
-• 20 acciones agentic: cargar gasto, transferir entre cuentas, marcar factura pagada, asignar presupuesto, comparar meses, proyectar balance
-• 7 atajos Siri: "Hey Siri, ver balance en MetaCasa"
-• Privacidad: consent explícito + modo solo on-device opcional (Ajustes → Privacidad del Asistente IA)
-• Presupuesto envelope por categoría con rollover
-• Multi-usuario por hogar
-• Multi-moneda (27 monedas)
-• Reportes Health Score y Pareto 80/20
-• Backup completo en JSON
+v1.0 — Lanzamiento
+• Registrá ingresos y gastos en segundos
+• Presupuestos por categoría
+• Metas con fecha y seguimiento mensual
+• Control de deudas, cuotas y vencimientos
+• Asistente IA para entender tus gastos y mejorar tu presupuesto
+• Compartí finanzas con tu familia (multi-usuario por hogar)
+• Soporte multi-moneda
+• Backup completo de tu información
 ```
 
 ---
@@ -104,96 +86,76 @@ v1.0 — Lanzamiento inicial
 ## 🇺🇸 ENGLISH (en-US)
 
 ### App name
-`MetaHome: Household Finance`
+`Home Finance`
 
 ### Subtitle (30 chars max)
-`Budget, goals & savings`
+`Family budget with AI help`
+
+Alternatives: `Expenses, goals & debts`, `Your money, simple & clear`, `Household finance with AI`.
 
 ### Promotional Text (170 chars)
-`Your AI financial coach with native voice. Claude analyzes your spending and tells you how to improve. Multi-currency and multi-user per household.`
+`Your money clearer, your home calmer. Budgets, expenses, goals, and debts in one place — with an AI assistant that helps you understand where your money goes.`
 
 ### Description
 ```
-MetaHome is the household finance app that brings the family together around their money.
+Organize your expenses, budgets, debts, and family goals in one app.
 
-✓ AI assistant with natural voice
-✓ Multi-user per household — invite your partner or family
-✓ Multi-currency — 27 currencies with configurable FX rates
-✓ Privacy-first — your data encrypted in transit and at rest
+Home Finance helps you see how much comes in, how much goes out, how much you can spend, and which goals you are building. Ideal for households, couples, and anyone who wants their money clearer without complicated spreadsheets.
 
-WHAT YOU CAN DO
+WITH HOME FINANCE YOU CAN:
+• Log income and expenses in seconds
+• Build budgets by category
+• See your real available balance
+• Set goals with dates
+• Track debts and upcoming bills
+• Share finances with your family
+• Use multiple currencies
+• Import and export information
 
-▸ Log expenses and income in seconds with a fluid number keypad
-▸ Build budgets per category (envelope-style à la YNAB)
-▸ Set goals with target dates and auto-calculated ETA
-▸ Track debts with snowball or avalanche payoff plans
-▸ Manage bills and recurring transactions with reminders
-▸ Import transactions from CSV or Excel
-▸ Export monthly summaries to PDF, CSV, or JSON
+AI ASSISTANT
+Ask the app:
+• Where am I spending the most?
+• How much do I have left this month?
+• What budget should I set up?
+• How can I reach my goal sooner?
+• Which expenses repeat or look unusual?
 
-INTELLIGENT AI ASSISTANT
+Information generated by the assistant is for guidance only and is not a substitute for professional financial advice.
 
-Talk to it by voice or chat. The assistant knows your ENTIRE app:
-• Tells you where you spend most with 80/20 Pareto analysis
-• Projects your end-of-month balance with explicit assumptions
-• Detects anomalies (duplicate charges, atypical spending)
-• Builds a budget based on your real history
-• Calculates how far you are from any goal
+REPORTS AND CONTROL
+See your financial health at a glance, compare months, analyze categories, and better understand your spending habits.
 
-Powered by Anthropic Claude via secure proxy — your data is encrypted, no model training.
+SECURITY AND PRIVACY
+Your data is protected with encryption, secure authentication, and privacy controls. You can enable Face ID or Touch ID to open the app.
 
-PROFESSIONAL REPORTS
+PREMIUM PLAN
+The free plan includes essential features. Premium unlocks unlimited AI assistant, advanced reports, voice mode, XLSX import, and automatic backup.
 
-▸ Health Score 0-100 with savings rate + expense ratio + consistency
-▸ 80/20 Pareto category breakdown
-▸ Side-by-side month comparison
-▸ Annual view with trend evolution
-▸ Visual Sankey-style Plan Editor
+You can manage or cancel your subscription from your Apple account.
 
-FOR HOUSEHOLDS
-
-Invite members by email. Everyone logs their transactions, everyone sees the shared balance. Configurable roles.
-
-SECURITY
-
-▸ Optional Face ID / Touch ID
-▸ AES-256 encryption in backend (Postgres + Vault)
-▸ OAuth wallet tokens encrypted with pgp_sym_encrypt
-▸ Row Level Security: your data is inaccessible to other users
-▸ Complete iOS 17+ Privacy Manifest
-
-PREMIUM
-
-Free plan with all core features. Premium unlocks: unlimited AI assistant, advanced reports, voice mode, XLSX import, automatic backup.
-
-7-day free trial, cancel anytime via Settings → Apple ID.
-
----
+Start today and bring more clarity to your money.
+```
 
 Privacy: https://metacasa-app-cf592.web.app/privacy.html
 Terms: https://metacasa-app-cf592.web.app/terms.html
 Support: support@metacasa.app
-```
 
 ### Keywords ASO
 ```
-finance,budget,expenses,savings,household,family,debt,goals,YNAB,envelope,multicurrency,money
+budget,expenses,savings,debt,finance,money,goals,family,wallet,income
 ```
 
 ### What's New
 ```
-v1.0 — Initial launch
-• Conversational AI assistant with cross-session MEMORY — recalls what you discussed last week
-• Natural voice mode with auto-VAD: just talk to it
-• Multimodal vision: take a photo of a receipt and the assistant logs it
-• 20 agentic actions: log expense, transfer between accounts, mark bill paid, set budget, compare months, project balance
-• 7 Siri Shortcuts: "Hey Siri, check my balance in MetaCasa"
-• Privacy: explicit consent + optional on-device-only mode (Settings → Assistant Privacy)
-• Envelope-style category budgeting with rollover
-• Multi-user per household
-• Multi-currency support (27 currencies)
-• Health Score & Pareto 80/20 reports
-• Full JSON backup
+v1.0 — Launch
+• Log income and expenses in seconds
+• Budgets by category
+• Goals with dates and monthly tracking
+• Track debts, installments, and bills
+• AI assistant to understand your spending and improve your budget
+• Share finances with your family (multi-user per household)
+• Multi-currency support
+• Full backup of your information
 ```
 
 ---
@@ -201,87 +163,108 @@ v1.0 — Initial launch
 ## 🇧🇷 PORTUGUÊS (pt-BR)
 
 ### App name
-`MetaCasa: Finanças do Lar`
+`Home Finance`
 
 ### Subtitle (30 chars max)
-`Orçamento, metas e poupança`
+`Orçamento familiar com IA`
+
+Alternativas: `Gastos, metas e dívidas`, `Seu dinheiro, simples e claro`, `Finanças do lar com IA`.
 
 ### Promotional Text (170 chars)
-`Seu coach financeiro com voz nativa. Anthropic Claude analisa seus gastos e te diz como melhorar. Multi-moeda e multi-usuário por lar.`
+`Seu dinheiro mais claro, sua casa mais tranquila. Orçamentos, gastos, metas e dívidas em um só lugar, com um assistente de IA que ajuda você a entender.`
 
 ### Description
 ```
-MetaCasa é o app de finanças do lar que une a família em torno do dinheiro.
+Organize seus gastos, orçamentos, dívidas e metas familiares em um só app.
 
-✓ Assistente IA com voz natural
-✓ Multi-usuário por lar — convide seu parceiro ou família
-✓ Multi-moeda — 27 moedas com taxas FX configuráveis
-✓ Privacy-first — seus dados criptografados em trânsito e em repouso
+Home Finance ajuda você a saber quanto entra, quanto sai, quanto pode gastar e quais objetivos está construindo. Ideal para lares, casais e pessoas que querem ter seu dinheiro mais claro, sem planilhas complicadas.
 
-O QUE VOCÊ PODE FAZER
+COM HOME FINANCE VOCÊ PODE:
+• Registrar receitas e gastos em segundos
+• Criar orçamentos por categoria
+• Ver seu saldo disponível real
+• Organizar metas com data
+• Controlar dívidas e vencimentos
+• Compartilhar as finanças com sua família
+• Usar várias moedas
+• Importar e exportar informações
 
-▸ Registrar gastos e receitas em segundos
-▸ Criar orçamentos por categoria (envelope budget tipo YNAB)
-▸ Definir metas com data e ETA calculado automaticamente
-▸ Acompanhar dívidas com plano snowball ou avalanche
-▸ Gerenciar vencimentos e recorrentes com lembretes
-▸ Importar transações de CSV ou Excel
-▸ Exportar resumos mensais em PDF, CSV ou JSON
+ASSISTENTE IA
+Pergunte ao app:
+• Onde estou gastando mais?
+• Quanto sobra para o fim do mês?
+• Qual orçamento devo montar?
+• Como chegar mais rápido na minha meta?
+• Quais gastos se repetem ou estão fora do normal?
 
-ASSISTENTE IA INTELIGENTE
+As informações geradas pelo assistente são orientativas e não substituem o aconselhamento financeiro profissional.
 
-Fale por voz ou chat. O assistente conhece TODO o app:
-• Te diz onde mais gasta com análise Pareto 80/20
-• Projeta seu saldo de fim de mês com premissas explícitas
-• Detecta anomalias (cobranças duplicadas, gastos atípicos)
-• Monta um orçamento baseado no seu histórico real
+RELATÓRIOS E CONTROLE
+Visualize sua saúde financeira, compare meses, analise categorias e entenda melhor seus hábitos.
 
-Processado por Anthropic Claude via proxy seguro.
+SEGURANÇA E PRIVACIDADE
+Seus dados são protegidos com criptografia, autenticação segura e controles de privacidade. Você pode ativar Face ID ou Touch ID para abrir o app.
 
-PARA LARES
+PLANO PREMIUM
+O plano gratuito inclui funções essenciais. Premium desbloqueia assistente IA ilimitado, relatórios avançados, modo voz, importação XLSX e backup automático.
 
-Convide membros por email. Todos registram suas transações, todos veem o saldo compartilhado.
+Você pode gerenciar ou cancelar sua assinatura pela sua conta Apple.
 
-SEGURANÇA
-
-▸ Face ID / Touch ID opcional
-▸ Criptografia AES-256 no backend
-▸ Row Level Security
-▸ iOS 17+ Privacy Manifest completo
-
-PREMIUM
-
-Plano gratuito com todas as funções core. Premium desbloqueia: assistente IA ilimitado, voice mode, relatórios avançados.
-
-Trial grátis 7 dias, cancele a qualquer momento.
-
----
+Comece hoje e traga mais clareza ao seu dinheiro.
+```
 
 Privacidade: https://metacasa-app-cf592.web.app/privacy.html
 Termos: https://metacasa-app-cf592.web.app/terms.html
 Suporte: suporte@metacasa.app
-```
 
 ### Keywords ASO
 ```
-finanças,orçamento,gastos,poupança,lar,família,dívidas,metas,YNAB,envelope,multimoeda,dinheiro
+finanças,orçamento,gastos,poupança,lar,família,dívidas,metas,renda,dinheiro
 ```
 
 ### What's New
 ```
-v1.0 — Lançamento inicial
-• Assistente IA conversacional com MEMÓRIA entre sessões — lembra o que você falou na semana passada
-• Modo voz com auto-VAD: fale com ele como com um amigo
-• Visão multimodal: tire uma foto de um recibo e o assistente registra
-• 20 ações agentic: registrar despesa, transferir entre contas, marcar fatura paga, definir orçamento, comparar meses, projetar saldo
-• 7 atalhos Siri: "Hey Siri, ver saldo no MetaCasa"
-• Privacidade: consentimento explícito + modo somente on-device opcional
-• Orçamento envelope por categoria com rollover
-• Multi-usuário por lar
-• Multi-moeda (27 moedas)
-• Relatórios Health Score e Pareto 80/20
-• Backup completo em JSON
+v1.0 — Lançamento
+• Registre receitas e gastos em segundos
+• Orçamentos por categoria
+• Metas com data e acompanhamento mensal
+• Controle de dívidas, parcelas e vencimentos
+• Assistente IA para entender seus gastos e melhorar seu orçamento
+• Compartilhe finanças com sua família (multiusuário por lar)
+• Suporte multi-moeda
+• Backup completo das suas informações
 ```
+
+---
+
+## 🎨 Textos para Screenshots (App Store)
+
+Sugeridos para los 5–7 screenshots por idioma. Recomendado mantener una sola línea de título grande + subtexto corto.
+
+| # | Título | Subtexto |
+|---|--------|----------|
+| 1 | Tus finanzas familiares, en calma | Ingresos, gastos y disponible en una sola vista. |
+| 2 | Cada peso en su categoría | Creá presupuestos simples para organizar mejor tu mes. |
+| 3 | Metas claras, con fecha | Ahorrá para objetivos concretos y seguí tu progreso. |
+| 4 | Preguntale a la IA | Entendé tus gastos y recibí ayuda para mejorar tu presupuesto. |
+| 5 | Deudas y vencimientos bajo control | Organizá cuotas, pagos y fechas importantes. |
+| 6 | Reportes simples para decidir mejor | Visualizá tendencias, categorías y evolución mensual. |
+
+Versión EN (orden 1:1):
+1. Your family finances, in calm — Income, expenses, and available in one view.
+2. Every dollar in its place — Build simple budgets to better organize your month.
+3. Clear goals, with dates — Save for concrete goals and track your progress.
+4. Ask the AI — Understand your spending and get help improving your budget.
+5. Debts and bills under control — Organize installments, payments, and key dates.
+6. Simple reports for better decisions — See trends, categories, and monthly evolution.
+
+Versión PT-BR (orden 1:1):
+1. Suas finanças familiares, com calma — Receitas, gastos e disponível em uma só tela.
+2. Cada real no seu lugar — Crie orçamentos simples para organizar melhor o mês.
+3. Metas claras, com data — Poupe para objetivos concretos e acompanhe seu progresso.
+4. Pergunte à IA — Entenda seus gastos e receba ajuda para melhorar seu orçamento.
+5. Dívidas e vencimentos sob controle — Organize parcelas, pagamentos e datas importantes.
+6. Relatórios simples para decidir melhor — Veja tendências, categorias e evolução mensal.
 
 ---
 
@@ -292,36 +275,35 @@ v1.0 — Lançamento inicial
 - **Secondary**: Productivity
 
 ### Age Rating
-- **4+** (no contiene contenido sensible, no es para menores en finance pero la app no genera contenido inapropiado)
-- Sin contenido adulto, violencia, gambling, etc.
+- **4+** (sin contenido sensible, gambling, etc.)
 
 ### Content Rights
-- ✓ Does not contain, show, or access third-party content (except for assistant LLM responses, declared in privacy policy)
+- ✓ Does not contain, show, or access third-party content (except for the assistant LLM responses, declared in privacy policy).
 
 ### URLs requeridas
 - **Privacy Policy URL**: `https://metacasa-app-cf592.web.app/privacy.html`
 - **Terms of Service URL**: `https://metacasa-app-cf592.web.app/terms.html`
-- **Support URL**: `https://metacasa-app-cf592.web.app/` (o crear `/support.html`)
+- **Support URL**: `https://metacasa-app-cf592.web.app/`
 - **Marketing URL**: `https://metacasa-app-cf592.web.app/` (opcional)
 
 ### Copyright
-`© 2026 MetaCasa. All rights reserved.`
+`© 2026 Home Finance. All rights reserved.`
 
 ### App Review Information
 - **Sign-in Required**: Yes
-- **Demo account**: crear uno con datos cargados antes del review
+- **Demo account** (crear uno con datos cargados antes del review):
   - Email: `review@metacasa.app`
   - Password: (generá uno fuerte)
   - Notes: "App requires authentication. Demo account has 3 months of seeded transactions, 4 budgets, 2 goals, and 1 household member for full feature review."
-- **Notes for reviewer**: 
-  > MetaCasa is a household personal finance app. Voice mode requires Apple Speech permission (microphone). The assistant uses Anthropic Claude via secure proxy. No financial advice — disclaimers in section 4 of Terms. Multi-user feature requires inviting via email which sends a token-based invite with 7-day expiry.
+- **Notes for reviewer**:
+  > Home Finance is a household personal finance app. Voice mode requires Apple Speech permission (microphone). The assistant uses a cloud LLM via a secure proxy. The assistant's output is informational only and is not financial advice — this is disclosed in section 4 of the Terms. The multi-user feature requires inviting members via email, which sends a token-based invite with a 7-day expiry.
 
 ### Pricing
 - Free + Premium IAP via RevenueCat (configurar después)
 
 ---
 
-## 🎨 Screenshots (8 sizes Apple actualmente requiere)
+## 🎨 Screenshots — sizes Apple
 
 Tenés que tomar screenshots a estas resoluciones EXACTAS desde Xcode (Simulator → File → New Screen Shot, o desde dispositivo físico):
 
@@ -331,14 +313,7 @@ Tenés que tomar screenshots a estas resoluciones EXACTAS desde Xcode (Simulator
 | 6.5" Display (iPhone 11 Pro Max, XS Max) | 1242×2688 | ✓ Sí (legacy) |
 | 5.5" Display (iPhone 8 Plus) | 1242×2208 | ✓ Sí (legacy) |
 
-Recomendación: 5-7 screenshots por idioma mostrando:
-1. Home con dashboard y widgets
-2. Tab Movimientos con lista
-3. Asistente IA en voice mode (orb activo)
-4. Tab Presupuesto con envelopes
-5. Reportes / Health Score
-6. Configuración del hogar / multi-usuario
-7. (Opcional) Plan Editor visual Sankey
+Recomendación: 5–7 screenshots por idioma siguiendo el orden de la tabla "Textos para Screenshots".
 
 ---
 
@@ -347,8 +322,8 @@ Recomendación: 5-7 screenshots por idioma mostrando:
 Después de pegar todo lo de arriba en App Store Connect, los items pendientes son:
 
 1. **App Icon** — ya está a 1024×1024 ✓
-2. **Screenshots** — sacar manualmente del dispositivo
+2. **Screenshots** — sacar manualmente del dispositivo y agregar los títulos sugeridos arriba
 3. **App Privacy Nutrition Label** — completar en ASC (debe coincidir con `PrivacyInfo.xcprivacy`)
 4. **In-App Purchases** — crear en ASC + RevenueCat
 5. **TestFlight** — invitar testers
-6. **Build de Release** — archive desde Xcode con MARKETING_VERSION ya seteado a 0.1.0 en project.yml
+6. **Build de Release** — archive desde Xcode con MARKETING_VERSION ya seteado en project.yml

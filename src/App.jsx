@@ -166,8 +166,8 @@ const TRANSLATIONS = {
     helpChat: 'Chat IA',
     helpSearchPlaceholder: 'Buscar en la ayuda...',
     helpNoResults: 'Sin resultados para esa búsqueda',
-    helpChatPlaceholder: 'Preguntale algo sobre MetaCasa...',
-    helpChatWelcome: '¡Hola! Soy el asistente de MetaCasa. Preguntame lo que quieras sobre la app.',
+    helpChatPlaceholder: 'Preguntale algo sobre Home Finance...',
+    helpChatWelcome: '¡Hola! Soy el asistente de Home Finance. Preguntame lo que quieras sobre la app.',
     helpChatError: 'Hubo un error. Intentá de nuevo.',
     helpBackToTopics: '← Volver a temas',
     helpTipPrefix: 'Tip:',
@@ -319,8 +319,8 @@ const TRANSLATIONS = {
     helpChat: 'AI Chat',
     helpSearchPlaceholder: 'Search help...',
     helpNoResults: 'No results for that search',
-    helpChatPlaceholder: 'Ask anything about MetaCasa...',
-    helpChatWelcome: 'Hi! I\'m the MetaCasa assistant. Ask me anything about the app.',
+    helpChatPlaceholder: 'Ask anything about Home Finance...',
+    helpChatWelcome: 'Hi! I\'m the Home Finance assistant. Ask me anything about the app.',
     helpChatError: 'There was an error. Please try again.',
     helpBackToTopics: '← Back to topics',
     helpTipPrefix: 'Tip:',
@@ -1984,7 +1984,7 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
 
   const handleShare = async () => {
     const lines = [
-      `📊 MetaCasa — ${MONTHS[month]} ${year}`,
+      `📊 Home Finance — ${MONTHS[month]} ${year}`,
       ``,
       `💰 Ingresos:   $${formatNumber(stats.income)}`,
       `💸 Gastos:     $${formatNumber(stats.expenses)}`,
@@ -1994,10 +1994,10 @@ function ReportModal({ stats, transactions, currentDate, prevMonth, projection, 
       ``,
       topCats.length ? `🗂 Top categorías:\n${topCats.map(([c,v])=>`  · ${c}: $${formatNumber(v)}`).join('\n')}` : '',
       ``,
-      `Generado con MetaCasa 🏠`,
+      `Generado con Home Finance 🏠`,
     ].filter(Boolean).join('\n');
     if (navigator.share) {
-      try { await navigator.share({ title: `MetaCasa — ${MONTHS[month]} ${year}`, text: lines }); } catch {}
+      try { await navigator.share({ title: `Home Finance — ${MONTHS[month]} ${year}`, text: lines }); } catch {}
     } else {
       await navigator.clipboard?.writeText(lines);
       toast('Copiado al portapapeles ✓', 'success');
@@ -3462,8 +3462,8 @@ export default function App() {
     if (aiConfig?.apiKey) {
       try {
         const systemPrompt = lang === 'es'
-          ? `Sos el asistente de MetaCasa, una app de finanzas del hogar. Respondé SOLO sobre MetaCasa usando esta documentación. Sé conciso y amigable. Si la pregunta no se relaciona con MetaCasa, decí que solo podés ayudar con temas de la app.\n\nDocumentación:\n${contextStr}`
-          : `You are the MetaCasa help assistant, a household finance app. Answer ONLY about MetaCasa using this documentation. Be concise and friendly. If unrelated, say you can only help with app topics.\n\nDocumentation:\n${contextStr}`;
+          ? `Sos el asistente de Home Finance, una app de finanzas del hogar. Respondé SOLO sobre Home Finance usando esta documentación. Sé conciso y amigable. Si la pregunta no se relaciona con Home Finance, decí que solo podés ayudar con temas de la app.\n\nDocumentación:\n${contextStr}`
+          : `You are the Home Finance help assistant, a household finance app. Answer ONLY about Home Finance using this documentation. Be concise and friendly. If unrelated, say you can only help with app topics.\n\nDocumentation:\n${contextStr}`;
         const reply = await callAI(systemPrompt, updated.slice(-10));
         setHelpChatMessages(prev => [...prev, { role: 'assistant', content: reply }]);
         setHelpChatLoading(false);
@@ -4619,7 +4619,7 @@ export default function App() {
     const balance = stats.income - stats.expenses;
     const topCat = Object.entries(stats.expenseByCategory).sort((a,b)=>b[1]-a[1])[0];
     const lines = [
-      `📊 MetaCasa — ${mes} ${anio}`,
+      `📊 Home Finance — ${mes} ${anio}`,
       `─────────────────────`,
       `💰 Ingresos:  $${formatNumber(stats.income)}`,
       `💸 Gastos:    $${formatNumber(stats.expenses)}`,
@@ -4628,10 +4628,10 @@ export default function App() {
       topCat ? `🏆 Top gasto: ${topCat[0]} ($${formatNumber(topCat[1])})` : null,
       monthlyAvg?.months >= 2 ? `📅 Prom. mensual: $${formatNumber(monthlyAvg.avgBalance)} balance` : null,
       `─────────────────────`,
-      `Generado con MetaCasa 🏠`,
+      `Generado con Home Finance 🏠`,
     ].filter(Boolean).join('\n');
     if (navigator.share) {
-      try { await navigator.share({ title: `MetaCasa — ${mes} ${anio}`, text: lines }); return; } catch {}
+      try { await navigator.share({ title: `Home Finance — ${mes} ${anio}`, text: lines }); return; } catch {}
     }
     await navigator.clipboard?.writeText(lines);
     toast('Resumen copiado al portapapeles', 'success');
@@ -5114,7 +5114,7 @@ export default function App() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `MetaCasa_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `HomeFinance_Backup_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast('Backup descargado ✓', 'success');
@@ -5172,7 +5172,7 @@ export default function App() {
     }
   };
 
-  const exportExcel = (txList, filename = 'MetaCasa_Finanzas.csv') => {
+  const exportExcel = (txList, filename = 'HomeFinance_Finanzas.csv') => {
     if (!txList || txList.length===0) { toast('Sin movimientos para exportar','info'); return; }
     const headers = ["Fecha","Tipo","Categoria","Monto","Detalle/Nota"];
     const rows = txList.map(t => [new Date(t.date).toLocaleDateString(), t.type, t.category, formatNumber(t.amount), `"${(t.note||"").replace(/"/g,'""')}"`]);
@@ -7273,7 +7273,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl"><img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" /></div>
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl"><img src={logoMetacasa} alt="Home Finance" className="w-full h-full object-cover" /></div>
           <div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-zinc-700 rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</div>
         </div>
       </div>
@@ -7290,10 +7290,10 @@ export default function App() {
         <div className="w-full max-w-md space-y-8">
           <div className="text-center space-y-4">
             <div className="w-20 h-20 rounded-3xl overflow-hidden mx-auto shadow-2xl border border-white/10">
-              <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" />
+              <img src={logoMetacasa} alt="Home Finance" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-4xl font-black italic uppercase tracking-tighter">MetaCasa</h1>
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter">Home Finance</h1>
               <p className="text-sm text-zinc-500 mt-1">{tl('homeFinance')}</p>
             </div>
           </div>
@@ -7349,10 +7349,10 @@ export default function App() {
             <header style={{order: -2}} className="md:col-span-2 lg:col-span-3 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10">
-                  <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover" />
+                  <img src={logoMetacasa} alt="Home Finance" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-black italic uppercase tracking-tight leading-none">MetaCasa</h1>
+                  <h1 className="text-lg font-black italic uppercase tracking-tight leading-none">Home Finance</h1>
                   <button onClick={()=>setShowDatePicker(true)}
                     className="flex items-center gap-1 text-xs font-semibold text-violet-400 mt-0.5 active:opacity-60">
                     <Calendar className="w-3 h-3" />
@@ -11047,7 +11047,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 {hasActiveFilters && filteredTxs.length > 0 && (
                   <button
-                    onClick={() => exportExcel(filteredTxs, `MetaCasa_Filtrado_${new Date().toISOString().slice(0,10)}.csv`)}
+                    onClick={() => exportExcel(filteredTxs, `HomeFinance_Filtrado_${new Date().toISOString().slice(0,10)}.csv`)}
                     className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 rounded-xl text-xs font-bold text-zinc-400 active:scale-90 transition-transform border border-white/8"
                     title="Exportar filtrado">
                     <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400"/>
@@ -13173,10 +13173,10 @@ export default function App() {
       {showInstallBanner && (
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+60px)] left-4 right-4 z-[95] bg-zinc-900 border border-violet-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 max-w-md mx-auto">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-            <img src={logoMetacasa} alt="MetaCasa" className="w-full h-full object-cover"/>
+            <img src={logoMetacasa} alt="Home Finance" className="w-full h-full object-cover"/>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white leading-tight">Instalá MetaCasa</p>
+            <p className="text-sm font-bold text-white leading-tight">Instalá Home Finance</p>
             <p className="text-[11px] text-zinc-500 mt-0.5">Acceso rápido sin el navegador</p>
           </div>
           <button
@@ -13210,7 +13210,7 @@ export default function App() {
             {onboardingStep === 1 && (
               <div className="text-center space-y-4">
                 <div className="text-5xl">👋</div>
-                <h2 className="text-2xl font-black text-white">¡Bienvenido a MetaCasa!</h2>
+                <h2 className="text-2xl font-black text-white">¡Bienvenido a Home Finance!</h2>
                 <p className="text-sm text-zinc-400 leading-relaxed">
                   Vamos a configurar tu app en 2 pasos rápidos para que puedas empezar a controlar tus finanzas.
                 </p>

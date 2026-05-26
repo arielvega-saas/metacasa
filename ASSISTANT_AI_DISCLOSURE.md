@@ -1,8 +1,8 @@
-# Disclosure del Asistente IA — MetaCasa
+# Disclosure del Asistente IA — Home Finance
 
 **Última actualización**: 2026-05-13
 
-Este documento describe cómo funciona el Asistente IA de MetaCasa, qué datos procesa, dónde, y bajo qué bases legales. Es required reading para App Store Review (Guideline 5.1.1 + AI/ML transparency) y referencia para el usuario.
+Este documento describe cómo funciona el Asistente IA de Home Finance, qué datos procesa, dónde, y bajo qué bases legales. Es required reading para App Store Review (Guideline 5.1.1 + AI/ML transparency) y referencia para el usuario.
 
 URL pública (al deploy): https://metacasa-app-cf592.web.app/assistant-ai.html
 
@@ -10,7 +10,7 @@ URL pública (al deploy): https://metacasa-app-cf592.web.app/assistant-ai.html
 
 ## ¿Qué es el Asistente IA?
 
-Un coach financiero conversacional embebido en MetaCasa. Tres modos:
+Un coach financiero conversacional embebido en Home Finance. Tres modos:
 
 - **Chat de texto** — respuestas en lenguaje natural sobre tus finanzas.
 - **Voz** — Apple Speech (STT on-device) + Anthropic Claude Haiku 4.5 (cloud) + ElevenLabs Malena (TTS streaming).
@@ -86,7 +86,7 @@ Estos controles son **inmediatos y persistentes**. La próxima vez que abras el 
 
 ## ¿Qué pasa si rechazás el consent?
 
-Podés seguir usando MetaCasa al 100%. El asistente cae al **Tier 3 statistical fallback** (motor determinístico local) que responde preguntas simples sobre tus datos sin LLM. Las funciones nativas de la app (cargar transacciones, presupuesto, metas, reportes, etc.) no se afectan.
+Podés seguir usando Home Finance al 100%. El asistente cae al **Tier 3 statistical fallback** (motor determinístico local) que responde preguntas simples sobre tus datos sin LLM. Las funciones nativas de la app (cargar transacciones, presupuesto, metas, reportes, etc.) no se afectan.
 
 ---
 
@@ -113,4 +113,4 @@ Para revocar consent fuera de la app, ejercer derechos GDPR/LGPD/LFPDPPP, o repo
 
 ---
 
-*Este documento es parte del compromiso de transparencia de MetaCasa con sus usuarios y con App Store Review Guideline 5.1.1.*
+*Este documento es parte del compromiso de transparencia de Home Finance con sus usuarios y con App Store Review Guideline 5.1.1.*

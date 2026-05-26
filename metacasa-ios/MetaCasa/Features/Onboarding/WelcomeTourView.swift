@@ -276,7 +276,7 @@ private struct TourPage: Sendable {
             ]
         ),
         TourPage(
-            icon: "sparkles",
+            icon: "calendar.badge.exclamationmark",
             titleKey: "tour.page4.title",
             bodyKey: "tour.page4.body",
             bullets: [
@@ -286,16 +286,14 @@ private struct TourPage: Sendable {
             ]
         ),
         TourPage(
-            icon: "lock.shield.fill",
+            icon: "sparkles",
             titleKey: "tour.page5.title",
             bodyKey: "tour.page5.body",
             bullets: [
                 "tour.page5.b1",
                 "tour.page5.b2",
                 "tour.page5.b3"
-            ],
-            bulletIcon: "checkmark.shield.fill",
-            premiumIcon: true
+            ]
         )
     ]
 }

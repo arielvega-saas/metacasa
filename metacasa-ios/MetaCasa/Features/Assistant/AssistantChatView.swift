@@ -1156,9 +1156,10 @@ final class AssistantViewModel {
             messages.append(reply)
             persist(reply, appState: appState)
         } catch {
+            NSLog("[Assistant] ask failed: \(error.localizedDescription)")
             let errMsg = AssistantMessage(
                 role: .assistant,
-                content: "No pude leer tus datos ahora mismo (\(error.localizedDescription))."
+                content: "El asistente no pudo responder en este momento. Probá nuevamente en unos segundos."
             )
             messages.append(errMsg)
             persist(errMsg, appState: appState)
@@ -1428,7 +1429,7 @@ final class AssistantViewModel {
     /// importar inline (sin redirigir al tab Transacciones).
     private func presentCSVPreview(fileName: String, csv: String, rowCount: Int, appState: AppState) async {
         guard let hid = appState.currentHouseholdId else {
-            messages.append(AssistantMessage(role: .assistant, content: "No hay hogar activo."))
+            messages.append(AssistantMessage(role: .assistant, content: "Necesitás un hogar activo para continuar. Revisá tus ajustes."))
             return
         }
 
@@ -1584,7 +1585,7 @@ final class AssistantViewModel {
     ) async {
         guard let hid = appState.currentHouseholdId,
               let uid = appState.currentUserId else {
-            appendSystem("Falta sesión o hogar activo.")
+            appendSystem("Necesitás una sesión y un hogar activos. Revisá tus ajustes.")
             return
         }
         let defaultCurrency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
@@ -1636,12 +1637,12 @@ final class AssistantViewModel {
 
     private func createTransaction(from receipt: ParsedReceipt, appState: AppState) async {
         guard let amount = receipt.amount else {
-            appendSystem("No hay monto detectado. No puedo crear la tx.")
+            appendSystem("No detecté un monto. Probá indicar el valor (por ejemplo: \"gasté $1.500 en supermercado\").")
             return
         }
         guard let hid = appState.currentHouseholdId,
               let uid = appState.currentUserId else {
-            appendSystem("Falta hogar o sesión activa.")
+            appendSystem("Necesitás una sesión y un hogar activos. Revisá tus ajustes.")
             return
         }
         let currency = receipt.currency
@@ -1684,7 +1685,7 @@ final class AssistantViewModel {
     private func createMultipleTransactions(from receipts: [ParsedReceipt], appState: AppState) async {
         guard let hid = appState.currentHouseholdId,
               let uid = appState.currentUserId else {
-            appendSystem("Falta hogar o sesión activa.")
+            appendSystem("Necesitás una sesión y un hogar activos. Revisá tus ajustes.")
             return
         }
         let defaultCurrency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
