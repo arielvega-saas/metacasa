@@ -1,329 +1,478 @@
-# Home Finance — App Store copy
+# Home Finance — App Store listing (ASO-optimizado v1.0.1)
 
-Listo para pegar en App Store Connect. Tres mercados: español (Argentina/LatAm), inglés (US/global), portugués (Brasil).
+Listing rediseñado por audiencia: LatAm hispano (AR/MX/CO), inglés (US/UK/CA/AU), portugués (Brasil).
 
-> Nota de marca: la app se llama **Home Finance**. La versión anterior usaba "MetaCasa" pero Apple observó que el nombre podía confundir, por eso "Home Finance" es el único nombre comercial visible. Los datos técnicos (bundle ID `com.metacasa.app`, dominio interno, etc.) no se tocan.
+Principio: vender "tranquilidad financiera para el hogar" — no una lista de funciones.
 
 ---
 
-## 🇦🇷 ESPAÑOL (es-AR / es-LA)
+## 1. Nombre
 
-### App name
-`Home Finance`
+**`Home Finance`** — se mantiene (Apple lo aprobó tras el rechazo de "MetaCasa"). 12 / 30 chars usados.
 
-### Subtitle (30 chars max)
-`Presupuesto familiar con IA`
+---
 
-Alternativas si querés rotar: `Gastos, metas y deudas`, `Tu plata, simple y clara`, `Finanzas del hogar con IA`.
+## 2. Subtítulo (máx. 30 chars)
 
-### Promotional Text (170 chars, se puede actualizar sin nueva submission)
-`Tu plata más clara, tu casa más tranquila. Presupuestos, gastos, metas y deudas en un solo lugar, con asistente IA que te ayuda a entender en qué se va.`
+| Idioma | Subtítulo | Chars |
+|---|---|---|
+| **ES** | `Presupuesto familiar con IA` | 27 |
+| **EN** | `Family budget with AI help` | 26 |
+| **PT-BR** | `Orçamento familiar com IA` | 25 |
 
-### Description
+**Alternativas A/B testeables después de 60 días:**
+
+- ES: `Plata clara, hogar tranquilo` (28) — emocional, menos SEO
+- EN: `Calm money for your home` (24) — premium feel
+- PT-BR: `Dinheiro claro, lar tranquilo` (29) — emocional
+
+---
+
+## 3. Promotional Text (máx. 170 chars — editable sin re-submission)
+
+| Idioma | Texto | Chars |
+|---|---|---|
+| **ES** | `Tu plata más clara, tu casa más tranquila. Presupuestos, metas y deudas en un solo lugar, con un asistente IA que te ayuda a entender adónde va tu dinero.` | 153 |
+| **EN** | `Calmer money. Calmer home. Budgets, goals, and debts in one place, with an AI assistant that helps you understand where every dollar actually goes.` | 146 |
+| **PT-BR** | `Dinheiro mais claro, lar mais tranquilo. Orçamentos, metas e dívidas num só lugar, com um assistente de IA que te ajuda a entender seu dinheiro.` | 144 |
+
+Para campañas / fechas clave podés reemplazar por: *"Empezás 2026 con tu plata ordenada? Probá Premium gratis 7 días."*
+
+---
+
+## 4. Descripción completa por idioma
+
+### 🇦🇷 Español (Latam)
+
 ```
-Ordená tus gastos, presupuestos, deudas y metas familiares en una sola app.
+Si querés saber adónde se te va la plata cada mes, esta app es para vos.
 
-Home Finance te ayuda a saber cuánto entra, cuánto sale, cuánto podés gastar y qué objetivos estás construyendo. Ideal para hogares, parejas y personas que quieren tener su plata más clara, sin planillas complicadas.
+Home Finance ordena tus gastos, presupuestos, deudas y metas familiares en una sola pantalla. Sin planillas. Sin estrés. Solo claridad.
 
-CON HOME FINANCE PODÉS:
-• Registrar ingresos y gastos en segundos
-• Crear presupuestos por categoría
-• Ver tu disponible real
-• Organizar metas con fecha
-• Controlar deudas y vencimientos
-• Compartir las finanzas con tu familia
-• Usar varias monedas
-• Importar y exportar información
+UN LUGAR PARA TODO TU DINERO
+• Cargá ingresos y gastos en segundos
+• Creá presupuestos por categoría
+• Mirá tu "disponible real" del mes
+• Definí metas con fecha y seguilas mes a mes
+• Controlá deudas, cuotas y vencimientos
+• Multi-moneda — ideal si manejás pesos y dólares
 
-ASISTENTE IA
-Preguntale a la app:
-• ¿Dónde estoy gastando más?
+PENSADO PARA EL HOGAR
+Invitá a tu pareja, familia o roommates. Cada uno carga sus movimientos, todos ven el saldo compartido. Ideal para parejas que quieren dejar de discutir por la plata.
+
+ASISTENTE IA QUE ENTIENDE TUS NÚMEROS
+Preguntale en lenguaje natural:
+• ¿Dónde gasté más este mes?
 • ¿Cuánto me queda para fin de mes?
-• ¿Qué presupuesto me conviene armar?
-• ¿Cómo puedo llegar antes a mi meta?
+• ¿Qué presupuesto me conviene ajustar?
+• ¿Cuándo voy a llegar a mi meta?
 • ¿Qué gastos se repiten o se salen de lo normal?
 
-La información generada por el asistente es orientativa y no reemplaza asesoramiento financiero profesional.
+También podés sacarle una foto a un recibo y la app lo carga sola, o dictarle un gasto por voz mientras manejás.
 
-REPORTES Y CONTROL
-Visualizá tu salud financiera, compará meses, analizá categorías y entendé mejor tus hábitos de consumo.
+La información del asistente es orientativa y no reemplaza asesoramiento financiero profesional.
 
-SEGURIDAD Y PRIVACIDAD
-Tus datos se protegen con cifrado, acceso seguro y controles de privacidad. Podés activar Face ID o Touch ID para abrir la app.
+REPORTES CLAROS
+• Salud financiera con un número 0–100
+• Comparativa mes a mes
+• Análisis de categorías y hábitos
+• Vista anual con tendencias
+
+PRIVACIDAD PRIMERO
+• Cifrado en tránsito y en reposo
+• Face ID / Touch ID opcional
+• Reconocimiento de voz on-device
+• Vos elegís qué se procesa en la nube
 
 PLAN PREMIUM
-El plan gratuito incluye funciones esenciales. Premium desbloquea asistente IA ilimitado, reportes avanzados, modo voz, importación XLSX y backup automático.
+Free incluye lo esencial. Premium desbloquea:
+• Asistente IA ilimitado
+• Modo voz
+• Reportes avanzados
+• Importación XLSX
+• Exportación CSV, PDF y JSON
+• Backup automático
+• Más control para hogares grandes
 
-Podés administrar o cancelar tu suscripción desde tu cuenta de Apple.
+Probalo gratis 7 días. Cancelás cuando quieras desde tu cuenta de Apple.
 
-Empezá hoy a ordenar tu plata con más claridad.
-```
+Empezá hoy. Tu plata más clara, tu casa más tranquila.
 
 Privacidad: https://metacasa-app-cf592.web.app/privacy.html
 Términos: https://metacasa-app-cf592.web.app/terms.html
 Soporte: soporte@metacasa.app
-
-### Keywords ASO (100 chars max, separados por coma sin espacios después)
-```
-gastos,presupuesto,ahorro,deudas,plata,finanzas,hogar,familia,metas,vencimientos
 ```
 
-### What's New (en cada release)
+### 🇺🇸 Inglés (US / UK / CA / AU)
+
 ```
-v1.0 — Lanzamiento
-• Registrá ingresos y gastos en segundos
-• Presupuestos por categoría
-• Metas con fecha y seguimiento mensual
-• Control de deudas, cuotas y vencimientos
-• Asistente IA para entender tus gastos y mejorar tu presupuesto
-• Compartí finanzas con tu familia (multi-usuario por hogar)
-• Soporte multi-moneda
-• Backup completo de tu información
-```
+Tired of guessing where your money went this month?
 
----
+Home Finance brings your expenses, budgets, debts, and family goals into one calm dashboard. No spreadsheets. No jargon. No promises you'll get rich. Just clarity.
 
-## 🇺🇸 ENGLISH (en-US)
-
-### App name
-`Home Finance`
-
-### Subtitle (30 chars max)
-`Family budget with AI help`
-
-Alternatives: `Expenses, goals & debts`, `Your money, simple & clear`, `Household finance with AI`.
-
-### Promotional Text (170 chars)
-`Your money clearer, your home calmer. Budgets, expenses, goals, and debts in one place — with an AI assistant that helps you understand where your money goes.`
-
-### Description
-```
-Organize your expenses, budgets, debts, and family goals in one app.
-
-Home Finance helps you see how much comes in, how much goes out, how much you can spend, and which goals you are building. Ideal for households, couples, and anyone who wants their money clearer without complicated spreadsheets.
-
-WITH HOME FINANCE YOU CAN:
+ONE PLACE FOR YOUR WHOLE FINANCIAL LIFE
 • Log income and expenses in seconds
-• Build budgets by category
-• See your real available balance
-• Set goals with dates
-• Track debts and upcoming bills
-• Share finances with your family
-• Use multiple currencies
-• Import and export information
+• Build category-based budgets you'll actually follow
+• See your real available balance — not just your bank balance
+• Set goals with dates and watch your progress
+• Track debts, installments, and upcoming bills
+• Multi-currency — perfect for households juggling more than one
 
-AI ASSISTANT
-Ask the app:
+BUILT FOR HOUSEHOLDS
+Invite your partner, family, or roommates. Everyone logs their own, everyone sees the shared picture. Less money fights, more money clarity.
+
+AN AI ASSISTANT THAT KNOWS YOUR NUMBERS
+Ask in plain language:
 • Where am I spending the most?
 • How much do I have left this month?
-• What budget should I set up?
-• How can I reach my goal sooner?
+• Which budget should I tighten?
+• When will I hit my goal?
 • Which expenses repeat or look unusual?
 
-Information generated by the assistant is for guidance only and is not a substitute for professional financial advice.
+You can also snap a photo of a receipt and the app logs it for you, or dictate an expense by voice while driving.
 
-REPORTS AND CONTROL
-See your financial health at a glance, compare months, analyze categories, and better understand your spending habits.
+The assistant's responses are for guidance only and don't replace professional financial advice.
 
-SECURITY AND PRIVACY
-Your data is protected with encryption, secure authentication, and privacy controls. You can enable Face ID or Touch ID to open the app.
+CLEAR REPORTS
+• A 0–100 financial health score
+• Side-by-side month comparison
+• Category and habit analysis
+• Annual view with trends
+
+PRIVACY FIRST
+• Encrypted in transit and at rest
+• Optional Face ID / Touch ID
+• On-device voice recognition
+• You decide what goes to the cloud
 
 PREMIUM PLAN
-The free plan includes essential features. Premium unlocks unlimited AI assistant, advanced reports, voice mode, XLSX import, and automatic backup.
+Free covers the essentials. Premium unlocks:
+• Unlimited AI assistant
+• Voice mode
+• Advanced reports
+• XLSX import
+• CSV, PDF, and JSON export
+• Automatic backup
+• Larger households, more flexibility
 
-You can manage or cancel your subscription from your Apple account.
+Try free for 7 days. Cancel anytime from your Apple account.
 
-Start today and bring more clarity to your money.
-```
+Start today. Calmer money. Calmer home.
 
 Privacy: https://metacasa-app-cf592.web.app/privacy.html
 Terms: https://metacasa-app-cf592.web.app/terms.html
 Support: support@metacasa.app
-
-### Keywords ASO
-```
-budget,expenses,savings,debt,finance,money,goals,family,wallet,income
 ```
 
-### What's New
+### 🇧🇷 Português (Brasil)
+
 ```
-v1.0 — Launch
-• Log income and expenses in seconds
-• Budgets by category
-• Goals with dates and monthly tracking
-• Track debts, installments, and bills
-• AI assistant to understand your spending and improve your budget
-• Share finances with your family (multi-user per household)
-• Multi-currency support
-• Full backup of your information
-```
+Cansado de não saber para onde foi seu dinheiro este mês?
 
----
+O Home Finance reúne seus gastos, orçamentos, dívidas e metas da família numa só tela. Sem planilhas. Sem estresse. Sem promessas mirabolantes. Só clareza.
 
-## 🇧🇷 PORTUGUÊS (pt-BR)
+UM LUGAR PRA TODO O SEU DINHEIRO
+• Registre receitas e gastos em segundos
+• Crie orçamentos por categoria que você realmente segue
+• Veja seu saldo disponível real — não só o do banco
+• Defina metas com data e acompanhe seu progresso
+• Controle dívidas, parcelas e vencimentos
+• Multi-moeda — ideal pra quem mexe com BRL e USD
 
-### App name
-`Home Finance`
+FEITO PRA FAMÍLIA
+Convide seu par, sua família ou colegas de casa. Cada um registra o seu, todos veem o saldo compartilhado. Menos brigas por dinheiro, mais clareza.
 
-### Subtitle (30 chars max)
-`Orçamento familiar com IA`
+UM ASSISTENTE IA QUE ENTIENDE SEUS NÚMEROS
+Pergunte em linguagem natural:
+• Onde gastei mais este mês?
+• Quanto sobra pro fim do mês?
+• Qual orçamento devo ajustar?
+• Quando vou bater minha meta?
+• Quais gastos se repetem ou estão fora do comum?
 
-Alternativas: `Gastos, metas e dívidas`, `Seu dinheiro, simples e claro`, `Finanças do lar com IA`.
+Você pode até fotografar um recibo e o app registra sozinho, ou ditar um gasto por voz enquanto dirige.
 
-### Promotional Text (170 chars)
-`Seu dinheiro mais claro, sua casa mais tranquila. Orçamentos, gastos, metas e dívidas em um só lugar, com um assistente de IA que ajuda você a entender.`
+As respostas do assistente são orientativas e não substituem aconselhamento financeiro profissional.
 
-### Description
-```
-Organize seus gastos, orçamentos, dívidas e metas familiares em um só app.
+RELATÓRIOS CLAROS
+• Saúde financeira com nota de 0 a 100
+• Comparativo mês a mês
+• Análise de categorias e hábitos
+• Visão anual com tendências
 
-Home Finance ajuda você a saber quanto entra, quanto sai, quanto pode gastar e quais objetivos está construindo. Ideal para lares, casais e pessoas que querem ter seu dinheiro mais claro, sem planilhas complicadas.
-
-COM HOME FINANCE VOCÊ PODE:
-• Registrar receitas e gastos em segundos
-• Criar orçamentos por categoria
-• Ver seu saldo disponível real
-• Organizar metas com data
-• Controlar dívidas e vencimentos
-• Compartilhar as finanças com sua família
-• Usar várias moedas
-• Importar e exportar informações
-
-ASSISTENTE IA
-Pergunte ao app:
-• Onde estou gastando mais?
-• Quanto sobra para o fim do mês?
-• Qual orçamento devo montar?
-• Como chegar mais rápido na minha meta?
-• Quais gastos se repetem ou estão fora do normal?
-
-As informações geradas pelo assistente são orientativas e não substituem o aconselhamento financeiro profissional.
-
-RELATÓRIOS E CONTROLE
-Visualize sua saúde financeira, compare meses, analise categorias e entenda melhor seus hábitos.
-
-SEGURANÇA E PRIVACIDADE
-Seus dados são protegidos com criptografia, autenticação segura e controles de privacidade. Você pode ativar Face ID ou Touch ID para abrir o app.
+PRIVACIDADE EM PRIMEIRO LUGAR
+• Criptografia em trânsito e em repouso
+• Face ID / Touch ID opcional
+• Reconhecimento de voz no dispositivo
+• Você decide o que vai pra nuvem
 
 PLANO PREMIUM
-O plano gratuito inclui funções essenciais. Premium desbloqueia assistente IA ilimitado, relatórios avançados, modo voz, importação XLSX e backup automático.
+O grátis cobre o essencial. O Premium libera:
+• Assistente IA ilimitado
+• Modo voz
+• Relatórios avançados
+• Importação XLSX
+• Exportação CSV, PDF e JSON
+• Backup automático
+• Mais flexibilidade pra famílias maiores
 
-Você pode gerenciar ou cancelar sua assinatura pela sua conta Apple.
+Teste grátis por 7 dias. Cancele quando quiser pela sua conta Apple.
 
-Comece hoje e traga mais clareza ao seu dinheiro.
-```
+Comece hoje. Dinheiro mais claro. Casa mais tranquila.
 
 Privacidade: https://metacasa-app-cf592.web.app/privacy.html
 Termos: https://metacasa-app-cf592.web.app/terms.html
 Suporte: suporte@metacasa.app
-
-### Keywords ASO
-```
-finanças,orçamento,gastos,poupança,lar,família,dívidas,metas,renda,dinheiro
-```
-
-### What's New
-```
-v1.0 — Lançamento
-• Registre receitas e gastos em segundos
-• Orçamentos por categoria
-• Metas com data e acompanhamento mensal
-• Controle de dívidas, parcelas e vencimentos
-• Assistente IA para entender seus gastos e melhorar seu orçamento
-• Compartilhe finanças com sua família (multiusuário por lar)
-• Suporte multi-moeda
-• Backup completo das suas informações
 ```
 
 ---
 
-## 🎨 Textos para Screenshots (App Store)
+## 5. Keywords ASO (máx. 100 chars, sin espacios después de coma)
 
-Sugeridos para los 5–7 screenshots por idioma. Recomendado mantener una sola línea de título grande + subtexto corto.
+**Estrategia:** no repetir palabras del nombre/subtítulo (Apple las indexa automáticamente). Singular > plural (Apple cubre plural). Mix short-tail (alta búsqueda) + long-tail (alta conversión). Vocabulario regional que la competencia ignora.
 
-| # | Título | Subtexto |
-|---|--------|----------|
-| 1 | Tus finanzas familiares, en calma | Ingresos, gastos y disponible en una sola vista. |
-| 2 | Cada peso en su categoría | Creá presupuestos simples para organizar mejor tu mes. |
-| 3 | Metas claras, con fecha | Ahorrá para objetivos concretos y seguí tu progreso. |
-| 4 | Preguntale a la IA | Entendé tus gastos y recibí ayuda para mejorar tu presupuesto. |
-| 5 | Deudas y vencimientos bajo control | Organizá cuotas, pagos y fechas importantes. |
-| 6 | Reportes simples para decidir mejor | Visualizá tendencias, categorías y evolución mensual. |
+### 🇦🇷 Español Latam (95 chars)
+```
+ahorro,deudas,plata,gastos,vencimientos,cuotas,sueldo,facturas,billetera,economia,tarjeta,dolar
+```
+Vocabulario regional: `plata`, `sueldo`, `cuotas`, `tarjeta`, `dolar`. Omití `presupuesto` y `familia` (ya en subtítulo).
 
-Versión EN (orden 1:1):
-1. Your family finances, in calm — Income, expenses, and available in one view.
-2. Every dollar in its place — Build simple budgets to better organize your month.
-3. Clear goals, with dates — Save for concrete goals and track your progress.
-4. Ask the AI — Understand your spending and get help improving your budget.
-5. Debts and bills under control — Organize installments, payments, and key dates.
-6. Simple reports for better decisions — See trends, categories, and monthly evolution.
+### 🇺🇸 Inglés (92 chars)
+```
+budget,expense,save,debt,money,finance,goal,family,wallet,income,bill,paycheck,track,planner
+```
+Mercado US/UK: `paycheck`, `bill`, `track`, `planner` — términos que YNAB y Mint dominaban.
 
-Versión PT-BR (orden 1:1):
-1. Suas finanças familiares, com calma — Receitas, gastos e disponível em uma só tela.
-2. Cada real no seu lugar — Crie orçamentos simples para organizar melhor o mês.
-3. Metas claras, com data — Poupe para objetivos concretos e acompanhe seu progresso.
-4. Pergunte à IA — Entenda seus gastos e receba ajuda para melhorar seu orçamento.
-5. Dívidas e vencimentos sob controle — Organize parcelas, pagamentos e datas importantes.
-6. Relatórios simples para decidir melhor — Veja tendências, categorias e evolução mensal.
+### 🇧🇷 Português Brasil (97 chars)
+```
+gastos,orcamento,economia,dividas,dinheiro,financas,metas,familia,carteira,salario,contas,boletos
+```
+Sin acentos para maximizar matches. Vocabulario BR puro: `boletos`, `salario`, `contas`.
 
 ---
 
-## 📋 OTROS CAMPOS App Store Connect
+## 6. Screenshots — estrategia, orden y textos overlay
 
-### Category
-- **Primary**: Finance
-- **Secondary**: Productivity
+**Regla de oro:** la primera captura es el 70% de la conversion. Tiene que vender en 3 segundos sin necesidad de leer.
+
+### Layout por captura
+
+- Background: gradient sutil del brand (sage glow sobre midnight).
+- Device: marco minimalista, iPhone 17 Pro Max preferentemente.
+- Texto overlay arriba: 1 línea grande + 1 línea chica.
+- Pantalla real de la app abajo (no mockups inventados).
+- Mismo estilo en las 6 capturas (coherencia visual).
+
+### Orden ideal
+
+| # | Pantalla a mostrar | Por qué primero |
+|---|---|---|
+| **1** | Home / Dashboard con saldo grande + Health Score | "Wow moment" — vende calma y control |
+| **2** | Asistente IA con un mensaje real ("¿Dónde gasté más este mes?") | Diferenciador #1 vs YNAB/Mobills |
+| **3** | Presupuestos por categoría (envelope view) | El dolor que la app resuelve |
+| **4** | Metas con progress visual | Carga emocional alta |
+| **5** | Deudas / vencimientos | Urgencia, otro dolor concreto |
+| **6** | Reportes / análisis mensual | Credibilidad y profundidad |
+
+### Texto overlay por captura
+
+#### Captura 1 — Hero / Dashboard
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Tu plata, en calma | Mirá adónde va cada peso. |
+| EN | Money, finally calm | See where every dollar goes. |
+| PT-BR | Seu dinheiro, em paz | Veja para onde vai cada real. |
+
+#### Captura 2 — Asistente IA
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Preguntale a la IA | Entendé tus gastos sin planillas. |
+| EN | Ask the AI | Understand your spending — without spreadsheets. |
+| PT-BR | Pergunte à IA | Entenda seus gastos sem planilhas. |
+
+#### Captura 3 — Presupuestos
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Cada peso en su lugar | Presupuestos que sí podés seguir. |
+| EN | Every dollar in its place | Budgets you'll actually stick to. |
+| PT-BR | Cada real no seu lugar | Orçamentos que você realmente segue. |
+
+#### Captura 4 — Metas
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Metas con fecha clara | Ahorrá para lo que importa. |
+| EN | Goals with a clear date | Save for what actually matters. |
+| PT-BR | Metas com data certa | Poupe para o que importa. |
+
+#### Captura 5 — Deudas y vencimientos
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Nunca olvides un pago | Cuotas y vencimientos bajo control. |
+| EN | Never miss a payment | Installments and bills in one view. |
+| PT-BR | Nunca esqueça um pagamento | Parcelas e vencimentos sob controle. |
+
+#### Captura 6 — Reportes
+
+| Idioma | Título | Subtítulo |
+|---|---|---|
+| ES | Decisiones más claras | Salud financiera con un solo número. |
+| EN | Smarter decisions | Your financial health, in one score. |
+| PT-BR | Decisões mais claras | Saúde financeira com um único número. |
+
+### Setup técnico de capturas
+
+- Apple pide **6.9" (1320×2868)** + **6.5" (1242×2688)** mínimo. Para esta audiencia agregar **6.7" (1290×2796)** ayuda con iPads scaled — fue lo que rechazó el build 7.
+- Captura desde Simulator: `xcrun simctl io booted screenshot ~/Desktop/home.png` con iPhone 17 Pro Max Simulator booteado.
+- Cada locale (es / en / pt-BR) necesita su propio set. **No traduzcas el screenshot de inglés con un cartel encima** — Apple penaliza eso. Cambiá el locale del Simulator: Settings → General → Language → es-AR / en-US / pt-BR antes de capturar.
+- La data que se ve en pantalla TIENE que estar en la moneda local: ARS para es, USD para en, BRL para pt. Usá el demo account con seed data en cada moneda.
+
+---
+
+## 7. Otros campos App Store Connect
+
+### Categorías
+
+- **Primary:** Finance (todos los markets)
+- **Secondary (US/UK):** Lifestyle — audiencia "calm money / mental wellness around finance" busca ahí
+- **Secondary (LatAm/BR):** Productivity — vocabulario más común
 
 ### Age Rating
-- **4+** (sin contenido sensible, gambling, etc.)
+**4+** (sin contenido sensible, gambling, etc.)
 
 ### Content Rights
-- ✓ Does not contain, show, or access third-party content (except for the assistant LLM responses, declared in privacy policy).
+✓ Does not contain, show, or access third-party content (except the assistant LLM responses, declared in privacy policy).
 
 ### URLs requeridas
-- **Privacy Policy URL**: `https://metacasa-app-cf592.web.app/privacy.html`
-- **Terms of Service URL**: `https://metacasa-app-cf592.web.app/terms.html`
-- **Support URL**: `https://metacasa-app-cf592.web.app/`
-- **Marketing URL**: `https://metacasa-app-cf592.web.app/` (opcional)
+- **Privacy Policy URL:** `https://metacasa-app-cf592.web.app/privacy.html`
+- **Terms of Service URL:** `https://metacasa-app-cf592.web.app/terms.html`
+- **Support URL:** `https://metacasa-app-cf592.web.app/`
+- **Marketing URL** (opcional): `https://metacasa-app-cf592.web.app/`
 
 ### Copyright
 `© 2026 Home Finance. All rights reserved.`
 
+### Developer Name (Trading Name)
+
+Hoy aparece **"ARIEL JOSUE VEGA GUERRERO"**. Conviene registrar un **Trading Name / DBA** en App Store Connect → Business → Legal Entity → Trading Name. Aprobación en 24–48h con factura/comprobante.
+
+Sugerencias (en orden de preferencia):
+1. **`Home Finance Labs`** — alinea con la marca, no compite con el nombre de la app
+2. **`Home Finance Studio`**
+3. **`Vega Money`**
+
+Costo: $0 si ya tenés Apple Developer Program activo. Solo trámite. Mejora la percepción de marca premium considerablemente.
+
 ### App Review Information
-- **Sign-in Required**: Yes
+
+- **Sign-in Required:** Yes
 - **Demo account** (crear uno con datos cargados antes del review):
   - Email: `review@metacasa.app`
   - Password: (generá uno fuerte)
-  - Notes: "App requires authentication. Demo account has 3 months of seeded transactions, 4 budgets, 2 goals, and 1 household member for full feature review."
-- **Notes for reviewer**:
-  > Home Finance is a household personal finance app. Voice mode requires Apple Speech permission (microphone). The assistant uses a cloud LLM via a secure proxy. The assistant's output is informational only and is not financial advice — this is disclosed in section 4 of the Terms. The multi-user feature requires inviting members via email, which sends a token-based invite with a 7-day expiry.
+  - Notes: `App requires authentication. Demo account has 3 months of seeded transactions, 4 budgets, 2 goals, and 1 household member for full feature review.`
+- **Notes for reviewer:**
+  > Home Finance is a household personal finance app. Voice mode requires Apple Speech permission (microphone). The assistant uses a cloud LLM via a secure proxy. The assistant's output is informational only and is not financial advice — disclosed in section 4 of the Terms and reinforced in the assistant's welcome message. The multi-user feature requires inviting members via email, which sends a token-based invite with 7-day expiry.
+  >
+  > This v1.0.1 release includes a comprehensive UX copy overhaul for clarity and reinforces compliance with Guideline 5.1.1 with an explicit "guidance only, not professional financial advice" disclaimer in the AI assistant.
 
 ### Pricing
-- Free + Premium IAP via RevenueCat (configurar después)
+Free + Premium IAP via RevenueCat. Considerar **intro 50% off el primer año** vía RevenueCat Promotional Offers — boost típico de subscription 20–30%.
 
 ---
 
-## 🎨 Screenshots — sizes Apple
+## 8. What's New (release notes — v1.0.1)
 
-Tenés que tomar screenshots a estas resoluciones EXACTAS desde Xcode (Simulator → File → New Screen Shot, o desde dispositivo físico):
+### 🇦🇷 ES
+```
+v1.0.1 — Más claro, más calmo
+• Nuevo onboarding: te mostramos en 5 pantallas qué podés hacer
+• Asistente IA con ejemplos concretos y disclaimer claro
+• Premium: nuevo diseño, más enfocado en beneficios reales
+• Pantallas vacías ahora te ayudan a dar el primer paso
+• Mensajes de error más humanos y accionables
+• Más de 60 textos repensados para que se sientan claros y cálidos
+```
+
+### 🇺🇸 EN
+```
+v1.0.1 — Calmer, clearer
+• New 5-screen onboarding to help you get started
+• AI assistant with concrete examples and a clearer disclaimer
+• Premium screen redesigned around real benefits, not feature lists
+• Empty states now guide your first action
+• Friendlier, more actionable error messages
+• Over 60 in-app texts rewritten for clarity and warmth
+```
+
+### 🇧🇷 PT
+```
+v1.0.1 — Mais claro, mais tranquilo
+• Novo onboarding em 5 telas para começar fácil
+• Assistente IA com exemplos concretos e aviso mais claro
+• Tela Premium redesenhada focada em benefícios reais
+• Telas vazias agora te ajudam a dar o primeiro passo
+• Mensagens de erro mais humanas e acionáveis
+• Mais de 60 textos reescritos para soar claro e acolhedor
+```
+
+---
+
+## 9. Localización en App Store Connect
+
+Cargar metadata en estos locales (orden de prioridad):
+
+| Locale | Por qué | Estado |
+|---|---|---|
+| `es-AR` | Mercado primario actual | Hacer |
+| `en-US` | Mayor mercado global Apple | Hacer |
+| `pt-BR` | LatAm crítico, Brasil > 200M Apple users | Hacer |
+| `es-MX` | Mayor mercado hispano | Hacer (puede compartir copy con es-AR ajustando "plata" → "dinero") |
+| `es-ES` | Mercado mediano premium | Opcional v1.0.2 |
+| `en-GB` | UK | Opcional v1.0.2 |
+
+Apple trata `es-AR`, `es-MX`, `es-ES` como locales separados — cada uno acepta keywords + screenshots distintas.
+
+---
+
+## 10. Screenshots — sizes Apple
+
+Resoluciones obligatorias (Simulator → File → New Screen Shot, o desde dispositivo físico):
 
 | Device | Size | Required |
-|--------|------|----------|
+|---|---|---|
 | 6.9" Display (iPhone 16 Pro Max, 17 Pro Max) | 1320×2868 | ✓ Sí |
+| 6.7" Display (iPhone 15 Pro Max) | 1290×2796 | Sí (evita rechazo iPad scaled) |
 | 6.5" Display (iPhone 11 Pro Max, XS Max) | 1242×2688 | ✓ Sí (legacy) |
 | 5.5" Display (iPhone 8 Plus) | 1242×2208 | ✓ Sí (legacy) |
 
-Recomendación: 5–7 screenshots por idioma siguiendo el orden de la tabla "Textos para Screenshots".
+---
+
+## 11. Mejoras a futuro (post v1.0.1)
+
+1. **App Preview Video** (Apple permite 3 videos de 30s por locale) — boost de conversion del 25–40% según data de Apple. Priorizar para v1.0.2.
+2. **Editorial Pitch a Apple**: después de v1.0.1 con reviews 4.5+, enviar pitch en [App Store Connect → Submit your app to be featured](https://developer.apple.com/contact/app-store/). Foco: *"Calm money — household finance with on-device privacy + AI guidance, designed for families."* Encaja con la narrativa de Apple Intelligence.
+3. **`SKStoreReviewController`**: activar después del **7º día de uso continuo** (no antes — baja conversion). 3 prompts/año permitidos.
+4. **Product Page Optimization** (A/B testing): Apple permite testear hasta 3 variantes de icon + screenshots. Activarlo después de tener baseline de 30 días.
+5. **Apple Watch companion** + **Live Activities visible en screenshot** — diferenciadores premium en mercados US/UK.
+6. **Apple Intelligence / Siri Shortcuts** — ya hay `MetaCasaAppIntents` en el target. Mencionalo explícitamente en "What's New" — Apple destaca apps que adoptan estas features.
 
 ---
 
-## ⚠️ Lo que falta para submit
+## 12. Checklist antes de submit
 
-Después de pegar todo lo de arriba en App Store Connect, los items pendientes son:
+- [ ] `MARKETING_VERSION = 1.0.1` y `CURRENT_PROJECT_VERSION = 9` en `project.yml`
+- [ ] `xcodegen generate`
+- [ ] Archive en Xcode + upload a App Store Connect
+- [ ] Crear nueva versión 1.0.1 en ASC
+- [ ] Pegar Description / Subtitle / Keywords / Promotional Text / What's New por locale
+- [ ] Subir 6 screenshots × 3 locales (mínimo)
+- [ ] Registrar Trading Name ("Home Finance Labs") en paralelo
+- [ ] Actualizar App Review Information notes
+- [ ] Cambiar Secondary Category a Lifestyle (US/UK) / mantener Productivity (LatAm/BR)
+- [ ] Submit for review
 
-1. **App Icon** — ya está a 1024×1024 ✓
-2. **Screenshots** — sacar manualmente del dispositivo y agregar los títulos sugeridos arriba
-3. **App Privacy Nutrition Label** — completar en ASC (debe coincidir con `PrivacyInfo.xcprivacy`)
-4. **In-App Purchases** — crear en ASC + RevenueCat
-5. **TestFlight** — invitar testers
-6. **Build de Release** — archive desde Xcode con MARKETING_VERSION ya seteado en project.yml
+Apple normalmente aprueba en 24–48h. Una vez aprobado y release automático, los usuarios ven los cambios en la próxima actualización.
