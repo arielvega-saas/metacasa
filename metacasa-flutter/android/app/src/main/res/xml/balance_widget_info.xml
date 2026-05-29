@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Metadatos del widget de balance.
+  · minWidth/minHeight ≈ 250×110dp → ocupa ~4×2 celdas (formato "medium" de iOS).
+  · resizeMode horizontal|vertical → el usuario puede agrandarlo.
+  · updatePeriodMillis 0 → NO hay polling del sistema; la app empuja updates via
+    HomeWidget.updateWidget() cuando recalcula el dashboard.
+  · initialLayout → balance_widget (muestra el placeholder hasta el primer sync).
+  · widgetCategory home_screen (no es lock-screen en Android).
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/balance_widget"
+    android:previewLayout="@layout/balance_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

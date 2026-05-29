@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import '../../../data/repositories/installment_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../models/models.dart';
 import '../../../state/app_providers.dart';
+import '../../widget/widget_snapshot_service.dart';
 
 /// Par (categoría, total) para el ranking de gastos. Espejo de la tupla
 /// `(category, total)` que arma el `HomeViewModel` de iOS.
@@ -159,23 +162,30 @@ class HomeController extends AsyncNotifier<HomeState> {
   Future<HomeState> build() async {
     // El controller depende del hogar activo y del período visible. Observamos
     // ambos: cualquier cambio (switch de hogar, navegación de mes) reconstruye.
-    final String? householdId =
-        await ref.watch(currentHouseholdProvider.future).then((h) => h?.id);
+    final Household? household =
+        await ref.watch(currentHouseholdProvider.future);
     final YearMonth period = ref.watch(currentPeriodProvider);
 
-    if (householdId == null) {
+    if (household == null) {
       // Sin hogar no hay nada que computar (el gate ya cubre el flujo de alta).
       return HomeState.empty();
     }
 
     return _load(
-        householdId: householdId, year: period.year, month: period.month);
+      householdId: household.id,
+      householdName: household.name,
+      currencyCode: household.defaultCurrency,
+      year: period.year,
+      month: period.month,
+    );
   }
 
   /// Carga + cómputo de todas las cifras del dashboard. Replica el orden y la
   /// matemática del `HomeViewModel.load` de iOS.
   Future<HomeState> _load({
     required String householdId,
+    required String householdName,
+    required String currencyCode,
     required int year,
     required int month,
   }) async {
@@ -309,7 +319,7 @@ class HomeController extends AsyncNotifier<HomeState> {
             b.urgency == BillUrgencyLevel.dueSoon)
         .length;
 
-    return HomeState(
+    final HomeState result = HomeState(
       totalIngresos: totalIngresos,
       totalGastos: totalGastos,
       topCategories: top5,
@@ -323,6 +333,29 @@ class HomeController extends AsyncNotifier<HomeState> {
       activePlans: activePlans,
       budgetSemaphore: budgetSemaphore,
     );
+
+    // Empujamos el snapshot a la home-screen widget nativa (Android), espejo de
+    // `WidgetSnapshotSync.writeLatest` de iOS. Fire-and-forget (sin await) para
+    // no demorar el render del dashboard, y guardado internamente (no-op en
+    // test/desktop). Solo cuando es el período REAL en curso: el widget muestra
+    // "este mes", así que no lo pisamos al navegar a meses pasados/futuros.
+    final DateTime nowReal = DateTime.now();
+    if (year == nowReal.year && month == nowReal.month) {
+      final Bill? nextBill = upcomingBills.isEmpty ? null : upcomingBills.first;
+      unawaited(ref.read(widgetSnapshotServiceProvider).sync(
+            householdName: householdName,
+            currencyCode: currencyCode,
+            balanceMonth: result.balance,
+            ingresos: totalIngresos,
+            gastos: totalGastos,
+            nextBillTitle: nextBill?.title,
+            nextBillAmount: nextBill?.amount,
+            nextBillCurrencyCode: nextBill?.currency,
+            nextBillInDays: nextBill?.daysUntilDue,
+          ));
+    }
+
+    return result;
   }
 
   /// Construye el semáforo: asegura el período de presupuesto del mes, trae sus
@@ -380,16 +413,18 @@ class HomeController extends AsyncNotifier<HomeState> {
   /// Fuerza una recarga del dashboard (pull-to-refresh). Mantiene visible el
   /// dato previo mientras recomputa (`AsyncValue.guard` setea loading→data).
   Future<void> refresh() async {
-    final String? householdId =
-        await ref.read(currentHouseholdProvider.future).then((h) => h?.id);
+    final Household? household =
+        await ref.read(currentHouseholdProvider.future);
     final YearMonth period = ref.read(currentPeriodProvider);
-    if (householdId == null) {
+    if (household == null) {
       state = AsyncData(HomeState.empty());
       return;
     }
     state = const AsyncLoading<HomeState>().copyWithPrevious(state);
     state = await AsyncValue.guard(() => _load(
-          householdId: householdId,
+          householdId: household.id,
+          householdName: household.name,
+          currencyCode: household.defaultCurrency,
           year: period.year,
           month: period.month,
         ));

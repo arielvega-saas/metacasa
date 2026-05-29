@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fondo del widget — estética "Midnight Sage" (espejo del fondo de iOS).
+  Relleno casi-negro verdoso (#0E1312, appBackground del design system) con un
+  borde sage tenue (#B8D4C2 al ~12% de opacidad) y esquinas redondeadas grandes.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF0E1312" />
+    <corners android:radius="24dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#1FB8D4C2" />
+</shape>

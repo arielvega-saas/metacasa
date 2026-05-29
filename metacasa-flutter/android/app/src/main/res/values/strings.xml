@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget de balance (home-screen). Copy en español, espejo de iOS. -->
+    <string name="widget_available_label">DISPONIBLE</string>
+    <string name="widget_balance_placeholder">Abrí la app</string>
+    <string name="widget_default_household">Mi hogar</string>
+    <string name="widget_description">Tu balance del mes a un vistazo.</string>
+</resources>
