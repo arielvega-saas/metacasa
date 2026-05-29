@@ -528,33 +528,40 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: _StatTile(
-            icon: LucideIcons.arrowDownLeft,
-            title: 'Ingresos',
-            value: ingresos,
-            kind: AmountKind.ingreso,
-            color: c.brandSuccess,
-            currency: currency,
-            privacy: privacy,
+    // `IntrinsicHeight` acota el alto del Row al del tile más alto: así
+    // `crossAxisAlignment.stretch` puede igualar ambos tiles SIN pedir alto
+    // infinito. Sin esto, un `Row(stretch)` dentro del `ListView` (alto sin
+    // acotar) tira "BoxConstraints forces an infinite height" en performLayout,
+    // aborta el `RenderSliverList` y deja TODO el dashboard en negro.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _StatTile(
+              icon: LucideIcons.arrowDownLeft,
+              title: 'Ingresos',
+              value: ingresos,
+              kind: AmountKind.ingreso,
+              color: c.brandSuccess,
+              currency: currency,
+              privacy: privacy,
+            ),
           ),
-        ),
-        const SizedBox(width: Insets.xl),
-        Expanded(
-          child: _StatTile(
-            icon: LucideIcons.arrowUpRight,
-            title: 'Gastos',
-            value: gastos,
-            kind: AmountKind.gasto,
-            color: c.brandDanger,
-            currency: currency,
-            privacy: privacy,
+          const SizedBox(width: Insets.xl),
+          Expanded(
+            child: _StatTile(
+              icon: LucideIcons.arrowUpRight,
+              title: 'Gastos',
+              value: gastos,
+              kind: AmountKind.gasto,
+              color: c.brandDanger,
+              currency: currency,
+              privacy: privacy,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

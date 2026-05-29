@@ -142,6 +142,11 @@ class AmountText extends StatelessWidget {
 
     // Modo hero: el FittedBox escala el texto hacia abajo para que entre en el
     // ancho disponible (sin ellipsis). El Text va a una sola línea natural.
+    // `FittedBox` es seguro en `Column`/`ListView` (acota su alto al del texto
+    // escalado) y soporta dimensiones intrínsecas, por lo que puede vivir bajo
+    // un `IntrinsicHeight` (lo usa `_StatsRow` para igualar la altura de los
+    // tiles). El alto sin acotar de un scroll lo gobierna el contenido, NUNCA el
+    // FittedBox.
     if (fitToWidth) {
       return FittedBox(
         fit: BoxFit.scaleDown,

@@ -31,6 +31,15 @@ class WidgetSnapshotService {
   /// `onUpdate` tras persistir las prefs.
   static const String _androidProviderName = 'BalanceWidgetProvider';
 
+  /// Nombre TOTALMENTE calificado de la clase del `AppWidgetProvider`. Hace
+  /// falta porque el `applicationId` (`com.metacasa.app`) ≠ `namespace`
+  /// (`com.metacasa.metacasa`): `home_widget` resuelve `androidName` como
+  /// `<applicationId>.<name>` (= `com.metacasa.app.BalanceWidgetProvider`, que NO
+  /// existe → `ClassNotFoundException`). Pasamos el path real vía
+  /// `qualifiedAndroidName`.
+  static const String _androidProviderQualified =
+      'com.metacasa.metacasa.BalanceWidgetProvider';
+
   /// Locale de formateo de los montos del widget. Fijamos `es_AR` para
   /// consistencia con el resto de la app (todos los `Money.format` usan el
   /// default `es_AR`); el widget siempre muestra los números (no respeta el modo
@@ -85,6 +94,7 @@ class WidgetSnapshotService {
       await HomeWidget.updateWidget(
         name: _androidProviderName,
         androidName: _androidProviderName,
+        qualifiedAndroidName: _androidProviderQualified,
       );
     } catch (error, stack) {
       // Falla silenciosa: el widget es secundario. En test/desktop esto es

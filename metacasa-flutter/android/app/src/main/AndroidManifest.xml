@@ -47,6 +47,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Renderer: forzamos Skia (Impeller OFF) en Android.
+             Razón: Impeller (Vulkan) por default en Flutter 3.27 rompe el render
+             en GPUs por software/buggy (emuladores + Android de gama baja, muy
+             comunes en LatAm): el primer frame pinta y el contenido async queda
+             sin pintar (negro). Skia es estable en todo el rango de dispositivos.
+             iOS mantiene Impeller (sólido ahí). Revisar cuando Impeller-Android
+             esté validado en hardware real de gama baja. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- flutter_local_notifications: scheduled + boot-persisted notifications -->
         <receiver android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

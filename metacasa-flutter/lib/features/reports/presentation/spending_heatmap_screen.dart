@@ -330,8 +330,10 @@ class _StatsHeader extends StatelessWidget {
             .toDecimal(scaleOnInfinitePrecision: 6)
         : Decimal.zero;
 
+    // center (no stretch): evita "infinite height" del Row en scroll; los
+    // tiles son idénticos en estructura ⇒ misma altura igual.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: _Stat(

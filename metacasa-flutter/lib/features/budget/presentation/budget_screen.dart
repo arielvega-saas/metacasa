@@ -293,8 +293,11 @@ class _SummaryTiles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    // center (no stretch): un `Row(stretch)` dentro de un scroll (alto sin
+    // acotar) tira "BoxConstraints forces an infinite height" y deja la pantalla
+    // en negro. Los tiles son estructuralmente idénticos ⇒ misma altura igual.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: _SummaryTile(

@@ -249,8 +249,10 @@ class _AnnualTotalsCard extends StatelessWidget {
 
     return Column(
       children: [
+        // center (no stretch): evita "infinite height" del Row en scroll; los
+        // dos tiles son idénticos en estructura ⇒ misma altura igual.
         Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: _TotalTile(
