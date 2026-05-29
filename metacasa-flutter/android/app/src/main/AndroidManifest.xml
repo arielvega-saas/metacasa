@@ -12,12 +12,16 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Notificaciones locales (recordatorios de vencimientos, etc.) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Recordatorios exactos de vencimientos (a la hora elegida por el user).
+         Solo SCHEDULE_EXACT_ALARM (runtime, Android 13+): se justifica en la
+         Play Console como función central del recordatorio de pagos. NO usamos
+         USE_EXACT_ALARM: Play lo restringe a apps de alarma/reloj y rechazaría
+         una de finanzas. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <application
-        android:label="metacasa"
+        android:label="Home Finance"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
