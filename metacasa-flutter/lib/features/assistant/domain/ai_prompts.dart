@@ -16,7 +16,7 @@ abstract final class AiPrompts {
 
   /// Identidad pública del asistente — a la que se reescribe cualquier mención
   /// a modelos de terceros (Claude/Gemini/GPT/…) vía [rebrand].
-  static const String assistantName = 'MetaCasa IA';
+  static const String assistantName = 'Asistente de Home Finance';
 
   /// Construye el system prompt completo en modo texto (chat).
   ///
@@ -156,7 +156,7 @@ Your job is to be the financial advisor the user wishes they could afford — di
     if (input.isEmpty) return input;
     var out = input;
 
-    // Nombres de modelos / proveedores → MetaCasa IA. Orden: más específicos
+    // Nombres de modelos / proveedores → [assistantName]. Orden: más específicos
     // primero (evita dejar restos como "IA 3.5" tras reemplazar "Claude").
     const List<String> modelNames = <String>[
       'Claude 3.5 Sonnet',
@@ -198,7 +198,7 @@ Your job is to be the financial advisor the user wishes they could afford — di
       assistantName,
     );
 
-    // Colapsar repeticiones contiguas ("MetaCasa IA MetaCasa IA" → una sola).
+    // Colapsar repeticiones contiguas del nombre del asistente → una sola.
     out = out.replaceAll(
       RegExp('(${RegExp.escape(assistantName)})' r'(\s+\1\b)+'),
       assistantName,

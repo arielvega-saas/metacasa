@@ -385,8 +385,8 @@ class _LinkButton extends StatelessWidget {
 
 /// URLs legales — Apple/Play exigen que Términos y Privacidad sean accesibles
 /// y clickeables desde el signup. Espejo del markdown del `SignupView` del iOS.
-const String _kTermsUrl = 'https://metacasa.app/terms';
-const String _kPrivacyUrl = 'https://metacasa.app/privacy';
+const String _kTermsUrl = 'https://metacasa-app-cf592.web.app/terms.html';
+const String _kPrivacyUrl = 'https://metacasa-app-cf592.web.app/privacy.html';
 
 /// Texto legal con links tappables a Términos y Privacidad.
 ///

@@ -13,7 +13,7 @@ import 'ai_consent_provider.dart';
 
 /// URL pública de la Política de Privacidad (misma que usa el iOS y la pantalla
 /// de Ajustes). Requisito de App Store / Play review para apps con IA en la nube.
-const String _kPrivacyUrl = 'https://metacasa.app/privacy';
+const String _kPrivacyUrl = 'https://metacasa-app-cf592.web.app/privacy.html';
 
 /// Hoja de consentimiento explícito del Asistente IA — espejo del
 /// `AssistantConsentSheet` (iOS). Se muestra la PRIMERA vez que el usuario abre
@@ -113,7 +113,8 @@ class AssistantConsentSheet extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Título serif (editorial), igual que el `.mcSerifTitle` del iOS.
-              Text('MetaCasa IA', style: AppText.serifTitle(c.textPrimary)),
+              Text('Asistente de Home Finance',
+                  style: AppText.serifTitle(c.textPrimary)),
               const SizedBox(height: Insets.xs),
               Text(
                 'Antes de empezar, tu consentimiento',

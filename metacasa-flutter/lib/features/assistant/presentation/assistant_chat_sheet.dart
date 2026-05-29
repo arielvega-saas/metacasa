@@ -199,7 +199,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Título serif (editorial), igual que el headline del iOS.
-                      Text('MetaCasa IA',
+                      Text('Asistente IA',
                           style: AppText.serifTitle(c.textPrimary)
                               .copyWith(fontSize: 20)),
                       Text(
@@ -317,7 +317,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
         ),
         const SizedBox(height: Insets.section),
         Text(
-          'Hola, soy MetaCasa IA',
+          'Hola, soy tu Asistente de Home Finance',
           textAlign: TextAlign.center,
           style: AppText.serifTitle(c.textPrimary),
         ),

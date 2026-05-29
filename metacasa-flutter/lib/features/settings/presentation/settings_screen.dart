@@ -27,8 +27,8 @@ import '../../backup/backup_screen.dart';
 const String _kAppVersion = '1.0.0';
 
 /// URLs públicas de marca (mismas que la PWA / iOS).
-const String _kPrivacyUrl = 'https://metacasa.app/privacy';
-const String _kTermsUrl = 'https://metacasa.app/terms';
+const String _kPrivacyUrl = 'https://metacasa-app-cf592.web.app/privacy.html';
+const String _kTermsUrl = 'https://metacasa-app-cf592.web.app/terms.html';
 const String _kSiteUrl = 'https://metacasa.app';
 
 /// Pantalla de Ajustes — espejo de `SettingsView` de iOS, reorganizada en los

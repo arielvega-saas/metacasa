@@ -10,6 +10,28 @@
 
 ---
 
+## ✅ Estado al 2026-05-29 (sesión de submission)
+
+**Hecho en esta sesión** (commit en `feat/flutter-android`):
+- 🟢 **Firma de release** — upload keystore + `key.properties` + signingConfig (blocker 1 RESUELTO). AAB firmado y verificado.
+- 🟢 **`android:label` → "Home Finance"** (blocker 2 RESUELTO).
+- 🟢 **Naming del asistente** "MetaCasa IA" → "Asistente de Home Finance" en `consent_sheet`, `assistant_chat_sheet` y `ai_prompts` (blocker 8-naming RESUELTO).
+- 🟢 **URLs de privacidad/términos** → `…web.app/privacy.html` y `/terms.html` en `consent_sheet`, `settings_screen` y `auth_flow_screen` (blocker 4 RESUELTO).
+- 🟢 **Icono de la app** — el launcher era el **default de Flutter** (no la marca); reemplazado por Home Finance en 5 densidades + adaptive icon (foreground + background charcoal) + **icono de tienda 512×512** (`icon-512.png`).
+- 🟢 **Feature graphic 1024×500** generado (`feature-graphic.png`).
+- 🟢 **Páginas legales** privacy/terms/account-deletion en `legal/` (blocker 7 RESUELTO; falta **hostearlas**).
+- 🟢 **`USE_EXACT_ALARM` removido**; queda `SCHEDULE_EXACT_ALARM` justificado (blocker 6 RESUELTO).
+- 🟢 **6 screenshots** de teléfono (1080×2160) en `screenshots/`.
+
+**Pendiente del user (gating):**
+- 🔑 **Verificación de cuenta Play** (identidad con documento + dispositivo Android real) — **BLOQUEA crear/subir la app**. La cuenta `ArielDev` existe y está paga.
+- 🔑 **Decisión Free vs Fase 5 (RevenueCat)** — blocker 3.
+- 🔑 **Email de contacto + dominio** — blocker 5 (hoy placeholder `soporte@homefinance.app`).
+- 🔑 **Closed testing 12 testers / 14 días** (cuenta personal nueva).
+- 🤖 **Hostear las páginas legales** en Firebase (tras decidir dominio/email).
+
+---
+
 ## 0. Pre-requisitos de cuenta (una sola vez)
 
 - [ ] 🔑 **Cuenta de Google Play Developer** activa (pago único USD 25). Si ya existe la del iOS no sirve — Play es de Google. Confirmar que el user la tiene o crearla.
@@ -154,6 +176,8 @@
 
 ## ⚠️ Blockers a resolver antes de subir
 
+> **NOTA (2026-05-29):** varios de estos ya están RESUELTOS — ver "Estado" arriba. Quedan vivos: **3** (monetización/Free), **5** (email/dominio) y la **verificación de cuenta** + **closed testing**.
+>
 > Detectados leyendo el código. Ordenados por severidad. **Los 1–3 son hard-stop** (Play rechaza o la app queda inconsistente); 4–6 son funcionales/de propuesta de valor; 7–8 son de papeleo que hay que producir.
 
 ### 🔴 1. Release firmado con la DEBUG key
