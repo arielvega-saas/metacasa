@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/bill_repository.dart';
 import '../../../models/models.dart';
 import '../../../state/app_providers.dart';
+import '../../notifications/notification_preferences.dart';
+import '../../notifications/notification_service.dart';
 
 /// Un grupo de vencimientos del mismo [BillUrgencyLevel] (overdue / hoy / pronto
 /// / próximos / futuros / pagados / saltados), ya ordenado por fecha. Espejo del
@@ -97,7 +101,32 @@ class BillsController extends AsyncNotifier<BillsState> {
     final List<Bill> bills = byId.values.toList()
       ..sort((Bill a, Bill b) => a.dueDate.compareTo(b.dueDate));
 
+    // Re-sincroniza los recordatorios locales de los vencimientos PENDIENTES con
+    // lo recién traído de la DB (fire-and-forget, guardado: no-op si las
+    // notificaciones no están inicializadas/permitidas). Cubre el caso de bills
+    // creados en otro dispositivo o cambios de fecha sincronizados.
+    unawaited(_syncReminders(bills));
+
     return BillsState(bills: bills, groups: _group(bills));
+  }
+
+  /// Agenda (idempotente) los recordatorios de cada bill pendiente. Best-effort:
+  /// inicializa el servicio perezosamente y, si falla algo, sigue. Nunca lanza.
+  Future<void> _syncReminders(List<Bill> bills) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      await svc.init();
+      if (!svc.isReady) return;
+      final NotificationPreferences prefs =
+          ref.read(notificationPreferencesProvider);
+      for (final Bill b in bills) {
+        if (b.status == BillStatus.pending) {
+          await svc.scheduleBillReminders(b, prefs);
+        }
+      }
+    } catch (_) {
+      // Sin notificaciones disponibles (p. ej. test/desktop): no-op.
+    }
   }
 
   /// Agrupa por urgencia en el orden del iOS, descartando grupos vacíos. Cada
@@ -116,30 +145,64 @@ class BillsController extends AsyncNotifier<BillsState> {
   }
 
   /// Inserta un vencimiento (el repo inyecta `user_id`) y recarga. Espejo del
-  /// `create` de iOS.
+  /// `create` de iOS: tras persistir, agenda los recordatorios locales con el
+  /// `id` real devuelto por la DB.
   Future<void> addBill(Bill bill) async {
-    await ref.read(billRepositoryProvider).insert(bill);
+    final Bill saved = await ref.read(billRepositoryProvider).insert(bill);
+    await _scheduleFor(saved);
     await refresh();
   }
 
   /// Marca un vencimiento como pagado (`status='paid'`) y recarga. Espejo del
-  /// `markPaid` de iOS.
+  /// `markPaid` de iOS: cancela los recordatorios (ya no aplica el overdue).
   Future<void> markPaid(String id) async {
     await ref.read(billRepositoryProvider).markPaid(id);
+    await _cancelFor(id);
     await refresh();
   }
 
   /// Actualiza un vencimiento existente y recarga. (Se llama `updateBill` y no
-  /// `update` porque `AsyncNotifier` ya define un `update` propio.)
+  /// `update` porque `AsyncNotifier` ya define un `update` propio.) Re-agenda los
+  /// recordatorios con la fecha/monto nuevos (el servicio cancela los previos).
   Future<void> updateBill(Bill bill) async {
-    await ref.read(billRepositoryProvider).update(bill);
+    final Bill saved = await ref.read(billRepositoryProvider).update(bill);
+    await _scheduleFor(saved);
     await refresh();
   }
 
-  /// Elimina un vencimiento y recarga. Espejo del `delete` de iOS.
+  /// Elimina un vencimiento y recarga. Espejo del `delete` de iOS: además
+  /// cancela cualquier recordatorio local pendiente del bill.
   Future<void> delete(String id) async {
     await ref.read(billRepositoryProvider).delete(id);
+    await _cancelFor(id);
     await refresh();
+  }
+
+  /// Agenda los recordatorios de un bill (best-effort, guardado). Si está
+  /// pagado/saltado, el servicio internamente no agenda nada.
+  Future<void> _scheduleFor(Bill bill) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      await svc.init();
+      if (!svc.isReady) return;
+      await svc.scheduleBillReminders(
+        bill,
+        ref.read(notificationPreferencesProvider),
+      );
+    } catch (_) {
+      // no-op (notificaciones no disponibles)
+    }
+  }
+
+  /// Cancela los recordatorios de un bill por id (best-effort, guardado).
+  Future<void> _cancelFor(String id) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      if (!svc.isReady) return;
+      await svc.cancelBillReminders(id);
+    } catch (_) {
+      // no-op
+    }
   }
 
   /// Fuerza una recarga (pull-to-refresh / post-mutación). Mantiene visible el

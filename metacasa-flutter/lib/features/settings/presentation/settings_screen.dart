@@ -2,6 +2,7 @@ import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -117,12 +118,10 @@ class SettingsScreen extends ConsumerWidget {
           _SectionCard(
             title: 'Cuenta',
             rows: [
-              // Diferido (Fase 7): preferencias de notificaciones.
-              const _SettingsRow(
+              _SettingsRow(
                 icon: LucideIcons.bell,
                 label: 'Notificaciones',
-                trailingLabel: 'Próximamente',
-                enabled: false,
+                onTap: () => context.push('/more/settings/notifications'),
               ),
               // Diferido (Fase 6): consentimiento de privacidad del Asistente IA.
               const _SettingsRow(
