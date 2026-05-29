@@ -22,8 +22,9 @@ android {
     defaultConfig {
         // Application ID alineado con iOS (com.metacasa.app) para identidad de marca.
         applicationId = "com.metacasa.app"
-        // minSdk 23 (Android 6.0): requerido por flutter_secure_storage; cubre ~99% de devices.
-        minSdk = 23
+        // minSdk 24 (Android 7.0): lo exige flutter_tts (voz del asistente); flutter_secure_storage
+        // pedía 23. Cubre ~98% de devices activos.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

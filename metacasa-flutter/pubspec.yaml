@@ -51,6 +51,14 @@ dependencies:
   fl_chart: ^0.69.0
   url_launcher: ^6.3.2
   shared_preferences: ^2.5.3
+  speech_to_text: ^7.4.0
+  flutter_tts: ^4.2.5
+  just_audio: ^0.10.5
+  # Usado por el modo voz para pegarle crudo a la Edge Function `tts-proxy`:
+  # devuelve MP3 con `Content-Type: audio/mpeg`, que `functions.invoke` corrompe
+  # (hace utf8.decode de bodies no-json). Con `http` leemos `bodyBytes` intactos.
+  http: ^1.2.2
+  image_picker: ^1.2.0
 
 dev_dependencies:
   flutter_test:

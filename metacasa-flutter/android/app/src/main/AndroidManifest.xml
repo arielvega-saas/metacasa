@@ -3,6 +3,13 @@
          con API < 28. La auth es advisory (fallback a credencial de dispositivo). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <!-- Internet (Supabase / proxies IA y TTS) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Voz del asistente (speech_to_text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Escaneo de recibos (image_picker — cámara). La galería usa el Photo Picker
+         de Android 13+, que no requiere permisos de almacenamiento. -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="metacasa"
         android:name="${applicationName}"

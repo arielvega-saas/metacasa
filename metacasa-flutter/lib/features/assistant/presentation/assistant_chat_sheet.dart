@@ -11,6 +11,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text.dart';
 import '../application/assistant_controller.dart';
 import '../domain/chat_message.dart';
+import '../voice/voice_conversation_screen.dart';
 
 /// Texto oscuro sobre el sage (burbuja de usuario / botón send) — clavado en iOS.
 const Color _kOnSage = Color(0xFF0E1312);
@@ -376,6 +377,9 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              // Mic → modo voz manos-libres (espejo del botón de voz del iOS).
+              _micButton(c, isThinking),
+              const SizedBox(width: Insets.md),
               Expanded(
                 child: Container(
                   decoration: ShapeDecoration(
@@ -417,6 +421,37 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
               const SizedBox(width: Insets.md),
               _sendButton(c, canSend),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Botón de micrófono → abre el modo voz manos-libres
+  /// ([VoiceConversationScreen]). Glass circle a la izquierda del input, mismo
+  /// tamaño que el botón de enviar. Deshabilitado mientras el asistente piensa
+  /// (no abrimos voz en medio de un turno de texto en vuelo).
+  Widget _micButton(MidnightSageColors c, bool isThinking) {
+    return Opacity(
+      opacity: isThinking ? 0.4 : 1,
+      child: Material(
+        color: c.appSurfaceInset,
+        shape: CircleBorder(side: BorderSide(color: c.appBorder, width: 1)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: isThinking
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  VoiceConversationScreen.show(context);
+                },
+          child: Tooltip(
+            message: 'Hablar con el asistente',
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Icon(LucideIcons.mic, size: 22, color: c.brandPrimary),
+            ),
           ),
         ),
       ),

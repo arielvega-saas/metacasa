@@ -17,6 +17,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../state/app_providers.dart';
 import '../../home/application/home_controller.dart';
 import '../application/transactions_controller.dart';
+import '../receipt/receipt_scan_flow.dart';
 import 'edit_transaction_sheet.dart' show TxChipRow, TxDateField, TxTypeToggle;
 
 /// Hoja "Nuevo movimiento" — espejo de `AddTransactionView` (iOS). El shell la
@@ -206,8 +207,11 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                         Icon(LucideIcons.plusCircle,
                             size: 20, color: c.brandPrimary),
                         const SizedBox(width: Insets.md),
-                        Text('Nuevo movimiento',
-                            style: AppText.h2(c.textPrimary)),
+                        Expanded(
+                          child: Text('Nuevo movimiento',
+                              style: AppText.h2(c.textPrimary)),
+                        ),
+                        _scanReceiptPill(context),
                       ],
                     ),
                     const SizedBox(height: Insets.section),
@@ -267,6 +271,40 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 icon: LucideIcons.check,
                 onPressed: (canSave && !_saving) ? _save : null,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Scan receipt ────────────────────────────────────────────────────────────
+
+  /// Acción secundaria discreta "Escanear recibo" (pill sage outline) junto al
+  /// título: dispara el flujo de visión (cámara/galería → revisión → alta).
+  Widget _scanReceiptPill(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _saving ? null : () => ReceiptScanFlow.start(context, ref),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: Insets.card, vertical: 6),
+        decoration: ShapeDecoration(
+          color: c.brandPrimary.withValues(alpha: 0.10),
+          shape: StadiumBorder(
+            side: BorderSide(color: c.brandPrimary.withValues(alpha: 0.30)),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.scanLine, size: 14, color: c.brandPrimary),
+            const SizedBox(width: Insets.sm),
+            Text(
+              'Escanear',
+              style: AppText.caption(c.brandPrimary)
+                  .copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
