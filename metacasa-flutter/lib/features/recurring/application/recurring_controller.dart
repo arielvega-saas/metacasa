@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/recurring_repository.dart';
 import '../../../models/models.dart';
 import '../../../state/app_providers.dart';
+import '../../notifications/notification_preferences.dart';
+import '../../notifications/notification_service.dart';
 
 /// Estado inmutable de la pantalla de Recurrentes. Clase plana (sin
 /// freezed/codegen, por requerimiento) con la lista de recurrentes del hogar.
@@ -56,32 +58,71 @@ class RecurringController extends AsyncNotifier<RecurringState> {
   }
 
   /// Inserta una recurrente (el repo inyecta `user_id` y defaultea `next_date`
-  /// a `start_date`) y recarga. Espejo del `create` de iOS.
+  /// a `start_date`) y recarga. Espejo del `create` de iOS: tras persistir,
+  /// agenda el heads-up con el `id`/`next_date` reales devueltos por la DB.
   Future<void> add(RecurringTransaction recurring) async {
-    await ref.read(recurringRepositoryProvider).insert(recurring);
+    final RecurringTransaction saved =
+        await ref.read(recurringRepositoryProvider).insert(recurring);
+    await _scheduleHeadsUp(saved);
     await refresh();
   }
 
   /// Desactiva una recurrente (`active=false`) y recarga. Espejo del
-  /// `deactivate` de iOS.
+  /// `deactivate` de iOS: cancela el heads-up pendiente.
   Future<void> deactivate(String id) async {
     await ref.read(recurringRepositoryProvider).deactivate(id);
+    await _cancelHeadsUp(id);
     await refresh();
   }
 
   /// Reactiva una recurrente (`active=true`) vía `update` y recarga. iOS no
-  /// tiene este flujo (solo desactiva), pero acá el toggle es bidireccional.
+  /// tiene este flujo (solo desactiva), pero acá el toggle es bidireccional:
+  /// re-agenda el heads-up al volver a activarla.
   Future<void> reactivate(RecurringTransaction recurring) async {
-    await ref
-        .read(recurringRepositoryProvider)
-        .update(recurring.copyWith(active: true));
+    final RecurringTransaction reactivated = recurring.copyWith(active: true);
+    await ref.read(recurringRepositoryProvider).update(reactivated);
+    await _scheduleHeadsUp(reactivated);
     await refresh();
   }
 
-  /// Elimina una recurrente y recarga. Espejo del `delete` de iOS.
+  /// Elimina una recurrente y recarga. Espejo del `delete` de iOS: cancela el
+  /// heads-up local pendiente.
   Future<void> delete(String id) async {
     await ref.read(recurringRepositoryProvider).delete(id);
+    await _cancelHeadsUp(id);
     await refresh();
+  }
+
+  /// Agenda (best-effort, guardado) el heads-up de una recurrente. Resuelve la
+  /// moneda del hogar para formatear el monto. Inicializa el servicio
+  /// perezosamente; no-opea si no está listo/permitido, el toggle `recurring`
+  /// está apagado, la recurrente está inactiva o `next_date` ya pasó. Nunca lanza.
+  Future<void> _scheduleHeadsUp(RecurringTransaction recurring) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      await svc.init();
+      if (!svc.isReady) return;
+      final Household? household =
+          await ref.read(currentHouseholdProvider.future);
+      await svc.scheduleRecurringHeadsUp(
+        recurring,
+        ref.read(notificationPreferencesProvider),
+        currencyCode: household?.defaultCurrency ?? 'USD',
+      );
+    } catch (_) {
+      // Sin notificaciones disponibles (p. ej. test/desktop): no-op.
+    }
+  }
+
+  /// Cancela el heads-up de una recurrente por id (best-effort, guardado).
+  Future<void> _cancelHeadsUp(String id) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      if (!svc.isReady) return;
+      await svc.cancelRecurringHeadsUp(id);
+    } catch (_) {
+      // no-op
+    }
   }
 
   /// Fuerza una recarga (pull-to-refresh / post-mutación). Mantiene visible el

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,8 @@ import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../models/models.dart';
 import '../../../state/app_providers.dart';
+import '../../notifications/notification_preferences.dart';
+import '../../notifications/notification_service.dart';
 
 /// Un envelope (allocation) con su `EnvelopeStatus` ya computado. Espejo 1:1 de
 /// `BudgetHubViewModel.EnvelopeWithAllocation` de iOS: junta la fila
@@ -230,6 +234,17 @@ class BudgetController extends AsyncNotifier<BudgetState> {
           y.status.percentUsed.compareTo(x.status.percentUsed),
     );
 
+    // 6. Avisos de envelope-overspend (fire-and-forget, guardado). Se invoca en
+    //    cada build; la dedupe por id (categoría+mes+umbral) en el servicio evita
+    //    repetir el mismo aviso. `period.periodStart` da la clave de mes.
+    unawaited(
+      _notifyOverspend(
+        envelopes: envelopes,
+        periodStart: period.periodStart,
+        currency: currency,
+      ),
+    );
+
     return BudgetState(
       period: period,
       allocations: allocations,
@@ -238,6 +253,42 @@ class BudgetController extends AsyncNotifier<BudgetState> {
       monthExpenses: totals.gastos,
       currency: currency,
     );
+  }
+
+  /// Recorre los envelopes y dispara una notif inmediata por cada uno que cruce
+  /// un umbral (80/100/120 %). Best-effort: inicializa el servicio perezosamente
+  /// y, si algo falla, sigue. La dedupe persistente del servicio garantiza un
+  /// aviso por (categoría, mes, umbral); usamos `rawPercentUsed` (sin clampear)
+  /// para detectar el sobregiro >100 %. Nunca lanza.
+  Future<void> _notifyOverspend({
+    required List<BudgetEnvelope> envelopes,
+    required DateTime periodStart,
+    required String currency,
+  }) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      await svc.init();
+      if (!svc.isReady) return;
+      final NotificationPreferences prefs =
+          ref.read(notificationPreferencesProvider);
+      if (!prefs.envelopeOverspend) return;
+      for (final BudgetEnvelope e in envelopes) {
+        if (e.budgeted <= Decimal.zero) continue; // sin presupuesto: sin %
+        if (e.rawPercentUsed < 0.80) continue;
+        await svc.notifyEnvelopeOverspend(
+          category: e.category,
+          subcategory: e.subcategory.isEmpty ? null : e.subcategory,
+          period: periodStart,
+          percentUsed: e.rawPercentUsed,
+          allocated: e.budgeted,
+          spent: e.spent,
+          currencyCode: currency,
+          prefs: prefs,
+        );
+      }
+    } catch (_) {
+      // Sin notificaciones disponibles (p. ej. test/desktop): no-op.
+    }
   }
 
   /// Crea o actualiza un envelope (allocation), y si cambió el rollover mode lo

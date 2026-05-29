@@ -19,6 +19,8 @@ import 'fx_rates_screen.dart';
 import 'language_settings.dart';
 import 'manage_categories_screen.dart';
 
+import '../../backup/backup_screen.dart';
+
 /// Versión visible de la app. No tenemos `package_info_plus` entre las deps, así
 /// que la clavamos acá (espejo de `Config.appVersion` de iOS, que la lee del
 /// bundle). TODO: cuando se sume `package_info_plus`, leerla del paquete.
@@ -103,12 +105,10 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'Monedas y cambio',
                 onTap: () => _push(context, const FxRatesScreen()),
               ),
-              // Diferidos (Fase 7): export/backup. Fila inerte con badge.
-              const _SettingsRow(
+              _SettingsRow(
                 icon: LucideIcons.download,
                 label: 'Backup y exportar',
-                trailingLabel: 'Próximamente',
-                enabled: false,
+                onTap: () => _push(context, const BackupScreen()),
               ),
             ],
           ),

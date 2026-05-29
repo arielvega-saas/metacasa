@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/goal_repository.dart';
 import '../../../models/models.dart';
 import '../../../state/app_providers.dart';
+import '../../notifications/notification_preferences.dart';
+import '../../notifications/notification_service.dart';
 
 /// Estado inmutable de la pantalla de Metas. Clase plana (sin freezed/codegen,
 /// por requerimiento) con las metas del hogar separadas en activas/completadas y
@@ -121,18 +123,49 @@ class GoalsController extends AsyncNotifier<GoalsState> {
   /// backend.
   Future<void> saveGoal(Goal goal) async {
     final GoalRepository repo = ref.read(goalRepositoryProvider);
-    if (goal.id.isEmpty) {
-      await repo.insert(goal);
-    } else {
-      await repo.update(goal);
-    }
+    final Goal saved =
+        goal.id.isEmpty ? await repo.insert(goal) : await repo.update(goal);
+    // Re-agenda el recordatorio mensual con el `id` real devuelto por la DB (en
+    // alta el `id` de entrada venía vacío). El servicio cancela el previo y,
+    // para metas no-activas, solo cancela.
+    await _scheduleReminder(saved);
     await refresh();
   }
 
-  /// Elimina una meta (la cascada de DB borra sus aportes) y refresca.
+  /// Elimina una meta (la cascada de DB borra sus aportes) y refresca. Cancela
+  /// también el recordatorio mensual local si lo hubiera.
   Future<void> deleteGoal(String id) async {
     await ref.read(goalRepositoryProvider).delete(id);
+    await _cancelReminder(id);
     await refresh();
+  }
+
+  /// Agenda (best-effort, guardado) el recordatorio mensual de una meta.
+  /// Inicializa el servicio perezosamente; no-opea si no está listo/permitido o
+  /// el toggle `goals` está apagado. Nunca lanza.
+  Future<void> _scheduleReminder(Goal goal) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      await svc.init();
+      if (!svc.isReady) return;
+      await svc.scheduleGoalReminder(
+        goal,
+        ref.read(notificationPreferencesProvider),
+      );
+    } catch (_) {
+      // Sin notificaciones disponibles (p. ej. test/desktop): no-op.
+    }
+  }
+
+  /// Cancela el recordatorio mensual de una meta por id (best-effort, guardado).
+  Future<void> _cancelReminder(String id) async {
+    try {
+      final NotificationService svc = ref.read(notificationServiceProvider);
+      if (!svc.isReady) return;
+      await svc.cancelGoalReminder(id);
+    } catch (_) {
+      // no-op
+    }
   }
 
   /// Registra un aporte a una meta. El repo inserta el aporte y devuelve la meta
