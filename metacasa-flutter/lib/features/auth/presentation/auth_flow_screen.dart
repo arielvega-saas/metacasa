@@ -305,6 +305,13 @@ class _Header extends StatelessWidget {
     final c = context.colors;
     return Column(
       children: [
+        Image.asset(
+          'assets/images/logo.png',
+          width: 84,
+          height: 84,
+          filterQuality: FilterQuality.medium,
+        ),
+        const SizedBox(height: Insets.section),
         Text(
           'Home Finance',
           style: AppText.serifDisplay(c.textPrimary),

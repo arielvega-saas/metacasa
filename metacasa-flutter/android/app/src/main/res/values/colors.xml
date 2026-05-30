@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Fondo del adaptive icon: charcoal de la marca Home Finance (igual que el
-         tile del icono iOS publicado). El foreground es la marca casa+gráfico+flecha. -->
-    <color name="ic_launcher_background">#23272D</color>
+    <!-- Fondo del adaptive icon: charcoal del logo Home Finance (Home Finance.jpg).
+         El foreground es la marca glossy casa+gráfico+flecha. -->
+    <color name="ic_launcher_background">#20232D</color>
 </resources>

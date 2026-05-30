@@ -48,6 +48,13 @@ class _SplashView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Image.asset(
+              'assets/images/logo.png',
+              width: 96,
+              height: 96,
+              filterQuality: FilterQuality.medium,
+            ),
+            const SizedBox(height: Insets.section),
             Text('Home Finance', style: AppText.serifTitle(c.textPrimary)),
             const SizedBox(height: Insets.xl),
             SizedBox(
