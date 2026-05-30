@@ -1,131 +1,152 @@
 <!DOCTYPE html>
-<html lang="es-AR">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Terms of Service — Home Finance</title>
-  <meta name="description" content="Home Finance terms of service — condiciones de uso, suscripciones, disclaimers.">
-  <style>
-    :root {
-      --bg: #0a0f0c;
-      --surface: #121a16;
-      --text: #e8efe9;
-      --text-muted: #9aa6a0;
-      --accent: #87a98c;
-      --border: rgba(135, 169, 140, 0.18);
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 40px 20px;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.65;
-    }
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      background: var(--surface);
-      padding: 44px 36px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-    }
-    h1 {
-      font-family: "New York", Georgia, serif;
-      font-size: 36px;
-      font-weight: 600;
-      margin: 0 0 8px;
-      color: var(--text);
-    }
-    h2 {
-      font-size: 20px;
-      font-weight: 600;
-      margin: 32px 0 12px;
-      color: var(--accent);
-    }
-    p, li { font-size: 16px; color: var(--text); }
-    ul { padding-left: 20px; }
-    li { margin-bottom: 6px; }
-    a { color: var(--accent); }
-    .meta { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
-    .warning {
-      background: rgba(255, 180, 80, 0.08);
-      border-left: 3px solid #d4a85a;
-      padding: 14px 18px;
-      margin: 32px 0 0;
-      border-radius: 6px;
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-muted); text-align: center; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index,follow">
+<title>Términos de Servicio — Home Finance</title>
+<!-- TODO-CONFIRMAR email de contacto real: este archivo usa vegaariel976@gmail.com. Confirmar el dominio/alias real antes de publicar. -->
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --card:#ffffff;
+    --ink:#1c2430;
+    --muted:#5b6573;
+    --line:#e3e7ec;
+    --accent:#2f6f5e;
+    --accent-soft:#eef4f2;
+    --maxw:760px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65;
+    font-size:17px;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:28px 20px 64px;}
+  header.brand{
+    display:flex;align-items:center;gap:12px;
+    padding:18px 0 24px;border-bottom:1px solid var(--line);margin-bottom:28px;
+  }
+  .logo{
+    width:40px;height:40px;border-radius:10px;flex:0 0 auto;
+    background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:18px;letter-spacing:.5px;
+  }
+  .brand h1.name{font-size:18px;margin:0;font-weight:700;}
+  .brand .sub{font-size:13px;color:var(--muted);margin:2px 0 0;}
+  h1.title{font-size:28px;line-height:1.25;margin:0 0 6px;font-weight:700;}
+  .updated{font-size:14px;color:var(--muted);margin:0 0 28px;}
+  h2{font-size:20px;margin:34px 0 10px;font-weight:700;}
+  p{margin:0 0 14px;}
+  ul{margin:0 0 14px;padding-left:22px;}
+  li{margin:0 0 8px;}
+  a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;}
+  strong{font-weight:600;}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:22px 22px 8px;margin:0 0 18px;
+  }
+  .callout{
+    background:var(--accent-soft);border:1px solid #d6e6e0;border-radius:12px;
+    padding:14px 16px;margin:18px 0;font-size:15.5px;
+  }
+  .callout p:last-child{margin-bottom:0;}
+  footer{
+    margin-top:40px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:13.5px;color:var(--muted);
+  }
+  @media (max-width:480px){
+    body{font-size:16px;}
+    h1.title{font-size:24px;}
+    .card{padding:18px 16px 6px;}
+  }
+</style>
 </head>
 <body>
-  <main class="container">
-    <h1>Terms of Service</h1>
-    <p class="meta">Home Finance — Última actualización: 2026-05-01</p>
+<div class="wrap">
 
-    <p>Bienvenido/a a Home Finance. Al usar la app, aceptás los siguientes términos. Leelos con atención.</p>
-
-    <h2>1. Servicio</h2>
-    <p>Home Finance es una app de gestión de finanzas personales. Te ayuda a registrar transacciones, presupuestar, seguir metas de ahorro y analizar tus gastos. <strong>NO es un servicio bancario, de inversión ni de asesoramiento financiero profesional.</strong></p>
-
-    <h2>2. Uso aceptable</h2>
-    <p>Te comprometés a:</p>
-    <ul>
-      <li>Usar la app solo con fines legales y personales (o familiares).</li>
-      <li>No intentar acceder a datos de otros usuarios.</li>
-      <li>No revender el servicio ni integrarlo con terceros sin autorización.</li>
-      <li>Mantener tu contraseña segura y no compartirla.</li>
-    </ul>
-
-    <h2>3. Suscripciones</h2>
-    <ul>
-      <li>Home Finance ofrece un plan gratuito con funcionalidades limitadas y un plan Premium con todas las funciones.</li>
-      <li>Los precios se muestran en la app en tu moneda local (vía App Store / RevenueCat).</li>
-      <li>Las suscripciones se renuevan automáticamente al final de cada período. Podés cancelar en cualquier momento desde Ajustes → Apple ID → Suscripciones.</li>
-      <li>Se puede ofrecer un período de prueba gratis; si no cancelás antes del fin, se convierte en suscripción paga automáticamente.</li>
-      <li>Los reembolsos se gestionan a través de Apple según sus políticas (<a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a>).</li>
-    </ul>
-
-    <h2>4. Disclaimers</h2>
-    <ul>
-      <li>Los análisis, proyecciones y sugerencias del asistente IA son <strong>informativos</strong>. NO son consejo financiero profesional.</li>
-      <li>No nos responsabilizamos por decisiones financieras que tomes en base a la app. Siempre consultá con profesionales para decisiones importantes.</li>
-      <li>El servicio se provee "AS IS" — hacemos nuestro mejor esfuerzo para que funcione pero no garantizamos disponibilidad ininterrumpida.</li>
-      <li>El asistente IA puede equivocarse. Verificá siempre los números antes de tomar acciones basadas en sus respuestas.</li>
-    </ul>
-
-    <h2>5. Limitación de responsabilidad</h2>
-    <p>En la medida permitida por la ley, Home Finance no es responsable por daños indirectos, consecuentes o incidentales derivados del uso de la app. La responsabilidad máxima se limita a lo que hayas pagado por la suscripción en los últimos 12 meses.</p>
-
-    <h2>6. Propiedad intelectual</h2>
-    <p>El código, diseño e identidad visual de Home Finance son propiedad del desarrollador. El contenido que cargás (transacciones, notas, etc.) es tuyo. Nos concedés licencia limitada para almacenarlo y procesarlo con el fin de proveer el servicio.</p>
-
-    <h2>7. Cuentas y terminación</h2>
-    <ul>
-      <li>Podemos suspender o terminar tu cuenta si violás estos términos.</li>
-      <li>Podés cerrar tu cuenta en cualquier momento desde Ajustes o vía email a soporte.</li>
-      <li>Después de cerrar la cuenta, tus datos se eliminan según la política de privacidad.</li>
-    </ul>
-
-    <h2>8. Cambios en términos</h2>
-    <p>Podemos actualizar estos términos. Los cambios se notifican dentro de la app. Si no estás de acuerdo, podés dejar de usar la app y cerrar tu cuenta.</p>
-
-    <h2>9. Ley aplicable</h2>
-    <p>Estos términos se rigen por las leyes de [JURISDICCIÓN A COMPLETAR ANTES DE LANZAR]. Cualquier disputa se resolverá en los tribunales de [JURISDICCIÓN A COMPLETAR].</p>
-
-    <h2>10. Contacto</h2>
-    <p>Dudas sobre los términos: <a href="mailto:soporte@metacasa.app">soporte@metacasa.app</a></p>
-
-    <div class="warning">
-      ⚠️ <strong>Aviso legal:</strong> este documento es un punto de partida razonable pero no reemplaza revisión legal. Antes de lanzar a producción consultá con asesor legal — especialmente las secciones de ley aplicable, limitación de responsabilidad y términos de suscripción.
+  <header class="brand">
+    <img class="logo" src="icon.png" alt="Home Finance" width="40" height="40">
+    <div>
+      <p class="name">Home Finance</p>
+      <p class="sub">Finanzas personales del hogar</p>
     </div>
+  </header>
 
-    <div class="footer">
-      <p>Home Finance · <a href="/privacy.html">Privacy Policy</a></p>
-    </div>
-  </main>
+  <h1 class="title">Términos de Servicio</h1>
+  <p class="updated">Última actualización: 29 de mayo de 2026</p>
+
+  <div class="card">
+    <p>Estos Términos de Servicio (los "Términos") regulan el uso de la aplicación Home Finance (la "app"), una herramienta de finanzas personales del hogar desarrollada por Ariel Vega. Al descargar, instalar o usar la app, aceptás estos Términos. Si no estás de acuerdo, por favor no uses la app.</p>
+  </div>
+
+  <h2>1. Qué es Home Finance</h2>
+  <p>Home Finance es una herramienta para que vos y tu hogar organicen sus finanzas personales: registrar ingresos y gastos, armar presupuestos, hacer seguimiento de cuentas, metas, deudas y vencimientos, y compartir todo esto con los miembros del hogar que invites. La app incluye, de forma opcional, un asistente de inteligencia artificial y un modo de voz.</p>
+
+  <h2>2. No es asesoramiento financiero</h2>
+  <div class="callout">
+    <p><strong>Home Finance es una herramienta de organización, no un asesor financiero.</strong> La información, los cálculos, las proyecciones y las respuestas del asistente de IA tienen fines informativos y de organización personal. <strong>No constituyen asesoramiento financiero, contable, impositivo, legal ni de inversión.</strong> No deberías tomar decisiones financieras importantes basándote únicamente en la app. Para decisiones de ese tipo, consultá con un profesional matriculado.</p>
+  </div>
+  <p>El asistente de IA puede cometer errores o dar respuestas imprecisas. Siempre verificá la información antes de actuar en base a ella.</p>
+
+  <h2>3. Tu cuenta</h2>
+  <ul>
+    <li>Para usar la app necesitás crear una cuenta con un email válido.</li>
+    <li>Sos responsable de mantener la confidencialidad de tus credenciales y de toda la actividad que ocurra en tu cuenta.</li>
+    <li>Debés tener al menos 13 años (o la edad mínima exigida en tu país) para usar la app.</li>
+    <li>Si invitás a otros miembros a tu hogar, sos responsable de hacerlo solo con personas que consientan compartir esa información.</li>
+  </ul>
+
+  <h2>4. Tus datos y su exactitud</h2>
+  <p>Los datos financieros que aparecen en la app son los que vos (o los miembros de tu hogar) cargan manualmente. <strong>Sos responsable de la exactitud, integridad y actualización de tus datos.</strong> Home Finance no verifica ni audita la información que ingresás, y no se hace responsable de decisiones tomadas a partir de datos incorrectos o desactualizados que hayas cargado.</p>
+  <p>Te recomendamos exportar periódicamente un backup de tu información desde Ajustes → Datos.</p>
+
+  <h2>5. Uso aceptable</h2>
+  <p>Al usar Home Finance, te comprometés a:</p>
+  <ul>
+    <li>No usar la app para fines ilegales ni fraudulentos.</li>
+    <li>No intentar acceder a cuentas, hogares o datos que no te pertenecen.</li>
+    <li>No intentar vulnerar, descompilar, realizar ingeniería inversa ni interferir con la seguridad o el funcionamiento de la app o de sus servidores.</li>
+    <li>No sobrecargar la infraestructura con un uso automatizado o abusivo.</li>
+    <li>No subir contenido ilegal, ofensivo ni que infrinja derechos de terceros.</li>
+  </ul>
+  <p>Podemos suspender o cerrar cuentas que incumplan estos Términos.</p>
+
+  <h2>6. Suscripción Premium</h2>
+  <p>Home Finance ofrece funciones gratuitas y una suscripción Premium opcional, con un período de prueba gratuito. La suscripción se renueva automáticamente al final de cada período, salvo que la canceles. La compra, la facturación y las renovaciones se gestionan a través de Google Play (en Android) o el App Store (en iOS), y se rigen también por los términos de esas plataformas. Podés cancelar la renovación en cualquier momento desde la tienda correspondiente.</p>
+
+  <h2>7. Servicios de terceros</h2>
+  <p>La app se apoya en proveedores externos (entre otros, Supabase para el backend, Anthropic para el asistente de IA y ElevenLabs para la voz). El uso de esos servicios, en la medida en que aplica, se rige también por sus respectivos términos y políticas. El tratamiento de tus datos se describe en nuestra <a href="privacy.html">Política de Privacidad</a>.</p>
+
+  <h2>8. Servicio "tal cual" (as is)</h2>
+  <div class="callout">
+    <p>La app se ofrece <strong>"tal cual" y "según disponibilidad", sin garantías de ningún tipo</strong>, ya sean expresas o implícitas. No garantizamos que la app esté libre de errores, que funcione de forma ininterrumpida, ni que sus cálculos o proyecciones sean exactos para tu situación particular. Usás la app bajo tu propia responsabilidad.</p>
+  </div>
+
+  <h2>9. Limitación de responsabilidad</h2>
+  <p>En la máxima medida permitida por la ley aplicable, Home Finance y su desarrollador no serán responsables por daños indirectos, incidentales, especiales o consecuentes, ni por pérdida de datos, pérdidas económicas o lucro cesante que surjan del uso o la imposibilidad de uso de la app. Sos responsable de mantener tus propios backups de tu información.</p>
+
+  <h2>10. Cambios en la app y en los Términos</h2>
+  <p>Podemos modificar, suspender o discontinuar la app o cualquiera de sus funciones en cualquier momento. También podemos actualizar estos Términos; cuando lo hagamos, publicaremos la versión vigente en esta URL y, si los cambios son relevantes, lo notificaremos dentro de la app. El uso continuado de la app después de un cambio implica la aceptación de los Términos actualizados.</p>
+
+  <h2>11. Ley aplicable y jurisdicción</h2>
+  <p>Estos Términos se rigen por las leyes de la República Argentina. Cualquier controversia derivada de estos Términos o del uso de la app se someterá a la jurisdicción de los tribunales competentes de la República Argentina, sin perjuicio de los derechos que la normativa de protección al consumidor de tu país de residencia te reconozca de forma irrenunciable.</p>
+
+  <h2>12. Contacto</h2>
+  <p>Por consultas sobre estos Términos, escribinos a:</p>
+  <!-- TODO-CONFIRMAR email de contacto real -->
+  <p><strong><a href="mailto:vegaariel976@gmail.com">vegaariel976@gmail.com</a></strong></p>
+
+  <footer>
+    <p>Home Finance — Términos de Servicio. Última actualización: 29 de mayo de 2026.</p>
+    <p>Ver también: <a href="privacy.html">Política de Privacidad</a> · <a href="account-deletion.html">Eliminación de cuenta</a></p>
+  </footer>
+
+</div>
 </body>
 </html>
