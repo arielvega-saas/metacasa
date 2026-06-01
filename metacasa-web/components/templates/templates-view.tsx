@@ -265,8 +265,11 @@ function DeleteTemplateDialog({
       try {
         await deleteTemplate(item.id);
         toast.success(t("templates.deleted"));
-        onClose();
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({toDelete && ...}); cerrar lo desmonta y abortaría el
+        // refresh si fuera después. Con este orden la grilla se actualiza sola.
         router.refresh();
+        onClose();
       } catch (err) {
         toast.error(t("templates.deleteError"), {
           description: err instanceof Error ? err.message : undefined,

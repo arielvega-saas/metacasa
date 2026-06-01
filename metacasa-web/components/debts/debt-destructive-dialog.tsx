@@ -54,8 +54,12 @@ export function DebtDestructiveDialog({
           await deleteDebt(debtId);
           toast.success(t("debts.deleted"));
         }
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({destructive.kind !== "none" && ...}); cerrar lo desmonta
+        // y abortaría el refresh si fuera después. Con este orden la lista se
+        // actualiza sin recargar.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t(isSettle ? "debts.settleError" : "debts.deleteError"), {
           description: err instanceof Error ? err.message : undefined,

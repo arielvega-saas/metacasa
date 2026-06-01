@@ -536,8 +536,12 @@ function RemoveMemberDialog({
       try {
         await removeMember({ householdId, userId });
         toast.success(t("profile.memberRemoved"));
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({memberToRemove && ...}); cerrar lo desmonta y abortaría
+        // el refresh si fuera después. Con este orden la lista de miembros se
+        // actualiza sin recargar.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t("profile.memberRemoveError"), {
           description: err instanceof Error ? err.message : undefined,

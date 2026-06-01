@@ -41,8 +41,11 @@ export function DeleteRecurringDialog({
       try {
         await deleteRecurringAction(id);
         toast.success(t("recurring.deleted"));
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({toDelete && ...}); cerrar lo desmonta y abortaría el
+        // refresh si fuera después. Con este orden la lista se actualiza sola.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t("recurring.deleteError"), {
           description: err instanceof Error ? err.message : undefined,

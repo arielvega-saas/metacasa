@@ -324,8 +324,11 @@ function DeletePlanDialog({
       try {
         await deletePlan(planId);
         toast.success(t("installments.deleted"));
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({toDelete && ...}); cerrar lo desmonta y abortaría el
+        // refresh si fuera después. Con este orden la grilla se actualiza sola.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t("installments.deleteError"), {
           description: err instanceof Error ? err.message : undefined,

@@ -107,8 +107,11 @@ export function TemplateDialog({
           await createTemplate(form);
           toast.success(t("templates.created"));
         }
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: cerrar el diálogo desmonta este componente
+        // (el padre hace setDialog("closed")), lo que abortaría el refresh si fuera
+        // después. Con este orden la lista se actualiza sin necesidad de recargar.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t("templates.saveError"), {
           description: err instanceof Error ? err.message : undefined,

@@ -133,8 +133,12 @@ export function RecurringDialog({
           await createRecurringAction(form);
           toast.success(t("recurring.created"));
         }
-        onOpenChange(false);
+        // Refrescar ANTES de cerrar: el padre monta este diálogo de forma
+        // condicional ({dialog.mode !== "closed" && ...}); cerrar lo desmonta y
+        // abortaría el refresh si fuera después. Con este orden la lista se
+        // actualiza sin recargar.
         router.refresh();
+        onOpenChange(false);
       } catch (err) {
         toast.error(t("recurring.saveError"), {
           description: err instanceof Error ? err.message : undefined,
