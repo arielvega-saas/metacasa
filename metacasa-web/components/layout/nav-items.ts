@@ -14,6 +14,7 @@ import {
   CalendarClock,
   CreditCard,
   Zap,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ export const NAV: NavItem[] = [
 
 /** Navegación secundaria (pie del sidebar). */
 export const NAV_SECONDARY: NavItem[] = [
+  { href: "/tools", label: "nav.tools", icon: Calculator },
   { href: "/import", label: "nav.import", icon: FileUp },
   { href: "/connect", label: "nav.connectApp", icon: Smartphone },
   { href: "/profile", label: "nav.profileSettings", icon: Settings },
