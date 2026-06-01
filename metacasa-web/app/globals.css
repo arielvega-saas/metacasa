@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * Home Finance — Design System "Midnight Sage"
+ * Tokens portados 1:1 desde la app iOS (Core/DesignSystem.swift).
+ * Tema oscuro premium: base verdoso-noche + acento sage + champagne.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --radius: 1rem;
+
+  /* ── Paleta cruda Midnight Sage ─────────────────────────────── */
+  --mc-bg: #0e1312;          /* fondo app — midnight cálido verdoso */
+  --mc-surface: #151c1a;     /* cards / paneles */
+  --mc-surface-2: #1b2422;   /* superficie elevada (hover, popovers) */
+  --mc-inset: #0b0f0e;       /* contenedores internos (inputs anidados) */
+  --mc-sage: #b8d4c2;        /* acento primario — sage glow */
+  --mc-sage-strong: #9fc4ad; /* sage saturado — ingresos / positivo */
+  --mc-champagne: #d4c19c;   /* dorado cálido — acento secundario */
+  --mc-expense: #e8b4a6;     /* coral cálido — gastos / negativo */
+  --mc-text: #e8e4dc;        /* texto principal — crema cálido */
+  --mc-text-muted: #7a8782;  /* texto secundario / labels */
+  --mc-text-dim: #3e4844;    /* deshabilitado / placeholder */
+  --mc-hairline: rgba(184, 212, 194, 0.12); /* borde sage tenue */
+  --mc-hairline-strong: rgba(184, 212, 194, 0.2);
+
+  /* ── Mapeo semántico (estilo shadcn/ui) ────────────────────── */
+  --background: var(--mc-bg);
+  --foreground: var(--mc-text);
+  --card: var(--mc-surface);
+  --card-foreground: var(--mc-text);
+  --popover: var(--mc-surface-2);
+  --popover-foreground: var(--mc-text);
+  --primary: var(--mc-sage);
+  --primary-foreground: #0e1312;
+  --secondary: #1f2a27;
+  --secondary-foreground: var(--mc-text);
+  --muted: #1b2422;
+  --muted-foreground: var(--mc-text-muted);
+  --accent: #20302b;
+  --accent-foreground: var(--mc-text);
+  --destructive: var(--mc-expense);
+  --destructive-foreground: #1a0f0c;
+  --success: var(--mc-sage-strong);
+  --warning: var(--mc-champagne);
+  --border: var(--mc-hairline);
+  --input: var(--mc-hairline-strong);
+  --ring: var(--mc-sage);
+
+  /* ── Stacks tipográficos ───────────────────────────────────── */
+  /* En Apple, ui-serif = "New York" (match exacto con iOS). */
+  --font-sans-stack: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif-stack: ui-serif, "New York", "Iowan Old Style", Georgia,
+    "Times New Roman", serif;
+}
+
+/* ── Exposición de tokens a Tailwind v4 (genera utilidades) ──── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tokens de marca (utilidades directas: bg-sage, text-income, etc.) */
+  --color-sage: var(--mc-sage);
+  --color-sage-strong: var(--mc-sage-strong);
+  --color-champagne: var(--mc-champagne);
+  --color-income: var(--mc-sage-strong);
+  --color-expense: var(--mc-expense);
+  --color-surface: var(--mc-surface);
+  --color-surface-2: var(--mc-surface-2);
+  --color-inset: var(--mc-inset);
+  --color-text-strong: var(--mc-text);
+  --color-text-muted: var(--mc-text-muted);
+  --color-text-dim: var(--mc-text-dim);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --font-sans: var(--font-sans-stack);
+  --font-serif: var(--font-serif-stack);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans-stack);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--mc-sage) 28%, transparent);
+    color: var(--mc-text);
+  }
+  /* Anillo de foco accesible y on-brand */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--mc-sage) 60%, transparent);
+    outline-offset: 2px;
+  }
+
+  /* Reducir animaciones (preferencia local del usuario o del sistema). */
+  html[data-reduce-motion="1"] *,
+  html[data-reduce-motion="1"] *::before,
+  html[data-reduce-motion="1"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  /* Números editoriales (saldos hero) en serif con dígitos tabulares */
+  .font-num {
+    font-family: var(--font-serif-stack);
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    letter-spacing: -0.01em;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Card de vidrio premium (glassmorphism sutil) */
+  .glass {
+    background: color-mix(in srgb, var(--mc-surface) 74%, transparent);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+  }
+  .hairline {
+    border: 1px solid var(--mc-hairline);
+  }
+
+  /* Glow sage para estados positivos / activos */
+  .sage-glow {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--mc-sage) 30%, transparent),
+      0 12px 48px -16px color-mix(in srgb, var(--mc-sage) 28%, transparent);
+  }
+
+  /* Degradado de fondo ambiental (aurora sage muy sutil) */
+  .bg-aurora {
+    background-image:
+      radial-gradient(60% 50% at 12% -8%, color-mix(in srgb, var(--mc-sage) 10%, transparent) 0%, transparent 60%),
+      radial-gradient(45% 40% at 100% 0%, color-mix(in srgb, var(--mc-champagne) 7%, transparent) 0%, transparent 55%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Scrollbar fino on-brand */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--mc-sage) 16%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--mc-sage) 28%, transparent);
+  background-clip: padding-box;
+}

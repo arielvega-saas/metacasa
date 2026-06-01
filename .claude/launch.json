@@ -6,6 +6,12 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && npm run dev -- --port 5173"],
       "port": 5173
+    },
+    {
+      "name": "metacasa-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npm run dev"],
+      "port": 3000
     }
   ]
 }

@@ -69,3 +69,9 @@ metacasa-ios/DerivedData/
 
 # Supabase CLI temp
 supabase/.temp/
+.vercel
+
+# Flutter duplicados autogenerados (Finder/iCloud sync)
+metacasa-flutter/**/* [0-9].*
+metacasa-flutter/*\ [0-9]
+metacasa-flutter/**/*\ [0-9].*
