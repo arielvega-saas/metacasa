@@ -8,7 +8,7 @@ import {
   getMonthlyFlows,
   getMonthSummary,
 } from "@/lib/db/transactions";
-import { getActiveDays } from "@/lib/db/analytics";
+import { getActiveDays, getDailySpend, getAnnualFlows } from "@/lib/db/analytics";
 import { ReportsView } from "@/components/reports/reports-view";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 
@@ -25,7 +25,7 @@ function pad(n: number) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ym?: string }>;
+  searchParams: Promise<{ ym?: string; fy?: string }>;
 }) {
   const supabase = await createClient();
   const t = await getT();
@@ -51,18 +51,27 @@ export default async function ReportsPage({
       : `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   const [year, month] = ym.split("-").map(Number);
 
+  // El AÑO de las secciones anuales (heatmap + vista anual) viene de `?fy=`,
+  // un parámetro SEPARADO del `?ym=` mensual para que no se pisen. Default: año
+  // actual. Se clampa al rango razonable [2000, año actual] (paridad iOS: el
+  // heatmap no navega al futuro).
+  const fyRaw = sp.fy && /^\d{4}$/.test(sp.fy) ? Number(sp.fy) : now.getFullYear();
+  const fiscalYear = Math.min(Math.max(fyRaw, 2000), now.getFullYear());
+
   // Mes anterior (para la comparación mes a mes).
   const prevDate = new Date(year, month - 2, 1);
   const prevYear = prevDate.getFullYear();
   const prevMonth = prevDate.getMonth() + 1;
 
-  const [flows, breakdown, summary, prevSummary, activeDays] =
+  const [flows, breakdown, summary, prevSummary, activeDays, dailySpend, annualFlows] =
     await Promise.all([
       getMonthlyFlows(supabase, householdId, 12),
       getCategoryBreakdown(supabase, householdId, year, month),
       getMonthSummary(supabase, householdId, year, month),
       getMonthSummary(supabase, householdId, prevYear, prevMonth),
       getActiveDays(supabase, householdId, 30),
+      getDailySpend(supabase, householdId, fiscalYear),
+      getAnnualFlows(supabase, householdId, fiscalYear),
     ]);
 
   // ── Health score (paridad iOS: ReportsView.swift → healthScore) ──────────
@@ -79,7 +88,7 @@ export default async function ReportsPage({
       <PageHeader
         title={t("reports.title")}
         description={t("reports.description")}
-        action={<MonthSwitcher ym={ym} />}
+        action={<MonthSwitcher ym={ym} fy={fiscalYear} />}
       />
       <ReportsView
         ym={ym}
@@ -90,6 +99,9 @@ export default async function ReportsPage({
         summary={summary}
         prevSummary={prevSummary}
         health={health}
+        dailySpend={dailySpend}
+        annualFlows={annualFlows}
+        fiscalYear={fiscalYear}
       />
     </div>
   );

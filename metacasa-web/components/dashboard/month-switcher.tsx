@@ -8,17 +8,28 @@ function shift(year: number, month: number, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Navegador de mes server-rendered: usa hrefs `?ym=` que preservan el pathname. */
-export async function MonthSwitcher({ ym }: { ym: string }) {
+/**
+ * Navegador de mes server-rendered: usa hrefs `?ym=` que preservan el pathname.
+ * Opcionalmente preserva el `?fy=` (año de las secciones anuales de Reportes)
+ * para que cambiar de mes no descarte el año elegido del heatmap/vista anual.
+ */
+export async function MonthSwitcher({ ym, fy }: { ym: string; fy?: number }) {
   const t = await getT();
   const locale = await getLocale();
   const [year, month] = ym.split("-").map(Number);
   const label = formatMonthYear(year, month, locale);
 
+  const href = (delta: number) => {
+    const params = new URLSearchParams();
+    params.set("ym", shift(year, month, delta));
+    if (fy != null) params.set("fy", String(fy));
+    return `?${params.toString()}`;
+  };
+
   return (
     <div className="hairline bg-surface/60 flex items-center gap-1 rounded-full p-1">
       <Link
-        href={`?ym=${shift(year, month, -1)}`}
+        href={href(-1)}
         scroll={false}
         aria-label={t("dashboard.prevMonth")}
         className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
@@ -29,7 +40,7 @@ export async function MonthSwitcher({ ym }: { ym: string }) {
         {label}
       </span>
       <Link
-        href={`?ym=${shift(year, month, 1)}`}
+        href={href(1)}
         scroll={false}
         aria-label={t("dashboard.nextMonth")}
         className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"

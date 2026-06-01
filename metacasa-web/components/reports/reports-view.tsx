@@ -2,7 +2,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
+  CalendarRange,
   GitCompareArrows,
+  Grid3x3,
   HeartPulse,
   LineChart as LineChartIcon,
   PiggyBank,
@@ -26,8 +28,12 @@ import {
   type SavingsRateDatum,
 } from "@/components/reports/savings-rate-trend";
 import { HealthScore, type HealthScoreData } from "@/components/reports/health-score";
+import { SpendingHeatmap } from "@/components/reports/spending-heatmap";
+import { AnnualView } from "@/components/reports/annual-view";
+import { YearSwitcher } from "@/components/reports/year-switcher";
 import { ExportMenu } from "@/components/export/export-menu";
 import { colorForIndex, type CategorySlice } from "@/components/reports/palette";
+import type { DailySpend, AnnualMonthFlow } from "@/lib/db/analytics";
 import { formatMoney } from "@/lib/money";
 import { getT } from "@/lib/i18n/server";
 import { formatMonthYear, formatMonthShort } from "@/lib/i18n/dates";
@@ -50,6 +56,12 @@ export interface ReportsData {
   prevSummary: Summary;
   /** Score de salud financiera + desglose, calculado en el server (page.tsx). */
   health: HealthScoreData;
+  /** Gasto diario del año `fiscalYear` (heatmap). Solo días con gasto. */
+  dailySpend: DailySpend[];
+  /** Flujos de los 12 meses del año `fiscalYear` (vista anual). */
+  annualFlows: AnnualMonthFlow[];
+  /** Año de las secciones anuales (heatmap + vista anual), vía `?fy=`. */
+  fiscalYear: number;
 }
 
 /** Presentación de Reportes (read-only). Recibe todo por props. */
@@ -62,6 +74,9 @@ export async function ReportsView({
   summary,
   prevSummary,
   health,
+  dailySpend,
+  annualFlows,
+  fiscalYear,
 }: ReportsData) {
   const t = await getT();
   const [year, month] = ym.split("-").map(Number);
@@ -111,6 +126,10 @@ export async function ReportsView({
     return { label: formatMonthShort(fy, fm, locale), rate };
   });
   const hasSavingsTrend = savingsTrend.some((d) => d.rate != null);
+
+  // ── ¿El año tiene movimientos? (vista anual). El heatmap usa su propio
+  // criterio (`dailySpend.length`, solo días con gasto).
+  const hasAnnualData = annualFlows.some((f) => f.income > 0 || f.expense > 0);
 
   // ── Comparación mes a mes: mes actual vs anterior.
   const prevDate = new Date(year, month - 2, 1);
@@ -385,6 +404,52 @@ export async function ReportsView({
             icon={LineChartIcon}
             title={t("reports.savingsTrendEmptyTitle")}
             description={t("reports.savingsTrendEmptyDesc")}
+          />
+        )}
+      </Card>
+
+      {/* ─────────────────────────────────────────────────────────────────
+          Secciones ANUALES (additivas, paridad iOS): vista anual + heatmap de
+          gasto diario. Usan el año `?fy=` (separado del `?ym=` mensual); el
+          control de año vive en cada header.
+          ───────────────────────────────────────────────────────────────── */}
+
+      {/* Vista anual: totales del año + barras 12 meses + grid de meses. */}
+      <Card className="p-5">
+        <SectionHeader
+          title={t("reports.annualTitle")}
+          subtitle={t("reports.annualSubtitle")}
+          action={<YearSwitcher fy={fiscalYear} ym={ym} />}
+        />
+        {hasAnnualData ? (
+          <AnnualView flows={annualFlows} year={fiscalYear} currency={currency} />
+        ) : (
+          <EmptyState
+            icon={CalendarRange}
+            title={t("reports.annualEmptyTitle")}
+            description={t("reports.annualEmptyDesc")}
+          />
+        )}
+      </Card>
+
+      {/* Heatmap de gasto diario (estilo GitHub) del año. */}
+      <Card className="p-5">
+        <SectionHeader
+          title={t("reports.heatmapTitle")}
+          subtitle={t("reports.heatmapSubtitle")}
+          action={<YearSwitcher fy={fiscalYear} ym={ym} />}
+        />
+        {dailySpend.length > 0 ? (
+          <SpendingHeatmap
+            dailySpend={dailySpend}
+            year={fiscalYear}
+            currency={currency}
+          />
+        ) : (
+          <EmptyState
+            icon={Grid3x3}
+            title={t("reports.heatmapEmptyTitle")}
+            description={t("reports.heatmapEmptyDesc")}
           />
         )}
       </Card>

@@ -12,6 +12,7 @@ import { debts } from "./debts";
 import { installmentsMembers } from "./installments-members";
 import { templates } from "./templates";
 import { reportsAdvanced } from "./reports-advanced";
+import { reportsExtra } from "./reports-extra";
 import { strategy } from "./strategy";
 import { dashboardExtras } from "./dashboard-extras";
 import { tools } from "./tools";
@@ -29,6 +30,7 @@ const MODULES: LocaleModule[] = [
   installmentsMembers,
   templates,
   reportsAdvanced,
+  reportsExtra,
   strategy,
   dashboardExtras,
   tools,
