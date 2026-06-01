@@ -85,6 +85,10 @@ struct SettingsView: View {
             rowDivider
             navRow(icon: "externaldrive.badge.icloud", labelKey: "settings.backup") { BackupView() }
             rowDivider
+            // Abre la versión web ya logueado (handoff de sesión vía Edge Function
+            // `web-handoff`). Sub-view propia porque necesita estado de carga/error.
+            WebHandoffRow()
+            rowDivider
             actionRow(icon: "play.circle", labelKey: "tour.replay") {
                 showWelcomeTour = true
             }
@@ -369,6 +373,82 @@ private struct PrivacyToggleRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+    }
+}
+
+/// Row "Abrir versión Web" — invoca el handoff de sesión y abre la web ya
+/// logueado. Sub-struct propia (como `PrivacyToggleRow`) porque necesita
+/// `@State` de carga/error y `@Environment(\.openURL)`.
+///
+/// Visual: calca `rowContent` de `SettingsView` (icon circle sage + label +
+/// chevron). Mientras carga muestra un spinner en vez del chevron y deshabilita
+/// el tap. Si el handoff falla, intenta el fallback (`webAppURL/login`) y, si
+/// tampoco hay URL de fallback, muestra un alert.
+private struct WebHandoffRow: View {
+    @Environment(\.openURL) private var openURL
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Button {
+            guard !isLoading else { return }
+            Haptics.play(.selection)
+            Task { await openWeb() }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "macbook.and.iphone")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.brandPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(Color.brandPrimary.opacity(0.12)))
+                Text("settings.web.open")
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textPrimary)
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(Color.brandPrimary)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.textDim)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pressableScale(0.99)
+        .disabled(isLoading)
+        .alert(
+            Text("webHandoff.error.title"),
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button("action.close", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func openWeb() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let url = try await WebHandoffService.openWebURL()
+            openURL(url)
+        } catch {
+            // Fallback: abrir el login de la web a secas. Si ni eso hay, alert.
+            if let fallback = WebHandoffService.fallbackLoginURL {
+                openURL(fallback)
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
 

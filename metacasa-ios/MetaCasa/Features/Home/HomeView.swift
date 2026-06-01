@@ -264,6 +264,10 @@ struct HomeView: View {
                 backgroundGradient
                 ScrollView {
                     VStack(spacing: 18) {
+                        // Banner sutil y descartable: avisa que la web ya está
+                        // disponible con la misma cuenta (handoff de sesión).
+                        // Se auto-oculta vía @AppStorage("webBannerDismissed").
+                        WebHandoffBanner()
                         if onboarding.shouldShow {
                             SetupChecklistCard()
                                 .transition(.asymmetric(
@@ -578,6 +582,120 @@ struct HomeView: View {
             // Refresh del onboarding en paralelo — el user puede haber
             // completado un step fuera de la app (ej: agregó cuenta desde tab).
             await onboarding.refresh(appState: appState)
+        }
+    }
+}
+
+// MARK: - WebHandoffBanner
+//
+// Banner descartable arriba del Home que invita a usar la versión web con la
+// misma cuenta. Reusa el material `liquidGlass` del design system. El tap del
+// botón "Usar en computadora" corre el MISMO flow que la fila de Ajustes
+// (handoff de sesión vía `WebHandoffService`, con fallback al login web).
+//
+// El descarte persiste en `@AppStorage("webBannerDismissed")` — una vez cerrado,
+// no vuelve a aparecer (la fila de Ajustes sigue disponible para el acceso).
+private struct WebHandoffBanner: View {
+    @AppStorage("webBannerDismissed") private var dismissed = false
+    @Environment(\.openURL) private var openURL
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        if !dismissed {
+            content
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity),
+                    removal: .scale.combined(with: .opacity)
+                ))
+        }
+    }
+
+    private var content: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "macbook.and.iphone")
+                .font(.title3)
+                .foregroundStyle(Color.brandPrimary)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.brandPrimary.opacity(0.12)))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("webHandoff.banner.body")
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    guard !isLoading else { return }
+                    Haptics.play(.selection)
+                    Task { await openWeb() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(Color(hex: "#0E1312"))
+                        }
+                        Text("webHandoff.banner.cta")
+                            .font(.mcCaption.weight(.bold))
+                    }
+                    .foregroundStyle(Color(hex: "#0E1312"))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(Capsule().fill(Color.brandPrimary))
+                }
+                .buttonStyle(.plain)
+                .pressableScale()
+                .disabled(isLoading)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                Haptics.play(.selection)
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.7)) {
+                    dismissed = true
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.textMuted)
+                    .frame(width: 30, height: 30)
+                    .background(Color.appSurfaceInset)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("webHandoff.banner.dismiss"))
+        }
+        .padding(16)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .alert(
+            Text("webHandoff.error.title"),
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button("action.close", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func openWeb() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let url = try await WebHandoffService.openWebURL()
+            openURL(url)
+        } catch {
+            // Mismo fallback que la fila de Ajustes: abrir login web a secas.
+            if let fallback = WebHandoffService.fallbackLoginURL {
+                openURL(fallback)
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
