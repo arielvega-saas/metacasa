@@ -75,3 +75,6 @@ supabase/.temp/
 metacasa-flutter/**/* [0-9].*
 metacasa-flutter/*\ [0-9]
 metacasa-flutter/**/*\ [0-9].*
+
+# lock temporal de scheduled tasks
+.claude/scheduled_tasks.lock

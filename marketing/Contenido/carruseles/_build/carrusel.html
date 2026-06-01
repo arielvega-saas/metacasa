@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#0f1714; --ink:#eef5f1; --muted:#9fb3aa; --faint:#6f857b;
+    --accent:#6ee7a8; --accent-deep:#2fbf71; --champagne:#e8dcc0; --border:#25332c;
+    --serif:"Playfair Display",Georgia,serif; --sans:"Manrope",-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1080px;height:1350px;overflow:hidden}
+  .slide{
+    position:relative; width:1080px; height:1350px;
+    background:
+      radial-gradient(120% 70% at 50% -8%, rgba(110,231,168,.20), transparent 55%),
+      radial-gradient(90% 60% at 50% 115%, rgba(47,191,113,.12), transparent 60%),
+      #0f1714;
+    color:var(--ink); font-family:var(--sans);
+    display:flex; flex-direction:column; padding:96px 92px;
+    overflow:hidden;
+  }
+  /* subtle grid/grain via repeating lines */
+  .slide::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 38%, rgba(110,231,168,.06), transparent 60%);
+    pointer-events:none;
+  }
+  /* brand row */
+  .brand{display:flex; align-items:center; gap:18px; position:relative; z-index:2}
+  .brand img{width:74px; height:74px; border-radius:18px; box-shadow:0 10px 34px rgba(110,231,168,.28)}
+  .brand b{font-size:30px; font-weight:800; letter-spacing:-.01em}
+  /* body */
+  .body{flex:1; display:flex; flex-direction:column; justify-content:center; position:relative; z-index:2}
+  .kicker{font-size:24px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:34px}
+  h1{font-size:104px; line-height:1.04; letter-spacing:-.02em; font-weight:800}
+  h1 .em{font-family:var(--serif); font-style:italic; font-weight:600; color:var(--champagne)}
+  h1 .hl{color:var(--accent)}
+  .sub{font-size:38px; line-height:1.4; color:var(--muted); margin-top:40px; max-width:840px; font-weight:500}
+  /* footer */
+  .foot{display:flex; align-items:center; justify-content:space-between; position:relative; z-index:2}
+  .dots{display:flex; gap:12px}
+  .dots i{width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.18)}
+  .dots i.on{background:var(--accent); box-shadow:0 0 16px rgba(110,231,168,.6)}
+  .foot .tag{font-size:24px; color:var(--faint); font-weight:600}
+  .swipe{font-size:26px; color:var(--accent); font-weight:700; display:flex; align-items:center; gap:10px}
+  /* phone for the visual slide */
+  .phonewrap{position:relative; z-index:2; display:flex; justify-content:center; margin-top:30px}
+  .phonewrap img{width:560px; border-radius:40px; box-shadow:0 40px 110px rgba(0,0,0,.6), 0 0 0 1px rgba(110,231,168,.22)}
+  .cta-pill{display:inline-flex; align-items:center; gap:14px; background:var(--accent); color:#06251a;
+    font-size:34px; font-weight:800; padding:22px 40px; border-radius:999px; margin-top:8px}
+  .big-num{font-family:var(--serif); font-size:200px; line-height:.9; color:var(--accent); font-weight:600; margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="slide" id="slide">
+  <div class="brand"><img src="assets/icon.png"/><b>Home Finance</b></div>
+  <div class="body" id="body"></div>
+  <div class="foot">
+    <div class="dots" id="dots"></div>
+    <div id="footright"></div>
+  </div>
+</div>
+<script>
+  var S = new URLSearchParams(location.search).get('s') || '1';
+  var total = 5;
+  var slides = {
+    '1': {
+      body: '<div class="kicker">Home Finance</div>'
+          + '<h1>Las apps de finanzas se hicieron para <span class="hl">una sola persona.</span></h1>',
+      foot: '<div class="swipe">Deslizá →</div>'
+    },
+    '2': {
+      body: '<h1>Pero tu plata es <span class="em">del hogar.</span></h1>'
+          + '<p class="sub">Pareja, familia, roommates… todos gastan, todos suman.</p>',
+      foot: '<div class="swipe">Deslizá →</div>'
+    },
+    '3': {
+      body: '<div class="kicker">Un solo lugar</div>'
+          + '<h1>Todos cargan.<br/><span class="hl">Todos ven el mismo saldo.</span></h1>'
+          + '<p class="sub">Menos peleas por la plata. Más claridad para tu casa.</p>',
+      foot: '<div class="swipe">Deslizá →</div>'
+    },
+    '4': {
+      body: '<h1>Home Finance</h1>'
+          + '<p class="sub">Presupuesto familiar, metas, deudas y multi-moneda — con un asistente IA que entiende tus números.</p>'
+          + '<div class="phonewrap"><img src="assets/01-home.jpg"/></div>',
+      foot: '<div class="tag">🔒 Privacidad primero · 👨‍👩‍👧 Para todo el hogar</div>'
+    },
+    '5': {
+      body: '<h1><span class="em">Tu plata más clara,</span><br/>tu casa más tranquila.</h1>'
+          + '<div style="margin-top:54px"><span class="cta-pill">Probá 7 días Premium →</span></div>'
+          + '<p class="sub" style="margin-top:40px">📲 Link en bio · iOS disponible · Android muy pronto</p>',
+      foot: '<div class="tag">@homefinance.app</div>'
+    }
+  };
+  var d = slides[S] || slides['1'];
+  document.getElementById('body').innerHTML = d.body;
+  document.getElementById('footright').innerHTML = d.foot;
+  var dots=''; for(var i=1;i<=total;i++){ dots += '<i class="'+(String(i)===S?'on':'')+'"></i>'; }
+  document.getElementById('dots').innerHTML = dots;
+</script>
+</body>
+</html>

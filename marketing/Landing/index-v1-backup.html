@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Home Finance — Tu plata más clara, tu casa más tranquila</title>
+<meta name="description" content="Presupuesto familiar con IA, multi-moneda y privacidad. La app de finanzas del hogar para toda la familia. Gratis para empezar." />
+<meta name="theme-color" content="#0f1714" />
+<link rel="icon" type="image/png" href="assets/icon.png" />
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Home Finance — finanzas del hogar, claras" />
+<meta property="og:description" content="Presupuesto familiar + IA + multi-moneda. Gratis para empezar." />
+<meta property="og:image" content="assets/icon.png" />
+<style>
+  :root{
+    --bg:#0f1714; --bg2:#0c120f; --card:#161f1b; --card2:#1b2620;
+    --ink:#e8f0ec; --muted:#9fb3aa; --accent:#6ee7a8; --accent-deep:#2fbf71;
+    --champagne:#e8dcc0; --border:#25332c; --radius:20px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6; overflow-x:hidden;
+  }
+  a{color:var(--accent); text-decoration:none}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+  .glow{position:fixed; top:-30%; left:50%; transform:translateX(-50%);
+    width:900px; height:900px; border-radius:50%;
+    background:radial-gradient(circle, rgba(110,231,168,.14), transparent 60%);
+    pointer-events:none; z-index:0}
+
+  /* NAV */
+  nav{position:sticky; top:0; z-index:20; backdrop-filter:blur(12px);
+    background:rgba(15,23,20,.72); border-bottom:1px solid var(--border)}
+  .nav-in{display:flex; align-items:center; justify-content:space-between; padding:14px 24px; max-width:1080px; margin:0 auto}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px}
+  .brand img{width:34px; height:34px; border-radius:9px}
+  .lang{display:flex; gap:4px; background:var(--card); border:1px solid var(--border); border-radius:999px; padding:4px}
+  .lang button{background:none; border:none; color:var(--muted); padding:5px 11px; border-radius:999px; cursor:pointer; font-size:13px; font-weight:600}
+  .lang button.active{background:var(--accent); color:#06251a}
+
+  /* HERO */
+  header.hero{position:relative; z-index:1; text-align:center; padding:72px 0 40px}
+  .hero img.applogo{width:88px; height:88px; border-radius:22px; box-shadow:0 12px 40px rgba(110,231,168,.25); margin-bottom:24px}
+  .hero h1{font-size:clamp(32px,6vw,54px); line-height:1.1; letter-spacing:-.02em; margin-bottom:18px}
+  .hero h1 .hl{color:var(--accent)}
+  .hero p.sub{font-size:clamp(17px,2.4vw,21px); color:var(--muted); max-width:640px; margin:0 auto 32px}
+  .badges{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:14px}
+  .store-btn{display:inline-flex; align-items:center; gap:10px; background:var(--ink); color:#0c120f;
+    padding:13px 22px; border-radius:14px; font-weight:700; font-size:15px; transition:transform .15s, box-shadow .15s}
+  .store-btn:hover{transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .store-btn.secondary{background:var(--card2); color:var(--ink); border:1px solid var(--border)}
+  .store-btn small{display:block; font-size:10px; font-weight:600; opacity:.7; line-height:1}
+  .store-btn b{font-size:16px; line-height:1.2}
+  .store-btn svg{width:22px; height:22px}
+  .soon{font-size:12px; color:var(--muted)}
+  .trust{margin-top:18px; font-size:14px; color:var(--muted)}
+  .trust b{color:var(--champagne)}
+
+  /* HERO SHOT */
+  .hero-shot{position:relative; z-index:1; display:flex; justify-content:center; margin:28px auto 0; max-width:300px}
+  .hero-shot img{width:100%; border-radius:34px; border:1px solid var(--border); box-shadow:0 30px 80px rgba(0,0,0,.5)}
+
+  /* SECTIONS */
+  section{position:relative; z-index:1; padding:64px 0}
+  .eyebrow{color:var(--accent); font-weight:700; font-size:13px; letter-spacing:.08em; text-transform:uppercase; text-align:center; margin-bottom:10px}
+  h2.title{font-size:clamp(26px,4vw,38px); text-align:center; letter-spacing:-.02em; margin-bottom:12px}
+  p.lead{text-align:center; color:var(--muted); max-width:620px; margin:0 auto 44px; font-size:17px}
+
+  .features{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px}
+  .feat{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:26px}
+  .feat .ico{font-size:30px; margin-bottom:12px}
+  .feat h3{font-size:18px; margin-bottom:8px}
+  .feat p{color:var(--muted); font-size:15px}
+
+  /* SHOWCASE */
+  .showcase{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:18px; margin-top:8px}
+  .showcase figure{margin:0; text-align:center}
+  .showcase img{width:100%; border-radius:22px; border:1px solid var(--border); box-shadow:0 16px 50px rgba(0,0,0,.4)}
+  .showcase figcaption{color:var(--muted); font-size:13px; margin-top:12px}
+
+  /* COMPARE */
+  .compare{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{padding:14px 16px; text-align:left; border-bottom:1px solid var(--border)}
+  th{color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.05em}
+  td.us{color:var(--accent); font-weight:700}
+  tr:last-child td{border-bottom:none}
+  .yes{color:var(--accent)} .no{color:#7a8a82}
+
+  /* EMAIL */
+  .cta-card{background:linear-gradient(160deg,var(--card2),var(--card)); border:1px solid var(--border); border-radius:28px; padding:44px 28px; text-align:center}
+  form.email{display:flex; gap:10px; max-width:460px; margin:22px auto 0; flex-wrap:wrap; justify-content:center}
+  form.email input{flex:1; min-width:220px; background:var(--bg); border:1px solid var(--border); color:var(--ink); padding:14px 16px; border-radius:12px; font-size:15px}
+  form.email input:focus{outline:none; border-color:var(--accent)}
+  form.email button{background:var(--accent); color:#06251a; border:none; padding:14px 24px; border-radius:12px; font-weight:700; font-size:15px; cursor:pointer}
+  form.email button:hover{background:var(--accent-deep)}
+  .form-note{font-size:12px; color:var(--muted); margin-top:12px}
+  #formMsg{margin-top:14px; font-weight:600; min-height:20px}
+
+  /* FOOTER */
+  footer{position:relative; z-index:1; border-top:1px solid var(--border); padding:40px 0; text-align:center; color:var(--muted); font-size:14px}
+  footer .links{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-bottom:16px}
+  .hide{display:none !important}
+  @media(max-width:600px){ section{padding:48px 0} header.hero{padding:48px 0 24px} }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<nav>
+  <div class="nav-in">
+    <div class="brand"><img src="assets/icon.png" alt="Home Finance"/> Home Finance</div>
+    <div class="lang" id="lang">
+      <button data-l="es" class="active">ES</button>
+      <button data-l="en">EN</button>
+      <button data-l="pt">PT</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <img class="applogo" src="assets/icon.png" alt="Home Finance"/>
+  <h1>
+    <span data-i="hero_h1a">Tu plata más clara,</span><br/>
+    <span class="hl" data-i="hero_h1b">tu casa más tranquila.</span>
+  </h1>
+  <p class="sub" data-i="hero_sub">Presupuesto familiar, metas, deudas y multi-moneda en una sola app — con un asistente IA que entiende tus números. Gratis para empezar.</p>
+
+  <div class="badges">
+    <a class="store-btn" id="iosBtn" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c0 1.1-.4 2.1-1.2 3-.9.9-1.9 1.4-3 1.3-.1-1.1.4-2.2 1.2-3 .8-.9 2-1.4 3-1.3zM20 17.2c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-3.9-1-2 0-2.4 1-3.9 1-1.7 0-3-1.7-4-3.1C-.3 16.3-.6 11 1.7 8.2 2.9 6.8 4.6 5.9 6.4 5.9c1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.3 2.3-3.8 2-3.2 7.5.9 9z"/></svg>
+      <span><small data-i="ios_small">Descargá en la</small><b>App Store</b></span>
+    </a>
+    <span class="store-btn secondary" id="androidBtn" style="cursor:default">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5V3.5c0-.4.2-.8.6-1L13 12l-9.4 9.5c-.4-.2-.6-.6-.6-1zM14.5 13.5l2.6 2.6-9.3 5.3 6.7-7.9zm0-3L7.8 2.6l9.3 5.3-2.6 2.6zM18.3 9.2l2.8 1.6c.6.4.6 1.2 0 1.6l-2.8 1.6-2.9-2.4 2.9-2.4z"/></svg>
+      <span><small data-i="android_small">Muy pronto en</small><b>Google Play</b></span>
+    </span>
+  </div>
+  <p class="soon" data-i="android_note">🤖 Android está en beta — sumate a la lista de abajo y te avisamos el día del lanzamiento.</p>
+  <p class="trust"><b data-i="trust">🔒 Privacidad primero · 👨‍👩‍👧 Para todo el hogar · 💱 Multi-moneda · 🤖 Con IA</b></p>
+</header>
+
+<div class="hero-shot wrap">
+  <img src="assets/screens/01-home.png" alt="Home Finance dashboard"/>
+</div>
+
+<!-- FEATURES -->
+<section class="wrap">
+  <div class="eyebrow" data-i="feat_eyebrow">Por qué Home Finance</div>
+  <h2 class="title" data-i="feat_title">Todo lo que las otras apps no juntan</h2>
+  <p class="lead" data-i="feat_lead">Caras, complicadas, para una sola persona o solo para gringos. Nosotros hicimos la que faltaba.</p>
+  <div class="features">
+    <div class="feat"><div class="ico">👨‍👩‍👧</div><h3 data-i="f1t">Para todo el hogar</h3><p data-i="f1p">Pareja, familia o roommates. Cada uno carga lo suyo, todos ven el mismo saldo. Menos peleas, más claridad.</p></div>
+    <div class="feat"><div class="ico">🤖</div><h3 data-i="f2t">Asistente con IA</h3><p data-i="f2p">Preguntale en tu idioma "¿en qué gasté de más?" o sacale foto a un recibo. Te lo explica, no te lo complica.</p></div>
+    <div class="feat"><div class="ico">💱</div><h3 data-i="f3t">Multi-moneda real</h3><p data-i="f3p">Pesos, dólares, reales — juntos en la misma app. Ideal si tu familia maneja más de una moneda.</p></div>
+    <div class="feat"><div class="ico">🧧</div><h3 data-i="f4t">Presupuesto por sobres</h3><p data-i="f4p">El método que sí funciona, ya armado. Cada peso en su lugar, con tu "disponible real" del mes.</p></div>
+    <div class="feat"><div class="ico">🔒</div><h3 data-i="f5t">Privacidad primero</h3><p data-i="f5p">Cifrado en tránsito y en reposo. Face ID opcional. Vos decidís qué se procesa en la nube.</p></div>
+    <div class="feat"><div class="ico">🆓</div><h3 data-i="f6t">Gratis para empezar</h3><p data-i="f6p">Lo esencial es gratis, para siempre. Premium con 7 días de prueba. Cancelás cuando quieras.</p></div>
+  </div>
+</section>
+
+<!-- SHOWCASE -->
+<section class="wrap">
+  <div class="eyebrow" data-i="show_eyebrow">Por dentro</div>
+  <h2 class="title" data-i="show_title">Simple de mirar, simple de usar</h2>
+  <div class="showcase">
+    <figure><img data-screen="01-home" src="assets/screens/es/01-home.jpg" loading="lazy" alt="Home Finance — dashboard del hogar"/></figure>
+    <figure><img data-screen="02-ai" src="assets/screens/es/02-ai.jpg" loading="lazy" alt="Home Finance — asistente IA"/></figure>
+    <figure><img data-screen="03-budget" src="assets/screens/es/03-budget.jpg" loading="lazy" alt="Home Finance — presupuesto por categoría"/></figure>
+    <figure><img data-screen="05-goals" src="assets/screens/es/05-goals.jpg" loading="lazy" alt="Home Finance — metas"/></figure>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="wrap">
+  <div class="eyebrow" data-i="cmp_eyebrow">Comparación honesta</div>
+  <h2 class="title" data-i="cmp_title">Home Finance vs. las demás</h2>
+  <p class="lead" data-i="cmp_lead">Datos públicos a mayo 2026. Comparamos lo que se puede verificar: precio y funciones.</p>
+  <div class="compare">
+    <table>
+      <thead><tr>
+        <th data-i="cmp_c0">&nbsp;</th>
+        <th class="us">Home Finance</th>
+        <th>YNAB</th>
+        <th>Monarch</th>
+        <th>Honeydue</th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-i="cmp_r1">Gratis para empezar</td><td class="us">✓</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+        <tr><td data-i="cmp_r2">Precio Premium</td><td class="us" data-i="cmp_price">Bajo + 7 días free</td><td>US$109/año</td><td>US$99/año</td><td data-i="cmp_free">Gratis</td></tr>
+        <tr><td data-i="cmp_r3">Todo el hogar (no solo pareja)</td><td class="us">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no" data-i="cmp_couples">Solo pareja</td></tr>
+        <tr><td data-i="cmp_r4">Asistente IA</td><td class="us">✓</td><td class="no">✗</td><td class="yes">✓</td><td class="no">✗</td></tr>
+        <tr><td data-i="cmp_r5">Multi-moneda</td><td class="us">✓</td><td class="no" data-i="cmp_partial1">Parcial</td><td class="yes">✓</td><td class="no" data-i="cmp_partial2">Parcial</td></tr>
+        <tr><td data-i="cmp_r6">Pensada para LatAm</td><td class="us">✓</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- EMAIL CAPTURE -->
+<section class="wrap" id="waitlist">
+  <div class="cta-card">
+    <div class="eyebrow" data-i="cta_eyebrow">Lista de lanzamiento</div>
+    <h2 class="title" data-i="cta_title">Enterate primero (y sumate a la beta de Android)</h2>
+    <p class="lead" style="margin-bottom:0" data-i="cta_lead">Dejanos tu email: te avisamos cuando Android salga y te mandamos tips de finanzas del hogar. Sin spam.</p>
+    <form class="email" id="emailForm" onsubmit="return submitEmail(event)">
+      <input type="email" id="emailInput" required placeholder="tu@email.com" data-i-ph="email_ph"/>
+      <button type="submit" data-i="email_btn">Avisame</button>
+    </form>
+    <div id="formMsg"></div>
+    <p class="form-note" data-i="email_note">Al enviar aceptás recibir novedades de Home Finance. Podés darte de baja cuando quieras.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://metacasa-app-cf592.web.app/privacy.html" data-i="ft_priv">Privacidad</a>
+      <a href="https://metacasa-app-cf592.web.app/terms.html" data-i="ft_terms">Términos</a>
+      <a href="mailto:soporte@metacasa.app" data-i="ft_support">Soporte</a>
+    </div>
+    <p>© 2026 Home Finance · <span data-i="ft_tag">Tu plata más clara, tu casa más tranquila.</span></p>
+  </div>
+</footer>
+
+<script>
+/* ====== CONFIG ====== */
+// Link real de iOS App Store (confirmado vía iTunes API — app id 6769792040, dev ARIEL JOSUE VEGA GUERRERO).
+var IOS_URL = "https://apps.apple.com/app/id6769792040";
+// Backend de emails: Supabase REST → tabla public.email_waitlist (RLS: anon solo INSERT).
+// La anon key es pública por diseño (ya ship en el bundle de la app); RLS protege la lectura.
+var SUPABASE_URL = "https://rgslvrxdppphzvqgcwbx.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_Z7D-ijzkurR2BXCsTmfCsQ_YGRa1SbZ";
+
+document.getElementById('iosBtn').href = IOS_URL;
+
+/* ====== i18n ====== */
+var I18N = {
+  es:{
+    hero_h1a:"Tu plata más clara,", hero_h1b:"tu casa más tranquila.",
+    hero_sub:"Presupuesto familiar, metas, deudas y multi-moneda en una sola app — con un asistente IA que entiende tus números. Gratis para empezar.",
+    ios_small:"Descargá en la", android_small:"Muy pronto en",
+    android_note:"🤖 Android está en beta — sumate a la lista de abajo y te avisamos el día del lanzamiento.",
+    trust:"🔒 Privacidad primero · 👨‍👩‍👧 Para todo el hogar · 💱 Multi-moneda · 🤖 Con IA",
+    feat_eyebrow:"Por qué Home Finance", feat_title:"Todo lo que las otras apps no juntan",
+    feat_lead:"Caras, complicadas, para una sola persona o solo para gringos. Nosotros hicimos la que faltaba.",
+    f1t:"Para todo el hogar", f1p:"Pareja, familia o roommates. Cada uno carga lo suyo, todos ven el mismo saldo. Menos peleas, más claridad.",
+    f2t:"Asistente con IA", f2p:"Preguntale en tu idioma \"¿en qué gasté de más?\" o sacale foto a un recibo. Te lo explica, no te lo complica.",
+    f3t:"Multi-moneda real", f3p:"Pesos, dólares, reales — juntos en la misma app. Ideal si tu familia maneja más de una moneda.",
+    f4t:"Presupuesto por sobres", f4p:"El método que sí funciona, ya armado. Cada peso en su lugar, con tu \"disponible real\" del mes.",
+    f5t:"Privacidad primero", f5p:"Cifrado en tránsito y en reposo. Face ID opcional. Vos decidís qué se procesa en la nube.",
+    f6t:"Gratis para empezar", f6p:"Lo esencial es gratis, para siempre. Premium con 7 días de prueba. Cancelás cuando quieras.",
+    show_eyebrow:"Por dentro", show_title:"Simple de mirar, simple de usar",
+    s1:"Tu disponible del mes, de un vistazo", s2:"Presupuestos por categoría", s3:"Metas con fecha clara", s4:"Reportes que se entienden",
+    cmp_eyebrow:"Comparación honesta", cmp_title:"Home Finance vs. las demás",
+    cmp_lead:"Datos públicos a mayo 2026. Comparamos lo que se puede verificar: precio y funciones.",
+    cmp_r1:"Gratis para empezar", cmp_r2:"Precio Premium", cmp_price:"Bajo + 7 días free", cmp_free:"Gratis",
+    cmp_r3:"Todo el hogar (no solo pareja)", cmp_couples:"Solo pareja", cmp_r4:"Asistente IA",
+    cmp_r5:"Multi-moneda", cmp_partial1:"Parcial", cmp_partial2:"Parcial", cmp_r6:"Pensada para LatAm",
+    cta_eyebrow:"Lista de lanzamiento", cta_title:"Enterate primero (y sumate a la beta de Android)",
+    cta_lead:"Dejanos tu email: te avisamos cuando Android salga y te mandamos tips de finanzas del hogar. Sin spam.",
+    email_ph:"tu@email.com", email_btn:"Avisame",
+    email_note:"Al enviar aceptás recibir novedades de Home Finance. Podés darte de baja cuando quieras.",
+    ft_priv:"Privacidad", ft_terms:"Términos", ft_support:"Soporte", ft_tag:"Tu plata más clara, tu casa más tranquila.",
+    msg_ok:"¡Listo! Te avisamos. 🎉", msg_bad:"Poné un email válido.", msg_mail:"Abrimos tu mail para confirmar 📬", msg_dup:"Ya estabas en la lista 🙌"
+  },
+  en:{
+    hero_h1a:"Calmer money,", hero_h1b:"calmer home.",
+    hero_sub:"Family budgeting, goals, debts and multi-currency in one app — with an AI assistant that gets your numbers. Free to start.",
+    ios_small:"Download on the", android_small:"Coming soon to",
+    android_note:"🤖 Android is in beta — join the list below and we'll tell you the day it launches.",
+    trust:"🔒 Privacy first · 👨‍👩‍👧 For the whole home · 💱 Multi-currency · 🤖 AI-powered",
+    feat_eyebrow:"Why Home Finance", feat_title:"Everything the other apps don't combine",
+    feat_lead:"Expensive, complicated, single-person, or US-only. We built the one that was missing.",
+    f1t:"For the whole home", f1p:"Partner, family or roommates. Everyone logs their own, everyone sees the same balance. Less fighting, more clarity.",
+    f2t:"AI assistant", f2p:"Ask in plain language \"where did I overspend?\" or snap a receipt photo. It explains, it doesn't complicate.",
+    f3t:"Real multi-currency", f3p:"Dollars, pesos, reais — together in one app. Perfect if your family handles more than one currency.",
+    f4t:"Envelope budgeting", f4p:"The method that actually works, ready to go. Every dollar in its place, with your real available balance.",
+    f5t:"Privacy first", f5p:"Encrypted in transit and at rest. Optional Face ID. You decide what goes to the cloud.",
+    f6t:"Free to start", f6p:"The essentials are free, forever. Premium with a 7-day trial. Cancel anytime.",
+    show_eyebrow:"Inside", show_title:"Simple to look at, simple to use",
+    s1:"Your month's available, at a glance", s2:"Budgets by category", s3:"Goals with a clear date", s4:"Reports that make sense",
+    cmp_eyebrow:"Honest comparison", cmp_title:"Home Finance vs. the rest",
+    cmp_lead:"Public data as of May 2026. We compare what's verifiable: price and features.",
+    cmp_r1:"Free to start", cmp_r2:"Premium price", cmp_price:"Low + 7-day free", cmp_free:"Free",
+    cmp_r3:"Whole home (not just couples)", cmp_couples:"Couples only", cmp_r4:"AI assistant",
+    cmp_r5:"Multi-currency", cmp_partial1:"Partial", cmp_partial2:"Partial", cmp_r6:"Built for LatAm",
+    cta_eyebrow:"Launch list", cta_title:"Be first (and join the Android beta)",
+    cta_lead:"Drop your email: we'll tell you when Android launches and send home-finance tips. No spam.",
+    email_ph:"you@email.com", email_btn:"Notify me",
+    email_note:"By submitting you agree to receive Home Finance updates. Unsubscribe anytime.",
+    ft_priv:"Privacy", ft_terms:"Terms", ft_support:"Support", ft_tag:"Calmer money, calmer home.",
+    msg_ok:"Done! We'll be in touch. 🎉", msg_bad:"Please enter a valid email.", msg_mail:"Opening your mail to confirm 📬", msg_dup:"You were already on the list 🙌"
+  },
+  pt:{
+    hero_h1a:"Dinheiro mais claro,", hero_h1b:"lar mais tranquilo.",
+    hero_sub:"Orçamento da família, metas, dívidas e multi-moeda num app só — com uma IA que entende seus números. Grátis pra começar.",
+    ios_small:"Baixe na", android_small:"Em breve no",
+    android_note:"🤖 O Android está em beta — entre na lista abaixo e avisamos no dia do lançamento.",
+    trust:"🔒 Privacidade primeiro · 👨‍👩‍👧 Pra casa toda · 💱 Multi-moeda · 🤖 Com IA",
+    feat_eyebrow:"Por que Home Finance", feat_title:"Tudo que os outros apps não juntam",
+    feat_lead:"Caros, complicados, pra uma pessoa só ou só pra gringo. A gente fez o que faltava.",
+    f1t:"Pra casa toda", f1p:"Par, família ou colegas de casa. Cada um registra o seu, todos veem o mesmo saldo. Menos briga, mais clareza.",
+    f2t:"Assistente com IA", f2p:"Pergunte no seu idioma \"onde gastei demais?\" ou fotografe um recibo. Ele explica, não complica.",
+    f3t:"Multi-moeda de verdade", f3p:"Reais, dólares, pesos — juntos no mesmo app. Ideal se sua família mexe com mais de uma moeda.",
+    f4t:"Orçamento por envelopes", f4p:"O método que funciona, já pronto. Cada real no seu lugar, com seu saldo disponível real.",
+    f5t:"Privacidade primeiro", f5p:"Criptografia em trânsito e em repouso. Face ID opcional. Você decide o que vai pra nuvem.",
+    f6t:"Grátis pra começar", f6p:"O essencial é grátis, pra sempre. Premium com 7 dias de teste. Cancele quando quiser.",
+    show_eyebrow:"Por dentro", show_title:"Simples de ver, simples de usar",
+    s1:"Seu disponível do mês, num olhar", s2:"Orçamentos por categoria", s3:"Metas com data certa", s4:"Relatórios que se entendem",
+    cmp_eyebrow:"Comparação honesta", cmp_title:"Home Finance vs. os outros",
+    cmp_lead:"Dados públicos em maio 2026. Comparamos o que dá pra verificar: preço e funções.",
+    cmp_r1:"Grátis pra começar", cmp_r2:"Preço Premium", cmp_price:"Baixo + 7 dias free", cmp_free:"Grátis",
+    cmp_r3:"Casa toda (não só casal)", cmp_couples:"Só casal", cmp_r4:"Assistente IA",
+    cmp_r5:"Multi-moeda", cmp_partial1:"Parcial", cmp_partial2:"Parcial", cmp_r6:"Feita pra LatAm",
+    cta_eyebrow:"Lista de lançamento", cta_title:"Saiba primeiro (e entre no beta de Android)",
+    cta_lead:"Deixe seu email: avisamos quando o Android sair e mandamos dicas de finanças da casa. Sem spam.",
+    email_ph:"voce@email.com", email_btn:"Avise-me",
+    email_note:"Ao enviar você aceita receber novidades do Home Finance. Cancele quando quiser.",
+    ft_priv:"Privacidade", ft_terms:"Termos", ft_support:"Suporte", ft_tag:"Dinheiro mais claro, lar mais tranquilo.",
+    msg_ok:"Pronto! A gente avisa. 🎉", msg_bad:"Coloque um email válido.", msg_mail:"Abrindo seu email pra confirmar 📬", msg_dup:"Você já estava na lista 🙌"
+  }
+};
+var curLang="es";
+function setLang(l){
+  curLang=l; document.documentElement.lang=l;
+  var d=I18N[l];
+  document.querySelectorAll('[data-i]').forEach(function(el){
+    var k=el.getAttribute('data-i'); if(d[k]!=null) el.textContent=d[k];
+  });
+  document.querySelectorAll('[data-i-ph]').forEach(function(el){
+    var k=el.getAttribute('data-i-ph'); if(d[k]!=null) el.setAttribute('placeholder',d[k]);
+  });
+  // Swap de imágenes del showcase por idioma (el texto está quemado en cada captura).
+  document.querySelectorAll('[data-screen]').forEach(function(img){
+    img.src='assets/screens/'+l+'/'+img.getAttribute('data-screen')+'.jpg';
+  });
+  document.querySelectorAll('#lang button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-l')===l); });
+}
+document.querySelectorAll('#lang button').forEach(function(b){
+  b.addEventListener('click',function(){ setLang(b.getAttribute('data-l')); });
+});
+// auto-detect
+(function(){ var n=(navigator.language||'es').slice(0,2); if(I18N[n]) setLang(n); })();
+
+/* ====== email submit ====== */
+function submitEmail(e){
+  e.preventDefault();
+  var d=I18N[curLang], msg=document.getElementById('formMsg');
+  var email=document.getElementById('emailInput').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.style.color="#ff9b9b"; msg.textContent=d.msg_bad; return false; }
+  var btn=document.querySelector('#emailForm button'); if(btn) btn.disabled=true;
+  if(SUPABASE_URL && SUPABASE_URL.indexOf('__')!==0){
+    fetch(SUPABASE_URL+'/rest/v1/email_waitlist',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_ANON_KEY,
+        'Authorization':'Bearer '+SUPABASE_ANON_KEY,
+        'Prefer':'return=minimal'
+      },
+      body:JSON.stringify({email:email,lang:curLang,source:'landing'})
+    }).then(function(r){
+      if(r.ok || r.status===201){ msg.style.color="var(--accent)"; msg.textContent=d.msg_ok; document.getElementById('emailForm').reset(); }
+      else if(r.status===409){ msg.style.color="var(--accent)"; msg.textContent=d.msg_dup; document.getElementById('emailForm').reset(); }
+      else { fallbackMail(email); }
+    }).catch(function(){ fallbackMail(email); })
+      .finally(function(){ if(btn) btn.disabled=false; });
+  } else { if(btn) btn.disabled=false; fallbackMail(email); }
+  return false;
+}
+function fallbackMail(email){
+  var d=I18N[curLang], msg=document.getElementById('formMsg');
+  msg.style.color="var(--accent)"; msg.textContent=d.msg_mail;
+  window.location.href="mailto:soporte@metacasa.app?subject=Waitlist%20Home%20Finance&body="+encodeURIComponent("Email: "+email+" / Lang: "+curLang);
+}
+</script>
+</body>
+</html>

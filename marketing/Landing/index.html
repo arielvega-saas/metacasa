@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>document.documentElement.classList.add('js');</script>
+<title>Home Finance — Tu plata más clara, tu casa más tranquila</title>
+<meta name="description" content="Presupuesto familiar con IA, multi-moneda y privacidad. La app de finanzas del hogar para toda la familia. Probala 7 días con todo Premium." />
+<meta name="theme-color" content="#0f1714" />
+<link rel="icon" type="image/png" href="assets/icon.png" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Home Finance — finanzas del hogar, claras" />
+<meta property="og:description" content="Presupuesto familiar + IA + multi-moneda. Probala 7 días con Premium." />
+<meta property="og:image" content="assets/icon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+:root{
+  --bg:#0f1714; --bg2:#0a100d; --card:#161f1b; --card2:#1b2620; --card3:#202b25;
+  --ink:#e8f0ec; --muted:#9fb3aa; --faint:#6f857b;
+  --accent:#6ee7a8; --accent-deep:#2fbf71; --accent-dim:rgba(110,231,168,.14);
+  --champagne:#e8dcc0; --coral:#e9a896; --border:#25332c; --border2:#2f4138;
+  --radius:22px; --maxw:1180px;
+  --serif:"Playfair Display",Georgia,serif;
+  --sans:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:#0f1714 radial-gradient(130% 95% at 50% 0%, rgba(47,191,113,.12), transparent 52%) fixed;
+  color:var(--ink);
+  line-height:1.6; overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  padding-top:var(--bar,40px);
+}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 28px}
+.serif{font-family:var(--serif)}
+.hl{color:var(--accent)}
+.em{font-family:var(--serif); font-style:italic; color:var(--champagne)}
+
+/* ====== animated background field ====== */
+.bgfield{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden}
+.blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.5; mix-blend-mode:screen}
+.blob.b1{width:760px;height:760px; top:-280px; left:50%; margin-left:-380px;
+  background:radial-gradient(circle,rgba(110,231,168,.34),transparent 64%); animation:drift1 26s ease-in-out infinite}
+.blob.b2{width:560px;height:560px; top:46%; left:-160px;
+  background:radial-gradient(circle,rgba(47,191,113,.26),transparent 64%); animation:drift2 32s ease-in-out infinite}
+.blob.b3{width:620px;height:620px; bottom:-220px; right:-160px;
+  background:radial-gradient(circle,rgba(232,220,192,.12),transparent 66%); animation:drift3 38s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,60px) scale(1.08)}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(80px,-50px) scale(1.12)}}
+@keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-60px,-40px) scale(1.06)}}
+
+/* light beams (god rays) from top-center — echoes the brand posters */
+.beams{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; mix-blend-mode:screen}
+.beams::before{content:""; position:absolute; top:-26%; left:50%; transform:translateX(-50%); width:62vw; height:62vh;
+  background:radial-gradient(ellipse at center, rgba(110,231,168,.16), transparent 60%); filter:blur(22px); animation:halo 9s ease-in-out infinite}
+.beams b{position:absolute; top:-12%; left:50%; height:138vh; transform-origin:top center; filter:blur(36px);
+  transform:translateX(-50%) rotate(var(--a,0deg));
+  background:linear-gradient(to bottom, rgba(110,231,168,.16), rgba(110,231,168,.04) 45%, transparent 72%)}
+.beams .y1{--a:-15deg; width:30vw; animation:beam 17s ease-in-out infinite}
+.beams .y2{--a:0deg; width:19vw; animation:beam 13s ease-in-out infinite reverse}
+.beams .y3{--a:15deg; width:26vw; animation:beam 21s ease-in-out infinite}
+@keyframes beam{0%,100%{opacity:.38; transform:translateX(-50%) rotate(var(--a)) scaleY(1)}50%{opacity:.82; transform:translateX(-50%) rotate(var(--a)) scaleY(1.07)}}
+@keyframes halo{0%,100%{opacity:.6}50%{opacity:1}}
+#bgParticles{position:fixed; inset:0; z-index:0; pointer-events:none}
+.vignette{position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:radial-gradient(128% 92% at 50% -8%, transparent 44%, rgba(4,8,6,.55) 100%)}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ====== moving top banner ====== */
+.topbar{position:fixed; top:0; left:0; right:0; height:40px; z-index:70; display:flex; align-items:center; overflow:hidden;
+  background:linear-gradient(90deg,#0c120f,#11201a 50%,#0c120f); border-bottom:1px solid var(--border)}
+.topbar::before{content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(110,231,168,.06),transparent 30%,transparent 70%,rgba(110,231,168,.06)); pointer-events:none}
+.topbar.is-hidden{display:none}
+.marquee{display:flex; align-items:center; white-space:nowrap; will-change:transform; animation:marq 34s linear infinite}
+.topbar:hover .marquee{animation-play-state:paused}
+.marquee .mi{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; letter-spacing:.01em; color:var(--ink); padding:0 30px}
+.marquee .mi .dotx{width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px rgba(110,231,168,.7)}
+.marquee .mi b{color:var(--accent); font-weight:800}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.topbar .bclose{position:absolute; right:9px; top:50%; transform:translateY(-50%); z-index:3; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--muted); width:23px; height:23px; border-radius:50%; cursor:pointer; display:grid; place-items:center; font-size:13px; line-height:1; padding:0; transition:.2s}
+.topbar .bclose:hover,.topbar .bclose:hover{color:var(--ink); background:rgba(255,255,255,.12)}
+.topbar .fade{position:absolute; top:0; bottom:0; width:48px; z-index:2; pointer-events:none}
+.topbar .fade.l{left:0; background:linear-gradient(90deg,#0c120f,transparent)}
+.topbar .fade.r{right:0; background:linear-gradient(270deg,#0c120f,transparent)}
+
+/* ====== nav ====== */
+nav{position:fixed; top:40px; left:0; right:0; z-index:60; transition:padding .3s, background .3s, border-color .3s}
+.nav-in{display:flex; align-items:center; gap:24px; max-width:var(--maxw); margin:0 auto;
+  padding:18px 28px; transition:padding .3s}
+nav.shrink{background:rgba(11,17,13,.78); backdrop-filter:blur(16px); border-bottom:1px solid var(--border)}
+nav.shrink .nav-in{padding:11px 28px}
+.brand{display:flex; align-items:center; gap:11px; font-weight:800; font-size:18px; letter-spacing:-.01em}
+.brand img{width:36px; height:36px; border-radius:10px; box-shadow:0 4px 16px rgba(110,231,168,.22)}
+.nav-links{display:flex; gap:28px; margin-left:14px}
+.nav-group{position:relative}
+.nav-group>a{color:var(--muted); font-size:14.5px; font-weight:600; position:relative; transition:color .2s; display:inline-block; padding:4px 0}
+.nav-group>a::after{content:""; position:absolute; left:0; bottom:-3px; height:2px; width:0;
+  background:var(--accent); transition:width .25s}
+.nav-group:hover>a{color:var(--ink)} .nav-group:hover>a::after{width:100%}
+/* desktop dropdown of subsections */
+.nav-sub{position:absolute; top:100%; left:-12px; min-width:210px; padding:8px; margin-top:8px;
+  background:rgba(13,20,16,.96); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  border:1px solid var(--border2); border-radius:14px; box-shadow:0 18px 44px rgba(0,0,0,.5);
+  display:flex; flex-direction:column; gap:2px; opacity:0; visibility:hidden; transform:translateY(6px);
+  transition:opacity .2s, transform .2s, visibility .2s; z-index:70}
+.nav-group:hover .nav-sub{opacity:1; visibility:visible; transform:translateY(0)}
+.nav-sub a{color:var(--muted); font-size:13.5px; font-weight:600; padding:9px 12px; border-radius:9px; transition:background .15s, color .15s}
+.nav-sub a:hover{background:rgba(110,231,168,.12); color:var(--accent)}
+.nav-right{margin-left:auto; display:flex; align-items:center; gap:14px}
+.lang{display:flex; gap:3px; background:rgba(22,31,27,.7); border:1px solid var(--border); border-radius:999px; padding:4px}
+.lang button{display:inline-flex; align-items:center; gap:6px; background:none; border:none; color:var(--muted); padding:5px 11px; border-radius:999px; cursor:pointer; font-size:12px; font-weight:700; font-family:var(--sans); transition:.2s}
+.lang button:hover{color:var(--ink)}
+.lang button.active{background:var(--accent); color:#06251a}
+.lang .flag{width:18px; height:13px; border-radius:3px; overflow:hidden; display:block; flex:0 0 auto; box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.3); transition:transform .2s}
+.lang .flag svg{display:block; width:100%; height:100%}
+.lang button:hover .flag{transform:scale(1.08)}
+.nav-cta{display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#06251a;
+  padding:9px 18px; border-radius:11px; font-weight:800; font-size:14px; transition:transform .18s, box-shadow .18s, background .2s}
+.nav-cta:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(110,231,168,.32)}
+.nav-cta svg{width:16px;height:16px}
+.menu-btn{display:none; background:rgba(22,31,27,.7); border:1px solid var(--border); border-radius:10px; color:var(--ink); width:42px;height:42px; cursor:pointer; place-items:center; flex:0 0 auto}
+.menu-btn svg{width:22px; height:22px}
+.menu-btn .ic-close{display:none}
+nav.menu-open .menu-btn .ic-open{display:none}
+nav.menu-open .menu-btn .ic-close{display:block}
+/* in-page highlight: pulse the block you jumped to from the menu */
+section[id]{scroll-margin-top:86px}
+.hf-flash{animation:hfFlash 2.4s ease-out; border-radius:24px}
+.hf-flash h3,.hf-flash .title{animation:hfFlashText 2.4s ease-out}
+@keyframes hfFlash{
+  0%{box-shadow:0 0 0 0 rgba(110,231,168,0)}
+  12%{box-shadow:0 0 0 2px var(--accent), 0 0 46px rgba(110,231,168,.34)}
+  66%{box-shadow:0 0 0 2px var(--accent), 0 0 40px rgba(110,231,168,.20)}
+  100%{box-shadow:0 0 0 0 rgba(110,231,168,0)}
+}
+@keyframes hfFlashText{ 0%,100%{color:inherit} 18%,60%{color:var(--accent)} }
+
+/* ====== buttons ====== */
+.btn{display:inline-flex; align-items:center; gap:11px; padding:14px 24px; border-radius:14px;
+  font-weight:800; font-size:15px; cursor:pointer; transition:transform .18s, box-shadow .18s, background .2s; border:none; font-family:var(--sans)}
+.btn svg{width:22px;height:22px; flex:0 0 auto}
+.btn small{display:block; font-size:10px; font-weight:700; opacity:.72; line-height:1; letter-spacing:.02em}
+.btn b{font-size:15.5px; line-height:1.15; font-weight:800}
+.btn-store{background:var(--ink); color:#0a100d}
+.btn-store:hover{transform:translateY(-3px); box-shadow:0 16px 38px rgba(0,0,0,.5)}
+.btn-ghost{background:rgba(27,38,32,.6); color:var(--ink); border:1px solid var(--border2)}
+.btn-ghost:hover{transform:translateY(-3px); border-color:var(--accent); box-shadow:0 14px 34px rgba(110,231,168,.16)}
+.btn-soon{background:rgba(22,31,27,.55); color:var(--muted); border:1px solid var(--border); cursor:default}
+.btn-accent{background:var(--accent); color:#06251a}
+.btn-accent:hover{transform:translateY(-3px); box-shadow:0 16px 40px rgba(110,231,168,.36); background:#7ef0b4}
+
+/* ====== generic section ====== */
+section{position:relative; z-index:2; padding:108px 0}
+.eyebrow{display:inline-flex; align-items:center; gap:9px; color:var(--accent); font-weight:700;
+  font-size:12.5px; letter-spacing:.13em; text-transform:uppercase; margin-bottom:18px}
+.eyebrow::before{content:""; width:22px; height:1px; background:var(--accent); opacity:.6}
+.eyebrow.center{justify-content:center}
+.sec-head{max-width:680px; margin:0 auto 64px; text-align:center}
+h2.title{font-family:var(--serif); font-weight:600; font-size:clamp(32px,4.6vw,52px); line-height:1.08; letter-spacing:-.01em}
+p.lead{color:var(--muted); font-size:clamp(16px,1.5vw,19px); margin-top:18px; text-wrap:pretty}
+
+/* ====== reveal / motion utils (gated by .js so content shows without JS) ====== */
+.js .reveal{opacity:0; transform:translateY(34px); transition:opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1); transition-delay:var(--d,0s)}
+.js .reveal.in{opacity:1; transform:none}
+.js .reveal-l{opacity:0; transform:translateX(-44px); transition:opacity 1s cubic-bezier(.16,1,.3,1), transform 1s cubic-bezier(.16,1,.3,1); transition-delay:var(--d,0s)}
+.js .reveal-r{opacity:0; transform:translateX(44px); transition:opacity 1s cubic-bezier(.16,1,.3,1), transform 1s cubic-bezier(.16,1,.3,1); transition-delay:var(--d,0s)}
+.js .reveal-l.in,.js .reveal-r.in{opacity:1; transform:none}
+
+/* ====== hero ====== */
+.hero{position:relative; z-index:2; padding:150px 0 60px; overflow:hidden}
+#particles{position:absolute; inset:0; z-index:0; pointer-events:none}
+.hero-grid{display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:center; position:relative; z-index:2}
+.hero-chip{display:inline-flex; align-items:center; gap:9px; background:rgba(22,31,27,.66); border:1px solid var(--border2);
+  border-radius:999px; padding:8px 15px 8px 11px; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:26px}
+.hero-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--accent); box-shadow:0 0 0 4px rgba(110,231,168,.18); animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(110,231,168,.22)}50%{box-shadow:0 0 0 7px rgba(110,231,168,.05)}}
+.hero h1{font-family:var(--serif); font-weight:600; font-size:clamp(40px,6.2vw,74px); line-height:1.04; letter-spacing:-.015em; margin-bottom:22px}
+.hero h1 .em{display:inline}
+.hero .sub{font-size:clamp(17px,1.7vw,21px); color:var(--muted); max-width:540px; margin-bottom:32px; text-wrap:pretty}
+.hero-cta{display:flex; gap:14px; flex-wrap:wrap; align-items:center}
+.android-note{margin-top:16px; font-size:13px; color:var(--faint)}
+.android-note b{color:var(--champagne); font-weight:700}
+.trust-chips{display:flex; flex-wrap:wrap; gap:9px; margin-top:26px}
+.tchip{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); font-weight:600;
+  background:rgba(22,31,27,.5); border:1px solid var(--border); border-radius:999px; padding:7px 13px}
+.tchip svg{width:14px;height:14px;color:var(--accent)}
+
+/* hero phone */
+.hero-visual{position:relative; perspective:1400px; display:flex; justify-content:center}
+.phone-stage{position:relative; transform-style:preserve-3d; transition:transform .25s ease-out; will-change:transform}
+.phone{position:relative; width:300px; border-radius:46px; padding:11px; background:linear-gradient(160deg,#252f2a,#0c120f);
+  box-shadow:0 50px 120px rgba(0,0,0,.62), 0 0 0 1px rgba(110,231,168,.12), 0 0 80px rgba(110,231,168,.16);
+  animation:float 7s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+.phone::before{content:""; position:absolute; top:16px; left:50%; transform:translateX(-50%); width:108px; height:26px;
+  background:#0a100d; border-radius:0 0 16px 16px; z-index:3}
+.phone img{width:100%; border-radius:36px; display:block}
+.phone-glow{position:absolute; inset:-12% -10%; z-index:-1; border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(110,231,168,.42),transparent 62%); filter:blur(38px)}
+.fchip{position:absolute; background:rgba(16,23,19,.86); backdrop-filter:blur(12px); border:1px solid var(--border2);
+  border-radius:16px; padding:13px 15px; box-shadow:0 18px 48px rgba(0,0,0,.46); z-index:5; will-change:transform}
+.fchip .lbl{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:700; margin-bottom:4px}
+.fchip .val{font-family:var(--serif); font-size:19px; color:var(--accent); line-height:1}
+.fchip .row{display:flex; align-items:center; gap:9px}
+.fchip .badge{width:30px;height:30px;border-radius:9px; display:grid; place-items:center; background:var(--accent-dim); color:var(--accent); font-weight:800; font-size:13px; font-family:var(--serif)}
+.fchip.c1{top:8%; left:-58px; animation:floatA 6.5s ease-in-out infinite}
+.fchip.c2{top:42%; right:-66px; animation:floatB 7.5s ease-in-out infinite}
+.fchip.c3{bottom:7%; left:-44px; animation:floatA 8s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translateY(0)}50%{transform:translateY(-13px)}}
+@keyframes floatB{0%,100%{transform:translateY(0)}50%{transform:translateY(14px)}}
+
+/* ====== trust band ====== */
+.band{display:grid; grid-template-columns:repeat(4,1fr); gap:20px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:44px 0}
+.stat{text-align:center}
+.stat .num{font-family:var(--serif); font-weight:600; font-size:clamp(36px,4.4vw,52px); line-height:1; color:var(--champagne)}
+.stat .num span{color:var(--accent)}
+.stat .cap{margin-top:10px; font-size:13.5px; color:var(--muted); font-weight:600}
+
+/* ====== how it works ====== */
+.steps{position:relative; display:grid; grid-template-columns:repeat(3,1fr); gap:26px}
+.steps .line{position:absolute; top:34px; left:12%; right:12%; height:2px; background:var(--border); z-index:0; overflow:hidden}
+.steps .line i{position:absolute; inset:0; background:linear-gradient(90deg,var(--accent),var(--accent-deep)); transform:scaleX(var(--p,0)); transform-origin:left; transition:transform .2s linear}
+.step{position:relative; z-index:1; text-align:center}
+.step .n{width:70px;height:70px;border-radius:20px; margin:0 auto 22px; display:grid; place-items:center;
+  background:linear-gradient(160deg,var(--card2),var(--card)); border:1px solid var(--border2);
+  font-family:var(--serif); font-size:28px; color:var(--accent); box-shadow:0 14px 34px rgba(0,0,0,.4)}
+.step h3{font-size:20px; font-weight:800; margin-bottom:8px; letter-spacing:-.01em}
+.step p{color:var(--muted); font-size:15px; max-width:300px; margin:0 auto; text-wrap:pretty}
+
+/* ====== alternating feature sections ====== */
+.feature{display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; max-width:1080px; margin:0 auto}
+.feature + .feature{margin-top:150px}
+.feature.flip .f-text{order:2}
+.feature.flip .f-visual{order:1}
+.f-text h3{font-family:var(--serif); font-weight:600; font-size:clamp(28px,3.6vw,44px); line-height:1.1; letter-spacing:-.01em; margin-bottom:18px}
+.f-text p{color:var(--muted); font-size:17px; margin-bottom:24px; text-wrap:pretty}
+.f-list{display:flex; flex-direction:column; gap:13px}
+.f-list li{display:flex; align-items:center; gap:12px; list-style:none; font-size:15.5px; font-weight:600}
+.f-list .ck{width:24px;height:24px;border-radius:8px; flex:0 0 auto; display:grid; place-items:center; background:var(--accent-dim); color:var(--accent)}
+.f-list .ck svg{width:13px;height:13px}
+.f-visual{position:relative; display:flex; justify-content:center; will-change:transform}
+.poster{position:relative; border-radius:26px; overflow:hidden; max-width:340px; transform:rotate(-1.4deg); transition:transform .5s cubic-bezier(.16,1,.3,1);
+  -webkit-mask-image:radial-gradient(120% 116% at 50% 45%, #000 70%, transparent 100%);
+  mask-image:radial-gradient(120% 116% at 50% 45%, #000 70%, transparent 100%)}
+.feature.flip .poster{transform:rotate(1.4deg)}
+.feature:hover .poster{transform:rotate(0)}
+.poster::after{content:""; position:absolute; inset:0; border-radius:26px; box-shadow:inset 0 0 70px 14px rgba(4,8,6,.45); pointer-events:none}
+.poster-glow{position:absolute; inset:-18%; z-index:-1; background:radial-gradient(ellipse at center,rgba(110,231,168,.36),transparent 64%); filter:blur(48px)}
+
+/* ====== benefits ====== */
+.benefits{display:grid; grid-template-columns:repeat(3,1fr); gap:22px}
+.bcard{position:relative; background:linear-gradient(165deg,var(--card2),var(--card)); border:1px solid var(--border);
+  border-radius:var(--radius); padding:30px 28px; transition:transform .3s cubic-bezier(.16,1,.3,1), border-color .3s, box-shadow .3s; overflow:hidden}
+.bcard::before{content:""; position:absolute; inset:0; background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),rgba(110,231,168,.12),transparent 42%); opacity:0; transition:opacity .3s}
+.bcard:hover{transform:translateY(-8px); border-color:var(--border2); box-shadow:0 28px 60px rgba(0,0,0,.42)}
+.bcard:hover::before{opacity:1}
+.bcard .ico{width:54px;height:54px;border-radius:15px; display:grid; place-items:center; margin-bottom:18px;
+  background:var(--accent-dim); color:var(--accent)}
+.bcard .ico svg{width:26px;height:26px}
+.bcard h3{font-size:19px; font-weight:800; margin-bottom:9px; letter-spacing:-.01em}
+.bcard p{color:var(--muted); font-size:15px; text-wrap:pretty}
+
+/* ====== video (portrait phone, matches the vertical app clips) ====== */
+.video-phone{position:relative; width:300px; max-width:80vw; margin:0 auto; aspect-ratio:640/1408; border-radius:46px; padding:11px;
+  background:linear-gradient(160deg,#252f2a,#0c120f); cursor:pointer;
+  box-shadow:0 50px 120px rgba(0,0,0,.62), 0 0 0 1px rgba(110,231,168,.12), 0 0 90px rgba(110,231,168,.18);
+  animation:float 7s ease-in-out infinite}
+.video-phone::before{content:""; position:absolute; top:16px; left:50%; transform:translateX(-50%); width:104px; height:25px; background:#0a100d; border-radius:0 0 16px 16px; z-index:4}
+.video-screen{position:absolute; inset:11px; border-radius:36px; overflow:hidden; background:#0a100d; display:grid; place-items:center}
+.video-screen video,.video-screen #videoPoster{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:36px}
+.vp-glow{position:absolute; inset:-12% -26%; z-index:-1; border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(110,231,168,.36),transparent 62%); filter:blur(42px)}
+.vglow{position:absolute; inset:0; z-index:1; background:radial-gradient(circle at 50% 60%,rgba(110,231,168,.14),transparent 60%); pointer-events:none}
+.play{position:relative; z-index:3; width:76px;height:76px;border-radius:50%; display:grid; place-items:center;
+  background:rgba(110,231,168,.16); border:1px solid rgba(110,231,168,.4); backdrop-filter:blur(8px); color:var(--accent); transition:transform .25s, background .25s}
+.play::after{content:""; position:absolute; inset:0; border-radius:50%; border:1px solid var(--accent); opacity:.5; animation:ring 2.6s ease-out infinite}
+@keyframes ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.5);opacity:0}}
+.video-phone:hover .play{transform:scale(1.08); background:rgba(110,231,168,.26)}
+.play svg{width:30px;height:30px;margin-left:4px}
+.video-note{position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:3; font-size:11.5px; text-align:center;
+  color:var(--faint); background:rgba(10,16,13,.75); border:1px solid var(--border); border-radius:999px; padding:6px 13px; max-width:88%; line-height:1.3}
+
+/* ====== 6-video motion rail ====== */
+.vid-rail-wrap{position:relative; margin-top:10px}
+.vid-rail{display:flex; gap:30px; overflow-x:auto; scroll-snap-type:x mandatory; padding:30px 6px 34px; scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none}
+.vid-rail::-webkit-scrollbar{display:none}
+.vid-card{flex:0 0 auto; width:236px; scroll-snap-align:center; display:flex; flex-direction:column; align-items:center; gap:20px;
+  transition:transform .35s cubic-bezier(.22,1,.36,1)}
+.vid-rail .video-phone{width:236px; margin:0; padding:0; border-radius:22px; animation:none; background:transparent;
+  box-shadow:0 0 60px rgba(110,231,168,.13); transition:box-shadow .35s, border-color .35s}
+/* the video currently playing sound grows and lifts above the others */
+.vid-card.sounding{transform:scale(1.08); z-index:5; position:relative}
+.vid-card.sounding .video-phone{box-shadow:0 26px 70px rgba(0,0,0,.6), 0 0 0 1px rgba(110,231,168,.45), 0 0 55px rgba(110,231,168,.3)}
+.vid-rail .video-phone::before{display:none}
+.vid-rail .video-screen{inset:0; border-radius:22px;
+  -webkit-mask-image:radial-gradient(118% 114% at 50% 45%, #000 70%, transparent 100%);
+  mask-image:radial-gradient(118% 114% at 50% 45%, #000 70%, transparent 100%)}
+.vid-rail .video-phone .play{width:60px; height:60px}
+.vid-rail .video-phone .play svg{width:24px; height:24px}
+/* per-video sound toggle — one at a time */
+.vsound{position:absolute; bottom:12px; right:12px; z-index:6; width:40px; height:40px; border-radius:50%;
+  display:grid; place-items:center; cursor:pointer; padding:0; color:var(--ink);
+  background:rgba(10,16,13,.62); border:1px solid var(--border2); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  transition:transform .2s, background .2s, color .2s, border-color .2s}
+.vsound{pointer-events:none}  /* visual indicator only — the whole card is the click target */
+.video-phone:hover .vsound{border-color:var(--accent); color:var(--accent)}
+.vsound svg{width:19px; height:19px; pointer-events:none}
+.vsound .ic-on{display:none}
+.vsound.on{background:var(--accent); color:#06251a; border-color:var(--accent); box-shadow:0 0 0 4px rgba(110,231,168,.18)}
+.vsound.on .ic-on{display:block}
+.vsound.on .ic-off{display:none}
+.vid-cap{text-align:center; max-width:236px}
+.vid-cap h3{font-size:17px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px}
+.vid-cap p{font-size:13.5px; color:var(--muted); line-height:1.5; text-wrap:pretty}
+.rail-arrow{position:absolute; top:266px; transform:translateY(-50%); z-index:6; width:48px; height:48px; border-radius:50%;
+  background:rgba(16,23,19,.9); backdrop-filter:blur(10px); border:1px solid var(--border2); color:var(--ink);
+  font-size:26px; line-height:0; cursor:pointer; display:grid; place-items:center; transition:transform .2s, border-color .2s, color .2s; box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.rail-arrow:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-50%) scale(1.07)}
+.rail-arrow.prev{left:-8px} .rail-arrow.next{right:-8px}
+@media(max-width:560px){ .rail-arrow{display:none} .vid-rail{gap:22px} }
+
+/* ====== compare ====== */
+.compare{max-width:920px; margin:0 auto; background:linear-gradient(170deg,var(--card2),var(--card)); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+table{width:100%; border-collapse:collapse; font-size:14.5px}
+th,td{padding:16px 18px; text-align:left; border-bottom:1px solid var(--border)}
+th{color:var(--faint); font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em}
+th.us,td.us{background:rgba(110,231,168,.06)}
+th.us{color:var(--accent)}
+td.us{color:var(--accent); font-weight:800}
+tbody tr{opacity:0; transform:translateY(14px); transition:opacity .6s, transform .6s; transition-delay:var(--d,0s)}
+tbody tr.in{opacity:1; transform:none}
+tr:last-child td{border-bottom:none}
+.yes{color:var(--accent); font-weight:700} .no{color:var(--faint)}
+td:first-child{font-weight:600; color:var(--ink)}
+
+/* ====== pricing ====== */
+.plans{display:grid; grid-template-columns:1fr 1fr; gap:24px; max-width:840px; margin:0 auto}
+.plan{position:relative; background:linear-gradient(165deg,var(--card2),var(--card)); border:1px solid var(--border); border-radius:24px; padding:34px 32px; transition:transform .3s, border-color .3s, box-shadow .3s}
+.plan.pro{border-color:var(--accent-deep); box-shadow:0 0 0 1px rgba(110,231,168,.18), 0 30px 70px rgba(0,0,0,.4)}
+.plan:hover{transform:translateY(-6px)}
+.plan .pname{font-size:14px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+.plan.pro .pname{color:var(--accent)}
+.plan .ptag{position:absolute; top:24px; right:24px; font-size:11.5px; font-weight:800; color:#06251a; background:var(--accent); padding:5px 11px; border-radius:999px}
+.plan .price{font-family:var(--serif); font-weight:600; font-size:48px; line-height:1; margin:18px 0 4px}
+.plan .price small{font-size:16px; color:var(--muted); font-family:var(--sans); font-weight:600}
+.plan .psub{font-size:14px; color:var(--muted); margin-bottom:24px}
+.plan ul{list-style:none; display:flex; flex-direction:column; gap:12px; margin-bottom:28px}
+.plan li{display:flex; align-items:center; gap:11px; font-size:14.5px; color:var(--ink); font-weight:500}
+.plan li .ck{width:20px;height:20px;border-radius:6px; flex:0 0 auto; display:grid; place-items:center; background:var(--accent-dim); color:var(--accent)}
+.plan li .ck svg{width:11px;height:11px}
+.plan .btn{width:100%; justify-content:center}
+.price-note{text-align:center; color:var(--faint); font-size:13px; margin-top:24px}
+
+/* ====== final cta + waitlist ====== */
+.endcta{position:relative; text-align:center; max-width:760px; margin:0 auto; padding:64px 36px;
+  background:linear-gradient(165deg,var(--card2),var(--card)); border:1px solid var(--border2); border-radius:32px; overflow:hidden}
+.endcta::before{content:""; position:absolute; top:-40%; left:50%; transform:translateX(-50%); width:600px; height:600px;
+  background:radial-gradient(circle,rgba(110,231,168,.2),transparent 62%); pointer-events:none}
+.endcta h2{position:relative}
+.endcta .hero-cta{justify-content:center; margin-top:30px}
+.wait{margin-top:120px; max-width:560px; margin-left:auto; margin-right:auto; text-align:center}
+form.email{display:flex; gap:11px; max-width:480px; margin:24px auto 0; flex-wrap:wrap; justify-content:center}
+form.email input{flex:1; min-width:230px; background:rgba(10,16,13,.7); border:1px solid var(--border2); color:var(--ink); padding:15px 17px; border-radius:13px; font-size:15px; font-family:var(--sans)}
+form.email input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(110,231,168,.16)}
+form.email button{background:var(--accent); color:#06251a; border:none; padding:15px 26px; border-radius:13px; font-weight:800; font-size:15px; cursor:pointer; font-family:var(--sans); transition:.2s}
+form.email button:hover{background:#7ef0b4; transform:translateY(-2px)}
+.form-note{font-size:12px; color:var(--faint); margin-top:14px}
+#formMsg{margin-top:14px; font-weight:700; min-height:20px; font-size:14px}
+
+/* ====== footer ====== */
+footer{position:relative; z-index:2; border-top:1px solid var(--border); padding:56px 0 40px; margin-top:120px}
+.foot-top{display:flex; justify-content:space-between; align-items:flex-start; gap:30px; flex-wrap:wrap; margin-bottom:36px}
+.foot-brand{max-width:300px}
+.foot-brand .brand{margin-bottom:14px}
+.foot-brand p{color:var(--muted); font-size:14px; text-wrap:pretty}
+.foot-links{display:flex; gap:18px; flex-wrap:wrap}
+.foot-links a{color:var(--muted); font-size:14px; font-weight:600; transition:color .2s}
+.foot-links a:hover{color:var(--accent)}
+.foot-bottom{display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding-top:24px; border-top:1px solid var(--border); color:var(--faint); font-size:13px}
+
+/* ====== responsive ====== */
+@media(max-width:920px){
+  /* show hamburger; collapse the desktop nav into a dropdown panel */
+  .menu-btn{display:grid}
+  nav.shrink{background:rgba(11,17,13,.92); backdrop-filter:blur(16px); border-bottom:1px solid var(--border)}
+  .nav-in{flex-wrap:wrap; gap:0 14px; padding:14px 20px; row-gap:0}
+  .brand{margin-right:auto; font-size:17px}
+  .brand img{width:32px; height:32px}
+  /* the links + lang + cta live in one collapsible column */
+  .nav-links{order:3; flex-basis:100%; flex-direction:column; gap:0; margin:0; max-height:0; overflow:hidden;
+    transition:max-height .4s ease, margin .4s ease; align-items:stretch}
+  .nav-right{order:4; flex-basis:100%; flex-direction:column; align-items:stretch; gap:12px; margin:0;
+    max-height:0; overflow:hidden; transition:max-height .4s ease, margin .4s ease}
+  nav.menu-open .nav-links{display:flex; max-height:720px; margin:14px 0 4px}
+  nav.menu-open .nav-right{max-height:240px; margin-bottom:8px}
+  /* section header — tap to expand its subsections (accordion) */
+  .nav-group>a{padding:14px 32px 14px 6px; font-size:16px; border-bottom:1px solid var(--border); display:block; position:relative}
+  .nav-group>a::after{content:"⌄"; display:block; width:auto; height:auto; background:none; position:absolute; right:8px; top:44%; transform:translateY(-50%); font-size:18px; line-height:1; color:var(--faint); transition:transform .3s, color .2s}
+  .nav-group.sub-open>a{color:var(--ink)}
+  .nav-group.sub-open>a::after{transform:translateY(-50%) rotate(180deg); color:var(--accent)}
+  /* subsections collapsed by default; slide open only when the group is tapped */
+  .nav-sub{position:static; opacity:1; visibility:visible; transform:none; min-width:0; margin:0 0 0 6px; padding:0 0 0 14px;
+    background:none; border:none; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; border-left:2px solid var(--border2);
+    max-height:0; overflow:hidden; transition:max-height .32s ease, padding .32s ease}
+  .nav-group.sub-open .nav-sub{max-height:320px; padding:4px 0 12px 14px}
+  .nav-sub a{font-size:14px; padding:10px; color:var(--faint); border-bottom:none}
+  .nav-sub a:hover,.nav-sub a:active{background:none; color:var(--accent)}
+  .lang{justify-content:center; padding:5px}
+  .lang button{flex:1; justify-content:center; padding:9px 6px; font-size:13px}
+  .nav-cta{justify-content:center; padding:13px 18px; font-size:15px}
+  .hero-grid{grid-template-columns:1fr; gap:48px; text-align:center}
+  .hero .sub{margin-left:auto;margin-right:auto}
+  .hero-cta,.trust-chips{justify-content:center}
+  .hero-chip{margin-left:auto;margin-right:auto}
+  .band{grid-template-columns:repeat(2,1fr); gap:30px 20px}
+  .steps{grid-template-columns:1fr; gap:38px}
+  .steps .line{display:none}
+  .feature,.feature.flip{grid-template-columns:1fr; gap:36px; text-align:center}
+  .feature .f-text,.feature .f-visual,.feature.flip .f-text,.feature.flip .f-visual{order:0}
+  .f-list{align-items:center}
+  .f-list li{justify-content:flex-start; max-width:300px; margin:0 auto; width:100%}
+  .benefits{grid-template-columns:1fr}
+  .plans{grid-template-columns:1fr}
+  section{padding:80px 0}
+}
+@media(max-width:560px){
+  .fchip.c1{left:-14px} .fchip.c2{right:-12px} .fchip.c3{left:-6px}
+  .endcta{padding:48px 22px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none !important; scroll-behavior:auto !important}
+  .reveal,.reveal-l,.reveal-r{opacity:1 !important; transform:none !important}
+  tbody tr{opacity:1 !important; transform:none !important}
+}
+</style>
+</head>
+<body>
+
+<!-- CTA "Iniciar sesión" → web app (Home Finance Web en Vercel). Fijo arriba a la derecha. -->
+<a href="https://metacasa-web.vercel.app/login" aria-label="Iniciar sesión en Home Finance Web"
+   style="position:fixed;bottom:18px;right:18px;z-index:99999;display:inline-flex;align-items:center;gap:6px;background:#9fc4ad;color:#0e1312;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;font-size:14px;font-weight:600;padding:10px 18px;border-radius:999px;text-decoration:none;box-shadow:0 6px 22px rgba(0,0,0,.28);">Iniciar sesión</a>
+
+<div class="bgfield">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="beams"><b class="y1"></b><b class="y2"></b><b class="y3"></b></div>
+  <canvas id="bgParticles"></canvas>
+</div>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<!-- ============ MOVING TOP BANNER ============ -->
+<div class="topbar" id="topbar">
+  <span class="fade l"></span>
+  <div class="marquee" id="marquee"></div>
+  <span class="fade r"></span>
+  <button class="bclose" id="bclose" aria-label="Cerrar">&times;</button>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="nav-in">
+    <a href="#top" class="brand"><img src="assets/icon.png" alt="Home Finance"/> Home Finance</a>
+    <button class="menu-btn" id="menuBtn" aria-label="Menú" aria-expanded="false">
+      <svg class="ic-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <svg class="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="nav-links">
+      <div class="nav-group">
+        <a href="#features" data-i="nav_features">Características</a>
+        <div class="nav-sub">
+          <a href="#f-home" data-i="s1_eyebrow">Visión del hogar</a>
+          <a href="#f-ai" data-i="s2_eyebrow">Asistente IA</a>
+          <a href="#f-budget" data-i="s3_eyebrow">Presupuesto</a>
+          <a href="#f-goals" data-i="s4_eyebrow">Metas</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <a href="#how" data-i="nav_how">Cómo funciona</a>
+        <div class="nav-sub">
+          <a href="#step-1" data-i="step1t">Descargá la app</a>
+          <a href="#step-2" data-i="step2t">Sumá a tu familia</a>
+          <a href="#step-3" data-i="step3t">Mirá tu disponible</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <a href="#motion" data-i="nav_motion">Videos explicativos</a>
+        <div class="nav-sub">
+          <a href="#vid-b1" data-i="b1t">Decisiones más claras</a>
+          <a href="#vid-b2" data-i="b2t">Preguntale a la IA</a>
+          <a href="#vid-b3" data-i="b3t">Cada gasto, claro</a>
+          <a href="#vid-b4" data-i="b4t">Cada peso en su lugar</a>
+          <a href="#vid-b5" data-i="b5t">Ahorro e inversión</a>
+          <a href="#vid-b6" data-i="b6t">Nunca olvides un pago</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <a href="#compare" data-i="nav_compare">Comparación</a>
+        <div class="nav-sub">
+          <a href="#compare" data-i="cmp_title">Home Finance vs. las demás</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <a href="#pricing" data-i="nav_pricing">Premium</a>
+        <div class="nav-sub">
+          <a href="#pricing" data-i="plan_free_name">Los primeros 7 días</a>
+          <a href="#waitlist" data-i="cta_secondary">Sumate a la lista</a>
+        </div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="lang" id="lang">
+        <button data-l="es" class="active" aria-label="Español">
+          <span class="flag"><svg viewBox="0 0 18 13" aria-hidden="true"><rect width="18" height="13" fill="#fff"/><rect width="18" height="4.33" fill="#74ACDF"/><rect y="8.67" width="18" height="4.33" fill="#74ACDF"/><circle cx="9" cy="6.5" r="1.35" fill="#F6B40E"/></svg></span><span>ES</span>
+        </button>
+        <button data-l="en" aria-label="English">
+          <span class="flag"><svg viewBox="0 0 18 13" aria-hidden="true"><rect width="18" height="13" fill="#fff"/><rect y="0" width="18" height="1" fill="#B22234"/><rect y="2" width="18" height="1" fill="#B22234"/><rect y="4" width="18" height="1" fill="#B22234"/><rect y="6" width="18" height="1" fill="#B22234"/><rect y="8" width="18" height="1" fill="#B22234"/><rect y="10" width="18" height="1" fill="#B22234"/><rect y="12" width="18" height="1" fill="#B22234"/><rect width="8" height="7" fill="#3C3B6E"/><g fill="#fff"><circle cx="1.8" cy="1.6" r=".5"/><circle cx="4" cy="1.6" r=".5"/><circle cx="6.2" cy="1.6" r=".5"/><circle cx="2.9" cy="3.5" r=".5"/><circle cx="5.1" cy="3.5" r=".5"/><circle cx="1.8" cy="5.4" r=".5"/><circle cx="4" cy="5.4" r=".5"/><circle cx="6.2" cy="5.4" r=".5"/></g></svg></span><span>EN</span>
+        </button>
+        <button data-l="pt" aria-label="Português">
+          <span class="flag"><svg viewBox="0 0 18 13" aria-hidden="true"><rect width="18" height="13" fill="#009B3A"/><polygon points="9,1.6 16.6,6.5 9,11.4 1.4,6.5" fill="#FEDF00"/><circle cx="9" cy="6.5" r="2.5" fill="#002776"/></svg></span><span>PT</span>
+        </button>
+      </div>
+      <a class="nav-cta" id="navCta" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c0 1.1-.4 2.1-1.2 3-.9.9-1.9 1.4-3 1.3-.1-1.1.4-2.2 1.2-3 .8-.9 2-1.4 3-1.3zM20 17.2c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-3.9-1-2 0-2.4 1-3.9 1-1.7 0-3-1.7-4-3.1C-.3 16.3-.6 11 1.7 8.2 2.9 6.8 4.6 5.9 6.4 5.9c1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.3 2.3-3.8 2-3.2 7.5.9 9z"/></svg>
+        <span data-i="nav_cta">Descargar</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="hero-chip reveal"><span class="dot"></span><span data-i="hero_chip">Disponible en App Store · Android en beta</span></span>
+      <h1 class="reveal" style="--d:.05s">
+        <span data-i="hero_h1a">Tu plata más clara,</span><br/>
+        <span class="em" data-i="hero_h1b">tu casa más tranquila.</span>
+      </h1>
+      <p class="sub reveal" style="--d:.12s" data-i="hero_sub">Presupuesto familiar, metas, deudas y multi-moneda en una sola app — con un asistente IA que entiende tus números. Probala 7 días con todo Premium.</p>
+      <div class="hero-cta reveal" style="--d:.18s">
+        <a class="btn btn-store" id="iosBtn" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c0 1.1-.4 2.1-1.2 3-.9.9-1.9 1.4-3 1.3-.1-1.1.4-2.2 1.2-3 .8-.9 2-1.4 3-1.3zM20 17.2c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-3.9-1-2 0-2.4 1-3.9 1-1.7 0-3-1.7-4-3.1C-.3 16.3-.6 11 1.7 8.2 2.9 6.8 4.6 5.9 6.4 5.9c1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.3 2.3-3.8 2-3.2 7.5.9 9z"/></svg>
+          <span><small data-i="ios_small">Descargá en la</small><b>App Store</b></span>
+        </a>
+        <a class="btn btn-ghost" href="#waitlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 6l-10 7L2 6" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+          <span><b data-i="cta_secondary">Sumate a la lista</b></span>
+        </a>
+      </div>
+      <p class="android-note reveal" style="--d:.24s"><b>🤖</b> <span data-i="android_note">Android está en beta — sumate a la lista y te avisamos el día del lanzamiento.</span></p>
+      <div class="trust-chips reveal" style="--d:.3s">
+        <span class="tchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span data-i="tc1">Privacidad primero</span></span>
+        <span class="tchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg><span data-i="tc2">Multi-moneda</span></span>
+        <span class="tchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 10-8 0M2 20a7 7 0 0120 0"/><circle cx="12" cy="7" r="0.5"/></svg><span data-i="tc3">Para todo el hogar</span></span>
+        <span class="tchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span data-i="tc4">Con IA</span></span>
+      </div>
+    </div>
+
+    <div class="hero-visual reveal-r" style="--d:.1s">
+      <div class="phone-stage" id="phoneStage">
+        <div class="phone-glow"></div>
+        <div class="phone"><img src="assets/screens/01-home.png" alt="Home Finance — dashboard del hogar"/></div>
+        <div class="fchip c1" data-depth="20"><div class="lbl" data-i="fchip_bal">Disponible del mes</div><div class="val">$ 952.000</div></div>
+        <div class="fchip c2" data-depth="34"><div class="row"><div class="badge">80</div><div><div class="lbl" data-i="fchip_health">Salud financiera</div><div style="font-size:13px;font-weight:700;color:var(--champagne)" data-i="fchip_exc">Excelente</div></div></div></div>
+        <div class="fchip c3" data-depth="26"><div class="row"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><span style="font-size:12.5px;font-weight:700" data-i="fchip_enc">Cifrado</span></div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ TRUST BAND ============ -->
+<section style="padding:0">
+  <div class="wrap">
+    <div class="band reveal">
+      <div class="stat"><div class="num"><span data-count="1">1</span></div><div class="cap" data-i="st1">app para todo el hogar</div></div>
+      <div class="stat"><div class="num"><span data-count="3">3</span></div><div class="cap" data-i="st2">idiomas · ES / EN / PT</div></div>
+      <div class="stat"><div class="num"><span data-count="100">100</span><span>%</span></div><div class="cap" data-i="st3">privada y cifrada</div></div>
+      <div class="stat"><div class="num"><span data-count="7">7</span></div><div class="cap" data-i="st4">días de Premium gratis</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow center" data-i="how_eyebrow">En 3 pasos</span>
+      <h2 class="title" data-i="how_title">Empezás hoy, en minutos</h2>
+      <p class="lead" data-i="how_lead">Sin planillas, sin cursos de finanzas. Bajás la app y en un rato ya ves tu plata clara.</p>
+    </div>
+    <div class="steps">
+      <div class="line"><i id="stepsLine"></i></div>
+      <div class="step reveal" id="step-1" style="--d:0s; scroll-margin-top:90px"><div class="n">1</div><h3 data-i="step1t">Descargá la app</h3><p data-i="step1p">Bajala gratis del App Store y creá tu hogar en segundos.</p></div>
+      <div class="step reveal" id="step-2" style="--d:.12s; scroll-margin-top:90px"><div class="n">2</div><h3 data-i="step2t">Sumá a tu familia</h3><p data-i="step2p">Invitá a tu pareja o familia. Cada uno carga lo suyo, todos ven el mismo saldo.</p></div>
+      <div class="step reveal" id="step-3" style="--d:.24s; scroll-margin-top:90px"><div class="n">3</div><h3 data-i="step3t">Mirá tu disponible</h3><p data-i="step3p">Cargá gastos o sacale foto a un recibo. La IA ordena, vos decidís.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ALTERNATING FEATURES ============ -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow center" data-i="feat_eyebrow">Por dentro</span>
+      <h2 class="title" data-i="feat_main_title">Todo lo que tu hogar necesita,<br/>en un solo lugar</h2>
+    </div>
+
+    <!-- F1 home -->
+    <div class="feature" id="f-home" style="scroll-margin-top:90px">
+      <div class="f-text reveal-l">
+        <span class="eyebrow" data-i="s1_eyebrow">Visión del hogar</span>
+        <h3 data-i="s1_title">Todo tu hogar, en un solo número</h3>
+        <p data-i="s1_desc">El disponible del mes, ingresos, gastos y tu salud financiera de un vistazo. Sin planillas, sin vueltas.</p>
+        <ul class="f-list">
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s1_b1">Saldo disponible real del mes</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s1_b2">Top gastos, ordenados solos</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s1_b3">Salud financiera de 0 a 100</span></li>
+        </ul>
+      </div>
+      <div class="f-visual reveal-r" data-parallax="0.04">
+        <div class="poster"><div class="poster-glow"></div><img data-screen="01-home" src="assets/screens/es/01-home.jpg" loading="lazy" alt="Home Finance — visión del hogar"/></div>
+      </div>
+    </div>
+
+    <!-- F2 ai (flip) -->
+    <div class="feature flip" id="f-ai" style="scroll-margin-top:90px">
+      <div class="f-text reveal-r">
+        <span class="eyebrow" data-i="s2_eyebrow">Asistente IA</span>
+        <h3 data-i="s2_title">Preguntale a la IA, en tu idioma</h3>
+        <p data-i="s2_desc">"¿En qué gasté de más?" Sacale foto a un recibo o dictá. Te explica, no te complica. Cifrado y privado.</p>
+        <ul class="f-list">
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s2_b1">Lee fotos de recibos</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s2_b2">Dictado de voz</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s2_b3">Proyecciones a fin de mes</span></li>
+        </ul>
+      </div>
+      <div class="f-visual reveal-l" data-parallax="0.04">
+        <div class="poster"><div class="poster-glow"></div><img data-screen="02-ai" src="assets/screens/es/02-ai.jpg" loading="lazy" alt="Home Finance — asistente IA"/></div>
+      </div>
+    </div>
+
+    <!-- F3 budget -->
+    <div class="feature" id="f-budget" style="scroll-margin-top:90px">
+      <div class="f-text reveal-l">
+        <span class="eyebrow" data-i="s3_eyebrow">Presupuesto</span>
+        <h3 data-i="s3_title">Cada peso en su lugar</h3>
+        <p data-i="s3_desc">Presupuesto por sobres, ya armado. Asigná, seguí y mantené tu disponible real bajo control todo el mes.</p>
+        <ul class="f-list">
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s3_b1">Método por sobres</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s3_b2">Cascada detallada del mes</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s3_b3">Ahorro e inversión integrados</span></li>
+        </ul>
+      </div>
+      <div class="f-visual reveal-r" data-parallax="0.04">
+        <div class="poster"><div class="poster-glow"></div><img data-screen="03-budget" src="assets/screens/es/03-budget.jpg" loading="lazy" alt="Home Finance — presupuesto"/></div>
+      </div>
+    </div>
+
+    <!-- F4 goals (flip) -->
+    <div class="feature flip" id="f-goals" style="scroll-margin-top:90px">
+      <div class="f-text reveal-r">
+        <span class="eyebrow" data-i="s4_eyebrow">Metas</span>
+        <h3 data-i="s4_title">Metas con fecha, ahorro con plan</h3>
+        <p data-i="s4_desc">Definí cuánto destinar cada mes a ahorro e inversión, con porcentajes flexibles y un plan visual claro.</p>
+        <ul class="f-list">
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s4_b1">Plan visual por etapas</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s4_b2">Porcentajes flexibles</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="s4_b3">Inversión incluida</span></li>
+        </ul>
+      </div>
+      <div class="f-visual reveal-l" data-parallax="0.04">
+        <div class="poster"><div class="poster-glow"></div><img data-screen="05-goals" src="assets/screens/es/05-goals.jpg" loading="lazy" alt="Home Finance — metas"/></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BENEFITS IN MOTION (6 videos) ============ -->
+<section id="motion">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow center" data-i="vid_eyebrow">Videos explicativos</span>
+      <h2 class="title" data-i="vid_title">Cada beneficio, en acción</h2>
+      <p class="lead" data-i="vid_lead">Seis videos de 10 segundos: mirá por qué Home Finance es distinta, sin leer un manual.</p>
+    </div>
+    <div class="vid-rail-wrap reveal">
+      <button class="rail-arrow prev" id="railPrev" aria-label="Anterior">&lsaquo;</button>
+      <div class="vid-rail" id="vidRail">
+
+        <div class="vid-card" id="vid-b1" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b1"></video>
+              <img class="vposter" data-screen="01-home" src="assets/screens/es/01-home.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b1t">Decisiones más claras</h3><p data-i="b1p">Tu salud financiera del hogar en un solo número.</p></div>
+        </div>
+
+        <div class="vid-card" id="vid-b2" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b2"></video>
+              <img class="vposter" data-screen="02-ai" src="assets/screens/es/02-ai.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b2t">Preguntale a la IA</h3><p data-i="b2p">Entendé tus gastos sin planillas, en tu idioma.</p></div>
+        </div>
+
+        <div class="vid-card" id="vid-b3" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b3"></video>
+              <img class="vposter" data-screen="01-home" src="assets/screens/es/01-home.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b3t">Cada gasto, claro</h3><p data-i="b3p">Movimientos ordenados, con insights automáticos.</p></div>
+        </div>
+
+        <div class="vid-card" id="vid-b4" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b4"></video>
+              <img class="vposter" data-screen="03-budget" src="assets/screens/es/03-budget.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b4t">Cada peso en su lugar</h3><p data-i="b4p">Presupuesto por categoría, fácil de seguir.</p></div>
+        </div>
+
+        <div class="vid-card" id="vid-b5" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b5"></video>
+              <img class="vposter" data-screen="05-goals" src="assets/screens/es/05-goals.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b5t">Ahorro e inversión</h3><p data-i="b5p">Plan de presupuesto con porcentajes flexibles.</p></div>
+        </div>
+
+        <div class="vid-card" id="vid-b6" style="scroll-margin-top:96px">
+          <div class="video-phone">
+            <span class="vp-glow"></span>
+            <div class="video-screen">
+              <video muted loop playsinline preload="none" data-clip="b6"></video>
+              <img class="vposter" data-screen="03-budget" src="assets/screens/es/03-budget.jpg" alt=""/>
+              <div class="vglow"></div>
+              <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+              <div class="video-note" data-i="vid_note">▶ Subí tu video</div>
+            </div>
+          </div>
+          <div class="vid-cap"><h3 data-i="b6t">Nunca olvides un pago</h3><p data-i="b6p">Vencimientos, cuotas y deudas bajo control.</p></div>
+        </div>
+
+      </div>
+      <button class="rail-arrow next" id="railNext" aria-label="Siguiente">&rsaquo;</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARE ============ -->
+<section id="compare">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow center" data-i="cmp_eyebrow">Comparación honesta</span>
+      <h2 class="title" data-i="cmp_title">Home Finance vs. las demás</h2>
+      <p class="lead" data-i="cmp_lead">Datos públicos a mayo 2026. Comparamos lo que se puede verificar: precio y funciones.</p>
+    </div>
+    <div class="compare reveal">
+      <table>
+        <thead><tr>
+          <th data-i="cmp_c0">&nbsp;</th>
+          <th class="us">Home Finance</th>
+          <th>YNAB</th><th>Monarch</th><th>Honeydue</th>
+        </tr></thead>
+        <tbody id="cmpBody">
+          <tr><td data-i="cmp_r3">Todo el hogar (no solo pareja)</td><td class="us">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no" data-i="cmp_couples">Solo pareja</td></tr>
+          <tr><td data-i="cmp_r4">Asistente IA</td><td class="us">✓</td><td class="no">✗</td><td class="yes">✓</td><td class="no">✗</td></tr>
+          <tr><td data-i="cmp_r5">Multi-moneda</td><td class="us">✓</td><td class="no" data-i="cmp_partial1">Parcial</td><td class="yes">✓</td><td class="no" data-i="cmp_partial2">Parcial</td></tr>
+          <tr><td data-i="cmp_r6">Pensada para LatAm</td><td class="us">✓</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow center" data-i="price_eyebrow">Premium</span>
+      <h2 class="title" data-i="price_title">Probá todo Premium, 7 días.</h2>
+      <p class="lead" data-i="price_lead">Descargala y usá la app completa una semana. Después decidís dentro de la app, sin apuro.</p>
+    </div>
+    <div class="plans">
+      <div class="plan reveal-l">
+        <div class="pname" data-i="plan_free_name">Los primeros 7 días</div>
+        <div class="price">7 <small data-i="plan_free_unit">días</small></div>
+        <div class="psub" data-i="plan_free_sub">Todo Premium desbloqueado, sin compromiso.</div>
+        <ul>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_free_1">Asistente IA ilimitado</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_free_2">Reportes y proyecciones</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_free_3">Todo para el hogar</span></li>
+        </ul>
+        <a class="btn btn-accent" id="iosBtn2" href="#" target="_blank" rel="noopener"><span><b data-i="plan_free_cta">Descargar y probar</b></span></a>
+      </div>
+      <div class="plan pro reveal-r">
+        <div class="ptag" data-i="plan_badge">Después</div>
+        <div class="pname" data-i="plan_pro_name">Vos elegís</div>
+        <div class="price" style="font-size:30px"><span data-i="plan_pro_word">A tu ritmo</span></div>
+        <div class="psub" data-i="plan_pro_sub">Elegís tu plan dentro de la app. Cancelás cuando quieras.</div>
+        <ul>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_pro_1">Mensual o anual</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_pro_2">Gestionado por App Store</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_pro_3">Cambiás o cancelás cuando quieras</span></li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span data-i="plan_pro_4">Sin sorpresas ni cobros ocultos</span></li>
+        </ul>
+        <a class="btn btn-ghost" href="#waitlist"><span><b data-i="plan_pro_cta">Sumate a la lista de Android</b></span></a>
+      </div>
+    </div>
+    <p class="price-note" data-i="price_note">La prueba y la suscripción se gestionan desde el App Store.</p>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA + WAITLIST ============ -->
+<section>
+  <div class="wrap">
+    <div class="endcta reveal">
+      <span class="eyebrow center" data-i="end_eyebrow">Tu casa más tranquila empieza hoy</span>
+      <h2 class="title" data-i="end_title">Tu plata más clara,<br/>en una sola app</h2>
+      <p class="lead" style="margin-left:auto;margin-right:auto" data-i="end_lead">Descargala gratis y sumá a tu hogar en minutos. iOS disponible · Android muy pronto.</p>
+      <div class="hero-cta">
+        <a class="btn btn-store" id="iosBtn3" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c0 1.1-.4 2.1-1.2 3-.9.9-1.9 1.4-3 1.3-.1-1.1.4-2.2 1.2-3 .8-.9 2-1.4 3-1.3zM20 17.2c-.5 1.2-.8 1.7-1.4 2.7-1 1.5-2.3 3.3-4 3.3-1.5 0-1.9-1-3.9-1-2 0-2.4 1-3.9 1-1.7 0-3-1.7-4-3.1C-.3 16.3-.6 11 1.7 8.2 2.9 6.8 4.6 5.9 6.4 5.9c1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.3 2.3-3.8 2-3.2 7.5.9 9z"/></svg>
+          <span><small data-i="ios_small2">Descargá en la</small><b>App Store</b></span>
+        </a>
+        <a class="btn btn-ghost" href="#waitlist"><span><b data-i="end_cta2">Lista de Android</b></span></a>
+      </div>
+    </div>
+
+    <!-- waitlist -->
+    <div class="wait reveal" id="waitlist">
+      <span class="eyebrow center" data-i="cta_eyebrow">Lista de lanzamiento</span>
+      <h2 class="title" style="font-size:clamp(26px,3.4vw,38px)" data-i="cta_title">Enterate primero (y sumate a la beta de Android)</h2>
+      <p class="lead" data-i="cta_lead">Dejanos tu email: te avisamos cuando Android salga y te mandamos tips de finanzas del hogar. Sin spam.</p>
+      <form class="email" id="emailForm" onsubmit="return submitEmail(event)">
+        <input type="email" id="emailInput" required placeholder="tu@email.com" data-i-ph="email_ph"/>
+        <button type="submit" data-i="email_btn">Avisame</button>
+      </form>
+      <div id="formMsg"></div>
+      <p class="form-note" data-i="email_note">Al enviar aceptás recibir novedades de Home Finance. Podés darte de baja cuando quieras.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a href="#top" class="brand"><img src="assets/icon.png" alt="Home Finance"/> Home Finance</a>
+        <p data-i="ft_blurb">Finanzas del hogar, claras. Presupuesto familiar con IA, multi-moneda y privacidad — para toda la familia.</p>
+      </div>
+      <div class="foot-links">
+        <a href="https://metacasa-app-cf592.web.app/privacy.html" data-i="ft_priv">Privacidad</a>
+        <a href="https://metacasa-app-cf592.web.app/terms.html" data-i="ft_terms">Términos</a>
+        <a href="mailto:soporte@metacasa.app" data-i="ft_support">Soporte</a>
+        <a href="#pricing" data-i="nav_pricing">Premium</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Home Finance</span>
+      <span class="em" data-i="ft_tag">Tu plata más clara, tu casa más tranquila.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ===================== CONFIG ===================== */
+var IOS_URL = "https://apps.apple.com/app/id6769792040";
+var SUPABASE_URL = "https://rgslvrxdppphzvqgcwbx.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_Z7D-ijzkurR2BXCsTmfCsQ_YGRa1SbZ";
+/* ↓↓↓ PONÉ ACÁ EL PRECIO DE PREMIUM (por idioma). Dejá "" para mostrar "$ —". ↓↓↓ */
+var PREMIUM_PRICE = { es:"", en:"", pt:"" };
+
+["iosBtn","iosBtn2","iosBtn3","navCta"].forEach(function(id){ var e=document.getElementById(id); if(e) e.href=IOS_URL; });
+
+/* ===================== i18n ===================== */
+var I18N = {
+ es:{
+  nav_features:"Características", nav_how:"Cómo funciona", nav_motion:"Videos explicativos", nav_compare:"Comparación", nav_pricing:"Premium", nav_cta:"Descargar",
+  banner_items:["<b>Ya disponible en el App Store</b>","Android en beta — sumate a la lista","Privacidad primero, siempre","Multi-moneda real","7 días de Premium para probar","Para todo el hogar 👨‍👩‍👧"],
+  hero_chip:"Disponible en App Store · Android en beta",
+  hero_h1a:"Tu plata más clara,", hero_h1b:"tu casa más tranquila.",
+  hero_sub:"Presupuesto familiar, metas, deudas y multi-moneda en una sola app — con un asistente IA que entiende tus números. Probala 7 días con todo Premium.",
+  ios_small:"Descargá en la", ios_small2:"Descargá en la", cta_secondary:"Sumate a la lista",
+  android_note:"Android está en beta — sumate a la lista y te avisamos el día del lanzamiento.",
+  tc1:"Privacidad primero", tc2:"Multi-moneda", tc3:"Para todo el hogar", tc4:"Con IA",
+  fchip_bal:"Disponible del mes", fchip_health:"Salud financiera", fchip_exc:"Excelente", fchip_enc:"Cifrado",
+  st1:"app para todo el hogar", st2:"idiomas · ES / EN / PT", st3:"privada y cifrada", st4:"días de Premium para probar",
+  how_eyebrow:"En 3 pasos", how_title:"Empezás hoy, en minutos",
+  how_lead:"Sin planillas, sin cursos de finanzas. Bajás la app y en un rato ya ves tu plata clara.",
+  step1t:"Descargá la app", step1p:"Descargala del App Store y creá tu hogar en segundos.",
+  step2t:"Sumá a tu familia", step2p:"Invitá a tu pareja o familia. Cada uno carga lo suyo, todos ven el mismo saldo.",
+  step3t:"Mirá tu disponible", step3p:"Cargá gastos o sacale foto a un recibo. La IA ordena, vos decidís.",
+  feat_eyebrow:"Por dentro", feat_main_title:"Todo lo que tu hogar necesita,<br>en un solo lugar",
+  s1_eyebrow:"Visión del hogar", s1_title:"Todo tu hogar, en un solo número",
+  s1_desc:"El disponible del mes, ingresos, gastos y tu salud financiera de un vistazo. Sin planillas, sin vueltas.",
+  s1_b1:"Saldo disponible real del mes", s1_b2:"Top gastos, ordenados solos", s1_b3:"Salud financiera de 0 a 100",
+  s2_eyebrow:"Asistente IA", s2_title:"Preguntale a la IA, en tu idioma",
+  s2_desc:"\"¿En qué gasté de más?\" Sacale foto a un recibo o dictá. Te explica, no te complica. Cifrado y privado.",
+  s2_b1:"Lee fotos de recibos", s2_b2:"Dictado de voz", s2_b3:"Proyecciones a fin de mes",
+  s3_eyebrow:"Presupuesto", s3_title:"Cada peso en su lugar",
+  s3_desc:"Presupuesto por sobres, ya armado. Asigná, seguí y mantené tu disponible real bajo control todo el mes.",
+  s3_b1:"Método por sobres", s3_b2:"Cascada detallada del mes", s3_b3:"Ahorro e inversión integrados",
+  s4_eyebrow:"Metas", s4_title:"Metas con fecha, ahorro con plan",
+  s4_desc:"Definí cuánto destinar cada mes a ahorro e inversión, con porcentajes flexibles y un plan visual claro.",
+  s4_b1:"Plan visual por etapas", s4_b2:"Porcentajes flexibles", s4_b3:"Inversión incluida",
+  ben_eyebrow:"Por qué Home Finance", ben_title:"Lo que las otras apps no juntan",
+  ben_lead:"Caras, complicadas, para una sola persona o solo para gringos. Nosotros hicimos la que faltaba.",
+  b1t:"Decisiones más claras", b1p:"Tu salud financiera del hogar en un solo número.",
+  b2t:"Preguntale a la IA", b2p:"Entendé tus gastos sin planillas, en tu idioma.",
+  b3t:"Cada gasto, claro", b3p:"Movimientos ordenados, con insights automáticos.",
+  b4t:"Cada peso en su lugar", b4p:"Presupuesto por categoría, fácil de seguir.",
+  b5t:"Ahorro e inversión", b5p:"Plan de presupuesto con porcentajes flexibles.",
+  b6t:"Nunca olvides un pago", b6p:"Vencimientos, cuotas y deudas bajo control.",
+  vid_eyebrow:"Videos explicativos", vid_title:"Cada beneficio, en acción",
+  vid_lead:"Seis videos de 10 segundos: mirá por qué Home Finance es distinta, sin leer un manual.",
+  vid_note:"▶ Subí tu video",
+  cmp_eyebrow:"Comparación honesta", cmp_title:"Home Finance vs. las demás",
+  cmp_lead:"Lo que ninguna otra app junta en un solo lugar.",
+  cmp_c0:"\u00A0", 
+  cmp_r3:"Todo el hogar (no solo pareja)", cmp_couples:"Solo pareja", cmp_r4:"Asistente IA",
+  cmp_r5:"Multi-moneda", cmp_partial1:"Parcial", cmp_partial2:"Parcial", cmp_r6:"Pensada para LatAm",
+  price_eyebrow:"Premium", price_title:"Probá todo Premium, 7 días.",
+  price_lead:"Descargala y usá la app completa una semana. Después decidís dentro de la app, sin apuro.",
+  plan_free_name:"Los primeros 7 días", plan_free_unit:"días", plan_free_sub:"Todo Premium desbloqueado, sin compromiso.", plan_free_1:"Asistente IA ilimitado", plan_free_2:"Reportes y proyecciones", plan_free_3:"Todo para el hogar", plan_free_cta:"Descargar y probar",
+  plan_badge:"Después", plan_pro_name:"Vos elegís", plan_pro_word:"A tu ritmo", plan_pro_sub:"Elegís tu plan dentro de la app. Cancelás cuando quieras.",
+  plan_pro_1:"Mensual o anual", plan_pro_2:"Gestionado por App Store", plan_pro_3:"Cambiás o cancelás cuando quieras", plan_pro_4:"Sin sorpresas ni cobros ocultos", plan_pro_cta:"Sumate a la lista de Android",
+  price_note:"La prueba y la suscripción se gestionan desde el App Store.",
+  end_eyebrow:"Tu casa más tranquila empieza hoy", end_title:"Tu plata más clara,<br>en una sola app",
+  end_lead:"Descargala y probá 7 días Premium. Sumá a tu hogar en minutos. iOS disponible · Android muy pronto.", end_cta2:"Lista de Android",
+  cta_eyebrow:"Lista de lanzamiento", cta_title:"Enterate primero (y sumate a la beta de Android)",
+  cta_lead:"Dejanos tu email: te avisamos cuando Android salga y te mandamos tips de finanzas del hogar. Sin spam.",
+  email_ph:"tu@email.com", email_btn:"Avisame",
+  email_note:"Al enviar aceptás recibir novedades de Home Finance. Podés darte de baja cuando quieras.",
+  ft_blurb:"Finanzas del hogar, claras. Presupuesto familiar con IA, multi-moneda y privacidad — para toda la familia.",
+  ft_priv:"Privacidad", ft_terms:"Términos", ft_support:"Soporte", ft_tag:"Tu plata más clara, tu casa más tranquila.",
+  msg_ok:"¡Listo! Te avisamos. 🎉", msg_bad:"Poné un email válido.", msg_mail:"Abrimos tu mail para confirmar 📬", msg_dup:"Ya estabas en la lista 🙌"
+ },
+ en:{
+  nav_features:"Features", nav_how:"How it works", nav_motion:"Explainer videos", nav_compare:"Compare", nav_pricing:"Premium", nav_cta:"Get the app",
+  banner_items:["<b>Now on the App Store</b>","Android in beta — join the list","Privacy first, always","Real multi-currency","7 days of Premium to try","For the whole home 👨‍👩‍👧"],
+  hero_chip:"On the App Store · Android in beta",
+  hero_h1a:"Calmer money,", hero_h1b:"calmer home.",
+  hero_sub:"Family budgeting, goals, debts and multi-currency in one app — with an AI assistant that gets your numbers. Try it 7 days with full Premium.",
+  ios_small:"Download on the", ios_small2:"Download on the", cta_secondary:"Join the list",
+  android_note:"Android is in beta — join the list and we'll tell you the day it launches.",
+  tc1:"Privacy first", tc2:"Multi-currency", tc3:"For the whole home", tc4:"AI-powered",
+  fchip_bal:"Available this month", fchip_health:"Financial health", fchip_exc:"Excellent", fchip_enc:"Encrypted",
+  st1:"app for the whole home", st2:"languages · ES / EN / PT", st3:"private & encrypted", st4:"days of Premium to try",
+  how_eyebrow:"In 3 steps", how_title:"Start today, in minutes",
+  how_lead:"No spreadsheets, no finance courses. Download the app and your money is clear in minutes.",
+  step1t:"Download the app", step1p:"Get it free on the App Store and create your home in seconds.",
+  step2t:"Add your family", step2p:"Invite your partner or family. Everyone logs their own, everyone sees the same balance.",
+  step3t:"See your available", step3p:"Log expenses or snap a receipt. The AI sorts it, you decide.",
+  feat_eyebrow:"Inside", feat_main_title:"Everything your home needs,<br>in one place",
+  s1_eyebrow:"Home overview", s1_title:"Your whole home, in one number",
+  s1_desc:"This month's available, income, spending and your financial health at a glance. No spreadsheets, no fuss.",
+  s1_b1:"Real available balance", s1_b2:"Top expenses, auto-sorted", s1_b3:"Financial health 0 to 100",
+  s2_eyebrow:"AI assistant", s2_title:"Ask the AI, in your language",
+  s2_desc:"\"Where did I overspend?\" Snap a receipt or dictate. It explains, it doesn't complicate. Encrypted and private.",
+  s2_b1:"Reads receipt photos", s2_b2:"Voice dictation", s2_b3:"End-of-month projections",
+  s3_eyebrow:"Budget", s3_title:"Every dollar in its place",
+  s3_desc:"Envelope budgeting, ready to go. Assign, track and keep your real available under control all month.",
+  s3_b1:"Envelope method", s3_b2:"Detailed monthly cascade", s3_b3:"Saving & investing built in",
+  s4_eyebrow:"Goals", s4_title:"Goals with a date, saving with a plan",
+  s4_desc:"Set how much to put toward saving and investing each month, with flexible percentages and a clear visual plan.",
+  s4_b1:"Visual plan by stage", s4_b2:"Flexible percentages", s4_b3:"Investing included",
+  ben_eyebrow:"Why Home Finance", ben_title:"What the other apps don't combine",
+  ben_lead:"Expensive, complicated, single-person, or US-only. We built the one that was missing.",
+  b1t:"Smarter decisions", b1p:"Your household's financial health in one simple score.",
+  b2t:"Ask the AI", b2p:"Understand your spending — no spreadsheets, in your language.",
+  b3t:"Every expense, clear", b3p:"Tidy transactions with automatic insights.",
+  b4t:"Every dollar in its place", b4p:"Category budgets, easy to follow.",
+  b5t:"Saving & investing", b5p:"A budget plan with flexible percentages.",
+  b6t:"Never miss a payment", b6p:"Due dates, installments and debts under control.",
+  vid_eyebrow:"Explainer videos", vid_title:"Every benefit, in motion",
+  vid_lead:"Six 10-second videos: see why Home Finance is different — no manual required.",
+  vid_note:"▶ Drop your video",
+  cmp_eyebrow:"Honest comparison", cmp_title:"Home Finance vs. the rest",
+  cmp_lead:"What no other app brings together in one place.",
+  cmp_c0:"\u00A0",
+  cmp_r3:"Whole home (not just couples)", cmp_couples:"Couples only", cmp_r4:"AI assistant",
+  cmp_r5:"Multi-currency", cmp_partial1:"Partial", cmp_partial2:"Partial", cmp_r6:"Built for LatAm",
+  price_eyebrow:"Premium", price_title:"Try all of Premium, 7 days.",
+  price_lead:"Download it and use the full app for a week. Then decide inside the app, no rush.",
+  plan_free_name:"Your first 7 days", plan_free_unit:"days", plan_free_sub:"Full Premium unlocked, no commitment.", plan_free_1:"Unlimited AI assistant", plan_free_2:"Reports & projections", plan_free_3:"Everything for your home", plan_free_cta:"Download & try",
+  plan_badge:"After", plan_pro_name:"You choose", plan_pro_word:"At your pace", plan_pro_sub:"Pick your plan inside the app. Cancel anytime.",
+  plan_pro_1:"Monthly or annual", plan_pro_2:"Managed by the App Store", plan_pro_3:"Switch or cancel anytime", plan_pro_4:"No surprises, no hidden charges", plan_pro_cta:"Join the Android list",
+  price_note:"The trial and subscription are managed through the App Store.",
+  end_eyebrow:"A calmer home starts today", end_title:"Calmer money,<br>in one app",
+  end_lead:"Download it and try 7 days of Premium. Add your home in minutes. iOS available · Android coming soon.", end_cta2:"Android list",
+  cta_eyebrow:"Launch list", cta_title:"Be first (and join the Android beta)",
+  cta_lead:"Drop your email: we'll tell you when Android launches and send home-finance tips. No spam.",
+  email_ph:"you@email.com", email_btn:"Notify me",
+  email_note:"By submitting you agree to receive Home Finance updates. Unsubscribe anytime.",
+  ft_blurb:"Home finances, clear. Family budgeting with AI, multi-currency and privacy — for the whole family.",
+  ft_priv:"Privacy", ft_terms:"Terms", ft_support:"Support", ft_tag:"Calmer money, calmer home.",
+  msg_ok:"Done! We'll be in touch. 🎉", msg_bad:"Please enter a valid email.", msg_mail:"Opening your mail to confirm 📬", msg_dup:"You were already on the list 🙌"
+ },
+ pt:{
+  nav_features:"Recursos", nav_how:"Como funciona", nav_motion:"Vídeos explicativos", nav_compare:"Comparação", nav_pricing:"Premium", nav_cta:"Baixar",
+  banner_items:["<b>Já disponível na App Store</b>","Android em beta — entre na lista","Privacidade primeiro, sempre","Multi-moeda de verdade","7 dias de Premium pra testar","Pra casa toda 👨‍👩‍👧"],
+  hero_chip:"Na App Store · Android em beta",
+  hero_h1a:"Dinheiro mais claro,", hero_h1b:"lar mais tranquilo.",
+  hero_sub:"Orçamento da família, metas, dívidas e multi-moeda num app só — com uma IA que entende seus números. Teste 7 dias com tudo do Premium.",
+  ios_small:"Baixe na", ios_small2:"Baixe na", cta_secondary:"Entrar na lista",
+  android_note:"O Android está em beta — entre na lista e avisamos no dia do lançamento.",
+  tc1:"Privacidade primeiro", tc2:"Multi-moeda", tc3:"Pra casa toda", tc4:"Com IA",
+  fchip_bal:"Disponível do mês", fchip_health:"Saúde financeira", fchip_exc:"Excelente", fchip_enc:"Criptografado",
+  st1:"app pra casa toda", st2:"idiomas · ES / EN / PT", st3:"privada e criptografada", st4:"dias de Premium pra testar",
+  how_eyebrow:"Em 3 passos", how_title:"Comece hoje, em minutos",
+  how_lead:"Sem planilhas, sem cursos de finanças. Baixe o app e em minutos seu dinheiro fica claro.",
+  step1t:"Baixe o app", step1p:"Baixe grátis na App Store e crie sua casa em segundos.",
+  step2t:"Adicione a família", step2p:"Convide seu par ou família. Cada um registra o seu, todos veem o mesmo saldo.",
+  step3t:"Veja seu disponível", step3p:"Registre gastos ou fotografe um recibo. A IA organiza, você decide.",
+  feat_eyebrow:"Por dentro", feat_main_title:"Tudo que sua casa precisa,<br>num só lugar",
+  s1_eyebrow:"Visão da casa", s1_title:"Sua casa toda, num só número",
+  s1_desc:"O disponível do mês, receitas, gastos e sua saúde financeira num olhar. Sem planilhas, sem complicação.",
+  s1_b1:"Saldo disponível real do mês", s1_b2:"Top gastos, organizados sozinhos", s1_b3:"Saúde financeira de 0 a 100",
+  s2_eyebrow:"Assistente IA", s2_title:"Pergunte à IA, no seu idioma",
+  s2_desc:"\"Onde gastei demais?\" Fotografe um recibo ou dite. Ela explica, não complica. Criptografada e privada.",
+  s2_b1:"Lê fotos de recibos", s2_b2:"Ditado de voz", s2_b3:"Projeções de fim de mês",
+  s3_eyebrow:"Orçamento", s3_title:"Cada real no seu lugar",
+  s3_desc:"Orçamento por envelopes, já pronto. Atribua, acompanhe e mantenha seu disponível real sob controle o mês todo.",
+  s3_b1:"Método por envelopes", s3_b2:"Cascata detalhada do mês", s3_b3:"Poupança e investimento integrados",
+  s4_eyebrow:"Metas", s4_title:"Metas com data, poupança com plano",
+  s4_desc:"Defina quanto destinar a poupança e investimento por mês, com porcentagens flexíveis e um plano visual claro.",
+  s4_b1:"Plano visual por etapas", s4_b2:"Porcentagens flexíveis", s4_b3:"Investimento incluído",
+  ben_eyebrow:"Por que Home Finance", ben_title:"O que os outros apps não juntam",
+  ben_lead:"Caros, complicados, pra uma pessoa só ou só pra gringo. A gente fez o que faltava.",
+  b1t:"Decisões mais claras", b1p:"A saúde financeira da casa num só número.",
+  b2t:"Pergunte à IA", b2p:"Entenda seus gastos sem planilhas, no seu idioma.",
+  b3t:"Cada gasto, claro", b3p:"Transações organizadas, com insights automáticos.",
+  b4t:"Cada real no seu lugar", b4p:"Orçamento por categoria, fácil de seguir.",
+  b5t:"Poupança e investimento", b5p:"Plano de orçamento com porcentagens flexíveis.",
+  b6t:"Nunca esqueça um pagamento", b6p:"Vencimentos, parcelas e dívidas sob controle.",
+  vid_eyebrow:"Vídeos explicativos", vid_title:"Cada benefício, em ação",
+  vid_lead:"Seis vídeos de 10 segundos: veja por que o Home Finance é diferente, sem ler manual.",
+  vid_note:"▶ Coloque seu vídeo",
+  cmp_eyebrow:"Comparação honesta", cmp_title:"Home Finance vs. os outros",
+  cmp_lead:"O que nenhum outro app reúne num só lugar.",
+  cmp_c0:"\u00A0", 
+  cmp_r3:"Casa toda (não só casal)", cmp_couples:"Só casal", cmp_r4:"Assistente IA",
+  cmp_r5:"Multi-moeda", cmp_partial1:"Parcial", cmp_partial2:"Parcial", cmp_r6:"Feita pra LatAm",
+  price_eyebrow:"Premium", price_title:"Teste tudo do Premium, 7 dias.",
+  price_lead:"Baixe e use o app completo por uma semana. Depois você decide dentro do app, sem pressa.",
+  plan_free_name:"Seus primeiros 7 dias", plan_free_unit:"dias", plan_free_sub:"Todo o Premium liberado, sem compromisso.", plan_free_1:"Assistente IA ilimitado", plan_free_2:"Relatórios e projeções", plan_free_3:"Tudo pra sua casa", plan_free_cta:"Baixar e testar",
+  plan_badge:"Depois", plan_pro_name:"Você escolhe", plan_pro_word:"No seu ritmo", plan_pro_sub:"Escolha seu plano dentro do app. Cancele quando quiser.",
+  plan_pro_1:"Mensal ou anual", plan_pro_2:"Gerenciado pela App Store", plan_pro_3:"Troca ou cancela quando quiser", plan_pro_4:"Sem surpresas nem cobranças ocultas", plan_pro_cta:"Entrar na lista do Android",
+  price_note:"O teste e a assinatura são gerenciados pela App Store.",
+  end_eyebrow:"Um lar mais tranquilo começa hoje", end_title:"Dinheiro mais claro,<br>num app só",
+  end_lead:"Baixe e teste 7 dias de Premium. Adicione sua casa em minutos. iOS disponível · Android em breve.", end_cta2:"Lista do Android",
+  cta_eyebrow:"Lista de lançamento", cta_title:"Saiba primeiro (e entre no beta de Android)",
+  cta_lead:"Deixe seu email: avisamos quando o Android sair e mandamos dicas de finanças da casa. Sem spam.",
+  email_ph:"voce@email.com", email_btn:"Avise-me",
+  email_note:"Ao enviar você aceita receber novidades do Home Finance. Cancele quando quiser.",
+  ft_blurb:"Finanças da casa, claras. Orçamento familiar com IA, multi-moeda e privacidade — pra família toda.",
+  ft_priv:"Privacidade", ft_terms:"Termos", ft_support:"Suporte", ft_tag:"Dinheiro mais claro, lar mais tranquilo.",
+  msg_ok:"Pronto! A gente avisa. 🎉", msg_bad:"Coloque um email válido.", msg_mail:"Abrindo seu email pra confirmar 📬", msg_dup:"Você já estava na lista 🙌"
+ }
+};
+
+var curLang="es";
+function setLang(l){
+  curLang=l; document.documentElement.lang=l;
+  var d=I18N[l];
+  document.querySelectorAll('[data-i]').forEach(function(el){
+    var k=el.getAttribute('data-i'); if(d[k]!=null) el.innerHTML=d[k];
+  });
+  document.querySelectorAll('[data-i-ph]').forEach(function(el){
+    var k=el.getAttribute('data-i-ph'); if(d[k]!=null) el.setAttribute('placeholder',d[k]);
+  });
+  document.querySelectorAll('[data-screen]').forEach(function(img){
+    img.src='assets/screens/'+l+'/'+img.getAttribute('data-screen')+'.jpg';
+  });
+  document.querySelectorAll('#lang button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-l')===l); });
+  buildMarquee(l);
+  refreshRailLang(l);
+}
+
+/* moving banner marquee (duplicated track for a seamless loop) */
+function buildMarquee(l){
+  var track=document.getElementById('marquee'); if(!track) return;
+  var items=(I18N[l] && I18N[l].banner_items) || [];
+  var html=items.map(function(t){ return '<span class="mi"><span class="dotx"></span>'+t+'</span>'; }).join('');
+  track.innerHTML=html+html;
+}
+
+/* language-aware 6-video rail: assets/videos/<clip>-<lang>.mp4 (b1..b6), lazy + play-in-view, graceful fallback */
+function loadCardVideo(v){
+  var clip=v.getAttribute('data-clip'); if(!clip) return;
+  var phone=v.closest('.video-phone');
+  var poster=phone?phone.querySelector('.vposter'):null, play=phone?phone.querySelector('.play'):null, note=phone?phone.querySelector('.video-note'):null;
+  function placeholder(on){ v.style.display=on?'none':''; if(poster)poster.style.display=on?'':'none'; if(play)play.style.display=on?'':'none'; if(note)note.style.display=on?'':'none'; }
+  placeholder(true);
+  v.muted=true;
+  v.onloadeddata=function(){ placeholder(false); v.play().catch(function(){}); if(window.__hfRailSync)window.__hfRailSync(); };
+  v.onerror=function(){ placeholder(true); if(window.__hfRailSync)window.__hfRailSync(); };
+  v.src='assets/videos/'+clip+'-'+curLang+'.mp4?v=2';
+  v.dataset.loaded='1'; v.dataset.lang=curLang;
+  v.load();
+}
+function refreshRailLang(l){
+  var vids=[].slice.call(document.querySelectorAll('.vid-rail video'));
+  vids.forEach(function(v){
+    if(v.dataset.loaded==='1'){
+      var r=v.getBoundingClientRect();
+      var inView = r.bottom>0 && r.top < (window.innerHeight||0);
+      if(inView){ loadCardVideo(v); }
+      else { v.dataset.loaded=''; try{v.pause();}catch(e){} v.removeAttribute('src'); v.load(); v.style.display='none'; var ph=v.closest('.video-phone'); if(ph){ var po=ph.querySelector('.vposter'),pl=ph.querySelector('.play'),no=ph.querySelector('.video-note'); if(po)po.style.display=''; if(pl)pl.style.display=''; if(no)no.style.display=''; } }
+    }
+  });
+}
+document.querySelectorAll('#lang button').forEach(function(b){
+  b.addEventListener('click',function(){ setLang(b.getAttribute('data-l')); });
+});
+(function(){ var n=(navigator.language||'es').slice(0,2); setLang(I18N[n]?n:'es'); })();
+
+/* mobile hamburger menu */
+(function(){
+  var navEl=document.getElementById('nav'), mb=document.getElementById('menuBtn');
+  if(!navEl||!mb) return;
+  var groups=[].slice.call(navEl.querySelectorAll('.nav-group'));
+  function setOpen(open){
+    navEl.classList.toggle('menu-open', open);
+    mb.setAttribute('aria-expanded', open?'true':'false');
+    if(!open) groups.forEach(function(g){ g.classList.remove('sub-open'); });
+  }
+  mb.addEventListener('click', function(){ setOpen(!navEl.classList.contains('menu-open')); });
+  // MÓVIL: tocar el TEMA despliega/colapsa sus subtemas (acordeón, uno a la vez); no navega
+  groups.forEach(function(g){
+    var head=g.querySelector(':scope > a');
+    if(!head) return;
+    head.addEventListener('click', function(e){
+      if(window.innerWidth<=920){
+        e.preventDefault();
+        var willOpen=!g.classList.contains('sub-open');
+        groups.forEach(function(o){ o.classList.remove('sub-open'); });
+        if(willOpen) g.classList.add('sub-open');
+      }
+    });
+  });
+  // tocar un SUBtema (o idioma/CTA) cierra el menú; la navegación + highlight ocurren aparte
+  navEl.querySelectorAll('.nav-sub a, .lang button, .nav-cta').forEach(function(el){
+    el.addEventListener('click', function(){ setOpen(false); });
+  });
+  window.addEventListener('resize', function(){ if(window.innerWidth>920) setOpen(false); }, {passive:true});
+})();
+
+/* highlight the in-page block you jumped to (single-page landing) */
+(function(){
+  function flash(id){
+    var el=document.getElementById(id); if(!el) return;
+    el.classList.remove('hf-flash'); void el.offsetWidth; el.classList.add('hf-flash');
+    setTimeout(function(){ el.classList.remove('hf-flash'); }, 2600);
+  }
+  document.querySelectorAll('nav a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(){
+      var id=a.getAttribute('href').slice(1);
+      if(id && document.getElementById(id)) setTimeout(function(){ flash(id); }, 480);
+    });
+  });
+})();
+
+/* banner dismiss (persisted) + video sound toggle on click */
+(function(){
+  var tb=document.getElementById('topbar'), bc=document.getElementById('bclose');
+  function closeBanner(){ if(tb) tb.classList.add('is-hidden'); document.body.style.setProperty('--bar','0px'); var nv=document.getElementById('nav'); if(nv) nv.style.top='0'; try{localStorage.setItem('hfBannerClosed','1');}catch(e){} }
+  if(tb && localStorage.getItem('hfBannerClosed')==='1'){ closeBanner(); }
+  if(bc) bc.addEventListener('click', closeBanner);
+
+  /* 6-video rail: play when in view, pause when out, lazy-load per language; click a card to toggle sound */
+  var rail=document.getElementById('vidRail');
+  var railVideos=[].slice.call(document.querySelectorAll('.vid-rail video'));
+  var vidIO=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      var v=e.target;
+      if(e.isIntersecting){
+        if(v.dataset.loaded!=='1' || v.dataset.lang!==curLang){ loadCardVideo(v); }
+        else { v.play().catch(function(){}); }
+      } else { try{v.pause();}catch(_){} v.muted=true; }  // leaving view kills its audio
+    });
+    syncSoundBtns();
+  },{root:rail, threshold:.5});
+
+  // One-at-a-time audio: turning sound on for a card mutes every other card.
+  function syncSoundBtns(){
+    railVideos.forEach(function(v){
+      var sc=v.closest('.video-screen'); if(!sc) return;
+      var b=sc.querySelector('.vsound'); if(!b) return;
+      var live = v.style.display!=='none';
+      var sounding = live && !v.muted;
+      b.style.display = live ? '' : 'none';
+      b.classList.toggle('on', sounding);
+      b.setAttribute('aria-label', (v.muted ? (I18N[curLang].snd_on||'Sound on') : (I18N[curLang].snd_off||'Mute')));
+      var card=v.closest('.vid-card'); if(card) card.classList.toggle('sounding', sounding);  // grow + lift the active one
+    });
+  }
+  window.__hfRailSync = syncSoundBtns;
+  function toggleSound(v){
+    if(v.style.display==='none') return;            // not loaded / failed → ignore
+    if(v.muted){
+      railVideos.forEach(function(o){ if(o!==v){ o.muted=true; } });  // solo this one
+      v.muted=false;
+      try{ v.currentTime=0; }catch(_){}   // restart from the beginning so the voice-over isn't mid-sentence
+      v.play().catch(function(){});
+    } else { v.muted=true; }
+    syncSoundBtns();
+  }
+  railVideos.forEach(function(v){
+    vidIO.observe(v);
+    var sc=v.closest('.video-screen');
+    if(sc){
+      var b=document.createElement('button');
+      b.className='vsound'; b.type='button'; b.style.display='none';
+      b.innerHTML='<svg class="ic-off" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M22 9l-6 6M16 9l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'
+        +'<svg class="ic-on" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16 8.5a4 4 0 0 1 0 7M18.6 6a7.5 7.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+      sc.appendChild(b);
+    }
+    // Single click target = the whole card. Button above is a pure visual indicator.
+    var ph=v.closest('.video-phone');
+    if(ph){ ph.style.cursor='pointer'; ph.addEventListener('click', function(){ toggleSound(v); }); }
+  });
+
+  // Vertical-scroll guard: when the video section leaves the viewport, mute everything.
+  // (The rail observer above only reacts to HORIZONTAL scroll inside the rail.)
+  if(rail && 'IntersectionObserver' in window){
+    var viewIO=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting){
+          var changed=false;
+          railVideos.forEach(function(v){ if(!v.muted){ v.muted=true; changed=true; } });
+          if(changed) syncSoundBtns();
+        }
+      });
+    },{root:null, threshold:0});  // root:null = the page viewport
+    viewIO.observe(rail);
+  }
+  function scrollRail(dir){ if(!rail) return; var c=rail.querySelector('.vid-card'); var w=c?c.offsetWidth+30:266; rail.scrollBy({left:dir*w, behavior:'smooth'}); }
+  var rp=document.getElementById('railPrev'), rn=document.getElementById('railNext');
+  if(rp) rp.addEventListener('click', function(){ scrollRail(-1); });
+  if(rn) rn.addEventListener('click', function(){ scrollRail(1); });
+})();
+
+/* ===================== motion ===================== */
+var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* nav shrink */
+var nav=document.getElementById('nav');
+function onScrollNav(){ nav.classList.toggle('shrink', window.scrollY>24); }
+onScrollNav(); window.addEventListener('scroll', onScrollNav, {passive:true});
+
+/* reveal — robust: show above-the-fold immediately, observe the rest, failsafe everything */
+var reveals=[].slice.call(document.querySelectorAll('.reveal,.reveal-l,.reveal-r'));
+function doReveal(el){ el.classList.add('in'); }
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ doReveal(e.target); io.unobserve(e.target); } });
+},{threshold:.12, rootMargin:"0px 0px -6% 0px"});
+reveals.forEach(function(el){
+  var r=el.getBoundingClientRect();
+  if(r.top < window.innerHeight*0.95){
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ doReveal(el); }); });
+  } else { io.observe(el); }
+});
+/* absolute failsafe: nothing stays invisible */
+setTimeout(function(){ reveals.forEach(doReveal); }, 2400);
+
+/* count-up */
+function countUp(el){
+  var target=parseFloat(el.getAttribute('data-count')), dur=1100, t0=null;
+  if(reduce){ el.textContent=target; return; }
+  function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
+    var e=1-Math.pow(1-p,3); el.textContent=Math.round(target*e); if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+var ioCount=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ countUp(e.target); ioCount.unobserve(e.target); } });
+},{threshold:.6});
+document.querySelectorAll('[data-count]').forEach(function(el){ ioCount.observe(el); });
+
+/* compare rows stagger */
+var ioRows=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){
+    var rows=e.target.querySelectorAll('tr');
+    rows.forEach(function(r,i){ r.style.setProperty('--d',(i*0.08)+'s'); r.classList.add('in'); });
+    ioRows.unobserve(e.target);
+  } });
+},{threshold:.2});
+var cmpBody=document.getElementById('cmpBody'); if(cmpBody) ioRows.observe(cmpBody);
+
+/* parallax + steps line (rAF) */
+var parallaxEls=[].slice.call(document.querySelectorAll('[data-parallax]'));
+var stepsWrap=document.querySelector('.steps'); var stepsLine=document.getElementById('stepsLine');
+var ticking=false;
+function onScroll(){
+  if(ticking) return; ticking=true;
+  requestAnimationFrame(function(){
+    var vh=window.innerHeight;
+    if(!reduce){
+      parallaxEls.forEach(function(el){
+        var r=el.getBoundingClientRect(); var center=r.top+r.height/2;
+        var off=(center-vh/2)*parseFloat(el.getAttribute('data-parallax'));
+        el.style.transform='translateY('+(-off)+'px)';
+      });
+    }
+    if(stepsWrap && stepsLine){
+      var r=stepsWrap.getBoundingClientRect();
+      var p=(vh*0.85 - r.top)/(r.height+vh*0.2);
+      stepsLine.style.setProperty('--p', Math.max(0,Math.min(1,p)));
+    }
+    ticking=false;
+  });
+}
+onScroll(); window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', onScroll, {passive:true});
+
+/* hero phone tilt + floating chip depth */
+var stage=document.getElementById('phoneStage');
+var hero=document.querySelector('.hero');
+if(stage && hero && !reduce){
+  hero.addEventListener('mousemove', function(ev){
+    var r=hero.getBoundingClientRect();
+    var x=(ev.clientX-r.left)/r.width-0.5, y=(ev.clientY-r.top)/r.height-0.5;
+    stage.style.transform='rotateY('+(x*10)+'deg) rotateX('+(-y*10)+'deg)';
+    document.querySelectorAll('.fchip').forEach(function(c){
+      var dp=parseFloat(c.getAttribute('data-depth'))||20;
+      c.style.transform='translate('+(x*dp)+'px,'+(y*dp)+'px)';
+    });
+  });
+  hero.addEventListener('mouseleave', function(){
+    stage.style.transform='';
+    document.querySelectorAll('.fchip').forEach(function(c){ c.style.transform=''; });
+  });
+}
+
+/* benefits cursor glow */
+document.querySelectorAll('.bcard').forEach(function(c){
+  c.addEventListener('mousemove', function(e){
+    var r=c.getBoundingClientRect();
+    c.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');
+    c.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');
+  });
+});
+
+/* ambient particles — full-page fixed field for continuity across scroll */
+(function(){
+  var cv=document.getElementById('bgParticles'); if(!cv||reduce) return;
+  var ctx=cv.getContext('2d'), ps=[], W,H,dpr=Math.min(window.devicePixelRatio||1,2);
+  function size(){ W=window.innerWidth; H=window.innerHeight; cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); }
+  size();
+  var N=Math.min(84, Math.round(W/15));
+  for(var i=0;i<N;i++){ ps.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+0.4,vx:(Math.random()-.5)*.16,vy:(Math.random()-.5)*.16-0.04,a:Math.random()*.45+.08,ph:Math.random()*6.28,ts:Math.random()*0.6+0.4}); }
+  var t=0;
+  function tick(){
+    t+=0.016;
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<ps.length;i++){ var p=ps[i]; p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      var a=p.a*(0.55+0.45*Math.sin(t*p.ts+p.ph));
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.28);
+      ctx.fillStyle='rgba(110,231,168,'+a+')'; ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+  window.addEventListener('resize', size, {passive:true});
+})();
+
+/* ===================== email ===================== */
+function submitEmail(e){
+  e.preventDefault();
+  var d=I18N[curLang], msg=document.getElementById('formMsg');
+  var email=document.getElementById('emailInput').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.style.color="#ff9b9b"; msg.textContent=d.msg_bad; return false; }
+  var btn=document.querySelector('#emailForm button'); if(btn) btn.disabled=true;
+  if(SUPABASE_URL && SUPABASE_URL.indexOf('__')!==0){
+    fetch(SUPABASE_URL+'/rest/v1/email_waitlist',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Prefer':'return=minimal'},
+      body:JSON.stringify({email:email,lang:curLang,source:'landing'})
+    }).then(function(r){
+      if(r.ok||r.status===201){ msg.style.color="var(--accent)"; msg.textContent=d.msg_ok; document.getElementById('emailForm').reset(); }
+      else if(r.status===409){ msg.style.color="var(--accent)"; msg.textContent=d.msg_dup; document.getElementById('emailForm').reset(); }
+      else { fallbackMail(email); }
+    }).catch(function(){ fallbackMail(email); })
+      .finally(function(){ if(btn) btn.disabled=false; });
+  } else { if(btn) btn.disabled=false; fallbackMail(email); }
+  return false;
+}
+function fallbackMail(email){
+  var d=I18N[curLang], msg=document.getElementById('formMsg');
+  msg.style.color="var(--accent)"; msg.textContent=d.msg_mail;
+  window.location.href="mailto:soporte@metacasa.app?subject=Waitlist%20Home%20Finance&body="+encodeURIComponent("Email: "+email+" / Lang: "+curLang);
+}
+</script>
+</body>
+</html>
