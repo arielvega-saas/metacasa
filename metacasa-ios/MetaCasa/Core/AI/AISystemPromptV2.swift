@@ -18,9 +18,10 @@ enum AISystemPromptV2 {
         }()
         let appName = String(localized: "app.name")
         let curName = currencySpokenName(curr)
+        let variant = languageVariantPhrase(for: AppLocaleStorage.effectiveLocale)
 
         return """
-        Sos un coach financiero conversacional dentro de \(appName). El usuario te habla por VOZ — el TTS lee tu respuesta. Hablá en español rioplatense con voseo (tenés, podés, mirá, fijate, andá, querés). Tono: amigable, breve, como un amigo financiero piola.
+        Sos un coach financiero conversacional dentro de \(appName). El usuario te habla por VOZ — el TTS lee tu respuesta. Respondé en \(variant), salvo que el usuario te hable en otro idioma. Tono: amigable, breve, como un amigo financiero piola.
 
         REGLAS DE VOZ:
         - Saludos ("Hola", "Buenas") → respondé corto con un saludo + una pregunta. NUNCA datos.
@@ -60,6 +61,9 @@ enum AISystemPromptV2 {
     ) -> String {
         let appName = String(localized: "app.name")
         let curr = context.currency
+        let loc = AppLocaleStorage.effectiveLocale
+        let regionTag = localeTag(for: loc)
+        let langVariant = languageVariantPhrase(for: loc)
 
         let knowledgeBlock = useFullKnowledge
             ? "=== APP KNOWLEDGE BASE ===\n\(AppKnowledgeBase.full)"
@@ -73,7 +77,7 @@ enum AISystemPromptV2 {
         You are a senior personal finance advisor embedded in \(appName). You speak with the calm, evidence-based authority of a CFP — not a chatbot. You combine deep app knowledge with personalized financial coaching.
 
         === LANGUAGE ===
-        Detect the user's language from their message and reply in that exact language. Spanish → español rioplatense (voseo: tenés, podés, mirá, tocá, andá, hacé, sabés, querés). English → English. Portuguese → Portuguese. French → French. Never mix languages within a response. Keep app navigation labels in their original language (e.g. "Presupuesto", "Más → Metas") even when responding in English.
+        Detect the user's language from their message and reply in that exact language. The user's device region is \(regionTag); when you reply in Spanish or Portuguese, use this regional variant: \(langVariant). If the user clearly writes in another language (English, French, etc.), honor the language they wrote in. Never mix languages within a response. Keep app navigation labels in their original language (e.g. "Presupuesto", "Más → Metas") even when responding in English.
 
         === MATCH THE USER'S INTENT — CRITICAL ===
         BEFORE doing anything else, identify what the user actually wants. Do NOT volunteer data they didn't ask for.
@@ -190,6 +194,46 @@ enum AISystemPromptV2 {
         === REMEMBER ===
         Your job is to be the financial advisor the user wishes they could afford — direct, data-driven, no bullshit. Use tools first, talk second. One next action per response. Quality over verbosity.
         """
+    }
+
+    // MARK: - Language variant (adaptación por región)
+
+    /// Frase que describe la variante de idioma a usar, derivada de la región del
+    /// locale efectivo (el override de idioma del usuario o, si está en "sistema",
+    /// el locale del device). Decisión de producto: adaptación POR REGIÓN —
+    /// España→castellano, Argentina/Uruguay→voseo rioplatense, resto de LatAm→
+    /// neutro, Brasil→pt-BR. Se inyecta en el system prompt para que el modelo
+    /// responda con el registro y vocabulario natural de la región del usuario.
+    private static func languageVariantPhrase(for locale: Locale) -> String {
+        let lang = locale.language.languageCode?.identifier ?? "es"
+        let region = locale.region?.identifier
+        switch lang {
+        case "es":
+            switch region {
+            case "AR", "UY":
+                return "español rioplatense (voseo: tenés, podés, mirá, fijate, andá, sabés)"
+            case "ES":
+                return "español de España (tuteo: tú tienes, fíjate, mira, coge, vale; vocabulario peninsular: móvil, ordenador, dinero; NUNCA voseo — nada de tenés/podés/mirá)"
+            default:
+                return "español latinoamericano neutro (tuteo: tú tienes, fíjate; sin voseo marcado ni modismos de un solo país)"
+            }
+        case "pt":
+            return region == "PT" ? "português europeu" : "português do Brasil"
+        case "en":
+            return "natural English"
+        default:
+            return "the user's language"
+        }
+    }
+
+    /// Tag `lang-REGION` (ej. "es-ES", "es-AR", "pt-BR") del locale efectivo,
+    /// para darle al modelo el contexto regional explícito.
+    private static func localeTag(for locale: Locale) -> String {
+        let lang = locale.language.languageCode?.identifier ?? "es"
+        if let region = locale.region?.identifier, !region.isEmpty {
+            return "\(lang)-\(region)"
+        }
+        return lang
     }
 
     // MARK: - Currency helpers

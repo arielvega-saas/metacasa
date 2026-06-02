@@ -22,17 +22,47 @@ function normalizeLocale(locale: unknown): Locale {
   return locale === "en" || locale === "pt" ? locale : "es";
 }
 
-/** Instrucción de idioma de respuesta según el locale de la web (default ES). */
-function languageDirective(locale: Locale): string {
+/**
+ * Instrucción de idioma de respuesta según el locale + la región del usuario.
+ * Adaptación POR REGIÓN (decisión de producto): España→castellano, Argentina/
+ * Uruguay→voseo rioplatense, resto de LatAm→neutro; Brasil→pt-BR, Portugal→pt-PT.
+ * La `region` sale del Accept-Language del navegador (sin geo-IP ni permisos).
+ */
+function languageDirective(locale: Locale, region?: string): string {
   switch (locale) {
     case "en":
       return "Always reply in English, regardless of the language of the question.";
     case "pt":
-      return "Responda sempre em português do Brasil, independentemente do idioma da pergunta.";
+      return region === "PT"
+        ? "Responda sempre em português europeu, independentemente do idioma da pergunta."
+        : "Responda sempre em português do Brasil, independentemente do idioma da pergunta.";
     case "es":
     default:
-      return "Respondé siempre en español rioplatense (tratá de vos: 'tenés', 'fijate'), sin importar el idioma de la pregunta.";
+      switch (region) {
+        case "ES":
+          return "Respondé siempre en español de España (tuteo: tú tienes, fíjate, mira, coge, vale; vocabulario peninsular: móvil, ordenador, dinero; NUNCA voseo, nada de 'tenés/podés/mirá'), sin importar el idioma de la pregunta.";
+        case "AR":
+        case "UY":
+          return "Respondé siempre en español rioplatense (voseo: 'tenés', 'fijate', 'mirá'), sin importar el idioma de la pregunta.";
+        default:
+          return "Respondé siempre en español latinoamericano neutro (tuteo: 'tú tienes', 'fíjate'; sin voseo marcado ni modismos de un solo país), sin importar el idioma de la pregunta.";
+      }
   }
+}
+
+/**
+ * Extrae la región (ES, AR, BR, …) del header Accept-Language para la variante
+ * de idioma. Toma el primer tag cuyo idioma coincida con el `locale` elegido.
+ * Devuelve `undefined` si el navegador no manda región.
+ */
+function regionFromAcceptLanguage(header: string | null, lang: Locale): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(",")) {
+    const tag = part.split(";")[0]?.trim() ?? "";
+    const [l, r] = tag.split("-");
+    if (l?.toLowerCase() === lang && r) return r.toUpperCase();
+  }
+  return undefined;
 }
 
 /**
@@ -307,6 +337,9 @@ export async function POST(request: Request) {
   }
   const messages = sanitizeMessages((body as { messages?: unknown })?.messages);
   const locale = normalizeLocale((body as { locale?: unknown })?.locale);
+  // Variante regional (es-ES vs es-AR vs es-419, pt-BR vs pt-PT) desde el
+  // Accept-Language del navegador: respeta el país sin pedir permisos ni geo-IP.
+  const region = regionFromAcceptLanguage(request.headers.get("accept-language"), locale);
   if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
     return NextResponse.json(
       { error: "Necesito una pregunta para responder." },
@@ -345,7 +378,7 @@ export async function POST(request: Request) {
     "Sos el asistente financiero de Home Finance. Ayudás al usuario a entender las finanzas de SU hogar.",
     "Usá SOLO los datos provistos abajo; si no sabés algo o el dato no está, decílo con claridad y no lo inventes.",
     "Respuestas claras y breves. Tono cálido y profesional.",
-    `IDIOMA: ${languageDirective(locale)}`,
+    `IDIOMA: ${languageDirective(locale, region)}`,
     "Cuando menciones montos, respetá la moneda tal como aparece en los datos.",
     "No das asesoramiento de inversión ni recomendaciones de productos financieros.",
     "",

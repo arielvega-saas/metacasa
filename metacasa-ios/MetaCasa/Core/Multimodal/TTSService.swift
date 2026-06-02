@@ -215,9 +215,9 @@ final class TTSService: NSObject {
         }
         // Mapear códigos a locales con voces de buena calidad.
         switch lang.rawValue {
-        case "es": return "es-AR"   // voseo argentino
+        case "es": return spanishVoiceLocale()
         case "en": return "en-US"
-        case "pt": return "pt-BR"
+        case "pt": return portugueseVoiceLocale()
         case "fr": return "fr-FR"
         case "it": return "it-IT"
         case "de": return "de-DE"
@@ -226,6 +226,25 @@ final class TTSService: NSObject {
         case "zh": return "zh-CN"
         default: return lang.rawValue
         }
+    }
+
+    /// Sub-locale de español para la voz on-device, según la región del usuario
+    /// (override de idioma o, si está en "sistema", el device). España→es-ES
+    /// (acento castellano); resto→es-AR/es-MX/es-US. Acompaña la adaptación de
+    /// variante del TEXTO (ver AISystemPromptV2.languageVariantPhrase) para que
+    /// el acento de la voz no contradiga el registro del texto.
+    private func spanishVoiceLocale() -> String {
+        switch AppLocaleStorage.effectiveLocale.region?.identifier {
+        case "ES": return "es-ES"
+        case "MX": return "es-MX"
+        case "US": return "es-US"
+        default:   return "es-AR"
+        }
+    }
+
+    /// Sub-locale de portugués: Portugal→pt-PT, resto→pt-BR.
+    private func portugueseVoiceLocale() -> String {
+        AppLocaleStorage.effectiveLocale.region?.identifier == "PT" ? "pt-PT" : "pt-BR"
     }
 
     /// Encuentra la mejor voz instalada para el idioma. Prioriza Premium > Enhanced > Default.

@@ -7,6 +7,8 @@
 /// pre-renderizado por `FinancialContextBuilder` (ver `financial_context.dart`).
 library;
 
+import 'dart:ui' show Locale;
+
 /// Builder del system prompt completo (modo texto).
 abstract final class AiPrompts {
   const AiPrompts._();
@@ -29,11 +31,14 @@ abstract final class AiPrompts {
   static String build({
     required String financialContextBlock,
     required String currency,
+    Locale? locale,
     List<String> pastSummaries = const <String>[],
   }) {
     final String curr = currency.toUpperCase();
     final String spoken = currencySpokenName(curr);
     final String memoryBlock = _pastConversationsSection(pastSummaries);
+    final String variant = languageVariantPhrase(locale);
+    final String regionTag = localeTag(locale);
     final String dataBlock = financialContextBlock.trim().isEmpty
         ? ''
         : '${financialContextBlock.trim()}\n\n';
@@ -42,7 +47,7 @@ abstract final class AiPrompts {
 You are a senior personal finance advisor embedded in $appName. You speak with the calm, evidence-based authority of a CFP — not a chatbot. You combine deep app knowledge with personalized financial coaching.
 
 === LANGUAGE ===
-Detect the user's language from their message and reply in that exact language. Spanish → español rioplatense (voseo: tenés, podés, mirá, tocá, andá, hacé, sabés, querés). English → English. Portuguese → Portuguese. French → French. Never mix languages within a response. Keep app navigation labels in their original language (e.g. "Presupuesto", "Más → Metas") even when responding in English.
+Detect the user's language from their message and reply in that exact language. The user's device region is $regionTag; when you reply in Spanish or Portuguese, use this regional variant: $variant. If the user clearly writes in another language (English, French, etc.), honor the language they wrote in. Never mix languages within a response. Keep app navigation labels in their original language (e.g. "Presupuesto", "Más → Metas") even when responding in English.
 
 === MATCH THE USER'S INTENT — CRITICAL ===
 BEFORE doing anything else, identify what the user actually wants. Do NOT volunteer data they didn't ask for.
@@ -141,6 +146,43 @@ $_knowledgeCompact
 
 $memoryBlock$dataBlock=== REMEMBER ===
 Your job is to be the financial advisor the user wishes they could afford — direct, data-driven, no bullshit. Use tools first, talk second. One next action per response. Quality over verbosity.''';
+  }
+
+  // MARK: - Language variant (adaptación por región)
+
+  /// Frase que describe la variante de idioma a usar, derivada de la región del
+  /// locale efectivo (override del usuario o, si es null, el device). Decisión
+  /// de producto: España→castellano, Argentina/Uruguay→voseo rioplatense, resto
+  /// de LatAm→neutro, Brasil→pt-BR. Espejo de
+  /// `AISystemPromptV2.languageVariantPhrase` (iOS).
+  static String languageVariantPhrase(Locale? locale) {
+    final String lang = locale?.languageCode ?? 'es';
+    final String? region = locale?.countryCode;
+    switch (lang) {
+      case 'es':
+        switch (region) {
+          case 'AR':
+          case 'UY':
+            return 'español rioplatense (voseo: tenés, podés, mirá, fijate, andá, sabés)';
+          case 'ES':
+            return 'español de España (tuteo: tú tienes, fíjate, mira, coge, vale; vocabulario peninsular: móvil, ordenador, dinero; NUNCA voseo — nada de tenés/podés/mirá)';
+          default:
+            return 'español latinoamericano neutro (tuteo: tú tienes, fíjate; sin voseo marcado ni modismos de un solo país)';
+        }
+      case 'pt':
+        return region == 'PT' ? 'português europeu' : 'português do Brasil';
+      case 'en':
+        return 'natural English';
+      default:
+        return "the user's language";
+    }
+  }
+
+  /// Tag `lang-REGION` (ej. "es-ES", "es-AR", "pt-BR") del locale efectivo.
+  static String localeTag(Locale? locale) {
+    final String lang = locale?.languageCode ?? 'es';
+    final String? region = locale?.countryCode;
+    return (region != null && region.isNotEmpty) ? '$lang-$region' : lang;
   }
 
   // MARK: - Identity scrub (rebrand)

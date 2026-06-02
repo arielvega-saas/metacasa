@@ -1,7 +1,10 @@
+import 'dart:ui' show Locale, PlatformDispatcher;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/supabase_init.dart';
 import '../../../state/app_providers.dart';
+import '../../../state/settings_providers.dart';
 import '../data/ai_tools.dart';
 import '../data/anthropic_proxy_provider.dart';
 import '../domain/ai_prompts.dart';
@@ -76,9 +79,16 @@ class AssistantController extends Notifier<AssistantState> {
 
       // 3) Construir contexto financiero + system prompt.
       final FinancialContext fc = await FinancialContextBuilder.build(ref);
+      // Locale efectivo: override del usuario (Ajustes) o, si no hay, el del
+      // device. Define la variante regional de la IA (es-ES vs es-AR vs es-419,
+      // pt-BR…). Ver AiPrompts.languageVariantPhrase.
+      final Locale? localeOverride = ref.read(localeOverrideProvider);
+      final Locale resolvedLocale =
+          localeOverride ?? PlatformDispatcher.instance.locale;
       final String system = AiPrompts.build(
         financialContextBlock: fc.render(),
         currency: fc.currency,
+        locale: resolvedLocale,
       );
 
       // 4) Historial Anthropic: últimos N turnos visibles (texto user/assistant),
