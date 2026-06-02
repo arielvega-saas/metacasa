@@ -3,15 +3,21 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Callback universal de Auth: confirma email (signup), magic link, recovery y
- * OAuth. Soporta flujo `token_hash` + `type` (preferido, sirve cross-device) y
- * PKCE (`code`).
+ * Confirmación server-side de links de email (recovery, signup, magic link,
+ * cambio de email). Es el endpoint recomendado por Supabase para SSR.
  *
- * NOTA: para password recovery el flujo recomendado es `/auth/confirm` con
- * `token_hash` (no depende de la cookie `code_verifier`, así que funciona aunque
- * el mail se abra en otro dispositivo). Este callback se mantiene resiliente:
- * acepta ambos formatos y, si la verificación falla en un flujo de recovery,
- * NO tira al login pelado sino al estado amigable de "link vencido".
+ * Soporta DOS formatos de link, por orden de preferencia:
+ *  1. `token_hash` + `type`  → `verifyOtp()`. NO necesita `code_verifier`, así
+ *     que funciona en CUALQUIER dispositivo (pedís el reset en la compu y abrís
+ *     el mail en el teléfono → funciona). Es el flujo correcto para links de
+ *     email. La plantilla del dashboard debe apuntar acá con `{{ .TokenHash }}`.
+ *  2. `code` (PKCE) → `exchangeCodeForSession()`. Fallback por si la plantilla
+ *     todavía manda `{{ .ConfirmationURL }}`. Solo funciona en el MISMO browser
+ *     que pidió el link (depende de la cookie `code_verifier`).
+ *
+ * En éxito redirige a `next` (con la sesión ya seteada por cookies). En fallo,
+ * si es un flujo de recovery manda a `/reset-password?error=expired` (pantalla
+ * amigable de "link vencido, pedí uno nuevo"); para el resto, `/login?error=auth`.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -37,10 +43,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.redirect(`${origin}${failureRedirect(type, next)}`);
 }
 
-/** Allow-list de tipos de OTP que aceptamos canjear (no confiar en el query param). */
+/** Tipos de OTP que aceptamos canjear (no confiar ciegamente en el query param). */
 const ALLOWED_OTP_TYPES = new Set<string>([
-  "magiclink",
   "recovery",
+  "magiclink",
   "email",
   "signup",
   "invite",
@@ -57,8 +63,9 @@ function sanitizeNext(n: string | null): string {
 }
 
 /**
- * En fallo: si es recovery (o el destino es la pantalla de nueva contraseña),
- * mostramos el estado de "link vencido" con acción de reenvío en vez del login.
+ * Adónde mandar cuando la verificación falla. Para recovery (o cuando el destino
+ * es la pantalla de nueva contraseña) mostramos el estado de "link vencido" en
+ * esa misma pantalla, con acción de reenvío — nunca el login pelado.
  */
 function failureRedirect(type: EmailOtpType | null, next: string): string {
   if (type === "recovery" || next.startsWith("/reset-password")) {

@@ -21,8 +21,12 @@ export function ForgotPasswordForm() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    // `redirectTo` = el `redirect_to` que Supabase mete en el link del email.
+    // El destino final es `/auth/confirm` (verificación server-side con
+    // `token_hash`/`verifyOtp`, sin `code_verifier` → funciona cross-device) y
+    // de ahí a `/reset-password` con la sesión de recovery ya seteada.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
     });
     setLoading(false);
     if (error) {

@@ -23,6 +23,11 @@ export const authNav: LocaleModule = {
       createFree: "Creá una gratis",
       loginErrorTitle: "No pudimos iniciar sesión",
       loginSuccess: "¡Bienvenido de vuelta!",
+      // Banners de error en el login (?error=...)
+      errorLinkExpired:
+        "Ese enlace expiró o ya se usó. Iniciá sesión para continuar.",
+      errorHandoffExpired:
+        "Tu enlace de sesión expiró. Iniciá sesión para continuar.",
       // Register
       registerTitle: "Creá tu cuenta",
       registerSubtitle: "Gratis por 7 días con todo Premium. Sin tarjeta.",
@@ -61,6 +66,14 @@ export const authNav: LocaleModule = {
       updatePasswordErrorTitle: "No pudimos cambiar la contraseña",
       passwordUpdatedTitle: "¡Contraseña actualizada!",
       passwordUpdatedDescription: "Ya podés usarla para entrar.",
+      // Reset password: verificación de sesión + estados
+      resetCheckingLink: "Verificando tu link…",
+      resetSuccessTitle: "¡Listo! Tu contraseña se actualizó",
+      resetSuccessBody: "Te estamos llevando a tu cuenta…",
+      resetLinkInvalidTitle: "Este link ya no es válido",
+      resetLinkInvalidBody:
+        "El link para restablecer tu contraseña venció o ya se usó. Pedí uno nuevo y te lo enviamos al instante.",
+      resetRequestNewLink: "Pedir un link nuevo",
       // Page <title> metadata
       metaLogin: "Iniciar sesión",
       metaRegister: "Crear cuenta",
@@ -143,6 +156,10 @@ export const authNav: LocaleModule = {
       createFree: "Create one for free",
       loginErrorTitle: "We couldn't sign you in",
       loginSuccess: "Welcome back!",
+      errorLinkExpired:
+        "That link expired or was already used. Sign in to continue.",
+      errorHandoffExpired:
+        "Your session link expired. Sign in to continue.",
       registerTitle: "Create your account",
       registerSubtitle: "Free for 7 days with everything Premium. No card.",
       nameLabel: "Name",
@@ -177,6 +194,13 @@ export const authNav: LocaleModule = {
       updatePasswordErrorTitle: "We couldn't change your password",
       passwordUpdatedTitle: "Password updated!",
       passwordUpdatedDescription: "You can now use it to sign in.",
+      resetCheckingLink: "Verifying your link…",
+      resetSuccessTitle: "Done! Your password was updated",
+      resetSuccessBody: "Taking you to your account…",
+      resetLinkInvalidTitle: "This link is no longer valid",
+      resetLinkInvalidBody:
+        "Your password reset link expired or was already used. Request a new one and we'll send it right away.",
+      resetRequestNewLink: "Request a new link",
       metaLogin: "Sign in",
       metaRegister: "Create account",
       metaForgot: "Reset password",
@@ -253,6 +277,10 @@ export const authNav: LocaleModule = {
       createFree: "Crie uma grátis",
       loginErrorTitle: "Não foi possível entrar",
       loginSuccess: "Bem-vindo de volta!",
+      errorLinkExpired:
+        "Esse link expirou ou já foi usado. Entre para continuar.",
+      errorHandoffExpired:
+        "Seu link de sessão expirou. Entre para continuar.",
       registerTitle: "Crie sua conta",
       registerSubtitle: "Grátis por 7 dias com tudo Premium. Sem cartão.",
       nameLabel: "Nome",
@@ -287,6 +315,13 @@ export const authNav: LocaleModule = {
       updatePasswordErrorTitle: "Não foi possível alterar a senha",
       passwordUpdatedTitle: "Senha atualizada!",
       passwordUpdatedDescription: "Já pode usá-la para entrar.",
+      resetCheckingLink: "Verificando seu link…",
+      resetSuccessTitle: "Pronto! Sua senha foi atualizada",
+      resetSuccessBody: "Levando você para sua conta…",
+      resetLinkInvalidTitle: "Este link não é mais válido",
+      resetLinkInvalidBody:
+        "Seu link para redefinir a senha expirou ou já foi usado. Peça um novo e enviamos na hora.",
+      resetRequestNewLink: "Pedir um novo link",
       metaLogin: "Entrar",
       metaRegister: "Criar conta",
       metaForgot: "Redefinir senha",

@@ -7,6 +7,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("auth.metaReset") };
 }
 
-export default function ResetPasswordPage() {
-  return <UpdatePasswordForm />;
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  // `/auth/confirm` nos manda acá con `?error=expired` si la verificación del
+  // link de recovery falló (link vencido o ya usado).
+  const { error } = await searchParams;
+  return <UpdatePasswordForm linkError={error === "expired"} />;
 }

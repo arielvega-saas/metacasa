@@ -33,7 +33,10 @@ export function RegisterForm() {
       password,
       options: {
         data: { display_name: name },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        // Cross-device: /auth/confirm prefiere verifyOtp({token_hash,type}) y no
+        // depende del code_verifier. Así el alta funciona aunque el usuario abra
+        // el mail de confirmación en otro dispositivo (caso muy común en el 1er uso).
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
       },
     });
     setLoading(false);

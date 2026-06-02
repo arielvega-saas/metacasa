@@ -6,6 +6,11 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/register",
   "/forgot-password",
+  // El link de recovery puede abrirse en un dispositivo SIN sesión previa
+  // (cross-device). `/auth/confirm` setea la sesión y redirige acá; en fallo
+  // redirige a `/reset-password?error=expired`. Ambos casos deben ser públicos
+  // para no rebotar al login. El form valida la sesión de recovery por su cuenta.
+  "/reset-password",
   "/auth", // /auth/handoff, /auth/callback, /auth/confirm
 ];
 

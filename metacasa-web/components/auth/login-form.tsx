@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,18 @@ export function LoginForm() {
     rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
       ? rawReturnTo
       : "/dashboard";
+
+  // Varios flujos rebotan acá con ?error=... y, sin esto, el usuario veía un
+  // login en blanco sin explicación. Mapeamos a un mensaje claro y localizado:
+  //  - auth: link de signup/magic-link/confirmación vencido o ya usado.
+  //  - handoff / handoff_expired: el link de sesión app→web venció o faltó token.
+  const errorParam = params.get("error");
+  const errorMessage =
+    errorParam === "auth"
+      ? t("auth.errorLinkExpired")
+      : errorParam === "handoff" || errorParam === "handoff_expired"
+        ? t("auth.errorHandoffExpired")
+        : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,6 +69,16 @@ export function LoginForm() {
           {t("auth.loginSubtitle")}
         </p>
       </header>
+
+      {errorMessage && (
+        <div
+          role="alert"
+          className="text-expense bg-expense/12 mb-5 flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm leading-relaxed"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
