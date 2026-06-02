@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["K84H562MWX.com.metacasa.app"],
+        "components": [
+          {
+            "/": "/auth/confirm",
+            "comment": "Universal Link: confirma email (signup, magic link, cambio de email) abriendo la app iOS y validando la sesion con verifyOTP(tokenHash:type:)."
+          }
+        ]
+      }
+    ]
+  }
+}

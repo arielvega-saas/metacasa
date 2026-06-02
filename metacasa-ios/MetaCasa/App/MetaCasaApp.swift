@@ -65,6 +65,19 @@ struct MetaCasaApp: App {
                         }
                     }
                 }
+                // Universal Links de confirmación de email: al tocar el link del
+                // mail (signup / magic link / cambio de email), iOS abre la app y
+                // acá completamos la sesión con verifyOTP(token_hash). iOS puede
+                // entregar el link por cualquiera de los dos callbacks según
+                // versión/origen; handleAuthDeepLink deduplica el token_hash.
+                .onOpenURL { url in
+                    Task { @MainActor in await appState.handleAuthDeepLink(url) }
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL {
+                        Task { @MainActor in await appState.handleAuthDeepLink(url) }
+                    }
+                }
         }
     }
 }

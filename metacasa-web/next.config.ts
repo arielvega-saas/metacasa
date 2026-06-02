@@ -27,7 +27,17 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "recharts", "date-fns"],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // El AASA (Universal Links de iOS) no tiene extensión → Next lo serviría
+      // como octet-stream. Apple tolera el content-type, pero lo forzamos a
+      // application/json por las dudas. assetlinks.json ya sale como JSON por su
+      // extensión.
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ];
   },
 };
 

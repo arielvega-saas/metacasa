@@ -47,10 +47,12 @@ class AuthRepository {
   /// El gate lo escucha para re-evaluar a qué subtree mandar.
   Stream<AuthState> get authStateChanges => _auth.onAuthStateChange;
 
-  /// Alta de cuenta. `emailRedirectTo` apunta a la landing de Firebase Hosting
-  /// que el usuario ve tras clickear el link de confirmación; pasarlo explícito
-  /// hace que el flow no dependa del "Site URL" del dashboard de Supabase (que
-  /// históricamente quedaba en `localhost` del dev de la PWA). 1:1 con iOS.
+  /// Alta de cuenta. `emailRedirectTo` apunta al dominio propio
+  /// (`usehomefinance.com/auth/confirm`), que la app reclama como App Link: al
+  /// tocar el link del mail, la app se abre y `AuthDeepLinkHandler` completa la
+  /// confirmación con `verifyOTP(token_hash)`. Si la app no está instalada, el
+  /// mismo link cae a la web. Pasarlo explícito hace que el flow no dependa del
+  /// "Site URL" del dashboard de Supabase. 1:1 con iOS.
   ///
   /// Si el proyecto requiere confirmar email, `res.session` viene `null` →
   /// devolvemos [AuthSignUpResult.emailConfirmationPending].
@@ -62,8 +64,7 @@ class AuthRepository {
       final res = await _auth.signUp(
         email: _normalize(email),
         password: password,
-        emailRedirectTo:
-            'https://metacasa-app-cf592.web.app/auth-confirmed.html',
+        emailRedirectTo: 'https://usehomefinance.com/auth/confirm?next=/dashboard',
       );
       return res.session == null
           ? AuthSignUpResult.emailConfirmationPending

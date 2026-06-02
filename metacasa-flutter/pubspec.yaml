@@ -42,6 +42,11 @@ dependencies:
   intl: 0.19.0
   decimal: ^3.2.4
   supabase_flutter: ^2.12.4
+  # Captura el Universal Link / App Link de confirmación de email
+  # (usehomefinance.com/auth/confirm?token_hash=...) para llamar verifyOTP.
+  # Versión alineada con la que supabase_flutter ya resolvía transitivamente
+  # (6.4.1), para no forzar un cambio de resolución en `pub get`.
+  app_links: ^6.4.1
   flutter_secure_storage: ^10.3.1
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0

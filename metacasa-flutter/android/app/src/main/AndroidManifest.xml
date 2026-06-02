@@ -45,6 +45,27 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- App Links: el link de confirmación de email
+                 (https://usehomefinance.com/auth/confirm?token_hash=...) abre la
+                 app directamente. `autoVerify` hace que Android valide el dominio
+                 contra https://usehomefinance.com/.well-known/assetlinks.json
+                 (necesita el SHA-256 del app-signing key de Play Console). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="usehomefinance.com"
+                    android:pathPrefix="/auth/confirm" />
+            </intent-filter>
+            <!-- Desactivamos el deep-linking automático de Flutter: NO queremos
+                 que el engine empuje el link al GoRouter (chocaría con el gate y
+                 perdería el token_hash). El link lo procesa AuthDeepLinkHandler
+                 vía app_links, que llama verifyOTP(token_hash). -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

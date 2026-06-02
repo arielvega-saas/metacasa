@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'config/auth_deep_link_handler.dart';
 import 'config/router.dart';
+import 'config/supabase_init.dart';
 import 'core/theme/app_theme.dart';
 import 'state/settings_providers.dart';
 
@@ -17,11 +19,34 @@ export 'config/root_gate.dart' show RootGate;
 /// `themeMode` lo gobierna [appearanceModeProvider] (default dark, dark-first
 /// igual que iOS) y `locale` lo gobierna [localeOverrideProvider] (null =
 /// seguir el device contra [supportedLocales]).
-class MetaCasaApp extends ConsumerWidget {
+class MetaCasaApp extends ConsumerStatefulWidget {
   const MetaCasaApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MetaCasaApp> createState() => _MetaCasaAppState();
+}
+
+class _MetaCasaAppState extends ConsumerState<MetaCasaApp> {
+  AuthDeepLinkHandler? _deepLinkHandler;
+
+  @override
+  void initState() {
+    super.initState();
+    // Universal Links / App Links de confirmación de email. Se arranca una sola
+    // vez con la app. No-op en modo diseño (sin credenciales Supabase).
+    if (supabaseReady) {
+      _deepLinkHandler = AuthDeepLinkHandler(supabase)..start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _deepLinkHandler?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     // Preferencias de app (persistidas vía shared_preferences). Observarlas acá
     // hace que un cambio en Ajustes re-pinte toda la app al instante.

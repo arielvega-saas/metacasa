@@ -79,12 +79,13 @@ final class AuthManager {
 
     /// Retorna la sesión si el signup ya logueó al usuario, o lanza emailConfirmationPending
     /// si el proyecto Supabase requiere confirmación por email antes del primer login.
-    /// `redirectTo` apunta a la landing page de Firebase Hosting que el usuario
-    /// ve después de clickear el link de confirmación. Pasarlo explícito acá hace
-    /// que el flow no dependa del campo "Site URL" del dashboard de Supabase
-    /// (que históricamente quedaba en localhost del dev de la PWA).
+    /// `redirectTo` apunta al dominio propio (`usehomefinance.com/auth/confirm`),
+    /// que la app reclama como Universal Link: al tocar el link del mail, iOS abre
+    /// la app y completamos la confirmación con `verifyEmailOTP`. Si la app no está
+    /// instalada, el mismo link cae a la web. Pasarlo explícito hace que el flow no
+    /// dependa del campo "Site URL" del dashboard de Supabase.
     func signUp(email: String, password: String) async throws -> AuthSession {
-        let redirect = URL(string: "https://metacasa-app-cf592.web.app/auth-confirmed.html")
+        let redirect = URL(string: "https://usehomefinance.com/auth/confirm?next=/dashboard")
         let response = try await client.auth.signUp(
             email: email,
             password: password,
@@ -94,6 +95,24 @@ final class AuthManager {
             return Self.map(s)
         }
         throw AuthError.emailConfirmationPending
+    }
+
+    /// Completa la confirmación de un link de email (signup / magic link / cambio
+    /// de email) a partir del `token_hash` que viaja en el Universal Link
+    /// `https://usehomefinance.com/auth/confirm?token_hash=...&type=...`.
+    /// Usa el flujo cross-device de Supabase (no depende de `code_verifier`): el
+    /// mismo link funciona aunque el mail se abra en otro dispositivo.
+    /// `typeRaw` es el query param `type`, que mapea 1:1 al rawValue de
+    /// `EmailOTPType` ("signup", "magiclink", "email_change", ...).
+    func verifyEmailOTP(tokenHash: String, typeRaw: String) async throws -> AuthSession {
+        guard let type = EmailOTPType(rawValue: typeRaw) else {
+            throw AuthError.sessionMissing
+        }
+        let response = try await client.auth.verifyOTP(tokenHash: tokenHash, type: type)
+        guard let session = response.session else {
+            throw AuthError.sessionMissing
+        }
+        return Self.map(session)
     }
 
     func signOut() async {

@@ -17,6 +17,12 @@ final class AppState {
     var isBiometricLocked = false
     var lastError: String?
 
+    /// Token del último link de auth ya procesado, para no re-verificar el mismo
+    /// `token_hash` dos veces (puede llegar por `.onOpenURL` y por
+    /// `.onContinueUserActivity` casi simultáneamente). Un `token_hash` es de un
+    /// solo uso: el segundo intento fallaría y pintaría un error falso.
+    private var lastHandledTokenHash: String?
+
     /// Llamado al abrir la app. Intenta restaurar la sesión y, si existe,
     /// pide biometría antes de exponer la UI con datos.
     /// En simulator se saltea biometría (no hay Face ID real).
@@ -65,6 +71,36 @@ final class AppState {
         session = try await AuthManager.shared.signUp(email: email, password: password)
         await TokenHolder.shared.set(session?.accessToken)
         try await loadHouseholds()
+    }
+
+    /// Procesa un Universal Link de confirmación de email
+    /// (`https://usehomefinance.com/auth/confirm?token_hash=...&type=...`).
+    /// Verifica el OTP, setea la sesión y carga los hogares — mismo camino que
+    /// `signIn`/`signUp`, así el `RootView` reacciona y entra a la app logueado.
+    /// Devuelve `true` si manejó el link.
+    @discardableResult
+    func handleAuthDeepLink(_ url: URL) async -> Bool {
+        guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              comps.path == "/auth/confirm",
+              let items = comps.queryItems,
+              let tokenHash = items.first(where: { $0.name == "token_hash" })?.value,
+              let typeRaw = items.first(where: { $0.name == "type" })?.value
+        else { return false }
+
+        // Dedup: el mismo link puede entrar por dos callbacks casi a la vez.
+        guard tokenHash != lastHandledTokenHash else { return true }
+        lastHandledTokenHash = tokenHash
+
+        do {
+            session = try await AuthManager.shared.verifyEmailOTP(tokenHash: tokenHash, typeRaw: typeRaw)
+            await TokenHolder.shared.set(session?.accessToken)
+            try await loadHouseholds()
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            lastHandledTokenHash = nil // permití reintentar si falló
+            return false
+        }
     }
 
     func signOut() async {

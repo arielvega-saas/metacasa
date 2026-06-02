@@ -2,5 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Universal Links: la app reclama https://usehomefinance.com/auth/confirm
+         (link de confirmación de email). Al tocarlo, iOS abre la app en vez del
+         navegador y completamos la sesión con verifyOTP(token_hash). El AASA vive
+         en https://usehomefinance.com/.well-known/apple-app-site-association.
+         Requiere que el App ID tenga habilitada la capability "Associated Domains"
+         (firma automática la agrega sola con este entitlement). -->
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:usehomefinance.com</string>
+    </array>
 </dict>
 </plist>

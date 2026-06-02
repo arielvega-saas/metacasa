@@ -59,9 +59,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Todo excepto assets estáticos de Next, el manifest PWA y archivos con
-    // extensión de imagen (iconos incluidos). El manifest debe ser público para
-    // que el prompt de instalación de Android/iOS funcione sin sesión.
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|webmanifest)$).*)",
+    // Todo excepto assets estáticos de Next, el manifest PWA, los archivos de
+    // verificación de deep links (.well-known: apple-app-site-association +
+    // assetlinks.json) y archivos con extensión de imagen (iconos incluidos).
+    // El manifest y .well-known deben ser públicos: sin esto el middleware
+    // redirige /.well-known/* a /login y Apple/Google no pueden verificar los
+    // Universal Links / App Links.
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|webmanifest)$).*)",
   ],
 };

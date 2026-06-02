@@ -67,8 +67,14 @@ enum WebHandoffService {
     static func openWebURL() async throws -> URL {
         // 1. Asegurar un token vigente (auto-refresh si está por expirar).
         //    `ensureFreshToken()` además deja el token fresco en `TokenHolder`.
-        let token = await AuthManager.shared.ensureFreshToken()
-            ?? (await TokenHolder.shared.get())
+        //    No podemos escribir `?? (await ...)`: el RHS de `??` es un
+        //    autoclosure NO-async y Swift 6 (strict concurrency) rechaza el
+        //    `await` adentro. Lo resolvemos con un `if`, preservando el
+        //    short-circuit (solo leemos el token guardado si el refresh falló).
+        var token = await AuthManager.shared.ensureFreshToken()
+        if token == nil {
+            token = await TokenHolder.shared.get()
+        }
         guard let token, !token.isEmpty else {
             throw HandoffError.noSession
         }
