@@ -40,7 +40,7 @@ enum Config {
     /// o queda vacía, caemos al dominio placeholder de Vercel. Cambiar acá (o en
     /// Info.plist) cuando la web tenga su dominio definitivo.
     static let webAppURL: URL = {
-        let fallback = URL(string: "https://metacasa-web.vercel.app")!
+        let fallback = URL(string: "https://usehomefinance.com")!
         guard let str = Bundle.main.object(forInfoDictionaryKey: "WEB_APP_URL") as? String,
               !str.isEmpty,
               let url = URL(string: str) else {

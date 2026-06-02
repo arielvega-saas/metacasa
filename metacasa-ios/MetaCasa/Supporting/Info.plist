@@ -66,11 +66,10 @@
 
     <!-- URL base de la versión web (handoff de sesión iOS → web).
          Se usa SOLO como fallback si la Edge Function `web-handoff` falla:
-         en ese caso abrimos WEB_APP_URL + "/login". Reemplazar el placeholder
-         de Vercel por el dominio definitivo cuando la web esté deployada.
-         Lo lee Config.webAppURL. -->
+         en ese caso abrimos WEB_APP_URL + "/login".
+         Dominio propio definitivo: usehomefinance.com. Lo lee Config.webAppURL. -->
     <key>WEB_APP_URL</key>
-    <string>https://metacasa-web.vercel.app</string>
+    <string>https://usehomefinance.com</string>
 
     <!-- Supabase config -->
     <key>SUPABASE_URL</key>
