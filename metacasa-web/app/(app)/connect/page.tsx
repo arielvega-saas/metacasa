@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import {
   ArrowUpRight,
   Clock,
-  QrCode,
   RefreshCw,
   ShieldCheck,
   Smartphone,
@@ -12,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { SectionHeader } from "@/components/finance/section-header";
 import { StoreCTA, StoreCTACompact } from "@/components/app-links/store-cta";
+import { AppQr } from "@/components/connect/app-qr";
 import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -101,17 +101,10 @@ export default async function ConnectPage() {
             </div>
           </div>
 
-          {/* Placeholder de QR (sin librerías): patrón decorativo */}
-          <div className="my-6 flex justify-center">
-            <div
-              className="bg-inset hairline grid size-40 place-items-center rounded-[var(--radius-lg)]"
-              aria-hidden="true"
-            >
-              <QrCode className="text-text-dim size-20" />
-            </div>
-          </div>
+          {/* QR REAL → App Store (generado server-side, sin JS de cliente). */}
+          <AppQr />
           <p className="text-text-dim mb-5 text-center text-xs leading-relaxed">
-            {t("connect.qrSoon")}
+            {t("connect.qrScan")}
           </p>
 
           <div className="mt-auto">
