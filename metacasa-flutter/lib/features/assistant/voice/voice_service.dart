@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../../config/env.dart';
 import '../../../config/supabase_init.dart';
+import '../../../state/settings_providers.dart';
 
 /// Servicio de voz del Asistente IA — STT + TTS.
 ///
@@ -21,8 +23,10 @@ import '../../../config/supabase_init.dart';
 ///   con fallback al device. Resultados parciales en vivo, nivel de audio
 ///   (amplitud) para animar el orb, y auto-finalize por silencio (`pauseFor`
 ///   ~1.0s, espejado además con un watchdog propio sobre `lastResult`).
-/// - **TTS primario = ElevenLabs Malena** vía la Edge Function `tts-proxy`
-///   (`voice_id p7AwDmKvTdoHTBuueGvP`, `model eleven_flash_v2_5`). El proxy
+/// - **TTS primario = ElevenLabs** vía la Edge Function `tts-proxy`, con voz
+///   regional según el locale (ver [_voiceId]: Malena es-AR, Cristina es-ES,
+///   Cristina Campos es-419, Fernanda pt-BR, Cassidy en; `model
+///   eleven_flash_v2_5`). El proxy
 ///   devuelve **MP3 con `Content-Type: audio/mpeg`** — por eso NO usamos
 ///   `functions.invoke` (su cliente hace `utf8.decode` de cualquier body que no
 ///   sea json/octet-stream y corrompe el binario); pegamos crudo con `http` y
@@ -41,12 +45,34 @@ class VoiceService {
   VoiceService();
 
   // ── ElevenLabs (espejo del CloudTTSService de iOS) ──
+  //
+  // Voces regionales: una por variante de idioma, para que el ACENTO coincida
+  // con la variante del TEXTO que genera el modelo (ver AiPrompts). Mismos
+  // voice_id que iOS. La selección la hace [_voiceId] según el locale efectivo.
 
-  /// Voice id de Malena (nativa rioplatense). Mismo id que iOS y la memoria.
+  /// 🇦🇷 Malena — rioplatense (Buenos Aires). es-AR / es-UY. (default histórico)
   static const String elevenLabsMalenaVoiceId = 'p7AwDmKvTdoHTBuueGvP';
+
+  /// 🇪🇸 Cristina — castellano peninsular. es-ES.
+  static const String elevenLabsCristinaEsVoiceId = 'dNjJKg63Fr5AXwIdkATa';
+
+  /// 🌎 Cristina Campos — español latinoamericano neutro. es-419.
+  static const String elevenLabsCristinaCamposVoiceId = 'nTkjq09AuYgsNR8E4sDe';
+
+  /// 🇧🇷 Fernanda — português do Brasil. pt-BR.
+  static const String elevenLabsFernandaVoiceId = '7iqXtOF3wl3pomwXFY7G';
+
+  /// 🇺🇸 Cassidy — inglés americano (la conversacional más usada). en.
+  static const String elevenLabsCassidyVoiceId = '56AoDkrOh6qfVPDXZ7Pt';
 
   /// Modelo flash (baja latencia) — igual que iOS.
   static const String elevenLabsModel = 'eleven_flash_v2_5';
+
+  /// Override de idioma elegido en Ajustes (`Locale('es'|'en'|'pt')`) o `null`
+  /// para seguir el device. Lo inyecta [voiceServiceProvider]. La REGIÓN siempre
+  /// sale del device (el picker de Flutter es solo-idioma), así un argentino que
+  /// elige "Español" igual recibe Malena por su región AR.
+  Locale? localeOverride;
 
   /// Umbral de silencio para auto-finalizar el dictado (igual que iOS: ~1.0s).
   static const Duration silenceThreshold = Duration(milliseconds: 1000);
@@ -386,6 +412,39 @@ class VoiceService {
     }
   }
 
+  /// Locale efectivo: idioma del override (Ajustes) o, si no hay, el del device.
+  Locale get _effectiveLocale =>
+      localeOverride ?? PlatformDispatcher.instance.locale;
+
+  /// voice_id ElevenLabs según el locale efectivo. Espeja
+  /// `CloudTTSService.resolveVoice` de iOS y `AiPrompts.languageVariantPhrase`:
+  /// es+ES→Cristina (castellano), es+AR/UY→Malena (rioplatense), es+resto→
+  /// Cristina Campos (neutro), pt→Fernanda (pt-BR), en→Cassidy. La región sale
+  /// del device porque el override de Flutter es solo-idioma.
+  String get _voiceId {
+    final Locale loc = _effectiveLocale;
+    final String? region =
+        loc.countryCode ?? PlatformDispatcher.instance.locale.countryCode;
+    switch (loc.languageCode) {
+      case 'es':
+        switch (region) {
+          case 'ES':
+            return elevenLabsCristinaEsVoiceId;
+          case 'AR':
+          case 'UY':
+            return elevenLabsMalenaVoiceId;
+          default:
+            return elevenLabsCristinaCamposVoiceId;
+        }
+      case 'pt':
+        return elevenLabsFernandaVoiceId; // pt-BR (única voz PT disponible)
+      case 'en':
+        return elevenLabsCassidyVoiceId;
+      default:
+        return elevenLabsMalenaVoiceId; // fallback histórico
+    }
+  }
+
   String _jsonBody(String text) {
     // Construido a mano para no importar dart:convert sólo por esto;
     // el texto ya viene saneado (sin comillas/markdown problemáticos), pero
@@ -395,7 +454,7 @@ class VoiceService {
         .replaceAll('"', r'\"')
         .replaceAll('\n', r'\n');
     return '{"text":"$safe","provider":"elevenlabs",'
-        '"voice_id":"$elevenLabsMalenaVoiceId","el_model":"$elevenLabsModel",'
+        '"voice_id":"$_voiceId","el_model":"$elevenLabsModel",'
         '"stability":0.45,"similarity_boost":0.85,"style":0.15}';
   }
 
@@ -670,6 +729,9 @@ class VoiceError {
 /// reconocedor cuando se cierra la pantalla de voz (no hay otro consumidor).
 final voiceServiceProvider = Provider.autoDispose<VoiceService>((Ref ref) {
   final VoiceService service = VoiceService();
+  // Idioma efectivo para elegir la voz ElevenLabs por región. Se relee si el
+  // usuario cambia el idioma en Ajustes (el provider se reconstruye).
+  service.localeOverride = ref.watch(localeOverrideProvider);
   ref.onDispose(service.dispose);
   return service;
 });

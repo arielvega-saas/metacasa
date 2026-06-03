@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import AVFoundation
+import NaturalLanguage
 import Observation
 
 /// Cloud-based TTS via Edge Function `tts-proxy`.
@@ -31,11 +32,28 @@ final class CloudTTSService: NSObject {
     }
 
     /// ElevenLabs voices — voice_id + display name.
-    /// Malena = voz nativa rioplatense (Buenos Aires), conversacional, joven.
-    /// Para español argentino es mucho mejor que las voces inglesas premade
-    /// (Rachel/Adam/etc.) que hablan español con acento gringo.
+    ///
+    /// Voces regionales nativas (conversacionales), una por variante de idioma,
+    /// para que el ACENTO de la voz coincida con la variante del TEXTO que genera
+    /// el modelo (ver `AISystemPromptV2.languageVariantPhrase`). Mucho mejor que
+    /// usar una sola voz para todo (p. ej. Malena rioplatense leyendo castellano
+    /// o inglés con acento porteño). La selección la hace `resolveVoice(for:)`.
     enum ElevenLabsVoice: String, Sendable, CaseIterable {
+        // — Regionales (default por región) —
+        /// 🇦🇷 Rioplatense (Buenos Aires), joven, conversacional. es-AR / es-UY.
         case malena = "p7AwDmKvTdoHTBuueGvP"
+        /// 🇪🇸 Castellano peninsular, cálida y empática. es-ES.
+        case cristinaES = "dNjJKg63Fr5AXwIdkATa"
+        /// 🌎 Español latinoamericano neutro (acento mexicano), conversacional. es-419.
+        case cristinaCampos = "nTkjq09AuYgsNR8E4sDe"
+        /// 🇧🇷 Português do Brasil, formal y clara, conversacional. pt-BR.
+        case fernanda = "7iqXtOF3wl3pomwXFY7G"
+        /// 🇺🇸 Inglés americano, nítida y directa (la conversacional más usada). en.
+        case cassidy = "56AoDkrOh6qfVPDXZ7Pt"
+        /// 🇺🇸 Inglés americano, profesional y serena (alternativa a Cassidy). en.
+        case juniper = "aMSt68OGf4xUZAnLpTU8"
+
+        // — Premade legacy (fallback / experimentación) —
         case rachel = "21m00Tcm4TlvDq8ikWAM"
         case adam = "pNInz6obpgDQGcFmaJgB"
         case bella = "EXAVITQu4vr4xnSDxMaL"
@@ -46,7 +64,12 @@ final class CloudTTSService: NSObject {
 
         var displayName: String {
             switch self {
-            case .malena: "Malena (AR)"
+            case .malena: "Malena (es-AR)"
+            case .cristinaES: "Cristina (es-ES)"
+            case .cristinaCampos: "Cristina Campos (es-419)"
+            case .fernanda: "Fernanda (pt-BR)"
+            case .cassidy: "Cassidy (en)"
+            case .juniper: "Juniper (en)"
             case .rachel: "Rachel"
             case .adam: "Adam"
             case .bella: "Bella"
@@ -60,7 +83,12 @@ final class CloudTTSService: NSObject {
 
     var provider: Provider = .elevenlabs
     var preferredVoice: Voice = .nova
-    // Malena: voz nativa rioplatense. Requiere ElevenLabs Starter+ ($6/mes).
+    /// Cuando es `true` (default), la voz ElevenLabs se elige automáticamente
+    /// según el idioma del texto + la región del usuario (decisión: "default por
+    /// región"). Poné `false` para forzar `preferredElevenLabsVoice`.
+    var autoVoiceByLocale: Bool = true
+    /// Override manual de voz cuando `autoVoiceByLocale == false`. También sirve
+    /// de fallback histórico (rioplatense) si la detección no resuelve nada.
     var preferredElevenLabsVoice: ElevenLabsVoice = .malena
 
     // MARK: - Sentence queue (streaming-style playback)
@@ -283,7 +311,7 @@ final class CloudTTSService: NSObject {
             bodyData = try JSONEncoder().encode(ElevenLabsBody(
                 text: text,
                 provider: "elevenlabs",
-                voice_id: preferredElevenLabsVoice.rawValue,
+                voice_id: resolveVoice(for: text).rawValue,
                 el_model: "eleven_flash_v2_5",
                 stability: 0.45,
                 similarity_boost: 0.85,
@@ -304,6 +332,83 @@ final class CloudTTSService: NSObject {
             throw NSError(domain: "CloudTTS", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "TTS falló (HTTP \(http.statusCode)): \(detail)"])
         }
         return data
+    }
+
+    // MARK: - Voice selection (region-aware)
+
+    /// Elige la voz ElevenLabs para un fragmento de texto. Si `autoVoiceByLocale`
+    /// está desactivado, respeta `preferredElevenLabsVoice`. Si está activo,
+    /// detecta el idioma del TEXTO (on-device, instantáneo) y lo combina con la
+    /// región del usuario — el MISMO criterio que la voz on-device
+    /// (`TTSService.detectLanguageCode`) y la variante de texto del modelo
+    /// (`AISystemPromptV2.languageVariantPhrase`), para que acento y registro no
+    /// se contradigan.
+    private func resolveVoice(for text: String) -> ElevenLabsVoice {
+        guard autoVoiceByLocale else { return preferredElevenLabsVoice }
+
+        let localeLang = AppLocaleStorage.effectiveLocale.language.languageCode?.identifier
+        // Si la detección no es confiable, seguimos el idioma del locale.
+        guard let lang = detectLanguage(of: text, biasedTo: localeLang) ?? localeLang else {
+            return voiceFromLocale()
+        }
+        switch lang {
+        case "es": return spanishVoice()
+        case "pt": return .fernanda          // pt-BR (única voz PT disponible)
+        case "en": return englishVoice()
+        default:   return voiceFromLocale()
+        }
+    }
+
+    /// Idioma dominante del texto (on-device, NLLanguageRecognizer). Se sesga
+    /// hacia `biasLang` (el idioma del usuario) y exige confianza mínima, para
+    /// que oraciones cortas o numéricas — el modo voz encola oración por oración —
+    /// no disparen cambios de voz a mitad de respuesta. `nil` si no hay señal.
+    private func detectLanguage(of text: String, biasedTo biasLang: String?) -> String? {
+        let recognizer = NLLanguageRecognizer()
+        if let biasLang, let nl = Self.nlLanguage(for: biasLang) {
+            recognizer.languageHints = [nl: 0.5]
+        }
+        recognizer.processString(text)
+        guard let dominant = recognizer.dominantLanguage, dominant != .undetermined else {
+            return nil
+        }
+        let confidence = recognizer.languageHypotheses(withMaximum: 1)[dominant] ?? 0
+        return confidence >= 0.55 ? dominant.rawValue : nil
+    }
+
+    private static func nlLanguage(for code: String) -> NLLanguage? {
+        switch code {
+        case "es": return .spanish
+        case "pt": return .portuguese
+        case "en": return .english
+        default:   return nil
+        }
+    }
+
+    /// Español por región: España→Cristina (castellano), AR/UY→Malena
+    /// (rioplatense voseo), resto LatAm→Cristina Campos (neutro). Mismo reparto
+    /// que `AISystemPromptV2.languageVariantPhrase` para "es".
+    private func spanishVoice() -> ElevenLabsVoice {
+        switch AppLocaleStorage.effectiveLocale.region?.identifier {
+        case "ES":       return .cristinaES
+        case "AR", "UY": return .malena
+        default:         return .cristinaCampos
+        }
+    }
+
+    /// Inglés: Cassidy es el default (la conversacional femenina más usada).
+    /// Juniper queda como alternativa profesional vía `preferredElevenLabsVoice`.
+    private func englishVoice() -> ElevenLabsVoice { .cassidy }
+
+    /// Fallback cuando el reconocedor no detecta idioma (p. ej. "$1.250"):
+    /// usar el idioma del locale efectivo del usuario.
+    private func voiceFromLocale() -> ElevenLabsVoice {
+        switch AppLocaleStorage.effectiveLocale.language.languageCode?.identifier {
+        case "es": return spanishVoice()
+        case "pt": return .fernanda
+        case "en": return englishVoice()
+        default:   return preferredElevenLabsVoice
+        }
     }
 
     // MARK: - Playback
