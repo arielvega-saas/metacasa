@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -20,6 +20,31 @@ import { createHousehold } from "@/lib/actions/household";
 import { SUPPORTED_CURRENCIES } from "@/lib/constants";
 import { useT } from "@/components/i18n/locale-provider";
 
+/**
+ * Mapa región → moneda (solo las soportadas). Hace que el onboarding web arranque
+ * con la moneda del país del usuario —igual que iOS/Flutter, que la derivan del
+ * locale del device— en vez de USD fijo. Eurozona → EUR.
+ */
+const REGION_TO_CURRENCY: Record<string, string> = {
+  AR: "ARS", UY: "UYU", BR: "BRL", MX: "MXN", CL: "CLP", CO: "COP", PE: "PEN",
+  GB: "GBP", US: "USD",
+  ES: "EUR", FR: "EUR", DE: "EUR", IT: "EUR", PT: "EUR", IE: "EUR", NL: "EUR",
+  BE: "EUR", AT: "EUR", GR: "EUR", FI: "EUR", LU: "EUR",
+};
+
+/**
+ * Moneda inicial según el idioma/región del navegador, validada contra el
+ * catálogo soportado. Fallback USD. Solo corre en cliente (lee `navigator`).
+ */
+function guessCurrencyFromLocale(): string {
+  if (typeof navigator === "undefined") return "USD";
+  const region = navigator.language?.split("-")[1]?.toUpperCase();
+  const guess = region ? REGION_TO_CURRENCY[region] : undefined;
+  return guess && SUPPORTED_CURRENCIES.some((c) => c.code === guess)
+    ? guess
+    : "USD";
+}
+
 /** Onboarding mínimo: el usuario no tiene ningún hogar todavía. */
 export function CreateHouseholdGate() {
   const t = useT();
@@ -27,6 +52,12 @@ export function CreateHouseholdGate() {
   const [name, setName] = useState(t("onboarding.defaultHouseholdName"));
   const [currency, setCurrency] = useState("USD");
   const [pending, startTransition] = useTransition();
+
+  // Arranca con la moneda del país del navegador (post-mount para no romper la
+  // hidratación SSR, donde `navigator` no existe). El usuario igual puede cambiarla.
+  useEffect(() => {
+    setCurrency(guessCurrencyFromLocale());
+  }, []);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

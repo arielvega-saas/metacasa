@@ -183,7 +183,7 @@ struct LegalView: View {
     static var termsText: String {
         let app = String(localized: "app.name")
         return """
-    Última actualización: 2026-05-01
+    Última actualización: 2026-06-02
 
     Bienvenido/a a \(app). Al usar la app, aceptás los siguientes \
     términos. Leelos con atención.
@@ -245,9 +245,12 @@ struct LegalView: View {
 
     8. LEY APLICABLE
 
-    Estos términos se rigen por las leyes [de tu jurisdicción — completar \
-    antes de lanzar]. Cualquier disputa se resolverá en los tribunales de \
-    [jurisdicción — completar].
+    Estos términos se rigen por las leyes de la República Argentina. Cualquier \
+    disputa se resolverá ante los tribunales ordinarios competentes de la Ciudad \
+    Autónoma de Buenos Aires, Argentina. Si residís en la Unión Europea o el \
+    Reino Unido, esta elección de ley no te priva de la protección de las normas \
+    imperativas de tu país de residencia (incluido el RGPD y la normativa de \
+    consumo aplicable).
 
     9. CONTACTO
 
