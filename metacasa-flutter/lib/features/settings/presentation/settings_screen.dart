@@ -27,9 +27,9 @@ import '../../backup/backup_screen.dart';
 const String _kAppVersion = '1.0.0';
 
 /// URLs públicas de marca (mismas que la PWA / iOS).
-const String _kPrivacyUrl = 'https://metacasa-app-cf592.web.app/privacy.html';
-const String _kTermsUrl = 'https://metacasa-app-cf592.web.app/terms.html';
-const String _kSiteUrl = 'https://metacasa.app';
+const String _kPrivacyUrl = 'https://usehomefinance.com/privacy.html';
+const String _kTermsUrl = 'https://usehomefinance.com/terms.html';
+const String _kSiteUrl = 'https://usehomefinance.com';
 
 /// Pantalla de Ajustes — espejo de `SettingsView` de iOS, reorganizada en los
 /// 4 grupos pedidos por el equipo Flutter:

@@ -12,6 +12,10 @@ const PUBLIC_PREFIXES = [
   // para no rebotar al login. El form valida la sesión de recovery por su cuenta.
   "/reset-password",
   "/auth", // /auth/handoff, /auth/callback, /auth/confirm
+  // Páginas legales estáticas (en public/): públicas, para que el link de
+  // Privacidad/Términos de las apps abra sin rebotar al login.
+  "/privacy.html",
+  "/terms.html",
 ];
 
 function isPublic(pathname: string) {

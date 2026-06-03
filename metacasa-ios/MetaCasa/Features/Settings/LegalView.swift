@@ -167,7 +167,7 @@ struct LegalView: View {
 
     11. CONTACTO
 
-    Dudas o pedidos sobre privacidad: privacy@metacasa.app
+    Dudas o pedidos sobre privacidad: vegaariel976@gmail.com
 
     ---
     ⚠️ ESTE TEXTO ES UN PUNTO DE PARTIDA RAZONABLE PERO NO REEMPLAZA \
@@ -254,7 +254,7 @@ struct LegalView: View {
 
     9. CONTACTO
 
-    Dudas sobre los términos: soporte@homefinance.app
+    Dudas sobre los términos: vegaariel976@gmail.com
 
     ---
     ⚠️ Este texto es un template inicial. Antes de lanzar, revisalo con \
