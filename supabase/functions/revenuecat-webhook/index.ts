@@ -128,6 +128,10 @@ Deno.serve(async (req: Request) => {
     expires_at: expiresAt,
     canceled_at: canceledAt,
     original_transaction_id: event.original_transaction_id ?? null,
+    // Dedupe: RevenueCat reintenta webhooks (timeouts, 5xx). event_id +
+    // entitlement_id tienen UNIQUE en la tabla; el upsert con
+    // ignoreDuplicates descarta el reintento sin duplicar la fila.
+    event_id: event.id ?? null,
     metadata: {
       event_type: eventType,
       event_id: event.id ?? null,
@@ -137,7 +141,10 @@ Deno.serve(async (req: Request) => {
     },
   }));
 
-  const { error } = await supabase.from("subscriptions").insert(rows);
+  const { error } = await supabase.from("subscriptions").upsert(rows, {
+    onConflict: "event_id,entitlement_id",
+    ignoreDuplicates: true,
+  });
   if (error) {
     console.error("[revenuecat-webhook] insert error", error);
     return jsonResponse({ error: error.message }, 500);

@@ -4,6 +4,7 @@ import { resolveActiveHousehold } from "@/lib/household";
 import { listInvitations, listMembers } from "@/lib/db/household-members";
 import { getAccessState, daysUntil } from "@/lib/access";
 import { getT } from "@/lib/i18n/server";
+import { getTheme } from "@/lib/theme-server";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 
@@ -25,10 +26,11 @@ export default async function ProfilePage() {
     return <p className="text-text-muted">{t("profile.noHousehold")}</p>;
   }
 
-  const [members, invitations, access] = await Promise.all([
+  const [members, invitations, access, theme] = await Promise.all([
     listMembers(supabase, active.id),
     listInvitations(supabase, active.id),
     getAccessState(),
+    getTheme(),
   ]);
 
   const displayName =
@@ -55,6 +57,7 @@ export default async function ProfilePage() {
         currentUserId={user?.id ?? ""}
         access={access}
         trialDaysLeft={daysUntil(access.trial_ends_at)}
+        theme={theme}
       />
     </div>
   );

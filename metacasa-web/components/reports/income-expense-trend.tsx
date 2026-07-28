@@ -2,7 +2,7 @@
 
 // Tendencia ingresos vs gastos de los últimos 12 meses (líneas suaves).
 // Mismo lenguaje visual que FlowsChart: sage para ingresos, coral para gastos,
-// ejes #7a8782, grid sage tenue, tooltip de vidrio.
+// ejes/grid de `chart-tokens`, tooltip de vidrio compartido.
 import {
   Area,
   AreaChart,
@@ -17,6 +17,8 @@ import { formatMoney } from "@/lib/money";
 import { useT, useLocale } from "@/components/i18n/locale-provider";
 import { formatMonthShort } from "@/lib/i18n/dates";
 import type { Locale } from "@/lib/i18n/config";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
+import { CHART } from "./chart-tokens";
 
 interface FlowDatum {
   month: string; // YYYY-MM
@@ -34,15 +36,14 @@ function CustomTooltip({ active, payload, label, currency, t }: any) {
   const income = payload.find((p: any) => p.dataKey === "income")?.value ?? 0;
   const expense = payload.find((p: any) => p.dataKey === "expense")?.value ?? 0;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-1 font-medium capitalize text-foreground">{label}</p>
-      <p className="text-income">
+    <ChartTooltip title={label} capitalizeTitle>
+      <ChartTooltipRow tone="income">
         {t("reports.legendIncome")} {formatMoney(income, currency, "compact")}
-      </p>
-      <p className="text-expense">
+      </ChartTooltipRow>
+      <ChartTooltipRow tone="expense">
         {t("reports.legendExpense")} {formatMoney(expense, currency, "compact")}
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 
@@ -81,25 +82,25 @@ export function IncomeExpenseTrend({
         <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
           <defs>
             <linearGradient id="rep-income" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#9fc4ad" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#9fc4ad" stopOpacity={0} />
+              <stop offset="0%" stopColor={CHART.income} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={CHART.income} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="rep-expense" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#e8b4a6" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#e8b4a6" stopOpacity={0} />
+              <stop offset="0%" stopColor={CHART.expense} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={CHART.expense} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="rgba(184,212,194,0.08)" />
+          <CartesianGrid vertical={false} stroke={CHART.grid} />
           <XAxis
             dataKey="label"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#7a8782", fontSize: 12 }}
+            tick={{ fill: CHART.axis, fontSize: 12 }}
             dy={8}
           />
           <YAxis hide />
           <Tooltip
-            cursor={{ stroke: "rgba(255,255,255,0.12)" }}
+            cursor={{ stroke: CHART.cursor }}
             content={<CustomTooltip currency={currency} t={t} />}
           />
           <Legend content={<LegendContent t={t} />} />
@@ -107,21 +108,21 @@ export function IncomeExpenseTrend({
             type="monotone"
             dataKey="income"
             name={t("reports.legendIncome")}
-            stroke="#9fc4ad"
+            stroke={CHART.income}
             strokeWidth={2}
             fill="url(#rep-income)"
             dot={false}
-            activeDot={{ r: 4, fill: "#9fc4ad", strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: CHART.income, strokeWidth: 0 }}
           />
           <Area
             type="monotone"
             dataKey="expense"
             name={t("reports.legendExpense")}
-            stroke="#e8b4a6"
+            stroke={CHART.expense}
             strokeWidth={2}
             fill="url(#rep-expense)"
             dot={false}
-            activeDot={{ r: 4, fill: "#e8b4a6", strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: CHART.expense, strokeWidth: 0 }}
           />
         </AreaChart>
       </ResponsiveContainer>

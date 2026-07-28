@@ -22,25 +22,42 @@ enum Haptics {
         case impactHeavy
     }
 
+    // Generators estáticos: instanciar uno por llamada agrega latencia
+    // perceptible al primer haptic. Mantenerlos vivos y llamar `prepare()`
+    // tras cada disparo los deja "calientes" para el próximo tap
+    // (recomendación de Apple para feedback de baja latencia).
+    @MainActor private static let notificationGen = UINotificationFeedbackGenerator()
+    @MainActor private static let selectionGen = UISelectionFeedbackGenerator()
+    @MainActor private static let impactLightGen = UIImpactFeedbackGenerator(style: .light)
+    @MainActor private static let impactMediumGen = UIImpactFeedbackGenerator(style: .medium)
+    @MainActor private static let impactHeavyGen = UIImpactFeedbackGenerator(style: .heavy)
+
     /// Dispara el feedback. Seguro de llamar desde cualquier hilo —
-    /// el generator se crea y prepare+trigger en main queue.
+    /// el generator vive y se dispara en main queue.
     @MainActor
     static func play(_ kind: Kind) {
         switch kind {
         case .success:
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            notificationGen.notificationOccurred(.success)
+            notificationGen.prepare()
         case .warning:
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            notificationGen.notificationOccurred(.warning)
+            notificationGen.prepare()
         case .error:
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            notificationGen.notificationOccurred(.error)
+            notificationGen.prepare()
         case .selection:
-            UISelectionFeedbackGenerator().selectionChanged()
+            selectionGen.selectionChanged()
+            selectionGen.prepare()
         case .impactLight:
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            impactLightGen.impactOccurred()
+            impactLightGen.prepare()
         case .impactMedium:
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            impactMediumGen.impactOccurred()
+            impactMediumGen.prepare()
         case .impactHeavy:
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            impactHeavyGen.impactOccurred()
+            impactHeavyGen.prepare()
         }
     }
 }

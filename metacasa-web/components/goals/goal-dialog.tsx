@@ -193,7 +193,7 @@ export function GoalDialog({
                     className={`flex size-10 items-center justify-center rounded-[var(--radius-md)] border transition-colors ${
                       selected
                         ? "border-primary/60 bg-primary/15 text-primary"
-                        : "border-border text-text-muted hover:bg-white/[0.05]"
+                        : "border-border text-text-muted hover:bg-tint-2"
                     }`}
                   >
                     <Icon className="size-[18px]" />

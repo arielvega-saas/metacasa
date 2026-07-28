@@ -1,0 +1,38 @@
+-- Fase 4.2 (hardening): sacarle a `anon` todo acceso a `connected_wallets`.
+--
+-- HALLAZGO (2026-07-28, al portar wallets a metacasa-web): tanto `anon` como
+-- `authenticated` tenían SELECT/INSERT/UPDATE sobre
+-- `connected_wallets.access_token_encrypted`, es decir sobre el ciphertext del
+-- token OAuth de Mercado Pago.
+--
+-- SEVERIDAD REAL: baja, no crítica. El token está cifrado con `pgp_sym_encrypt`
+-- y la clave vive en Vault (sólo `service_role` la puede leer), y la RLS limita
+-- cada fila a su dueño — o sea que un usuario podía ver, como mucho, el
+-- ciphertext de SU PROPIA credencial. Aun así es material criptográfico
+-- expuesto sin necesidad: no hay ningún flujo que requiera que el cliente lo
+-- lea.
+--
+-- QUÉ SE HACE ACÁ: revocar todo para `anon`. La RLS ya lo bloqueaba (no hay
+-- `auth.uid()` sin sesión), así que el riesgo de romper algo es cero.
+--
+-- QUÉ QUEDA PENDIENTE Y POR QUÉ (deuda consciente, no olvido):
+--   Revocar SELECT a `authenticated` ROMPERÍA la PWA legacy, que hace
+--   `select('*')` sobre esta tabla (`src/App.jsx:3627`): en Postgres un
+--   `SELECT *` falla si falta el privilegio sobre UNA sola columna. Hoy la PWA
+--   es la única web operativa (el proyecto de Vercel está pausado por
+--   facturación), así que revocarlo dejaría a los usuarios sin wallets.
+--
+--   Secuencia correcta, en este orden:
+--     1. Reactivar Vercel y dejar `metacasa-web` sirviendo en usehomefinance.com.
+--     2. Retirar la PWA de Firebase (redirects 301).
+--     3. Mover la escritura del token a un RPC SECURITY DEFINER (hoy el cliente
+--        escribe el plaintext en `access_token` y un trigger BEFORE lo cifra y
+--        anula el plaintext — por eso no alcanza con revocar SELECT: hay que
+--        sacar también INSERT/UPDATE y darle otro camino al flujo OAuth).
+--     4. `revoke select, insert, update on public.connected_wallets from authenticated;`
+--        y dejar el acceso sólo por funciones.
+--
+--   `metacasa-web/lib/db/wallets.ts` ya está preparado: lista columnas
+--   explícitas y nunca selecciona el token en ninguna de sus formas.
+
+revoke select, insert, update, references on public.connected_wallets from anon;

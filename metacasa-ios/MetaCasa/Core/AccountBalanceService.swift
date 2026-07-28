@@ -32,8 +32,54 @@ enum AccountBalanceService {
         return account.startingBalance + delta
     }
 
+    /// Igual que `netWorth(accounts:transactions:debts:)` pero con los saldos ya
+    /// calculados server-side (RPC `account_balances`) en vez de derivarlos de
+    /// las transacciones en el device. Misma clasificación asset/liability.
+    ///
+    /// Una cuenta sin entrada en `balances` cae a su `startingBalance` (no
+    /// debería pasar: el RPC devuelve todas las activas del hogar).
+    static func netWorth(
+        accounts: [Account],
+        balances: [UUID: Decimal],
+        debts: [Debt]
+    ) -> NetWorthBreakdown {
+        var assets: Decimal = 0
+        var liabilities: Decimal = 0
+        var perAccount: [AccountBalance] = []
+
+        for account in accounts where account.isActive {
+            let balance = balances[account.id] ?? account.startingBalance
+            perAccount.append(.init(account: account, balance: balance))
+
+            switch account.type {
+            case .checking, .savings, .cash, .investment, .other:
+                assets += balance
+            case .creditCard, .loan:
+                if balance < 0 {
+                    liabilities += abs(balance)
+                } else {
+                    assets += balance
+                }
+            }
+        }
+
+        for debt in debts where debt.currentBalance > 0 {
+            liabilities += debt.currentBalance
+        }
+
+        return NetWorthBreakdown(
+            assets: assets,
+            liabilities: liabilities,
+            perAccount: perAccount
+        )
+    }
+
     /// Calcula patrimonio neto = assets - liabilities para todo el hogar.
     /// Segmenta el desglose para que la UI pueda mostrar 2 líneas + total.
+    ///
+    /// Variante client-side (deriva saldos de `transactions`). Se conserva para
+    /// call sites que ya tienen las transacciones en memoria y para los tests;
+    /// el Home y Cuentas usan la variante con `balances:` (RPC).
     static func netWorth(
         accounts: [Account],
         transactions: [Transaction],
@@ -78,7 +124,8 @@ enum AccountBalanceService {
 // MARK: - Models
 
 /// Desglose de patrimonio neto. `netWorth` es propiedad derivada.
-struct NetWorthBreakdown: Sendable, Equatable {
+/// `Codable` porque viaja dentro del `HomeSnapshot` que se persiste en disco.
+struct NetWorthBreakdown: Sendable, Equatable, Codable {
     let assets: Decimal
     let liabilities: Decimal
     let perAccount: [AccountBalance]
@@ -98,7 +145,7 @@ struct NetWorthBreakdown: Sendable, Equatable {
 }
 
 /// Balance puntual de una cuenta (post-aplicación de transacciones).
-struct AccountBalance: Sendable, Equatable {
+struct AccountBalance: Sendable, Equatable, Codable {
     let account: Account
     let balance: Decimal
 }

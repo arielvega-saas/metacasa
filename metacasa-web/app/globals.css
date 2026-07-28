@@ -2,9 +2,25 @@
 
 /*
  * ─────────────────────────────────────────────────────────────────────────
- * Home Finance — Design System "Midnight Sage"
+ * Home Finance — Design System "Midnight Sage" (oscuro) / "Daylight Sage" (claro)
  * Tokens portados 1:1 desde la app iOS (Core/DesignSystem.swift).
  * Tema oscuro premium: base verdoso-noche + acento sage + champagne.
+ * Tema claro: crema/hueso + sage oscurecido + terracota, MISMA identidad.
+ *
+ * Cómo se elige el tema
+ * ─────────────────────
+ * `:root` define el tema OSCURO (default histórico). El tema CLARO se activa
+ * con la clase `.light` en <html>. `app/layout.tsx` renderiza la clase desde la
+ * cookie `mc_theme` (system|light|dark) y un <script> inline en <head> la
+ * corrige antes del primer paint cuando la preferencia es `system` (lee
+ * prefers-color-scheme). Por eso no hay flash: el DOM ya tiene la clase
+ * correcta antes de que el navegador pinte el <body>.
+ *
+ * Contraste (WCAG 2.1)
+ * ────────────────────
+ * Todos los ratios comentados abajo están calculados con la fórmula oficial
+ * (luminancia relativa sRGB). Objetivo: AA — 4.5:1 para texto normal y 3:1
+ * para texto grande / componentes de UI.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -13,7 +29,7 @@
 :root {
   --radius: 1rem;
 
-  /* ── Paleta cruda Midnight Sage ─────────────────────────────── */
+  /* ── Paleta cruda Midnight Sage (TEMA OSCURO — default) ─────── */
   --mc-bg: #0e1312;          /* fondo app — midnight cálido verdoso */
   --mc-surface: #151c1a;     /* cards / paneles */
   --mc-surface-2: #1b2422;   /* superficie elevada (hover, popovers) */
@@ -22,11 +38,102 @@
   --mc-sage-strong: #9fc4ad; /* sage saturado — ingresos / positivo */
   --mc-champagne: #d4c19c;   /* dorado cálido — acento secundario */
   --mc-expense: #e8b4a6;     /* coral cálido — gastos / negativo */
+  /* Jerarquía de texto en 3 niveles. Contraste medido contra las CUATRO
+     superficies (bg / surface / surface-2 / inset); el peor caso es siempre
+     surface-2 (#1b2422), que es la más clara.
+
+       token       bg     surface  surface-2  inset
+       text       14.78    13.65     12.53    15.21
+       muted       8.26     7.63      7.00     8.50
+       dim         5.34     4.93      4.53     5.49   ← AA en el peor caso
+
+     Antes `dim` era #3e4844 (1.98:1) y `muted` #7a8782 (4.25:1 sobre
+     surface-2): ambos por debajo de AA. `dim` estaba documentado como
+     "decorativo", pero en la práctica se usa en 133 lugares para hints y
+     captions — texto informativo real, no elementos deshabilitados. Se subieron
+     los dos conservando el matiz verde-gris de la marca y un salto perceptible
+     entre niveles (≈14.8 / 8.3 / 5.3 sobre el fondo). */
   --mc-text: #e8e4dc;        /* texto principal — crema cálido */
-  --mc-text-muted: #7a8782;  /* texto secundario / labels */
-  --mc-text-dim: #3e4844;    /* deshabilitado / placeholder */
+  --mc-text-muted: #9fb0a9;  /* texto secundario / labels */
+  --mc-text-dim: #7e8c86;    /* hints / captions / placeholder */
   --mc-hairline: rgba(184, 212, 194, 0.12); /* borde sage tenue */
   --mc-hairline-strong: rgba(184, 212, 194, 0.2);
+  --mc-input-border: rgba(184, 212, 194, 0.2); /* borde de inputs/selects */
+
+  /* Colores "sobre acento" (texto encima de fondos de marca sólidos). */
+  --mc-on-primary: #0e1312;     /* sobre --mc-sage → 11.9:1 */
+  --mc-on-destructive: #1a0f0c; /* sobre --mc-expense → 11.2:1 */
+
+  /* Superficies semánticas secundarias (shadcn). */
+  --mc-secondary: #1f2a27;
+  --mc-muted-bg: #1b2422;
+  --mc-accent-bg: #20302b;
+
+  /*
+   * ── Velos ("tints") ────────────────────────────────────────────
+   * Capa translúcida sobre el fondo para hovers, filas activas, chips.
+   * En oscuro son BLANCO translúcido; en claro, verde-carbón translúcido.
+   * La opacidad NO es la misma en los dos temas: un velo oscuro sobre crema
+   * pesa ~60% de lo que pesa un velo blanco sobre negro, así que en claro va
+   * más alto para igualar el peso visual (ΔL* ≈ 6-7 en ambos).
+   * Se exponen como colores completos (bg-tint-2, hover:bg-tint-2, …) para
+   * que TODAS las variantes de Tailwind funcionen sin opacidad hardcodeada.
+   */
+  --mc-tint-1: rgba(255, 255, 255, 0.035); /* hover muy sutil */
+  --mc-tint-2: rgba(255, 255, 255, 0.06);  /* superficie / hover estándar */
+  --mc-tint-3: rgba(255, 255, 255, 0.09);  /* activo / seleccionado */
+  --mc-tint-4: rgba(255, 255, 255, 0.12);  /* velo más marcado (bordes, chips) */
+
+  /* Scrim de diálogos/sheets. */
+  --mc-scrim: rgba(0, 0, 0, 0.6);
+
+  /* Color de las sombras de elevación (popovers, sheets, FAB). En claro no
+     puede ser negro puro al 50% o el popover se ve sucio: verde-carbón suave. */
+  --mc-elevation: rgba(0, 0, 0, 0.5);
+
+  /*
+   * Controles de formulario. Necesitan 3:1 (WCAG 1.4.11) contra lo que tienen
+   * al lado, así que NO pueden ser un velo: en claro el track de un switch
+   * apagado tiene que ser un gris-sage sólido o el thumb blanco desaparece.
+   */
+  --mc-switch-track: rgba(255, 255, 255, 0.12); /* thumb blanco → 13.2:1 */
+
+  /* Segmento activo (tabs, segmented controls). En oscuro "sube" con un velo
+     claro; en claro "sube" con superficie blanca + sombra (el patrón de los
+     segmented control nativos). El estado además se refuerza con el color del
+     texto (foreground vs text-muted), nunca sólo con el fondo. */
+  --mc-segment-bg: rgba(255, 255, 255, 0.08);
+  --mc-segment-shadow: none;
+
+  /* Cuánto del color ELEGIDO POR EL USUARIO (hex guardado en DB, ej. el acento
+     de una cuenta) sobrevive antes de mezclarse con el texto. En oscuro, 100%
+     (los pasteles ya contrastan); en claro se mezcla para no quedar en 1.5:1. */
+  --mc-accent-mix: 100%;
+
+  /* Vidrio (glassmorphism). En oscuro: superficie translúcida, sin sombra. */
+  --mc-glass-bg: color-mix(in srgb, var(--mc-surface) 74%, transparent);
+  --mc-glass-shadow: none;
+
+  /* Aurora ambiental del fondo. */
+  --mc-aurora-a: color-mix(in srgb, var(--mc-sage) 10%, transparent);
+  --mc-aurora-b: color-mix(in srgb, var(--mc-champagne) 7%, transparent);
+
+  /* ── Charts (Recharts pinta SVG; consumimos estas vars por var()) ── */
+  --mc-chart-grid: rgba(184, 212, 194, 0.08);
+  --mc-chart-cursor: rgba(255, 255, 255, 0.12);
+  --mc-chart-cursor-fill: rgba(255, 255, 255, 0.04);
+
+  /* Series de categorías (donut / leyendas). Sage → champagne → coral. */
+  --mc-series-1: #9fc4ad;
+  --mc-series-2: #c9b78a;
+  --mc-series-3: #e8b4a6;
+  --mc-series-4: #7fae93;
+  --mc-series-5: #b8d4c2;
+  --mc-series-6: #d8c9a0;
+  --mc-series-7: #cf9d8e;
+  --mc-series-8: #6b9a82;
+  --mc-series-9: #a9c9b6;
+  --mc-series-10: #e0cfae;
 
   /* ── Mapeo semántico (estilo shadcn/ui) ────────────────────── */
   --background: var(--mc-bg);
@@ -36,27 +143,135 @@
   --popover: var(--mc-surface-2);
   --popover-foreground: var(--mc-text);
   --primary: var(--mc-sage);
-  --primary-foreground: #0e1312;
-  --secondary: #1f2a27;
+  --primary-foreground: var(--mc-on-primary);
+  --secondary: var(--mc-secondary);
   --secondary-foreground: var(--mc-text);
-  --muted: #1b2422;
+  --muted: var(--mc-muted-bg);
   --muted-foreground: var(--mc-text-muted);
-  --accent: #20302b;
+  --accent: var(--mc-accent-bg);
   --accent-foreground: var(--mc-text);
   --destructive: var(--mc-expense);
-  --destructive-foreground: #1a0f0c;
+  --destructive-foreground: var(--mc-on-destructive);
   --success: var(--mc-sage-strong);
   --warning: var(--mc-champagne);
   --border: var(--mc-hairline);
-  --input: var(--mc-hairline-strong);
+  --input: var(--mc-input-border);
   --ring: var(--mc-sage);
 
   /* ── Stacks tipográficos ───────────────────────────────────── */
-  /* En Apple, ui-serif = "New York" (match exacto con iOS). */
-  --font-sans-stack: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-serif-stack: ui-serif, "New York", "Iowan Old Style", Georgia,
-    "Times New Roman", serif;
+  /* Fuentes self-hosted vía next/font (app/layout.tsx define las variables
+     --font-fraunces / --font-manrope). Fallback: en Apple, ui-serif =
+     "New York"; fuera de Apple ya no caemos a Georgia porque Fraunces viaja
+     con la app. Ambas soportan dígitos tabulares (tnum) para .font-num/.tnum. */
+  --font-sans-stack: var(--font-manrope), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif-stack: var(--font-fraunces), ui-serif, "New York", Georgia, serif;
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * TEMA CLARO — "Daylight Sage"
+ * ═══════════════════════════════════════════════════════════════════════
+ * NO es el oscuro invertido: es una paleta propia con la misma identidad.
+ * Fondo crema/hueso (nunca blanco puro), superficies casi blancas, texto
+ * verde-carbón, sage oscurecido como acento, coral llevado a terracota.
+ *
+ * Luminancias relativas de referencia (Y):
+ *   bg #f2efe6 → 0.863 | surface #fbf9f4 → 0.948 | surface-2 #fff → 1.000
+ *   inset #efebe0 → 0.832
+ *
+ * Ratios de contraste calculados (texto : fondo):
+ *   ┌────────────────┬─────────┬──────────┬───────┬────────┐
+ *   │ token          │ vs bg   │ vs card  │ vs #fff│ vs inset│
+ *   ├────────────────┼─────────┼──────────┼───────┼────────┤
+ *   │ text   #16241e │ 13.99:1 │ 15.29:1  │ 16.09:1│ 13.51:1│  AAA
+ *   │ muted  #3f4e47 │  7.64:1 │  8.35:1  │  8.78:1│  7.37:1│  AAA
+ *   │ dim    #5b6a63 │  4.97:1 │  5.43:1  │  5.71:1│  4.80:1│  AA
+ *   │ sage   #2c6b4e │  5.50:1 │  6.01:1  │  6.32:1│  5.31:1│  AA
+ *   │ income #1b6e45 │  5.43:1 │  5.93:1  │  6.24:1│  5.24:1│  AA
+ *   │ expense#a9452e │  5.11:1 │  5.58:1  │  5.87:1│  4.93:1│  AA
+ *   │ champ. #7a5e1f │  5.30:1 │  5.79:1  │  6.09:1│  5.11:1│  AA
+ *   └────────────────┴─────────┴──────────┴───────┴────────┘
+ *   Chips suaves (bg-income/15, bg-expense/15 sobre card):
+ *     income sobre #dde9e3 → 5.01:1 ✓ | expense sobre #f2e3df → 4.71:1 ✓
+ *   Sobre acento sólido:
+ *     #f7fbf8 sobre --mc-sage    → 6.05:1 ✓ (botón primario)
+ *     #fff6f3 sobre --mc-expense → 5.52:1 ✓ (botón destructivo)
+ *   Componentes de UI (≥3:1):
+ *     borde de input rgba(22,36,30,.58) → 3.53:1 vs bg | 3.40:1 vs inset ✓
+ *     track de switch #7f8d87 → 3.47:1 vs thumb blanco | 3.29:1 vs card ✓
+ *     series de charts 1..10 sobre card → de 3.50:1 a 9.38:1 ✓
+ *   El `hairline` decorativo (1.37:1) NO es el único indicador de las cards
+ *   (hay salto de superficie crema→casi blanco), así que 1.4.11 no aplica.
+ */
+:root.light {
+  --mc-bg: #f2efe6;
+  --mc-surface: #fbf9f4;
+  --mc-surface-2: #ffffff;
+  --mc-inset: #efebe0;
+  --mc-sage: #2c6b4e;
+  --mc-sage-strong: #1b6e45;
+  --mc-champagne: #7a5e1f;
+  --mc-expense: #a9452e;
+  --mc-text: #16241e;
+  --mc-text-muted: #3f4e47;
+  --mc-text-dim: #5b6a63;
+  --mc-hairline: rgba(22, 36, 30, 0.14);
+  --mc-hairline-strong: rgba(22, 36, 30, 0.26);
+  --mc-input-border: rgba(22, 36, 30, 0.58);
+
+  --mc-on-primary: #f7fbf8;
+  --mc-on-destructive: #fff6f3;
+
+  --mc-secondary: #e8e3d7;
+  --mc-muted-bg: #ebe7dc;
+  --mc-accent-bg: #e2ece5;
+
+  /* Velos: verde-carbón translúcido, ~1.6× la opacidad del tema oscuro. */
+  --mc-tint-1: rgba(22, 36, 30, 0.055);
+  --mc-tint-2: rgba(22, 36, 30, 0.09);
+  --mc-tint-3: rgba(22, 36, 30, 0.13);
+  --mc-tint-4: rgba(22, 36, 30, 0.2);
+
+  --mc-scrim: rgba(18, 32, 26, 0.45);
+  --mc-elevation: rgba(22, 36, 30, 0.18);
+
+  /* Track sólido: con el thumb blanco da 3.47:1 (AA para componentes de UI),
+     y el propio track contra la card da 3.29:1. */
+  --mc-switch-track: #7f8d87;
+
+  --mc-segment-bg: #ffffff;
+  --mc-segment-shadow: 0 1px 2px rgba(22, 36, 30, 0.1);
+
+  --mc-accent-mix: 50%;
+
+  /* Vidrio en claro: NO puede ser "blanco sobre blanco" o desaparece.
+     Fórmula distinta: blanco translúcido MÁS elevación por sombra suave
+     (en oscuro la sombra es `none` y el volumen lo da el contraste). */
+  --mc-glass-bg: color-mix(in srgb, #ffffff 80%, transparent);
+  --mc-glass-shadow:
+    0 1px 2px rgba(22, 36, 30, 0.06),
+    0 12px 32px -20px rgba(22, 36, 30, 0.35);
+
+  --mc-aurora-a: color-mix(in srgb, var(--mc-sage) 8%, transparent);
+  --mc-aurora-b: color-mix(in srgb, var(--mc-champagne) 6%, transparent);
+
+  --mc-chart-grid: rgba(22, 36, 30, 0.12);
+  --mc-chart-cursor: rgba(22, 36, 30, 0.2);
+  --mc-chart-cursor-fill: rgba(22, 36, 30, 0.05);
+
+  /* Series oscurecidas: todas ≥3:1 sobre card y distinguibles entre sí
+     (verde / ocre / terracota alternados, no solo variaciones de verde). */
+  --mc-series-1: #2e7350;
+  --mc-series-2: #8a6a22;
+  --mc-series-3: #a9452e;
+  --mc-series-4: #1f5f45;
+  --mc-series-5: #4e8c6b;
+  --mc-series-6: #6e5c2a;
+  --mc-series-7: #8e4a3c;
+  --mc-series-8: #14503a;
+  --mc-series-9: #63927a;
+  --mc-series-10: #a5852f;
 }
 
 /* ── Exposición de tokens a Tailwind v4 (genera utilidades) ──── */
@@ -94,6 +309,16 @@
   --color-text-muted: var(--mc-text-muted);
   --color-text-dim: var(--mc-text-dim);
 
+  /* Velos y scrim: usar `bg-tint-2`, `hover:bg-tint-2`, `border-tint-3`…
+     NUNCA `bg-white/[0.06]` (rompe en tema claro). */
+  --color-tint-1: var(--mc-tint-1);
+  --color-tint-2: var(--mc-tint-2);
+  --color-tint-3: var(--mc-tint-3);
+  --color-tint-4: var(--mc-tint-4);
+  --color-scrim: var(--mc-scrim);
+  --color-elevation: var(--mc-elevation);
+  --color-switch-track: var(--mc-switch-track);
+
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -111,6 +336,9 @@
   html {
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
+  }
+  html.light {
+    color-scheme: light;
   }
   body {
     background-color: var(--background);
@@ -140,6 +368,34 @@
   }
 }
 
+/*
+ * Segmento activo de un segmented control / tab.
+ * `@utility` (no una clase suelta) para que acepte variantes de Tailwind:
+ * `data-[state=active]:segment-on`.
+ */
+@utility segment-on {
+  background-color: var(--mc-segment-bg);
+  box-shadow: var(--mc-segment-shadow);
+}
+
+@layer components {
+  /*
+   * Card de vidrio premium (glassmorphism sutil).
+   * Vive en la capa `components` (no `utilities`) a propósito: así cualquier
+   * `shadow-*` de Tailwind aplicado al mismo elemento gana sobre la sombra
+   * del tema claro, en vez de ser pisado por ella.
+   */
+  .glass {
+    background: var(--mc-glass-bg);
+    box-shadow: var(--mc-glass-shadow);
+    /* Sin `-webkit-backdrop-filter` a mano: Lightning CSS (el minificador de
+       Next) prefija según browserslist. Declararlo DESPUÉS del estándar hacía
+       que dedupe y se quedara sólo con la versión -webkit- → sin blur en
+       Firefox. Igual que hace Tailwind con `backdrop-blur-*`. */
+    backdrop-filter: blur(18px) saturate(160%);
+  }
+}
+
 @layer utilities {
   /* Números editoriales (saldos hero) en serif con dígitos tabulares */
   .font-num {
@@ -151,12 +407,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Card de vidrio premium (glassmorphism sutil) */
-  .glass {
-    background: color-mix(in srgb, var(--mc-surface) 74%, transparent);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-  }
   .hairline {
     border: 1px solid var(--mc-hairline);
   }
@@ -171,8 +421,8 @@
   /* Degradado de fondo ambiental (aurora sage muy sutil) */
   .bg-aurora {
     background-image:
-      radial-gradient(60% 50% at 12% -8%, color-mix(in srgb, var(--mc-sage) 10%, transparent) 0%, transparent 60%),
-      radial-gradient(45% 40% at 100% 0%, color-mix(in srgb, var(--mc-champagne) 7%, transparent) 0%, transparent 55%);
+      radial-gradient(60% 50% at 12% -8%, var(--mc-aurora-a) 0%, transparent 60%),
+      radial-gradient(45% 40% at 100% 0%, var(--mc-aurora-b) 0%, transparent 55%);
   }
 
   .no-scrollbar::-webkit-scrollbar {

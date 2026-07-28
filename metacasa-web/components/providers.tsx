@@ -3,13 +3,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
+import { DEFAULT_THEME, type Theme } from "@/lib/theme";
 
 /**
  * Providers globales del cliente:
  * - TanStack Query para caché/optimistic updates sobre Supabase.
- * - Sonner para toasts on-brand.
+ * - Sonner para toasts on-brand (sigue el tema: sonner entiende
+ *   "system" | "light" | "dark", los mismos tres estados que la cookie).
  */
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  theme = DEFAULT_THEME,
+}: {
+  children: React.ReactNode;
+  theme?: Theme;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -27,7 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster
-        theme="dark"
+        theme={theme}
         position="top-center"
         richColors
         toastOptions={{

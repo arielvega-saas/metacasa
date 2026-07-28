@@ -114,7 +114,9 @@ struct BudgetLiveActivity: Widget {
             Text(formatAmount(amount, currency: currency))
                 .font(.callout.bold())
                 .monospacedDigit()
-                .foregroundStyle(positive && amount >= 0 ? .primary : (amount < 0 ? .red : .primary))
+                // Color explícito: el ternario mezclaba HierarchicalShapeStyle
+                // (.primary) con Color (.red) y no unificaba tipos.
+                .foregroundStyle(amount < 0 ? Color.red : Color.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }

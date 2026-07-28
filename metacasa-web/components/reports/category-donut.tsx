@@ -5,6 +5,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatMoney } from "@/lib/money";
 import { colorForIndex, type CategorySlice } from "./palette";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
 
 export type { CategorySlice };
 
@@ -14,12 +15,11 @@ function CustomTooltip({ active, payload, currency, total }: any) {
   const value = Number(p.value) || 0;
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-0.5 font-medium text-foreground">{p.name}</p>
-      <p className="text-text-muted">
+    <ChartTooltip title={p.name}>
+      <ChartTooltipRow tone="muted">
         {formatMoney(value, currency, "compact")} · {pct}%
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 

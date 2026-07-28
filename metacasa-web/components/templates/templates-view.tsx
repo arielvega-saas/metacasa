@@ -174,7 +174,7 @@ function TemplateCard({
       className={cn(
         "relative flex min-h-[8rem] flex-col gap-2 p-4 transition-colors",
         !manage &&
-          "cursor-pointer hover:bg-white/[0.03] focus-within:ring-2 focus-within:ring-sage/40",
+          "cursor-pointer hover:bg-tint-1 focus-within:ring-2 focus-within:ring-sage/40",
         pending && "opacity-60",
       )}
     >

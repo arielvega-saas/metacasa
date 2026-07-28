@@ -1,11 +1,12 @@
 # BUILD CONTRACT — Home Finance Web (leer ANTES de escribir código)
 
 App Next.js 15 (App Router, React 19, TS, Tailwind v4) en `metacasa-app/metacasa-web/`.
-Backend Supabase compartido con la app nativa (schema canónico). Tema oscuro premium "Midnight Sage".
+Backend Supabase compartido con la app nativa (schema canónico). Design system dual:
+"Midnight Sage" (oscuro) / "Daylight Sage" (claro), elegido por cookie `mc_theme`.
 Idioma de toda la UI: **español rioplatense** ("vos", "tenés"). Tono fintech premium, claro.
 
 ## Reglas de oro
-- **NO** edites archivos compartidos: `app/globals.css`, `app/layout.tsx`, `app/(app)/layout.tsx`, `middleware.ts`, `lib/supabase/*`, `lib/money.ts`, `lib/constants.ts`, `lib/access.ts`, `lib/household.ts`, ni componentes/primitivos existentes ni nada fuera de los archivos que se te asignan.
+- **NO** edites archivos compartidos: `app/globals.css`, `app/layout.tsx`, `app/(app)/layout.tsx`, `middleware.ts`, `lib/supabase/*`, `lib/money.ts`, `lib/constants.ts`, `lib/access.ts`, `lib/household.ts`, `lib/theme.ts`, ni componentes/primitivos existentes ni nada fuera de los archivos que se te asignan.
 - **NO** instales dependencias ni toques `package.json`. Si creés que falta una, avisá en tu reporte (no la instales).
 - **NO** levantes dev servers ni corras `next build`. Podés correr `npx tsc --noEmit` para chequear, pero ignorá errores en archivos que no son tuyos (otros agentes trabajan en paralelo).
 - Seguridad: confiá en RLS. **Siempre** filtrá queries por `household_id`. Nunca loguees tokens/emails/balances. Nada de service_role en el cliente.
@@ -14,10 +15,17 @@ Idioma de toda la UI: **español rioplatense** ("vos", "tenés"). Tono fintech p
 - Copy de errores/éxito con `toast` de `sonner`.
 
 ## Design tokens (clases Tailwind ya configuradas)
-- Fondos: `bg-background` (#0E1312), `bg-card`, `bg-surface`, `bg-surface-2`, `bg-inset`. Vidrio: clase `glass`. Glow: `sage-glow`.
-- Texto: `text-foreground` (crema), `text-text-muted`, `text-text-dim`.
-- Marca/acentos: `text-primary`/`bg-primary` (sage #B8D4C2; texto encima usa `text-primary-foreground`), `text-champagne`, `text-income` (sage saturado, ingresos/positivo), `text-expense` (coral, gastos/negativo). Versiones `/12`, `/15` para fondos suaves.
-- Bordes: clase `hairline` (1px sage tenue) o `border border-border`.
+> **La app tiene tema claro y oscuro.** Todo color va por token: **prohibido**
+> `bg-white/[0.06]`, `border-white/10`, `bg-black/60`, `shadow-black/50` y hex
+> sueltos — rompen en claro. Paletas y ratios de contraste en `app/globals.css`.
+
+- Fondos: `bg-background`, `bg-card`, `bg-surface`, `bg-surface-2`, `bg-inset`. Vidrio: clase `glass`. Glow: `sage-glow`.
+- Texto: `text-foreground` (crema en oscuro / verde-carbón en claro), `text-text-muted`, `text-text-dim`.
+- Marca/acentos: `text-primary`/`bg-primary` (sage; texto encima usa `text-primary-foreground`), `text-champagne`, `text-income` (ingresos/positivo), `text-expense` (gastos/negativo). Versiones `/12`, `/15` para fondos suaves (verificadas AA).
+- Velos (hover, fila activa, chips): `bg-tint-1` (sutil) … `bg-tint-4` (fuerte). Funcionan con variantes: `hover:bg-tint-2`, `focus:bg-tint-2`.
+- Otros: `bg-scrim` (overlay de diálogos), `shadow-elevation` (color de sombra), `bg-switch-track`, `segment-on` (segmento/tab activo).
+- Charts: importá `CHART` de `@/components/reports/chart-tokens` y `colorForIndex` de `@/components/reports/palette` — ya son CSS vars y cambian con el tema. Para opacidad usá `color-mix(...)`, nunca `${color}2e`.
+- Bordes: clase `hairline` (1px tenue) o `border border-border`.
 - Radios: `rounded-[var(--radius-md)]` (botón/input), `rounded-[var(--radius-lg)]`, `rounded-[var(--radius-xl)]` (cards), `rounded-full`.
 - Números/montos: clase `tnum` (tabular) y `font-num` (serif editorial para saldos grandes).
 

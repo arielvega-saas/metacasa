@@ -11,6 +11,12 @@ next-env.d.ts
 # production
 /build
 
+# PWA — service worker generado por @serwist/next (artefacto de build)
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/swe-worker-*.js.map
+
 # misc
 .DS_Store
 *.pem

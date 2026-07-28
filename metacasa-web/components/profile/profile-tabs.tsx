@@ -8,7 +8,6 @@ import {
   Loader2,
   LogOut,
   Mail,
-  Moon,
   Plus,
   Sparkles,
   Trash2,
@@ -59,6 +58,8 @@ import type { WebAccess } from "@/lib/access";
 import { useT, useLocale } from "@/components/i18n/locale-provider";
 import { setLocale } from "@/lib/actions/i18n";
 import { LOCALE_LABEL, LOCALES, type Locale } from "@/lib/i18n/config";
+import { ThemeToggle } from "@/components/profile/theme-toggle";
+import type { Theme } from "@/lib/theme";
 
 interface Props {
   email: string;
@@ -70,6 +71,8 @@ interface Props {
   currentUserId: string;
   access: WebAccess;
   trialDaysLeft: number;
+  /** Preferencia de tema vigente (cookie `mc_theme`). */
+  theme: Theme;
 }
 
 export function ProfileTabs(props: Props) {
@@ -103,7 +106,7 @@ export function ProfileTabs(props: Props) {
         />
       </TabsContent>
       <TabsContent value="preferencias">
-        <PreferenciasTab />
+        <PreferenciasTab theme={props.theme} />
       </TabsContent>
       <TabsContent value="plan">
         <PlanTab access={props.access} trialDaysLeft={props.trialDaysLeft} />
@@ -591,11 +594,11 @@ function applyReduceMotion(on: boolean) {
   else delete document.documentElement.dataset.reduceMotion;
 }
 
-function PreferenciasTab() {
+function PreferenciasTab({ theme }: { theme: Theme }) {
   const t = useT();
   const currentLocale = useLocale();
   // Reducir-movimiento es preferencia SOLO local (localStorage + <html> attr).
-  // El idioma sí se persiste server-side (cookie mc_locale) vía setLocale.
+  // Idioma y tema sí se persisten server-side (cookies mc_locale / mc_theme).
   const [reduceMotion, setReduceMotion] = useState(false);
   const [ready, setReady] = useState(false);
   const [savingLocale, startSaveLocale] = useTransition();
@@ -630,7 +633,7 @@ function PreferenciasTab() {
       />
 
       <div className="space-y-1">
-        {/* Tema — la web es solo oscura hoy; fila informativa, no interactiva. */}
+        {/* Tema — cookie `mc_theme`, aplicado en SSR (sin flash al cargar). */}
         <div className="flex items-center justify-between gap-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-medium">{t("profile.themeLabel")}</p>
@@ -638,9 +641,7 @@ function PreferenciasTab() {
               {t("profile.themeHint")}
             </p>
           </div>
-          <span className="bg-inset hairline text-text-muted flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-sm">
-            <Moon className="size-4" /> {t("profile.themeDark")}
-          </span>
+          <ThemeToggle value={theme} />
         </div>
 
         <Separator />

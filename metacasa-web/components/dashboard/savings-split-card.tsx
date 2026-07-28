@@ -57,7 +57,7 @@ export async function SavingsSplitCard({
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-[var(--radius-md)] bg-white/[0.04] p-3">
+            <div className="rounded-[var(--radius-md)] bg-tint-1 p-3">
               <p className="text-income flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
                 <Banknote className="size-3.5" />
                 {t("dashboard.savingsLabel")} · {savingsPercent}%
@@ -69,7 +69,7 @@ export async function SavingsSplitCard({
                 className="mt-0.5 block text-base font-semibold"
               />
             </div>
-            <div className="rounded-[var(--radius-md)] bg-white/[0.04] p-3">
+            <div className="rounded-[var(--radius-md)] bg-tint-1 p-3">
               <p className="text-primary flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
                 <TrendingUp className="size-3.5" />
                 {t("dashboard.investmentLabel")} · {investmentPercent}%

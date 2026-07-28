@@ -14,6 +14,8 @@ import { formatMoney } from "@/lib/money";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatMonthShort } from "@/lib/i18n/dates";
 import type { Locale } from "@/lib/i18n/config";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
+import { CHART } from "@/components/reports/chart-tokens";
 
 interface FlowDatum {
   month: string; // YYYY-MM
@@ -31,15 +33,14 @@ function CustomTooltip({ active, payload, label, currency, incomeLabel, expenseL
   const income = payload.find((p: any) => p.dataKey === "income")?.value ?? 0;
   const expense = payload.find((p: any) => p.dataKey === "expense")?.value ?? 0;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-1 font-medium capitalize text-foreground">{label}</p>
-      <p className="text-income">
+    <ChartTooltip title={label} capitalizeTitle>
+      <ChartTooltipRow tone="income">
         {incomeLabel} {formatMoney(income, currency, "compact")}
-      </p>
-      <p className="text-expense">
+      </ChartTooltipRow>
+      <ChartTooltipRow tone="expense">
         {expenseLabel} {formatMoney(expense, currency, "compact")}
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 
@@ -81,17 +82,17 @@ export function FlowsChart({
     <div className="h-[240px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 4, bottom: 0, left: 4 }} barGap={5}>
-          <CartesianGrid vertical={false} stroke="rgba(184,212,194,0.08)" />
+          <CartesianGrid vertical={false} stroke={CHART.grid} />
           <XAxis
             dataKey="label"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#7a8782", fontSize: 12 }}
+            tick={{ fill: CHART.axis, fontSize: 12 }}
             dy={8}
           />
           <YAxis hide />
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.03)" }}
+            cursor={{ fill: CHART.cursorFill }}
             content={
               <CustomTooltip
                 currency={currency}
@@ -100,8 +101,8 @@ export function FlowsChart({
               />
             }
           />
-          <Bar dataKey="income" name={incomeLabel} fill="#9fc4ad" radius={[6, 6, 0, 0]} maxBarSize={28} />
-          <Bar dataKey="expense" name={expenseLabel} fill="#e8b4a6" radius={[6, 6, 0, 0]} maxBarSize={28} />
+          <Bar dataKey="income" name={incomeLabel} fill={CHART.income} radius={[6, 6, 0, 0]} maxBarSize={28} />
+          <Bar dataKey="expense" name={expenseLabel} fill={CHART.expense} radius={[6, 6, 0, 0]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>
     </div>

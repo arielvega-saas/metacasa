@@ -31,12 +31,12 @@ struct LockedPaywallView: View {
                         .foregroundStyle(Color.brandWarning)
                         .padding(.top, 56)
 
-                    Text("Tu prueba gratuita terminó")
+                    Text("paywall.locked.title")
                         .font(.mcH1)
                         .foregroundStyle(Color.textPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Disfrutaste 7 días completos de \(Text("app.name")). Para seguir usando la app, elegí un plan. Cancelás cuando quieras desde tu cuenta de App Store.")
+                    Text(String(format: String(localized: "paywall.locked.body %@"), String(localized: "app.name")))
                         .font(.mcBody)
                         .foregroundStyle(Color.textMuted)
                         .multilineTextAlignment(.center)
@@ -75,11 +75,11 @@ struct LockedPaywallView: View {
 
     private var featuresList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            feature("Asistente IA financiero", icon: "sparkles")
-            feature("Hogares y miembros ilimitados", icon: "person.3.fill")
-            feature("Presupuestos y metas sin límite", icon: "target")
-            feature("Reportes avanzados y exportación", icon: "chart.bar.doc.horizontal.fill")
-            feature("Multi-moneda con tasas automáticas", icon: "arrow.left.arrow.right.circle.fill")
+            feature(String(localized: "paywall.locked.feature.ai"), icon: "sparkles")
+            feature(String(localized: "paywall.locked.feature.households"), icon: "person.3.fill")
+            feature(String(localized: "paywall.locked.feature.budgets"), icon: "target")
+            feature(String(localized: "paywall.locked.feature.reports"), icon: "chart.bar.doc.horizontal.fill")
+            feature(String(localized: "paywall.locked.feature.multicurrency"), icon: "arrow.left.arrow.right.circle.fill")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .mcCard()
@@ -134,30 +134,30 @@ struct LockedPaywallView: View {
 
     private func titleForPackage(_ package: Package) -> String {
         switch package.packageType {
-        case .annual:   return "Anual"
-        case .monthly:  return "Mensual"
-        case .weekly:   return "Semanal"
-        case .lifetime: return "De por vida"
-        case .sixMonth: return "6 meses"
-        case .threeMonth: return "3 meses"
-        case .twoMonth: return "2 meses"
+        case .annual:   return String(localized: "paywall.package.annual")
+        case .monthly:  return String(localized: "paywall.package.monthly")
+        case .weekly:   return String(localized: "paywall.package.weekly")
+        case .lifetime: return String(localized: "paywall.package.lifetime")
+        case .sixMonth: return String(localized: "paywall.package.sixMonth")
+        case .threeMonth: return String(localized: "paywall.package.threeMonth")
+        case .twoMonth: return String(localized: "paywall.package.twoMonth")
         default:        return package.identifier
         }
     }
 
     private func subtitleForPackage(_ package: Package) -> String {
         switch package.packageType {
-        case .annual:  return "/año"
-        case .monthly: return "/mes"
-        case .weekly:  return "/sem"
+        case .annual:  return String(localized: "paywall.per.year")
+        case .monthly: return String(localized: "paywall.per.month")
+        case .weekly:  return String(localized: "paywall.per.week")
         default:       return ""
         }
     }
 
     private var pricesPlaceholder: some View {
         HStack(spacing: 12) {
-            priceTile(title: "Mensual", price: "USD 4,99", note: "/mes")
-            priceTile(title: "Anual", price: "USD 39,99", note: "/año · -30%", highlighted: true)
+            priceTile(title: String(localized: "paywall.package.monthly"), price: "USD 4,99", note: String(localized: "paywall.per.month"))
+            priceTile(title: String(localized: "paywall.package.annual"), price: "USD 39,99", note: String(localized: "paywall.per.year.discount"), highlighted: true)
         }
     }
 
@@ -179,9 +179,9 @@ struct LockedPaywallView: View {
 
     private var notConfiguredCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Compras no disponibles aún", systemImage: "info.circle.fill")
+            Label("paywall.locked.unavailable.title", systemImage: "info.circle.fill")
                 .font(.mcLabel).foregroundStyle(Color.brandWarning)
-            Text("Estamos terminando de habilitar los pagos. Volvé a intentar en unos minutos.")
+            Text("paywall.locked.unavailable.message")
                 .font(.mcCaption).foregroundStyle(Color.textDim)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -205,20 +205,20 @@ struct LockedPaywallView: View {
     }
 
     private var ctaLabel: String {
-        guard let package = selectedPackage else { return "Suscribirme" }
+        guard let package = selectedPackage else { return String(localized: "paywall.locked.cta.subscribe") }
         let price = package.storeProduct.localizedPriceString
         if let discount = package.storeProduct.introductoryDiscount,
            discount.paymentMode == .freeTrial {
-            return "Probar gratis · luego \(price)"
+            return String(format: String(localized: "paywall.cta.trial %@"), price)
         }
-        return "Suscribirme · \(price)"
+        return String(format: String(localized: "paywall.locked.cta.subscribePrice %@"), price)
     }
 
     private var restoreButton: some View {
         Button {
             Task { await restore() }
         } label: {
-            Text("Restaurar compras")
+            Text("paywall.restore")
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
         }
@@ -227,13 +227,13 @@ struct LockedPaywallView: View {
 
     private var legalFooter: some View {
         VStack(spacing: 6) {
-            Text("Suscripción auto-renovable. Se cobra a tu Apple ID. Se renueva salvo que la canceles al menos 24 h antes del fin del período, desde Ajustes → Apple ID.")
+            Text("paywall.locked.legal")
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
                 .multilineTextAlignment(.center)
             HStack(spacing: 16) {
-                Link("Términos", destination: termsURL)
-                Link("Privacidad", destination: privacyURL)
+                Link("paywall.legal.terms", destination: termsURL)
+                Link("paywall.legal.privacy", destination: privacyURL)
             }
             .font(.mcCaption)
             .foregroundStyle(Color.brandPrimary)
@@ -269,7 +269,7 @@ struct LockedPaywallView: View {
                 await onUnlock()
             } else {
                 Haptics.play(.warning)
-                errorMessage = "La compra se completó pero el acceso aún no se activó. Probá 'Restaurar compras' en unos segundos."
+                errorMessage = String(localized: "paywall.locked.error.pending")
             }
         } catch RevenueCatService.ServiceError.userCanceled {
             // Silencioso.
@@ -290,7 +290,7 @@ struct LockedPaywallView: View {
                 Haptics.play(.success)
                 await onUnlock()
             } else {
-                errorMessage = "No se encontraron suscripciones activas en tu Apple ID."
+                errorMessage = String(localized: "paywall.locked.error.noSubs")
             }
         } catch {
             errorMessage = error.localizedDescription

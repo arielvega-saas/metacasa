@@ -15,6 +15,8 @@ struct ReportsView: View {
     @State private var transactions: [Transaction] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    /// Mes seleccionado por scrubbing en el gráfico de 6 meses (nil = sin dedo).
+    @State private var selectedMonthLabel: String?
 
     private var currency: String {
         appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "USD"
@@ -140,14 +142,37 @@ struct ReportsView: View {
         return result
     }
 
+    /// Mes bajo el dedo mientras se arrastra sobre el gráfico (scrubbing).
+    private var selectedMonthData: MonthlySummary? {
+        guard let selectedMonthLabel else { return nil }
+        return sixMonthData.first { $0.label == selectedMonthLabel }
+    }
+
     private var sixMonthsCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label {
-                Text("reports.sixMonths")
-            } icon: {
-                Image(systemName: "chart.bar.fill")
+            HStack {
+                Label {
+                    Text("reports.sixMonths")
+                } icon: {
+                    Image(systemName: "chart.bar.fill")
+                }
+                .font(.mcLabel).foregroundStyle(Color.textMuted)
+                Spacer()
+                // Detalle del mes seleccionado: reemplaza a la leyenda mientras
+                // el dedo está sobre el gráfico.
+                if let sel = selectedMonthData {
+                    HStack(spacing: 10) {
+                        Text(sel.label.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.textMuted)
+                        AmountLabel(amount: sel.ingresos, currency: currency, kind: .ingreso)
+                            .font(.caption.weight(.semibold))
+                        AmountLabel(amount: sel.gastos, currency: currency, kind: .gasto)
+                            .font(.caption.weight(.semibold))
+                    }
+                    .transition(.opacity)
+                }
             }
-            .font(.mcLabel).foregroundStyle(Color.textMuted)
 
             Chart {
                 ForEach(sixMonthData) { item in
@@ -157,6 +182,7 @@ struct ReportsView: View {
                     )
                     .foregroundStyle(Color.brandSuccess)
                     .position(by: .value("Tipo", "Ingreso"))
+                    .opacity(selectedMonthLabel == nil || selectedMonthLabel == item.label ? 1 : 0.35)
 
                     BarMark(
                         x: .value("Mes", item.label),
@@ -164,6 +190,14 @@ struct ReportsView: View {
                     )
                     .foregroundStyle(Color.brandDanger)
                     .position(by: .value("Tipo", "Gasto"))
+                    .opacity(selectedMonthLabel == nil || selectedMonthLabel == item.label ? 1 : 0.35)
+                }
+
+                // Regla vertical que sigue al dedo.
+                if let selectedMonthLabel {
+                    RuleMark(x: .value("Mes", selectedMonthLabel))
+                        .foregroundStyle(Color.textMuted.opacity(0.35))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 }
             }
             .frame(height: 180)
@@ -173,6 +207,12 @@ struct ReportsView: View {
                     AxisGridLine()
                 }
             }
+            // Scrubbing táctil (iOS 17+): arrastrar el dedo selecciona el mes.
+            .chartXSelection(value: $selectedMonthLabel)
+            .animation(.easeOut(duration: 0.15), value: selectedMonthLabel)
+            // Un tick háptico por cada mes que se cruza — el gesto que hace
+            // sentir "premium" a Copilot/Monarch.
+            .sensoryFeedback(.selection, trigger: selectedMonthLabel)
 
             HStack(spacing: 12) {
                 legendDot(color: .brandSuccess, label: "home.income")

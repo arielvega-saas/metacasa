@@ -1,6 +1,7 @@
 import SwiftUI
 import Observation
 import Charts
+import TipKit
 
 /// Dashboard premium (rewrite 2026-04-20 Sprint 3+).
 ///
@@ -47,6 +48,9 @@ final class HomeViewModel {
     var isLoading = false
     var errorMessage: String?
     var hasLoadedOnce = false
+
+    /// Moneda base del hogar activo, inyectada por la vista antes del `load`.
+    var householdCurrency: String = "USD"
 
     var balance: Decimal { totalIngresos - totalGastos }
     var balancePrev: Decimal { prevMonthIngresos - prevMonthGastos }
@@ -117,12 +121,63 @@ final class HomeViewModel {
         return daily
     }
 
+    /// Aplica un snapshot persistido para pintar el Home al instante en cold
+    /// start (stale-while-revalidate). No toca `isLoading`: la red sigue en
+    /// curso y va a re-escribir estos valores en silencio.
+    func applySnapshot(_ s: HomeSnapshot) {
+        totalIngresos = s.totalIngresos
+        totalGastos = s.totalGastos
+        prevMonthIngresos = s.prevMonthIngresos
+        prevMonthGastos = s.prevMonthGastos
+        recentTransactions = s.recentTransactions
+        topGastos = Array(s.recentTransactions.filter { $0.type == .gasto }
+            .sorted { $0.amount > $1.amount }.prefix(5))
+        topCategories = s.topCategories.map { (category: $0.category, total: $0.total) }
+        period = s.period
+        upcomingBills = s.upcomingBills
+        activeGoals = s.activeGoals
+        templates = s.templates
+        netWorth = s.netWorth
+        activeDebtsCount = s.activeDebtsCount
+        activePlansCount = s.activePlansCount
+        monthlyDebtCommitment = s.monthlyDebtCommitment
+        // Con data en pantalla ya no corresponde el skeleton redacted.
+        hasLoadedOnce = true
+    }
+
+    /// Serializa el estado actual para persistirlo.
+    func currentSnapshot() -> HomeSnapshot {
+        var s = HomeSnapshot()
+        s.totalIngresos = totalIngresos
+        s.totalGastos = totalGastos
+        s.prevMonthIngresos = prevMonthIngresos
+        s.prevMonthGastos = prevMonthGastos
+        s.recentTransactions = recentTransactions
+        s.period = period
+        s.upcomingBills = upcomingBills
+        s.activeGoals = activeGoals
+        s.templates = templates
+        s.topCategories = topCategories.map { .init(category: $0.category, total: $0.total) }
+        s.netWorth = netWorth
+        s.activeDebtsCount = activeDebtsCount
+        s.activePlansCount = activePlansCount
+        s.monthlyDebtCommitment = monthlyDebtCommitment
+        return s
+    }
+
     func load(householdId: UUID) async {
         isLoading = true
         errorMessage = nil
         defer {
             isLoading = false
             hasLoadedOnce = true
+        }
+
+        // Cold start: pintar el último estado conocido ANTES de la red. Si la
+        // red falla, el usuario ve sus datos (viejos) en vez de una pantalla
+        // vacía. Solo aplica si todavía no hay nada en pantalla.
+        if !hasLoadedOnce, let cached = await HomeSnapshotStore.shared.load(householdId: householdId) {
+            applySnapshot(cached)
         }
 
         do {
@@ -144,12 +199,11 @@ final class HomeViewModel {
             async let plans = InstallmentService.shared.fetchPlans(householdId: householdId, includeCompleted: false)
             async let goals = GoalService.shared.fetchAll(householdId: householdId, includeCompleted: false)
             async let templatesTask = TemplateService.shared.fetchAll(householdId: householdId)
-            // Net worth: necesitamos accounts + txs de ~12 meses para running balance.
-            let yearAgo = cal.date(byAdding: .day, value: -365, to: now) ?? now
+            // Net worth: saldos calculados server-side (RPC account_balances).
+            // Antes se bajaban hasta 10.000 transacciones de 365 días por cada
+            // refresh solo para esto.
             async let accountsTask = AccountService.shared.fetchAll(householdId: householdId, includingInactive: false)
-            async let yearTxsTask = TransactionService.shared.fetchForPeriod(
-                householdId: householdId, from: yearAgo, to: now, limit: 10_000
-            )
+            async let balancesTask = AccountService.shared.balances(householdId: householdId)
 
             let t = try await totals
             self.totalIngresos = t.ingresos
@@ -179,14 +233,20 @@ final class HomeViewModel {
             self.activeGoals = (try? await goals) ?? []
             self.templates = (try? await templatesTask) ?? []
 
-            // Net worth final: ya tengo accounts, yearTxs y debts. Computo en memoria.
+            // Net worth final: accounts + saldos del RPC + debts.
             let accounts = (try? await accountsTask) ?? []
-            let yearTxs = (try? await yearTxsTask) ?? []
+            let balances = (try? await balancesTask) ?? [:]
             self.netWorth = AccountBalanceService.netWorth(
                 accounts: accounts,
-                transactions: yearTxs,
+                balances: balances,
                 debts: dbList
             )
+
+            // Persistir el estado fresco para el próximo cold start.
+            let snapshot = currentSnapshot()
+            Task.detached(priority: .utility) {
+                await HomeSnapshotStore.shared.save(snapshot, householdId: householdId)
+            }
 
             // Live Activity: si hay un bill en <48h, iniciamos/actualizamos la
             // activity en Lock Screen / Dynamic Island. No-op si no está el
@@ -221,9 +281,11 @@ final class HomeViewModel {
     /// Moneda de fallback sin acceso directo a AppState (no lo tenemos en el
     /// ViewModel). En producción la Live Activity recibe la moneda correcta
     /// desde el HomeView (que sí lo tiene). Por ahora devolvemos "USD" — el
-    /// HomeView podría pasarla cuando llamemos via API pública. Marcado como
-    /// punto de extensión.
-    private func appStateCurrencyFallback() -> String { "USD" }
+    /// Moneda base del hogar. La setea la vista (que sí conoce `AppState`)
+    /// antes de cada `load`; se usa para Live Activity y Spotlight, que corren
+    /// fuera del árbol de vistas. Antes era un `"USD"` hardcodeado: con el
+    /// widget target activo eso mostraba montos en dólares a hogares en ARS.
+    private func appStateCurrencyFallback() -> String { householdCurrency }
 
     /// Escribe el snapshot al App Group para que lo lea el Widget. No-op si
     /// el App Group no está configurado (ej. build sin Widget target).
@@ -247,8 +309,14 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var showCompare = false
     @State private var showAnnual = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showStrategySettings = false
     @State private var showDashboardEditor = false
+    /// Altas disparadas desde los estados vacíos de los widgets del Home.
+    @State private var showAddGoal = false
+    @State private var showAddBill = false
+    /// Tip del editor del dashboard (TipKit decide cuándo mostrarlo).
+    private let dashboardTip = DashboardEditorTip()
     /// Cuando el user toca Saldo / Ingresos / Gastos, presentamos el
     /// desglose (composición del importe) — estilo Mercado Pago.
     @State private var breakdownMode: BalanceBreakdownMode?
@@ -279,7 +347,15 @@ struct HomeView: View {
                         // Cada widget es render-eado por `widgetView(for:)` más abajo —
                         // ese @ViewBuilder conoce los params de cada uno desde viewModel.
                         ForEach(dashboardPrefs.orderedVisibleWidgets, id: \.self) { widget in
+                            // Física iOS 26: las cards se atenúan/encogen
+                            // levemente al entrar/salir del viewport. Con
+                            // reduce-motion activo queda no-op.
                             widgetView(for: widget)
+                                .scrollTransition { content, phase in
+                                    content
+                                        .opacity(reduceMotion || phase.isIdentity ? 1 : 0.65)
+                                        .scaleEffect(reduceMotion || phase.isIdentity ? 1 : 0.96)
+                                }
                         }
                         if let msg = viewModel.errorMessage {
                             Text(msg).font(.mcCaption).foregroundStyle(.red)
@@ -288,6 +364,10 @@ struct HomeView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, 120) // espacio para FAB asistente
+                    // Skeleton de primera carga absoluta: los widgets se
+                    // renderean redacted (blobs) hasta que llega el primer
+                    // fetch. Después el refresh es silencioso (stale data).
+                    .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
                 }
                 .refreshable {
                     Haptics.play(.impactLight)
@@ -322,6 +402,8 @@ struct HomeView: View {
                             Label("dashboard.editor.open", systemImage: "square.grid.2x2")
                         }
                     } label: {
+                        // El tip del editor cuelga del botón del menú (el ítem
+                        // vive adentro y no puede anclar un popover).
                         if isBuildingPDF {
                             ProgressView()
                                 .progressViewStyle(.circular)
@@ -330,9 +412,21 @@ struct HomeView: View {
                             Image(systemName: "ellipsis.circle")
                         }
                     }
+                    .popoverTip(dashboardTip)
                 }
             }
-            .task { await reload() }
+            .task {
+                // Alimenta las reglas de TipKit: los tips aparecen recién tras
+                // varias visitas al Home, no en el primer arranque.
+                await PrivacyModeTip.homeOpened.donate()
+                await reload()
+            }
+            .sheet(isPresented: $showAddGoal) {
+                AddGoalView(onSaved: { await reload() })
+            }
+            .sheet(isPresented: $showAddBill) {
+                AddBillView(onSaved: { await reload() })
+            }
             .sheet(isPresented: $showCompare) { CompareMonthsView() }
             .sheet(isPresented: $showAnnual) { AnnualView() }
             .sheet(item: $breakdownMode) { mode in
@@ -384,7 +478,7 @@ struct HomeView: View {
     private func buildAndShareMonthPDF() async {
         guard let hid = appState.currentHouseholdId else { return }
         let household = appState.households.first(where: { $0.id == hid })
-        let householdName = household?.name ?? "Hogar"
+        let householdName = household?.name ?? String(localized: "home.household.fallback")
         let currency = household?.defaultCurrency ?? "USD"
 
         // Rango: mes actual (primer día 00:00 → último día 23:59).
@@ -481,9 +575,16 @@ struct HomeView: View {
         case .readyToAssign:
             ReadyToAssignCard(period: viewModel.period, currency: householdCurrency)
         case .upcomingBills:
-            UpcomingBillsStrip(bills: viewModel.upcomingBills, currency: householdCurrency)
+            UpcomingBillsStrip(
+                bills: viewModel.upcomingBills,
+                currency: householdCurrency,
+                onCreate: { showAddBill = true }
+            )
         case .goals:
-            GoalsRingsRow(goals: viewModel.activeGoals)
+            GoalsRingsRow(
+                goals: viewModel.activeGoals,
+                onCreate: { showAddGoal = true }
+            )
         case .categories:
             CategoryDonutCard(items: viewModel.topCategories, currency: householdCurrency)
         case .shortcuts:
@@ -519,7 +620,7 @@ struct HomeView: View {
         appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "USD"
     }
     private var householdName: String {
-        appState.households.first(where: { $0.id == appState.currentHouseholdId })?.name ?? "Hogar"
+        appState.households.first(where: { $0.id == appState.currentHouseholdId })?.name ?? String(localized: "home.household.fallback")
     }
 
     /// Resumen del mes como texto plano para compartir via ShareLink.
@@ -574,6 +675,9 @@ struct HomeView: View {
 
     private func reload() async {
         if let hid = appState.currentHouseholdId {
+            // La moneda del hogar tiene que estar seteada ANTES del load: la
+            // Live Activity y el indexado de Spotlight se disparan adentro.
+            viewModel.householdCurrency = householdCurrency
             await viewModel.load(householdId: hid)
             viewModel.syncWidgetSnapshot(
                 householdName: householdName,
@@ -713,6 +817,9 @@ private struct HeroBalanceCard: View {
     let onAnnualTap: () -> Void
     var onTap: () -> Void = {}
 
+    /// Tip contextual del modo privacidad (aparece tras varias visitas al Home).
+    private let privacyTip = PrivacyModeTip()
+
     private var delta: Decimal { balance - prevBalance }
     private var improved: Bool { delta >= 0 }
     private var deltaPct: Double {
@@ -740,6 +847,8 @@ private struct HeroBalanceCard: View {
                         action: onToggleHide,
                         highlighted: isHidden
                     )
+                    .popoverTip(privacyTip)
+                    .accessibilityLabel(Text(isHidden ? "home.privacy.show" : "home.privacy.hide"))
                     compactChip(icon: "arrow.left.arrow.right.square", action: onCompareTap)
                     compactChip(icon: "calendar", action: onAnnualTap)
                 }
@@ -789,7 +898,8 @@ private struct HeroBalanceCard: View {
     private var deltaText: String {
         let amtStr = isHidden ? "•••" : Money.format(abs(delta), currency: currency, style: .compact)
         if prevBalance == 0 {
-            return improved ? "+\(amtStr) vs mes anterior" : "\(amtStr) vs mes anterior"
+            let signed = improved ? "+\(amtStr)" : amtStr
+            return String(format: String(localized: "home.delta.vsPrevMonth %@"), signed)
         }
         let pctStr = String(format: "%+.0f%%", deltaPct)
         return "\(improved ? "+" : "-")\(amtStr) · \(pctStr)"
@@ -1009,7 +1119,7 @@ private struct SavingsInvestmentCard: View {
             HStack(spacing: 12) {
                 legendDot(color: .brandSuccess, text: "\(savingsPct)%")
                 legendDot(color: .brandPrimary, text: "\(investmentPct)%")
-                legendDot(color: .textMuted, text: "\(remaining)% disponible")
+                legendDot(color: .textMuted, text: String(format: String(localized: "home.savings.available %lld"), remaining))
                 Spacer()
             }
             .font(.caption2)
@@ -1037,26 +1147,39 @@ private struct StatsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            statTile(
-                title: "Ingresos",
-                amount: ingresos,
-                kind: .ingreso,
-                spark: incomeSpark,
-                color: .brandSuccess,
-                icon: "arrow.down.circle.fill"
-            )
-            .contentShape(Rectangle())
-            .onTapGesture { onTap(.ingresos) }
-            statTile(
-                title: "Gastos",
-                amount: gastos,
-                kind: .gasto,
-                spark: expenseSpark,
-                color: .brandDanger,
-                icon: "arrow.up.circle.fill"
-            )
-            .contentShape(Rectangle())
-            .onTapGesture { onTap(.gastos) }
+            // Botones (no `onTapGesture`): VoiceOver los anuncia como
+            // "botón" y se pueden activar; con el gesto suelto quedaban mudos.
+            Button { onTap(.ingresos) } label: {
+                statTile(
+                    title: String(localized: "home.stats.income"),
+                    amount: ingresos,
+                    kind: .ingreso,
+                    spark: incomeSpark,
+                    color: .brandSuccess,
+                    icon: "arrow.down.circle.fill"
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("home.stats.income"))
+            .accessibilityValue(Text(Money.format(ingresos, currency: currency)))
+            .accessibilityHint(Text("home.stats.a11yHint"))
+
+            Button { onTap(.gastos) } label: {
+                statTile(
+                    title: String(localized: "home.stats.expenses"),
+                    amount: gastos,
+                    kind: .gasto,
+                    spark: expenseSpark,
+                    color: .brandDanger,
+                    icon: "arrow.up.circle.fill"
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("home.stats.expenses"))
+            .accessibilityValue(Text(Money.format(gastos, currency: currency)))
+            .accessibilityHint(Text("home.stats.a11yHint"))
         }
     }
 
@@ -1139,13 +1262,13 @@ private struct InsightCard: View {
         if let over = overBudgetInsight() { return over }
         if let top = topCategoryInsight() { return top }
         if let spike = spikeInsight() { return spike }
-        return "Cargá algunas transacciones para que te muestre insights personalizados."
+        return String(localized: "home.insight.empty")
     }
 
     private func overBudgetInsight() -> String? {
         guard let period = viewModel.period, period.readyToAssign < 0 else { return nil }
         let amt = Money.format(abs(period.readyToAssign), currency: currency, style: .compact)
-        return "⚠️ Sobreasignaste \(amt) de tu presupuesto. Ajustá envelopes."
+        return String(format: String(localized: "home.insight.overBudget %@"), amt)
     }
 
     private func topCategoryInsight() -> String? {
@@ -1153,16 +1276,16 @@ private struct InsightCard: View {
         let pct = Int(((top.total / viewModel.totalGastos) as NSDecimalNumber).doubleValue * 100)
         let amt = Money.format(top.total, currency: currency, style: .compact)
         if pct >= 35 {
-            return "💡 \(top.category) concentra \(pct)% de tu gasto este mes (\(amt)). Considerá reducirlo."
+            return String(format: String(localized: "home.insight.topConcentration %@ %lld %@"), top.category, pct, amt)
         }
-        return "💡 Tu mayor gasto es \(top.category): \(amt) (\(pct)% del total)."
+        return String(format: String(localized: "home.insight.topCategory %@ %@ %lld"), top.category, amt, pct)
     }
 
     private func spikeInsight() -> String? {
         guard viewModel.gastosGrew else { return nil }
         let delta = viewModel.totalGastos - viewModel.prevMonthGastos
         let amt = Money.format(delta, currency: currency, style: .compact)
-        return "📈 Gastaste \(amt) más que el mes pasado. Hablemos."
+        return String(format: String(localized: "home.insight.spike %@"), amt)
     }
 
     var body: some View {
@@ -1186,7 +1309,7 @@ private struct InsightCard: View {
                         .foregroundStyle(.white)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Insight del día").font(.caption.weight(.bold)).foregroundStyle(Color.textMuted)
+                    Text("home.insight.title").font(.caption.weight(.bold)).foregroundStyle(Color.textMuted)
                     Text(insight)
                         .font(.callout)
                         .foregroundStyle(Color.textPrimary)
@@ -1246,7 +1369,7 @@ private struct ReadyToAssignCard: View {
                         .font(.title3)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Por asignar").font(.caption.weight(.bold)).foregroundStyle(Color.textMuted)
+                    Text("home.readyToAssign").font(.caption.weight(.bold)).foregroundStyle(Color.textMuted)
                     AmountLabel(amount: p.readyToAssign, currency: currency, kind: .balance)
                         .font(.mcSerifAmount)
                 }
@@ -1267,12 +1390,22 @@ private struct ReadyToAssignCard: View {
 private struct UpcomingBillsStrip: View {
     let bills: [Bill]
     let currency: String
+    /// CTA del estado vacío (ver `HomeEmptyWidget`).
+    var onCreate: () -> Void = {}
 
     var body: some View {
-        if !bills.isEmpty {
+        if bills.isEmpty {
+            HomeEmptyWidget(
+                icon: "calendar.badge.clock",
+                title: "home.upcomingBills",
+                message: "home.bills.empty",
+                cta: "home.bills.empty.cta",
+                action: onCreate
+            )
+        } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Próximos vencimientos", systemImage: "calendar.badge.exclamationmark")
+                    Label("home.upcomingBills", systemImage: "calendar.badge.exclamationmark")
                         .font(.mcH2)
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
@@ -1289,7 +1422,9 @@ private struct UpcomingBillsStrip: View {
                             billChip(bill)
                         }
                     }
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.viewAligned)
             }
             .padding(14)
             .background(
@@ -1334,10 +1469,56 @@ private struct UpcomingBillsStrip: View {
     }
 
     private func dayLabel(days: Int) -> String {
-        if days < 0 { return "Vencido \(-days)d" }
-        if days == 0 { return "Hoy" }
-        if days == 1 { return "Mañana" }
-        return "En \(days) días"
+        if days < 0 { return String(format: String(localized: "home.bills.overdue %lld"), -days) }
+        if days == 0 { return String(localized: "home.bills.today") }
+        if days == 1 { return String(localized: "home.bills.tomorrow") }
+        return String(format: String(localized: "home.bills.inDays %lld"), days)
+    }
+}
+
+// MARK: - Empty state de widget del Home
+
+/// Estado vacío con CTA para los widgets del dashboard. Convierte el hueco en
+/// una invitación a completar el setup en vez de esconder la sección.
+private struct HomeEmptyWidget: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
+    let cta: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: icon)
+                .font(.mcH2)
+                .foregroundStyle(Color.textPrimary)
+            Text(message)
+                .font(.mcCaption)
+                .foregroundStyle(Color.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: {
+                Haptics.play(.selection)
+                action()
+            }) {
+                HStack(spacing: 6) {
+                    Text(cta).font(.mcBody.weight(.semibold))
+                    Image(systemName: "arrow.right")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(Color.brandPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.appSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.appBorder, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+        )
     }
 }
 
@@ -1345,12 +1526,23 @@ private struct UpcomingBillsStrip: View {
 
 private struct GoalsRingsRow: View {
     let goals: [Goal]
+    /// CTA del estado vacío. Sin esto el widget simplemente desaparecía y el
+    /// dashboard de un usuario nuevo se veía raquítico (funnel de activación).
+    var onCreate: () -> Void = {}
 
     var body: some View {
-        if !goals.isEmpty {
+        if goals.isEmpty {
+            HomeEmptyWidget(
+                icon: "target",
+                title: "home.goals.title",
+                message: "home.goals.empty",
+                cta: "home.goals.empty.cta",
+                action: onCreate
+            )
+        } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Tus metas", systemImage: "target")
+                    Label("home.goals.title", systemImage: "target")
                         .font(.mcH2)
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
@@ -1367,7 +1559,9 @@ private struct GoalsRingsRow: View {
                             goalRing(goal)
                         }
                     }
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.viewAligned)
             }
             .padding(14)
             .background(
@@ -1428,7 +1622,7 @@ private struct CategoryDonutCard: View {
     var body: some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Top categorías").font(.mcH2).foregroundStyle(Color.textPrimary)
+                Text("home.categories.title").font(.mcH2).foregroundStyle(Color.textPrimary)
 
                 HStack(alignment: .top, spacing: 16) {
                     donutChart
@@ -1493,7 +1687,7 @@ private struct QuickShortcutsCarousel: View {
     var body: some View {
         if !templates.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Atajos rápidos", systemImage: "bolt.fill")
+                Label("home.shortcuts.title", systemImage: "bolt.fill")
                     .font(.mcH2)
                     .foregroundStyle(Color.textPrimary)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -1502,7 +1696,9 @@ private struct QuickShortcutsCarousel: View {
                             shortcutCard(t)
                         }
                     }
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.viewAligned)
             }
             .padding(14)
             .background(
@@ -1562,10 +1758,10 @@ private struct DebtsAndPlansTiles: View {
                 if debtsCount > 0 {
                     tile(
                         icon: "arrow.down.to.line",
-                        label: "Deudas",
+                        label: String(localized: "home.debts.title"),
                         count: debtsCount,
                         detail: monthlyDebtCommitment > 0
-                            ? "\(Money.format(monthlyDebtCommitment, currency: currency, style: .compact))/mes"
+                            ? String(format: String(localized: "home.debts.monthly %@"), Money.format(monthlyDebtCommitment, currency: currency, style: .compact))
                             : nil,
                         color: .brandDanger
                     )
@@ -1573,7 +1769,7 @@ private struct DebtsAndPlansTiles: View {
                 if plansCount > 0 {
                     tile(
                         icon: "creditcard.and.123",
-                        label: "Planes cuotas",
+                        label: String(localized: "home.plans.title"),
                         count: plansCount,
                         detail: nil,
                         color: .brandPrimary
@@ -1838,7 +2034,7 @@ struct NetWorthCard: View {
                     .font(.mcSerifDisplay)
                     .foregroundStyle(Color.textPrimary)
             } else {
-                Text(Money.format(breakdown.netWorth, currency: currency, style: .auto))
+                MoneyText(amount: breakdown.netWorth, currency: currency, style: .auto)
                     .font(.mcSerifDisplay)
                     .foregroundStyle(netWorthColor)
                     .contentTransition(.numericText())
@@ -1914,9 +2110,8 @@ struct NetWorthCard: View {
             if isHidden {
                 Text("•••").font(.mcSerifInline).foregroundStyle(Color.textMuted)
             } else {
-                Text(Money.format(amount, currency: currency, style: .auto))
-                    .font(.mcSerifInline)
-                    .monospacedDigit()
+                MoneyText(amount: amount, currency: currency, style: .auto)
+                    .font(.mcSerifInline.monospacedDigit())
                     .foregroundStyle(Color.textPrimary)
             }
         }
@@ -1932,9 +2127,9 @@ enum BalanceBreakdownMode: String, Identifiable {
 
     var title: String {
         switch self {
-        case .balance:  "Saldo del mes"
-        case .ingresos: "Ingresos del mes"
-        case .gastos:   "Gastos del mes"
+        case .balance:  String(localized: "breakdown.title.balance")
+        case .ingresos: String(localized: "breakdown.title.income")
+        case .gastos:   String(localized: "breakdown.title.expenses")
         }
     }
 }
@@ -2005,21 +2200,35 @@ struct BalanceBreakdownView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") { dismiss() }
+                    Button("action.close") { dismiss() }
                 }
             }
         }
     }
 
+    private var headlineTitleKey: LocalizedStringKey {
+        switch mode {
+        case .gastos:   "breakdown.total.spent"
+        case .ingresos: "breakdown.total.income"
+        case .balance:  "breakdown.total.net"
+        }
+    }
+
+    private var movementsCountText: String {
+        relevantTxs.count == 1
+            ? String(format: String(localized: "breakdown.movements.singular %lld"), relevantTxs.count)
+            : String(format: String(localized: "breakdown.movements.plural %lld"), relevantTxs.count)
+    }
+
     private var headline: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(mode == .gastos ? "Total gastado" : (mode == .ingresos ? "Total ingresado" : "Saldo neto"))
+            Text(headlineTitleKey)
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
-            Text(Money.format(headlineAmount, currency: currency, style: .auto))
+            MoneyText(amount: headlineAmount, currency: currency, style: .auto)
                 .font(.mcSerifHero)
                 .foregroundStyle(mode == .gastos ? Color.brandDanger : (mode == .ingresos ? Color.brandSuccess : Color.textPrimary))
-            Text("\(relevantTxs.count) movimiento\(relevantTxs.count == 1 ? "" : "s")")
+            Text(movementsCountText)
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
         }
@@ -2028,8 +2237,8 @@ struct BalanceBreakdownView: View {
 
     private var balanceSummary: some View {
         HStack(spacing: 12) {
-            summaryTile("Ingresos", ingresos, .brandSuccess, "arrow.down.circle.fill")
-            summaryTile("Gastos", gastos, .brandDanger, "arrow.up.circle.fill")
+            summaryTile(String(localized: "breakdown.income"), ingresos, .brandSuccess, "arrow.down.circle.fill")
+            summaryTile(String(localized: "breakdown.expenses"), gastos, .brandDanger, "arrow.up.circle.fill")
         }
     }
 
@@ -2039,7 +2248,7 @@ struct BalanceBreakdownView: View {
                 Image(systemName: icon).foregroundStyle(c).font(.caption)
                 Text(t).font(.mcCaption).foregroundStyle(Color.textMuted)
             }
-            Text(Money.format(amt, currency: currency, style: .compact))
+            MoneyText(amount: amt, currency: currency, style: .compact)
                 .font(.mcSerifAmount)
                 .foregroundStyle(Color.textPrimary)
         }
@@ -2051,7 +2260,7 @@ struct BalanceBreakdownView: View {
 
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(mode == .ingresos ? "Por origen" : "Por categoría")
+            Text(mode == .ingresos ? LocalizedStringKey("breakdown.byOrigin") : LocalizedStringKey("breakdown.byCategory"))
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
             ForEach(byCategory.prefix(12), id: \.category) { row in
@@ -2061,7 +2270,7 @@ struct BalanceBreakdownView: View {
                             .font(.mcBody)
                             .foregroundStyle(Color.textPrimary)
                         Spacer()
-                        Text(Money.format(row.total, currency: currency, style: .compact))
+                        MoneyText(amount: row.total, currency: currency, style: .compact)
                             .font(.mcBody.weight(.semibold).monospacedDigit())
                             .foregroundStyle(Color.textPrimary)
                         Text("\(Int(row.pct * 100))%")
@@ -2090,11 +2299,11 @@ struct BalanceBreakdownView: View {
         let sorted = relevantTxs.sorted { $0.date > $1.date }
         let shown = Array(sorted.prefix(50))
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Movimientos")
+            Text("breakdown.movements.title")
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
             if shown.isEmpty {
-                Text("Sin movimientos este mes.")
+                Text("breakdown.movements.empty")
                     .font(.mcCaption)
                     .foregroundStyle(Color.textDim)
                     .padding(.vertical, 8)
@@ -2106,7 +2315,7 @@ struct BalanceBreakdownView: View {
                     }
                 }
                 if relevantTxs.count > 50 {
-                    Text("… y \(relevantTxs.count - 50) más. Vé al tab Movimientos para verlos todos.")
+                    Text(String(format: String(localized: "breakdown.movements.more %lld"), relevantTxs.count - 50))
                         .font(.mcCaption)
                         .foregroundStyle(Color.textDim)
                         .padding(.top, 6)
@@ -2142,9 +2351,12 @@ struct BalanceBreakdownView: View {
                     .foregroundStyle(Color.textMuted)
             }
             Spacer()
-            Text((isGasto ? "−" : "+") + Money.format(tx.amount, currency: currency, style: .compact))
-                .font(.mcBody.weight(.semibold).monospacedDigit())
-                .foregroundStyle(isGasto ? Color.textPrimary : Color.brandSuccess)
+            HStack(spacing: 0) {
+                Text(isGasto ? "−" : "+")
+                MoneyText(amount: tx.amount, currency: currency, style: .compact)
+            }
+            .font(.mcBody.weight(.semibold).monospacedDigit())
+            .foregroundStyle(isGasto ? Color.textPrimary : Color.brandSuccess)
         }
         .padding(.vertical, 8)
     }

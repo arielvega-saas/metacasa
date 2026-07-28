@@ -68,7 +68,12 @@ export function HealthScore({
         </span>
         <span
           className="rounded-full px-2.5 py-1 text-xs font-bold"
-          style={{ color, backgroundColor: `${color}2e` }}
+          style={{
+            color,
+            // `color` es una CSS var (no un hex), así que la opacidad va con
+            // color-mix, no concatenando el alfa al string.
+            backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`,
+          }}
         >
           {band}
         </span>

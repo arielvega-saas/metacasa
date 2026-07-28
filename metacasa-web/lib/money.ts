@@ -90,22 +90,43 @@ export function formatNumber(amount: number, fractionDigits = 0): string {
   }).format(Number.isFinite(amount) ? amount : 0);
 }
 
-/** Parsea input del usuario (formato US "1,234.56" o LatAm "1.234,56") a número. */
+/**
+ * Parsea input del usuario (formato US "1,234.56" o LatAm "1.234,56") a número.
+ *
+ * Reglas, de la más específica a la más ambigua:
+ *  1. Están los DOS separadores → el último es el decimal, el otro agrupa.
+ *     ("1.234,56" → 1234,56 · "1,234.56" → 1234.56)
+ *  2. Hay más de una coma (y ningún punto) → son separadores de miles US.
+ *     ("1,234,567" → 1234567) — no puede haber dos decimales.
+ *  3. Hay más de un punto (y ninguna coma) → son separadores de miles LatAm.
+ *     ("1.234.567" → 1234567)
+ *  4. Un único separador → AMBIGUO. La coma se toma como decimal (convención
+ *     LatAm, "1,50" → 1.5) y el punto también ("1.50" → 1.5). "1.234" queda en
+ *     1,234 y "1,234" en 1,234: no hay forma de distinguirlo sin más contexto.
+ */
 export function parseMoney(input: string): number {
   if (!input) return 0;
   let s = input.replace(/[^\d.,-]/g, "").trim();
   if (!s) return 0;
 
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
+  const commas = (s.match(/,/g) ?? []).length;
+  const dots = (s.match(/\./g) ?? []).length;
 
-  if (lastComma > lastDot) {
-    // Coma como separador decimal (LatAm).
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else {
-    // Punto como separador decimal (US) o sin decimales.
-    s = s.replace(/,/g, "");
+  if (commas > 0 && dots > 0) {
+    // Ambos separadores: el que aparece más a la derecha es el decimal.
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "").replace(/,/g, ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (commas > 1) {
+    s = s.replace(/,/g, ""); // miles al estilo US
+  } else if (dots > 1) {
+    s = s.replace(/\./g, ""); // miles al estilo LatAm
+  } else if (commas === 1) {
+    s = s.replace(",", "."); // decimal con coma
   }
+  // Un único punto (o ningún separador) ya es parseable tal cual.
 
   const value = parseFloat(s);
   return Number.isFinite(value) ? value : 0;

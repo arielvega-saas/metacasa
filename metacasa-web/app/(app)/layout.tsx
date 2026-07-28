@@ -8,6 +8,7 @@ import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { Topbar } from "@/components/layout/topbar";
 import { CreateHouseholdGate } from "@/components/onboarding/create-household";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
+import { CommandPalette } from "@/components/command-palette";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -78,6 +79,8 @@ export default async function AppLayout({
 
       <MobileTabBar />
       <AssistantWidget />
+      {/* Paleta de comandos ⌘K / Ctrl+K (global a toda la app). */}
+      <CommandPalette />
     </div>
   );
 }

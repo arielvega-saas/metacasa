@@ -3,6 +3,9 @@ import SwiftUI
 struct AccountsView: View {
     @Environment(AppState.self) private var appState
     @State private var accounts: [Account] = []
+    /// Saldo corriente por cuenta (startingBalance + transacciones del último
+    /// año), mismo criterio que el net worth del Home.
+    @State private var balances: [UUID: Decimal] = [:]
     @State private var isLoading = true
     @State private var showAdd = false
     @State private var errorMessage: String?
@@ -75,8 +78,12 @@ struct AccountsView: View {
             // `.balance`: saldos normales positivos se ven neutros; cuentas
             // con saldo negativo (tarjetas de crédito, préstamos) se renderean
             // en rojo con "-$X" para señalar deuda.
-            AmountLabel(amount: a.startingBalance, currency: a.currency, kind: .balance)
-                .font(.mcBody.weight(.bold))
+            AmountLabel(
+                amount: balances[a.id] ?? a.startingBalance,
+                currency: a.currency,
+                kind: .balance
+            )
+            .font(.mcBody.weight(.bold))
         }
         .padding(.vertical, 8)
     }
@@ -86,7 +93,13 @@ struct AccountsView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            accounts = try await AccountService.shared.fetchAll(householdId: hid)
+            // Saldo corriente real (no el inicial), calculado server-side por
+            // el RPC `account_balances` — mismo criterio que el net worth del
+            // Home y sin bajar transacciones al device.
+            async let accountsTask = AccountService.shared.fetchAll(householdId: hid)
+            async let balancesTask = AccountService.shared.balances(householdId: hid)
+            accounts = try await accountsTask
+            balances = (try? await balancesTask) ?? [:]
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -17,17 +17,31 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       {
         src: "/icon.png",
-        sizes: "512x512",
+        sizes: "1024x1024",
         type: "image/png",
         purpose: "any",
       },
-      // TODO: agregar un PNG 512×512 maskable dedicado (con safe-area) en
-      // lugar de reutilizar /icon.png, para que Android no recorte el logo.
+      // Maskable dedicado: logo al ~60% del canvas (safe zone) sobre #0E1312,
+      // así Android no recorta el logo al aplicar la máscara.
       {
-        src: "/icon.png",
+        src: "/icon-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Nueva transacción",
+        short_name: "Nueva tx",
+        description: "Registrá un gasto o ingreso al instante.",
+        // `?new=1` abre el diálogo de alta (soportado por transactions/page.tsx).
+        url: "/transactions?new=1",
+      },
+      {
+        name: "Dashboard",
+        description: "Resumen de las finanzas de tu hogar.",
+        url: "/dashboard",
       },
     ],
   };

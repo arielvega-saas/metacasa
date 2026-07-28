@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(AppLocaleManager.self) private var localeManager
+    @Environment(BiometricLockManager.self) private var lockManager
     @Environment(\.scenePhase) private var scenePhase
     @State private var showWelcomeTour = false
     /// Gate global del modelo trial-duro: 7 días gratis → app bloqueada hasta
@@ -15,6 +16,10 @@ struct RootView: View {
                 LaunchView()
             } else if appState.session == nil {
                 AuthFlowView()
+            } else if lockManager.isEnabled && lockManager.isLocked {
+                // Face ID lock REAL (ítem 3.2): mientras está bloqueada, el
+                // árbol de la app NO se construye — LockView reemplaza, no tapa.
+                LockView()
             } else if appState.currentHouseholdId == nil {
                 CreateJoinHouseholdView()
             } else {
@@ -31,15 +36,31 @@ struct RootView: View {
                 }
             }
         }
+        // Shield del app switcher: cuando la escena no está activa (multitasking,
+        // notification center) tapamos el snapshot con fondo + logo para que
+        // los montos no queden visibles en la vista de apps recientes.
+        .overlay {
+            if scenePhase != .active && appState.session != nil {
+                AppSwitcherShield()
+            }
+        }
         .task { access.start() }
         .onChange(of: appState.currentUserId) { _, _ in
             Task { await access.refresh() }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Re-evaluar al volver del background: el trial puede haber
-            // vencido mientras la app estaba suspendida.
-            if phase == .active {
+            switch phase {
+            case .background:
+                // Marca el momento de salida — al volver, lockIfNeeded()
+                // decide con el grace period de 60s si re-bloquea.
+                lockManager.noteBackgrounded()
+            case .active:
+                lockManager.lockIfNeeded()
+                // Re-evaluar al volver del background: el trial puede haber
+                // vencido mientras la app estaba suspendida.
                 Task { await access.refresh() }
+            default:
+                break
             }
         }
         // SwiftUI no refresca `navigationTitle` automáticamente cuando cambia
@@ -51,6 +72,7 @@ struct RootView: View {
         .animation(.default, value: appState.session?.userId)
         .animation(.default, value: appState.currentHouseholdId)
         .animation(.default, value: access.state)
+        .animation(.default, value: lockManager.isLocked)
     }
 
     /// La app real (todos los tabs). Solo se muestra con acceso concedido
@@ -92,6 +114,22 @@ private struct LaunchView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                 ProgressView().tint(.white)
             }
+        }
+    }
+}
+
+/// Overlay opaco que tapa el contenido cuando la escena no está activa —
+/// el snapshot que iOS muestra en el app switcher queda con fondo + logo
+/// en vez de los montos del usuario (estándar en apps de finanzas).
+private struct AppSwitcherShield: View {
+    var body: some View {
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
+            Image("LogoMetacasa")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 22))
         }
     }
 }

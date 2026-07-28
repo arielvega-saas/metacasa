@@ -295,7 +295,7 @@ export function StrategyDialog({
           </fieldset>
 
           {/* Preview en vivo */}
-          <div className="hairline space-y-2 rounded-[var(--radius-lg)] bg-white/[0.03] p-4">
+          <div className="hairline space-y-2 rounded-[var(--radius-lg)] bg-tint-1 p-4">
             <p className="text-text-muted text-[11px] font-semibold uppercase tracking-wider">
               {t("strategy.preview")}
             </p>

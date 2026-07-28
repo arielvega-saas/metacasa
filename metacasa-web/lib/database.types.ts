@@ -120,57 +120,85 @@ export type Database = {
       }
       bills: {
         Row: {
+          account_id: string | null
           amount: number
           amount_original: number | null
           category: string
           created_at: string
+          created_by: string | null
           currency: string
           currency_original: string | null
+          description: string | null
           due_date: string
           fx_rate_to_base: number | null
           household_id: string
           id: string
+          note: string | null
+          paid_at: string | null
           recurrence_type: string | null
+          recurring: boolean
           reminder_days: number | null
           status: string
           title: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           amount?: number
           amount_original?: number | null
           category?: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           currency_original?: string | null
+          description?: string | null
           due_date: string
           fx_rate_to_base?: number | null
           household_id?: string
           id?: string
+          note?: string | null
+          paid_at?: string | null
           recurrence_type?: string | null
+          recurring?: boolean
           reminder_days?: number | null
           status?: string
           title: string
-          user_id: string
+          updated_at?: string | null
+          user_id?: string
         }
         Update: {
+          account_id?: string | null
           amount?: number
           amount_original?: number | null
           category?: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           currency_original?: string | null
+          description?: string | null
           due_date?: string
           fx_rate_to_base?: number | null
           household_id?: string
           id?: string
+          note?: string | null
+          paid_at?: string | null
           recurrence_type?: string | null
+          recurring?: boolean
           reminder_days?: number | null
           status?: string
           title?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bills_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bills_household_id_fkey"
             columns: ["household_id"]
@@ -1403,6 +1431,26 @@ export type Database = {
         Returns: number
       }
       get_wallet_access_token: { Args: { wid: string }; Returns: string }
+      spending_insights: {
+        Args: { p_household: string; p_limit?: number }
+        Returns: {
+          category: string
+          actual: number
+          promedio: number
+          delta_pct: number
+          /** 'subio' | 'bajo' */
+          direccion: string
+        }[]
+      }
+      suggest_category: {
+        Args: { p_household: string; p_note: string }
+        Returns: {
+          category: string
+          subcategory: string | null
+          confidence: number
+          matched_pattern: string
+        }[]
+      }
       has_active_entitlement: { Args: { ent: string }; Returns: boolean }
       web_access_state: { Args: Record<string, never>; Returns: Json }
       is_household_member: { Args: { hid: string }; Returns: boolean }

@@ -56,7 +56,7 @@ export function FixedTermCalculator({ currency }: { currency: string }) {
         <div className="space-y-1.5">
           <Label htmlFor="ft-capital">{t("tools.ft.capital")}</Label>
           <div className="bg-inset flex items-center gap-2 rounded-[var(--radius-md)] border border-input px-3.5">
-            <span className="text-text-muted shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold tnum">
+            <span className="text-text-muted shrink-0 rounded-full bg-tint-2 px-2 py-0.5 text-[11px] font-bold tnum">
               {currency}
             </span>
             <input
@@ -107,7 +107,7 @@ export function FixedTermCalculator({ currency }: { currency: string }) {
                   aria-pressed={unit === u}
                   className={`min-h-9 rounded-[var(--radius-md)] px-3 text-[13px] font-semibold transition-colors ${
                     unit === u
-                      ? "bg-white/[0.1] text-foreground"
+                      ? "segment-on text-foreground"
                       : "text-text-muted hover:text-foreground"
                   }`}
                 >

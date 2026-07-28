@@ -56,7 +56,7 @@ export function AllocationRowMenu({
             type="button"
             disabled={pending}
             aria-label={t("budgets.rowActions", { category })}
-            className="text-text-muted hover:text-foreground hover:bg-white/[0.06] flex size-8 items-center justify-center rounded-[var(--radius-md)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+            className="text-text-muted hover:text-foreground hover:bg-tint-2 flex size-8 items-center justify-center rounded-[var(--radius-md)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
           >
             <MoreHorizontal className="size-4" />
           </button>

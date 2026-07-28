@@ -18,7 +18,7 @@ const DropdownMenuContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "glass z-50 min-w-[13rem] overflow-hidden rounded-[var(--radius-lg)] border border-border p-1.5 text-popover-foreground shadow-2xl shadow-black/50",
+        "glass z-50 min-w-[13rem] overflow-hidden rounded-[var(--radius-lg)] border border-border p-1.5 text-popover-foreground shadow-2xl shadow-elevation",
         "origin-[var(--radix-dropdown-menu-content-transform-origin)] transition-[opacity,transform] data-[state=closed]:scale-95 data-[state=closed]:opacity-0 data-[state=open]:scale-100 data-[state=open]:opacity-100",
         className,
       )}
@@ -38,7 +38,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-pointer select-none items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-sm outline-none transition-colors",
-      "focus:bg-white/[0.07] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "focus:bg-tint-2 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       "[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-text-muted",
       destructive
         ? "text-expense focus:bg-expense/10 [&_svg]:text-expense"

@@ -19,6 +19,7 @@ import {
 import { formatMoney } from "@/lib/money";
 import { useT } from "@/components/i18n/locale-provider";
 import { CHART } from "./chart-tokens";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
 
 export interface ParetoDatum {
   category: string;
@@ -33,13 +34,14 @@ function CustomTooltip({ active, payload, currency, t }: any) {
   if (!active || !payload?.length) return null;
   const row: ParetoDatum = payload[0].payload;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-0.5 font-medium text-foreground">{row.category}</p>
-      <p className="text-expense">{formatMoney(row.total, currency, "compact")}</p>
-      <p className="text-text-muted">
+    <ChartTooltip title={row.category}>
+      <ChartTooltipRow tone="expense">
+        {formatMoney(row.total, currency, "compact")}
+      </ChartTooltipRow>
+      <ChartTooltipRow tone="muted">
         {t("reports.paretoCumulative")}: {Math.round(row.cumulative)}%
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 
@@ -91,7 +93,7 @@ export function ParetoChart({
             width={36}
           />
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.04)" }}
+            cursor={{ fill: CHART.cursorFill }}
             content={<CustomTooltip currency={currency} t={t} />}
           />
           {/* Umbral del 80% sobre el eje acumulado. */}

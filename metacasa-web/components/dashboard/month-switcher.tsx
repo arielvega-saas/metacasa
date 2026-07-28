@@ -32,7 +32,7 @@ export async function MonthSwitcher({ ym, fy }: { ym: string; fy?: number }) {
         href={href(-1)}
         scroll={false}
         aria-label={t("dashboard.prevMonth")}
-        className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
+        className="text-text-muted hover:bg-tint-2 hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
       >
         <ChevronLeft className="size-4" />
       </Link>
@@ -43,7 +43,7 @@ export async function MonthSwitcher({ ym, fy }: { ym: string; fy?: number }) {
         href={href(1)}
         scroll={false}
         aria-label={t("dashboard.nextMonth")}
-        className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
+        className="text-text-muted hover:bg-tint-2 hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
       >
         <ChevronRight className="size-4" />
       </Link>

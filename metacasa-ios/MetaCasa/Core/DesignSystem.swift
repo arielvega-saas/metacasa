@@ -93,27 +93,61 @@ extension UIColor {
 // en los montos grandes (hero balance, stats, budget amounts) que son el
 // "héroe" del data display.
 
+// Todos los tokens escalan con Dynamic Type vía `relativeTo:`. Antes eran
+// tamaños FIJOS (`Font.system(size:)`), así que un usuario con texto grande o
+// AX sizes no veía ningún cambio en toda la app — rechazo silencioso de un
+// segmento entero y observación segura en App Review. El `size:` de cada token
+// se conserva como tamaño en la categoría por defecto (large), así el diseño
+// no se mueve para quien no cambió nada.
 extension Font {
     // Sans — UI / headings
-    static let mcDisplay  = Font.system(size: 36, weight: .black)
-    static let mcH1       = Font.system(size: 24, weight: .black)
-    static let mcH2       = Font.system(size: 20, weight: .bold)
-    static let mcAmount   = Font.system(size: 26, weight: .black).monospacedDigit()
-    static let mcLabel    = Font.system(size: 11, weight: .bold).smallCaps()
-    static let mcBody     = Font.system(size: 14, weight: .medium)
-    static let mcCaption  = Font.system(size: 12, weight: .medium)
+    static var mcDisplay: Font  { .mcScaled(36, .black, relativeTo: .largeTitle) }
+    static var mcH1: Font       { .mcScaled(24, .black, relativeTo: .title1) }
+    static var mcH2: Font       { .mcScaled(20, .bold,  relativeTo: .title2) }
+    static var mcAmount: Font   { .mcScaled(26, .black, relativeTo: .title2).monospacedDigit() }
+    static var mcLabel: Font    { .mcScaled(11, .bold,  relativeTo: .caption2).smallCaps() }
+    static var mcBody: Font     { .mcScaled(14, .medium, relativeTo: .subheadline) }
+    static var mcCaption: Font  { .mcScaled(12, .medium, relativeTo: .caption1) }
 
     // Serif — para números héroe (fuente New York, serif built-in iOS)
     /// Para el balance grande del Home (~52pt).
-    static let mcSerifHero    = Font.system(size: 52, weight: .regular, design: .serif)
+    static var mcSerifHero: Font    { .mcScaled(52, .regular, relativeTo: .largeTitle, serif: true) }
     /// Para amounts destacados: ready-to-assign, envelope remaining (~34pt).
-    static let mcSerifDisplay = Font.system(size: 34, weight: .regular, design: .serif)
+    static var mcSerifDisplay: Font { .mcScaled(34, .regular, relativeTo: .title1, serif: true) }
     /// Para labels medianos de amount: stats tiles, insights (~22pt).
-    static let mcSerifAmount  = Font.system(size: 22, weight: .regular, design: .serif)
+    static var mcSerifAmount: Font  { .mcScaled(22, .regular, relativeTo: .title2, serif: true) }
     /// Para amounts inline en rows: transaction items, summary (~16pt).
-    static let mcSerifInline  = Font.system(size: 16, weight: .regular, design: .serif)
+    static var mcSerifInline: Font  { .mcScaled(16, .regular, relativeTo: .body, serif: true) }
     /// Para títulos de sección con sabor editorial (~28pt).
-    static let mcSerifTitle   = Font.system(size: 28, weight: .regular, design: .serif)
+    static var mcSerifTitle: Font   { .mcScaled(28, .regular, relativeTo: .title1, serif: true) }
+
+    /// Fuente del sistema con tamaño de diseño fijo PERO escalada por Dynamic
+    /// Type respecto del text style indicado.
+    ///
+    /// `Font.system(size:)` no escala: con texto grande o AX sizes la app se
+    /// veía idéntica. Usar directamente los text styles de Apple sí escala pero
+    /// impone sus tamaños (el balance héroe de 52pt caería a 34pt). Con
+    /// `UIFontMetrics` conservamos la escala tipográfica de "Midnight Sage" en
+    /// el tamaño por defecto y crece/decrece proporcionalmente.
+    ///
+    /// Son `static var` (no `let`) a propósito: se recalculan en cada acceso,
+    /// así al cambiar el tamaño de texto en Ajustes la UI toma el valor nuevo
+    /// en el re-render en lugar de quedarse con el de un `let` cacheado.
+    private static func mcScaled(
+        _ size: CGFloat,
+        _ weight: UIFont.Weight,
+        relativeTo style: UIFont.TextStyle,
+        serif: Bool = false
+    ) -> Font {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let uiFont: UIFont
+        if serif, let descriptor = base.fontDescriptor.withDesign(.serif) {
+            uiFont = UIFont(descriptor: descriptor, size: size)
+        } else {
+            uiFont = base
+        }
+        return Font(UIFontMetrics(forTextStyle: style).scaledFont(for: uiFont))
+    }
 }
 
 // MARK: - Card modifier

@@ -4,13 +4,51 @@ actor AccountService {
     static let shared = AccountService()
     private init() {}
 
+    /// Read-through cache (ítem 4.1). Ver `OfflineFallbackPolicy`: solo se
+    /// sirve cache ante fallas de RED, nunca ante 401/4xx.
     func fetchAll(householdId: UUID, includingInactive: Bool = false) async throws -> [Account] {
         var q = PgQuery().eq("household_id", householdId)
         if !includingInactive {
             q = q.eq("is_active", true)
         }
         q = q.order("display_order")
-        return try await SupabaseRPC.select(from: "accounts", query: q)
+        do {
+            let rows: [Account] = try await SupabaseRPC.select(from: "accounts", query: q)
+            Task.detached(priority: .utility) {
+                await OfflineCache.shared.replace(accounts: rows, householdId: householdId)
+            }
+            OfflineStatus.reportFreshData()
+            return rows
+        } catch {
+            guard OfflineFallbackPolicy.allowsCachedFallback(for: error),
+                  let cached = await OfflineCache.shared.loadAccounts(
+                      householdId: householdId, includingInactive: includingInactive
+                  ),
+                  !cached.items.isEmpty
+            else { throw error }
+            OfflineStatus.reportCachedData(syncedAt: cached.syncedAt)
+            return cached.items
+        }
+    }
+
+    /// Saldo corriente de cada cuenta activa, calculado SERVER-SIDE vía
+    /// `public.account_balances(p_household)`.
+    ///
+    /// Reemplaza al cómputo en el device, que bajaba hasta 10.000 transacciones
+    /// de 365 días por cada refresh del Home. Además es más EXACTO: el RPC suma
+    /// todas las transacciones de la cuenta, no solo la ventana de un año.
+    /// SECURITY INVOKER → RLS decide qué hogar puede leer el caller.
+    func balances(householdId: UUID) async throws -> [UUID: Decimal] {
+        struct Params: Encodable { let p_household: UUID }
+        struct Row: Decodable {
+            let account_id: UUID
+            let balance: Decimal
+        }
+        let rows: [Row] = try await SupabaseRPC.call(
+            "account_balances",
+            params: Params(p_household: householdId)
+        )
+        return Dictionary(uniqueKeysWithValues: rows.map { ($0.account_id, $0.balance) })
     }
 
     func create(

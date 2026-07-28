@@ -168,7 +168,7 @@ export function MonthComparison({
       {/* Encabezado: qué mes vs qué mes, con puntos de color por columna. */}
       <div className="text-text-muted mb-1 flex items-center justify-end gap-4 text-[11px]">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-white/25" />
+          <span className="bg-text-dim size-2 rounded-full" />
           {data.previousLabel}
         </span>
         <span className="flex items-center gap-1.5">

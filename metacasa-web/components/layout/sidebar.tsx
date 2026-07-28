@@ -16,8 +16,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "group relative flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-colors",
         active
-          ? "bg-white/[0.06] text-foreground"
-          : "text-text-muted hover:bg-white/[0.04] hover:text-foreground",
+          ? "bg-tint-2 text-foreground"
+          : "text-text-muted hover:bg-tint-1 hover:text-foreground",
       )}
     >
       {active && (

@@ -4,13 +4,31 @@ actor GoalService {
     static let shared = GoalService()
     private init() {}
 
+    /// Read-through cache (ítem 4.1). Ver `OfflineFallbackPolicy`: solo se
+    /// sirve cache ante fallas de RED, nunca ante 401/4xx.
     func fetchAll(householdId: UUID, includeCompleted: Bool = true) async throws -> [Goal] {
         var q = PgQuery().eq("household_id", householdId)
         if !includeCompleted {
             q = q.neq("status", "completed")
         }
         q = q.order("priority", ascending: false).order("created_at", ascending: true)
-        return try await SupabaseRPC.select(from: "goals", query: q)
+        do {
+            let rows: [Goal] = try await SupabaseRPC.select(from: "goals", query: q)
+            Task.detached(priority: .utility) {
+                await OfflineCache.shared.replace(goals: rows, householdId: householdId)
+            }
+            OfflineStatus.reportFreshData()
+            return rows
+        } catch {
+            guard OfflineFallbackPolicy.allowsCachedFallback(for: error),
+                  let cached = await OfflineCache.shared.loadGoals(
+                      householdId: householdId, includeCompleted: includeCompleted
+                  ),
+                  !cached.items.isEmpty
+            else { throw error }
+            OfflineStatus.reportCachedData(syncedAt: cached.syncedAt)
+            return cached.items
+        }
     }
 
     func create(

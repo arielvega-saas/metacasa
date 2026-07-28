@@ -78,13 +78,15 @@ function bucketFor(amount: number, q: Quintiles): number {
 /**
  * Color de la celda por intensidad. Espeja `colorFor(intensity:)` de iOS:
  * 0 = superficie tenue; 1..4 = coral (gasto) a opacidad creciente.
+ * Vía tokens (`--mc-expense`) para que en tema claro use la terracota oscura
+ * en vez del coral pastel, que sobre blanco sería ilegible.
  */
 const CELL_COLORS = [
-  "var(--mc-inset, rgba(255,255,255,0.04))",
-  "rgba(232,180,166,0.25)",
-  "rgba(232,180,166,0.45)",
-  "rgba(232,180,166,0.7)",
-  "rgba(232,180,166,1)",
+  "var(--mc-inset)",
+  "color-mix(in srgb, var(--mc-expense) 25%, transparent)",
+  "color-mix(in srgb, var(--mc-expense) 45%, transparent)",
+  "color-mix(in srgb, var(--mc-expense) 70%, transparent)",
+  "var(--mc-expense)",
 ] as const;
 
 /** Construye las celdas de TODOS los días del año, con su gasto (0 si no hay). */
@@ -234,7 +236,7 @@ export function SpendingHeatmap({
                       className="size-[13px] rounded-[3px] outline-none transition-transform hover:scale-125 focus-visible:ring-2 focus-visible:ring-sage"
                       style={{
                         backgroundColor: CELL_COLORS[level],
-                        boxShadow: isSel ? "0 0 0 2px var(--mc-sage, #b8d4c2)" : undefined,
+                        boxShadow: isSel ? "0 0 0 2px var(--mc-sage)" : undefined,
                       }}
                     />
                   );

@@ -15,6 +15,7 @@ import {
   CreditCard,
   Zap,
   Calculator,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export const NAV: NavItem[] = [
   { href: "/templates", label: "nav.templates", icon: Zap },
   { href: "/categories", label: "nav.categories", icon: Tags },
   { href: "/accounts", label: "nav.accounts", icon: Wallet },
+  { href: "/wallets", label: "nav.wallets", icon: WalletCards },
   { href: "/debts", label: "nav.debts", icon: Landmark },
   { href: "/installments", label: "nav.installments", icon: CreditCard },
   { href: "/goals", label: "nav.goals", icon: Target },

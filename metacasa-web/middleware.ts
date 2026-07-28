@@ -3,6 +3,10 @@ import { updateSession, isAccessLocked } from "@/lib/supabase/middleware";
 
 /** Rutas públicas (no requieren sesión). */
 const PUBLIC_PREFIXES = [
+  // Raíz: landing de marketing. `isPublic` la matchea solo de forma EXACTA
+  // (ningún pathname empieza con "//"), así que el resto sigue protegido.
+  // Con sesión, `app/page.tsx` redirige a /dashboard.
+  "/",
   "/login",
   "/register",
   "/forgot-password",
@@ -16,6 +20,11 @@ const PUBLIC_PREFIXES = [
   // Privacidad/Términos de las apps abra sin rebotar al login.
   "/privacy.html",
   "/terms.html",
+  // Fallback offline del PWA. Tiene que ser público: el service worker lo
+  // precachea al instalarse (puede pasar con el usuario deslogueado) y, si el
+  // middleware lo redirigiera a /login, guardaríamos el login como "página
+  // offline". No muestra ningún dato del hogar.
+  "/~offline",
 ];
 
 function isPublic(pathname: string) {
@@ -63,12 +72,17 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Todo excepto assets estáticos de Next, el manifest PWA, los archivos de
-    // verificación de deep links (.well-known: apple-app-site-association +
-    // assetlinks.json) y archivos con extensión de imagen (iconos incluidos).
+    // Todo excepto assets estáticos de Next, el manifest PWA, el service worker
+    // del PWA, los archivos de verificación de deep links (.well-known:
+    // apple-app-site-association + assetlinks.json) y archivos con extensión de
+    // imagen (iconos incluidos).
     // El manifest y .well-known deben ser públicos: sin esto el middleware
     // redirige /.well-known/* a /login y Apple/Google no pueden verificar los
     // Universal Links / App Links.
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|webmanifest)$).*)",
+    // `sw.js` (+ su sourcemap y los workers auxiliares `swe-worker-*.js`) también
+    // tiene que salir del matcher: si el middleware lo redirige a /login para un
+    // usuario sin sesión, el navegador no puede registrar el service worker y el
+    // PWA se queda sin offline.
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw\\.js|sw\\.js\\.map|swe-worker-[^/]+\\.js|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|webmanifest)$).*)",
   ],
 };

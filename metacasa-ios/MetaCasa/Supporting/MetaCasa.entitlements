@@ -12,5 +12,13 @@
     <array>
         <string>applinks:usehomefinance.com</string>
     </array>
+    <!-- App Group compartido con la extension MetaCasaWidgets: la app escribe
+         el WidgetSnapshot (balance del mes + próximo vencimiento) y el widget
+         lo lee. Sin este entitlement en AMBOS targets, el widget renderiza
+         vacío. Requiere el App Group creado en el Developer Portal. -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.metacasa.shared</string>
+    </array>
 </dict>
 </plist>

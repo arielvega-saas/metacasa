@@ -52,7 +52,7 @@ export async function NetWorthCard({
       />
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-[var(--radius-md)] bg-white/[0.04] p-3">
+        <div className="rounded-[var(--radius-md)] bg-tint-1 p-3">
           <p className="text-text-dim text-[11px] uppercase tracking-wider">
             {t("netWorth.assets")}
           </p>
@@ -63,7 +63,7 @@ export async function NetWorthCard({
             className="mt-0.5 block text-base font-semibold"
           />
         </div>
-        <div className="rounded-[var(--radius-md)] bg-white/[0.04] p-3">
+        <div className="rounded-[var(--radius-md)] bg-tint-1 p-3">
           <p className="text-text-dim text-[11px] uppercase tracking-wider">
             {t("netWorth.liabilities")}
           </p>

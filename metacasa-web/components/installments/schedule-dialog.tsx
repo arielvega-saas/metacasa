@@ -100,7 +100,7 @@ export function ScheduleDialog({
                   className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50 ${
                     p.paid
                       ? "border-income/40 bg-income/15 text-income"
-                      : "border-border text-text-muted hover:bg-white/[0.05]"
+                      : "border-border text-text-muted hover:bg-tint-2"
                   }`}
                 >
                   {busy ? (

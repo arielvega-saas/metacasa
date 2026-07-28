@@ -174,5 +174,10 @@ struct BalanceWidget: Widget {
 struct MetaCasaWidgetsBundle: WidgetBundle {
     var body: some Widget {
         BalanceWidget()
+        // Live Activity del próximo vencimiento (Lock Screen + Dynamic Island).
+        // iOS 16.2+ por `ActivityConfiguration` con `dynamicIsland`.
+        if #available(iOS 16.2, *) {
+            BillReminderLiveActivity()
+        }
     }
 }

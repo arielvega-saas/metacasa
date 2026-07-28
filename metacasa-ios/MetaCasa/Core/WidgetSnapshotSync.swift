@@ -43,28 +43,27 @@ enum WidgetSnapshotSync {
         gastos: Decimal,
         nextBill: Bill?
     ) {
-        let payload: [String: Any] = [
-            "householdName": householdName,
-            "currency": currency,
-            "balanceMonth": formatAmount(balance, currency: currency),
-            "ingresosMonth": formatAmount(ingresos, currency: currency),
-            "gastosMonth": formatAmount(gastos, currency: currency),
-            "nextBillTitle": nextBill?.title as Any,
-            "nextBillAmount": nextBill.map { formatAmount($0.amount, currency: $0.currency) } as Any,
-            "nextBillInDays": nextBill?.daysUntilDue as Any,
-            "updatedAt": ISO8601DateFormatter().string(from: Date())
-        ]
+        // Usamos el MISMO modelo Codable que lee la extension
+        // (`MetaCasaWidgets/WidgetSnapshot.swift`, compilado en ambos targets).
+        //
+        // Antes se armaba un `[String: Any]` a mano: cuando NO había próximo
+        // vencimiento, los `Optional.none as Any` hacían fallar a
+        // `JSONSerialization` y el widget se quedaba sin datos para siempre.
+        let snapshot = WidgetSnapshot(
+            householdName: householdName,
+            currency: currency,
+            balanceMonth: formatAmount(balance, currency: currency),
+            ingresosMonth: formatAmount(ingresos, currency: currency),
+            gastosMonth: formatAmount(gastos, currency: currency),
+            nextBillTitle: nextBill?.title,
+            nextBillAmount: nextBill.map { formatAmount($0.amount, currency: $0.currency) },
+            nextBillInDays: nextBill?.daysUntilDue
+        )
+        snapshot.persist()
 
-        // Intentamos escribir al App Group. Sin target de widget activo,
-        // UserDefaults(suiteName:) retorna nil y skipeamos.
-        if let defaults = UserDefaults(suiteName: "group.com.metacasa.shared"),
-           let data = try? JSONSerialization.data(withJSONObject: payload) {
-            defaults.set(data, forKey: "widget_snapshot_v1")
-
-            // Notificar a WidgetKit que hay data nueva (no-op si no hay widgets).
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
-            #endif
-        }
+        // Notificar a WidgetKit que hay data nueva (no-op si no hay widgets).
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }

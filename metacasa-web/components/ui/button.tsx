@@ -11,9 +11,9 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:brightness-105 shadow-[0_8px_28px_-12px_color-mix(in_srgb,var(--mc-sage)_55%,transparent)]",
         secondary:
-          "bg-white/[0.06] text-foreground hairline hover:bg-white/[0.09]",
-        outline: "hairline bg-transparent hover:bg-white/[0.05]",
-        ghost: "text-foreground hover:bg-white/[0.06]",
+          "bg-tint-2 text-foreground hairline hover:bg-tint-3",
+        outline: "hairline bg-transparent hover:bg-tint-2",
+        ghost: "text-foreground hover:bg-tint-2",
         destructive:
           "bg-destructive/90 text-destructive-foreground hover:bg-destructive",
         link: "text-primary underline-offset-4 hover:underline",

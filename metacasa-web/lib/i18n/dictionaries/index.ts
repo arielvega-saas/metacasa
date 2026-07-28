@@ -15,7 +15,11 @@ import { reportsAdvanced } from "./reports-advanced";
 import { reportsExtra } from "./reports-extra";
 import { strategy } from "./strategy";
 import { dashboardExtras } from "./dashboard-extras";
+import { spendingInsights } from "./spending-insights";
+import { pwa } from "./pwa";
 import { tools } from "./tools";
+import { palette } from "./palette";
+import { wallets } from "./wallets";
 
 const MODULES: LocaleModule[] = [
   common,
@@ -33,7 +37,11 @@ const MODULES: LocaleModule[] = [
   reportsExtra,
   strategy,
   dashboardExtras,
+  spendingInsights,
+  pwa,
   tools,
+  palette,
+  wallets,
 ];
 
 function deepMerge(target: Messages, src: Messages): void {

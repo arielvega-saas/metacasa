@@ -26,6 +26,12 @@ interface ContributionDialogProps {
   remaining: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Suma optimista al `current_amount` de la meta. El dispatch vive en la card
+   * (dueña del `useOptimistic`) pero se llama desde acá, dentro de la misma
+   * transición que la server action.
+   */
+  onOptimisticContribution?: (amount: number) => void;
 }
 
 /**
@@ -39,6 +45,7 @@ export function ContributionDialog({
   remaining,
   open,
   onOpenChange,
+  onOptimisticContribution,
 }: ContributionDialogProps) {
   const t = useT();
   const [amount, setAmount] = React.useState("");
@@ -51,13 +58,16 @@ export function ContributionDialog({
       toast.error(t("goals.contributionPositive"));
       return;
     }
+    // Cerramos el diálogo ya: el feedback es la barra de la meta avanzando.
+    setAmount("");
+    onOpenChange(false);
     startTransition(async () => {
+      onOptimisticContribution?.(value);
       try {
         await addContributionAction({ goalId, amount: value });
         toast.success(t("goals.contributionAdded"));
-        setAmount("");
-        onOpenChange(false);
       } catch (err) {
+        // React revierte el avance optimista al cerrar la transición.
         toast.error(
           err instanceof Error ? err.message : t("goals.contributionError"),
         );

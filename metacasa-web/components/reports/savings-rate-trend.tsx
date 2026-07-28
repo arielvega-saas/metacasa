@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { useT } from "@/components/i18n/locale-provider";
 import { CHART } from "./chart-tokens";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
 
 export interface SavingsRateDatum {
   /** Etiqueta de mes ya localizada (ej. "may"). */
@@ -27,12 +28,11 @@ function CustomTooltip({ active, payload, label, t }: any) {
   if (!active || !payload?.length) return null;
   const v = payload[0]?.value;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-0.5 font-medium capitalize text-foreground">{label}</p>
-      <p className="text-text-muted">
+    <ChartTooltip title={label} capitalizeTitle>
+      <ChartTooltipRow tone="muted">
         {t("reports.savingsTrendLegend")}: {v == null ? "—" : `${Math.round(v)}%`}
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 

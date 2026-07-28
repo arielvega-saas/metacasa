@@ -13,6 +13,8 @@ actor BillService {
         return try await SupabaseRPC.select(from: "bills", query: q)
     }
 
+    /// Read-through cache (ítem 4.1). El cache espeja exactamente este query:
+    /// pendientes con `due_date <= cutoff` (incluye vencidos).
     func fetchUpcoming(householdId: UUID, daysAhead: Int = 30) async throws -> [Bill] {
         let cal = Calendar.current
         let to = cal.date(byAdding: .day, value: daysAhead, to: Date()) ?? Date()
@@ -21,7 +23,22 @@ actor BillService {
             .eq("status", "pending")
             .lte("due_date", to)
             .order("due_date", ascending: true)
-        return try await SupabaseRPC.select(from: "bills", query: q)
+        do {
+            let rows: [Bill] = try await SupabaseRPC.select(from: "bills", query: q)
+            Task.detached(priority: .utility) {
+                await OfflineCache.shared.replace(upcomingBills: rows, householdId: householdId, cutoff: to)
+            }
+            OfflineStatus.reportFreshData()
+            return rows
+        } catch {
+            guard OfflineFallbackPolicy.allowsCachedFallback(for: error),
+                  let cached = await OfflineCache.shared.loadUpcomingBills(
+                      householdId: householdId, cutoff: to
+                  )
+            else { throw error }
+            OfflineStatus.reportCachedData(syncedAt: cached.syncedAt)
+            return cached.items
+        }
     }
 
     func fetchForMonth(householdId: UUID, year: Int, month: Int) async throws -> [Bill] {

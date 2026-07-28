@@ -114,7 +114,7 @@ struct SettingsView: View {
                 AssistantPrivacyView()
             }
             rowDivider
-            BiometricsStatusRow()
+            BiometricLockToggleRow()
             rowDivider
             actionRow(icon: "rectangle.portrait.and.arrow.right",
                       labelKey: "settings.signout",
@@ -452,8 +452,17 @@ private struct WebHandoffRow: View {
     }
 }
 
-/// Status row de biometría — display-only.
-private struct BiometricsStatusRow: View {
+/// Toggle REAL del Face ID lock (ítem 3.2) — reemplaza al viejo
+/// `BiometricsStatusRow` display-only. Al activarlo verifica con una
+/// autenticación inmediata que la biometría funciona; si falla, el toggle
+/// vuelve a OFF y muestra alert (evita dejar al user con un lock que no
+/// puede pasar). Si el device no soporta biometría, queda display-only
+/// como antes.
+private struct BiometricLockToggleRow: View {
+    @Environment(BiometricLockManager.self) private var lockManager
+    @State private var isVerifying = false
+    @State private var showVerifyFailed = false
+
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: "lock.shield.fill")
@@ -461,17 +470,62 @@ private struct BiometricsStatusRow: View {
                 .foregroundStyle(Color.brandPrimary)
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(Color.brandPrimary.opacity(0.12)))
-            Text("settings.biometrics")
-                .font(.mcBody)
-                .foregroundStyle(Color.textPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("settings.biometrics")
+                    .font(.mcBody)
+                    .foregroundStyle(Color.textPrimary)
+                if BiometricAuth.isAvailable {
+                    Text(BiometricAuth.biometryLabel)
+                        .font(.mcCaption)
+                        .foregroundStyle(Color.textMuted)
+                }
+            }
             Spacer()
-            Text(BiometricAuth.isAvailable
-                 ? BiometricAuth.biometryLabel
-                 : String(localized: "settings.biometrics.unavailable"))
-                .font(.mcCaption)
-                .foregroundStyle(Color.textMuted)
+            if !BiometricAuth.isAvailable {
+                Text("settings.biometrics.unavailable")
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textMuted)
+            } else if isVerifying {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(Color.brandPrimary)
+            } else {
+                Toggle("", isOn: enabledBinding)
+                    .labelsHidden()
+                    .tint(.brandPrimary)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+        .alert(Text("lock.error.title"), isPresented: $showVerifyFailed) {
+            Button("action.close", role: .cancel) {}
+        } message: {
+            Text("lock.error.verifyFailed")
+        }
+    }
+
+    private var enabledBinding: Binding<Bool> {
+        Binding(
+            get: { lockManager.isEnabled },
+            set: { newValue in
+                Haptics.play(.selection)
+                if newValue {
+                    // Verificación inmediata: solo queda ON si la
+                    // autenticación pasa de verdad.
+                    isVerifying = true
+                    Task { @MainActor in
+                        let ok = await lockManager.verifyAndEnable()
+                        isVerifying = false
+                        if ok {
+                            Haptics.play(.success)
+                        } else {
+                            showVerifyFailed = true
+                        }
+                    }
+                } else {
+                    lockManager.disable()
+                }
+            }
+        )
     }
 }

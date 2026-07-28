@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { es, enUS, ptBR } from "date-fns/locale";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { AnimatedProgressBar } from "@/components/motion/animated-progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,8 +49,15 @@ export function GoalCard({ goal, defaultCurrency }: GoalCardProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
 
+  // Contribución optimista: la barra (y el "te falta") avanzan apenas confirmás,
+  // sin esperar al insert + al trigger de DB que recalcula `current_amount`. Si
+  // la server action falla, React descarta el optimismo al cerrar la transición.
+  const [current, addOptimisticContribution] = React.useOptimistic(
+    Number(goal.current_amount),
+    (state: number, delta: number) => state + delta,
+  );
+
   const currency = goal.currency || defaultCurrency;
-  const current = Number(goal.current_amount);
   const target = Number(goal.target_amount);
   const remaining = Math.max(0, target - current);
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
@@ -105,7 +112,7 @@ export function GoalCard({ goal, defaultCurrency }: GoalCardProps) {
             <button
               type="button"
               aria-label={t("goals.goalActions", { name: goal.name })}
-              className="text-text-muted hover:text-foreground hover:bg-white/[0.06] -mr-1.5 -mt-1 flex size-10 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="text-text-muted hover:text-foreground hover:bg-tint-2 -mr-1.5 -mt-1 flex size-10 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <MoreHorizontal className="size-4" />
             </button>
@@ -144,11 +151,11 @@ export function GoalCard({ goal, defaultCurrency }: GoalCardProps) {
       </div>
 
       <div className="mt-2.5 flex items-center gap-3">
-        <Progress
+        <AnimatedProgressBar
           value={pct}
           indicatorClassName={completed ? "bg-income" : "bg-primary"}
           className="flex-1"
-          aria-label={t("goals.progressAria", { pct, name: goal.name })}
+          label={t("goals.progressAria", { pct, name: goal.name })}
         />
         <span className="text-foreground tnum w-10 shrink-0 text-right text-xs font-semibold">
           {pct}%
@@ -185,6 +192,7 @@ export function GoalCard({ goal, defaultCurrency }: GoalCardProps) {
         remaining={remaining}
         open={contribOpen}
         onOpenChange={setContribOpen}
+        onOptimisticContribution={addOptimisticContribution}
       />
       <GoalDialog
         defaultCurrency={defaultCurrency}

@@ -57,6 +57,13 @@ targets:
       - path: MetaCasa
         excludes:
           - "**/*.md"
+      # Compartido con la extension: ActivityKit matchea la Live Activity con
+      # su UI por identidad de tipo, así que los attributes tienen que
+      # compilarse en ambos targets desde el MISMO archivo.
+      - path: MetaCasaWidgets/BillReminderAttributes.swift
+      # Ídem para el snapshot del widget: un solo modelo Codable escribe (app)
+      # y lee (extension), así el encoding no puede divergir.
+      - path: MetaCasaWidgets/WidgetSnapshot.swift
         # Lista explícita de locales soportados en el String Catalog.
         # Xcode 15+ compila .xcstrings automáticamente si está en sources.
     resources:
@@ -70,6 +77,8 @@ targets:
         product: KeychainAccess
       - package: CoreXLSX
         product: CoreXLSX
+      # Embed de la widget extension en el .app (Home/Lock Screen + Live Activity).
+      - target: MetaCasaWidgets
       # - package: Sentry
       #   product: Sentry
     settings:
@@ -85,6 +94,31 @@ targets:
       testTargets:
         - MetaCasaTests
       gatherCoverageData: true
+
+  # Widget extension: widgets de Home/Lock Screen (BalanceWidget) + la UI de la
+  # Live Activity de vencimientos (BillReminderLiveActivity).
+  # Requiere el App Group `group.com.metacasa.shared` creado en el Developer
+  # Portal y habilitado en AMBOS App IDs (app y extension).
+  MetaCasaWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MetaCasaWidgets
+        excludes:
+          - "**/*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app.widgets
+        PRODUCT_NAME: MetaCasaWidgets
+        INFOPLIST_FILE: MetaCasaWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: MetaCasaWidgets/MetaCasaWidgets.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        # El asset catalog vive en el target principal; la extension usa
+        # colores del sistema para no duplicarlo.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
 
   MetaCasaTests:
     type: bundle.unit-test

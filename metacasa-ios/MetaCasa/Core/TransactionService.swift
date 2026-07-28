@@ -4,16 +4,42 @@ actor TransactionService {
     static let shared = TransactionService()
     private init() {}
 
+    /// Read-through cache (ítem 4.1): red primero; si la red falla y el cache
+    /// cubre la ventana pedida, se sirven los datos locales y se avisa al
+    /// usuario vía `OfflineStatus`. Un 401 / 4xx NO cae al cache — se propaga
+    /// para que `SupabaseRPC` renueve la sesión.
     func fetchForPeriod(householdId: UUID, from: Date, to: Date, limit: Int = 200) async throws -> [Transaction] {
-        try await SupabaseRPC.select(
-            from: "transactions",
-            query: PgQuery()
-                .eq("household_id", householdId)
-                .gte("date", from)
-                .lte("date", to)
-                .order("date", ascending: false)
-                .limit(limit)
-        )
+        do {
+            let rows: [Transaction] = try await SupabaseRPC.select(
+                from: "transactions",
+                query: PgQuery()
+                    .eq("household_id", householdId)
+                    .gte("date", from)
+                    .lte("date", to)
+                    .order("date", ascending: false)
+                    .limit(limit)
+            )
+            // Escritura en background: la UI no espera al disco.
+            Task.detached(priority: .utility) {
+                await OfflineCache.shared.replace(
+                    transactions: rows,
+                    householdId: householdId,
+                    from: from,
+                    to: to,
+                    requestedLimit: limit
+                )
+            }
+            OfflineStatus.reportFreshData()
+            return rows
+        } catch {
+            guard OfflineFallbackPolicy.allowsCachedFallback(for: error),
+                  let cached = await OfflineCache.shared.loadTransactions(
+                      householdId: householdId, from: from, to: to, limit: limit
+                  )
+            else { throw error }
+            OfflineStatus.reportCachedData(syncedAt: cached.syncedAt)
+            return cached.items
+        }
     }
 
     func insert(_ input: NewTransactionInput) async throws -> Transaction {

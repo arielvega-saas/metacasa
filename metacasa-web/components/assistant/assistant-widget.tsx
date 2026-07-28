@@ -117,7 +117,7 @@ export function AssistantWidget() {
         aria-label={open ? t("assistant.closeAria") : t("assistant.openAria")}
         aria-expanded={open}
         className={cn(
-          "bg-primary text-primary-foreground sage-glow fixed right-4 z-40 flex size-14 items-center justify-center rounded-full shadow-lg shadow-black/40 transition-all hover:brightness-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
+          "bg-primary text-primary-foreground sage-glow fixed right-4 z-40 flex size-14 items-center justify-center rounded-full shadow-lg shadow-elevation transition-all hover:brightness-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
           // Móvil: arriba de la tab bar (~76px + safe area). Desktop: esquina baja.
           "bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6",
         )}
@@ -187,7 +187,7 @@ function AssistantPanel({
       aria-modal="false"
       aria-label={t("assistant.dialogAria")}
       className={cn(
-        "bg-surface fixed z-40 flex flex-col overflow-hidden border border-border shadow-2xl shadow-black/50",
+        "bg-surface fixed z-40 flex flex-col overflow-hidden border border-border shadow-2xl shadow-elevation",
         // Móvil: lámina casi a pantalla completa, por encima de la tab bar.
         "inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] top-16 rounded-[var(--radius-xl)]",
         // Desktop: panel acotado anclado a la esquina inferior derecha.
@@ -252,7 +252,7 @@ function AssistantPanel({
                 key={s}
                 type="button"
                 onClick={() => onSuggestion(s)}
-                className="text-text-muted hover:text-foreground bg-surface-2 hairline hover:bg-white/[0.06] rounded-full px-3 py-1.5 text-[13px] transition-colors"
+                className="text-text-muted hover:text-foreground bg-surface-2 hairline hover:bg-tint-2 rounded-full px-3 py-1.5 text-[13px] transition-colors"
               >
                 {s}
               </button>

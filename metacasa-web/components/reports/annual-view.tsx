@@ -18,6 +18,7 @@ import { useT, useLocale } from "@/components/i18n/locale-provider";
 import { formatMoney } from "@/lib/money";
 import { formatMonthShort } from "@/lib/i18n/dates";
 import { CHART } from "./chart-tokens";
+import { ChartTooltip, ChartTooltipRow } from "@/components/charts/chart-tooltip";
 import type { AnnualMonthFlow } from "@/lib/db/analytics";
 
 function CustomTooltip({ active, payload, label, currency, t }: any) {
@@ -25,15 +26,14 @@ function CustomTooltip({ active, payload, label, currency, t }: any) {
   const income = payload.find((p: any) => p.dataKey === "income")?.value ?? 0;
   const expense = payload.find((p: any) => p.dataKey === "expense")?.value ?? 0;
   return (
-    <div className="glass hairline rounded-[var(--radius-md)] px-3 py-2 text-xs shadow-xl">
-      <p className="mb-1 font-medium capitalize text-foreground">{label}</p>
-      <p className="text-income">
+    <ChartTooltip title={label} capitalizeTitle>
+      <ChartTooltipRow tone="income">
         {t("reports.legendIncome")} {formatMoney(income, currency, "compact")}
-      </p>
-      <p className="text-expense">
+      </ChartTooltipRow>
+      <ChartTooltipRow tone="expense">
         {t("reports.legendExpense")} {formatMoney(expense, currency, "compact")}
-      </p>
-    </div>
+      </ChartTooltipRow>
+    </ChartTooltip>
   );
 }
 

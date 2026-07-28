@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -69,17 +69,27 @@ export function BillsView({ bills, categories, currency }: BillsViewProps) {
   const [dialog, setDialog] = useState<DialogState>({ mode: "closed" });
   const [toDelete, setToDelete] = useState<Bill | null>(null);
 
+  // Estado optimista del cambio pagado/pendiente. Lo tenemos ACÁ y no en la
+  // card para que el vencimiento salte de sección (próximos → pagados) al
+  // instante, no sólo cambie de badge. Si la server action falla, React
+  // descarta el optimismo al cerrar la transición y vuelve a su sección.
+  const [optimisticBills, applyStatus] = useOptimistic(
+    bills,
+    (state: Bill[], patch: { id: string; status: "paid" | "pending" }) =>
+      state.map((b) => (b.id === patch.id ? { ...b, status: patch.status } : b)),
+  );
+
   const { overdue, upcoming, paid } = useMemo(() => {
     const overdue: Bill[] = [];
     const upcoming: Bill[] = [];
     const paid: Bill[] = [];
-    for (const b of bills) {
+    for (const b of optimisticBills) {
       if (b.status === "paid") paid.push(b);
       else if (daysUntilDue(b.due_date) < 0) overdue.push(b);
       else upcoming.push(b);
     }
     return { overdue, upcoming, paid };
-  }, [bills]);
+  }, [optimisticBills]);
 
   return (
     <div className="space-y-6">
@@ -94,7 +104,7 @@ export function BillsView({ bills, categories, currency }: BillsViewProps) {
         }
       />
 
-      {bills.length === 0 ? (
+      {optimisticBills.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
           title={t("bills.emptyTitle")}
@@ -115,6 +125,7 @@ export function BillsView({ bills, categories, currency }: BillsViewProps) {
               currency={currency}
               onEdit={(bill) => setDialog({ mode: "edit", bill })}
               onDelete={setToDelete}
+              onOptimisticStatus={applyStatus}
             />
           )}
           {upcoming.length > 0 && (
@@ -124,6 +135,7 @@ export function BillsView({ bills, categories, currency }: BillsViewProps) {
               currency={currency}
               onEdit={(bill) => setDialog({ mode: "edit", bill })}
               onDelete={setToDelete}
+              onOptimisticStatus={applyStatus}
             />
           )}
           {paid.length > 0 && (
@@ -133,6 +145,7 @@ export function BillsView({ bills, categories, currency }: BillsViewProps) {
               currency={currency}
               onEdit={(bill) => setDialog({ mode: "edit", bill })}
               onDelete={setToDelete}
+              onOptimisticStatus={applyStatus}
             />
           )}
         </div>
@@ -167,12 +180,14 @@ function BillSection({
   currency,
   onEdit,
   onDelete,
+  onOptimisticStatus,
 }: {
   title: string;
   bills: Bill[];
   currency: string;
   onEdit: (bill: Bill) => void;
   onDelete: (bill: Bill) => void;
+  onOptimisticStatus: (patch: { id: string; status: "paid" | "pending" }) => void;
 }) {
   return (
     <section>
@@ -185,6 +200,7 @@ function BillSection({
             currency={currency}
             onEdit={() => onEdit(bill)}
             onDelete={() => onDelete(bill)}
+            onOptimisticStatus={onOptimisticStatus}
           />
         ))}
       </div>
@@ -198,11 +214,13 @@ function BillCard({
   currency,
   onEdit,
   onDelete,
+  onOptimisticStatus,
 }: {
   bill: Bill;
   currency: string;
   onEdit: () => void;
   onDelete: () => void;
+  onOptimisticStatus: (patch: { id: string; status: "paid" | "pending" }) => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -229,6 +247,9 @@ function BillCard({
 
   function changeStatus(status: "paid" | "pending") {
     startTransition(async () => {
+      // El dispatch optimista vive en BillsView pero se despacha desde acá,
+      // dentro de esta transición: la card cambia de sección al instante.
+      onOptimisticStatus({ id: bill.id, status });
       try {
         await setBillStatusAction(bill.id, status);
         toast.success(
@@ -236,6 +257,7 @@ function BillCard({
         );
         router.refresh();
       } catch (err) {
+        // React revierte el estado optimista al cerrar la transición.
         toast.error(t("bills.statusError"), {
           description: err instanceof Error ? err.message : undefined,
         });

@@ -118,6 +118,14 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
   const [toDelete, setToDelete] = React.useState<Tx | null>(null);
   const [deleting, startDelete] = React.useTransition();
 
+  // Borrado optimista: la fila desaparece apenas confirmás, sin esperar el
+  // round-trip a Supabase. Si la server action falla, React descarta el estado
+  // optimista al terminar la transición y la fila vuelve sola (+ toast).
+  const [visibleRows, removeRowOptimistic] = React.useOptimistic(
+    rows,
+    (state: Tx[], deletedId: string) => state.filter((r) => r.id !== deletedId),
+  );
+
   // Abrir el form cuando la URL pasa a ?new=1 por navegación (no solo en carga
   // inicial). Los botones "Nueva transacción" (header, topbar, FAB mobile)
   // navegan a ?new=1; sin esto el diálogo no abría al clickearlos.
@@ -138,14 +146,14 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
   // Agrupa las filas por día preservando el orden (ya vienen desc por fecha).
   const groups = React.useMemo(() => {
     const map = new Map<string, Tx[]>();
-    for (const tx of rows) {
+    for (const tx of visibleRows) {
       const key = dayKey(tx.date);
       const arr = map.get(key);
       if (arr) arr.push(tx);
       else map.set(key, [tx]);
     }
     return Array.from(map.entries());
-  }, [rows]);
+  }, [visibleRows]);
 
   function openCreate() {
     setEditing(null);
@@ -168,19 +176,23 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
   function confirmDelete() {
     if (!toDelete) return;
     const id = toDelete.id;
+    // Cerramos el diálogo ya: la confirmación visual es que la fila se va.
+    setToDelete(null);
     startDelete(async () => {
+      removeRowOptimistic(id);
       try {
         await deleteTransactionAction(id);
         toast.success(t("transactions.deleted"));
-        setToDelete(null);
         router.refresh();
       } catch (err) {
+        // Al salir de la transición React revierte el estado optimista y la
+        // fila reaparece: sólo hace falta avisar por qué.
         toast.error(err instanceof Error ? err.message : t("transactions.deleteError"));
       }
     });
   }
 
-  if (rows.length === 0) {
+  if (visibleRows.length === 0) {
     return (
       <>
         {templates.length > 0 && (
@@ -253,7 +265,7 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
                 return (
                   <li
                     key={tx.id}
-                    className="hover:bg-white/[0.02] flex items-center gap-3 px-4 py-3 transition-colors sm:px-5"
+                    className="hover:bg-tint-1 flex items-center gap-3 px-4 py-3 transition-colors sm:px-5"
                   >
                     {/* Avatar inicial con color por tipo */}
                     <span

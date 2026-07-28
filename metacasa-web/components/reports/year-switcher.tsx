@@ -29,7 +29,7 @@ export async function YearSwitcher({ fy, ym }: { fy: number; ym?: string }) {
         href={href(fy - 1)}
         scroll={false}
         aria-label={t("reports.prevYear")}
-        className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
+        className="text-text-muted hover:bg-tint-2 hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
       >
         <ChevronLeft className="size-4" />
       </Link>
@@ -48,7 +48,7 @@ export async function YearSwitcher({ fy, ym }: { fy: number; ym?: string }) {
           href={href(fy + 1)}
           scroll={false}
           aria-label={t("reports.nextYear")}
-          className="text-text-muted hover:bg-white/[0.06] hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
+          className="text-text-muted hover:bg-tint-2 hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors"
         >
           <ChevronRight className="size-4" />
         </Link>

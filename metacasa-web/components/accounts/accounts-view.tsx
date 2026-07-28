@@ -187,8 +187,15 @@ function AccountCard({
     isCard && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null;
 
   // Color de acento opcional: si la cuenta lo define, lo usamos en el ícono.
+  // El color es DATO del usuario (hex guardado en DB), así que no puede ser un
+  // token; en tema claro esos pasteles darían ~1.5:1 sobre la card, así que se
+  // mezclan con el texto según `--mc-accent-mix` (100% en oscuro = intacto,
+  // 50% en claro → ≥4:1 sobre el chip).
   const accentStyle = account.color
-    ? { color: account.color, backgroundColor: `${account.color}1f` }
+    ? {
+        color: `color-mix(in srgb, ${account.color} var(--mc-accent-mix), var(--mc-text))`,
+        backgroundColor: `${account.color}1f`,
+      }
     : undefined;
 
   return (

@@ -60,6 +60,9 @@ struct MainTabView: View {
                 .tag(Tab.settings)
         }
         .tint(.brandPrimary)
+        // Aviso "estás viendo datos guardados": va sobre el TabView para cubrir
+        // todas las pantallas (incluidas las push) con una sola aplicación.
+        .offlineDataBanner()
         .onChange(of: selected) { _, new in
             if new == .add {
                 Haptics.play(.impactMedium)

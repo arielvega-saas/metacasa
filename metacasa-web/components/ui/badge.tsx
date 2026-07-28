@@ -8,7 +8,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-primary/15 text-primary",
-        neutral: "bg-white/[0.06] text-text-muted hairline",
+        neutral: "bg-tint-2 text-text-muted hairline",
         income: "bg-income/15 text-income",
         expense: "bg-expense/15 text-expense",
         warning: "bg-champagne/15 text-champagne",

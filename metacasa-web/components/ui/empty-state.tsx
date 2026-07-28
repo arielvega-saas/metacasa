@@ -22,7 +22,7 @@ export function EmptyState({
       )}
     >
       {Icon && (
-        <span className="bg-white/[0.04] text-text-muted mb-3 flex size-12 items-center justify-center rounded-full">
+        <span className="bg-tint-1 text-text-muted mb-3 flex size-12 items-center justify-center rounded-full">
           <Icon className="size-6" />
         </span>
       )}

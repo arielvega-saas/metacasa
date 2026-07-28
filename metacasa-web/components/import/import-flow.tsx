@@ -288,7 +288,7 @@ function Stepper({ step }: { step: Step }) {
                   ? "bg-primary text-primary-foreground"
                   : done
                     ? "bg-primary/20 text-primary"
-                    : "bg-white/[0.06] text-text-dim",
+                    : "bg-tint-2 text-text-dim",
               )}
             >
               {i + 1}

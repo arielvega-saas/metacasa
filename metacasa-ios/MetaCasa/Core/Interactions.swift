@@ -137,28 +137,34 @@ struct MCChip: View {
 struct LiquidGlassBackground<S: Shape>: ViewModifier {
     let shape: S
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        // Implementación defensiva: el material `.regularMaterial` + highlight
-        // stroke + tenue shadow imita Liquid Glass de iOS 26 visualmente y
-        // funciona sin riesgo de API beta-changes. Cuando la app esté en
-        // production estable en iOS 26 podemos migrar a `.glassEffect(.regular)`
-        // si Apple finaliza el signature.
-        content
-            .background(.regularMaterial, in: shape)
-            .overlay(
-                shape.stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.04),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
+        if #available(iOS 26.0, *) {
+            // Liquid Glass REAL (iOS 26+): material oficial con refracción y
+            // respuesta al movimiento. Señal explícita de adopción de
+            // plataforma para Apple Review.
+            content
+                .glassEffect(.regular, in: shape)
+        } else {
+            // Fallback iOS 17-25: `.regularMaterial` + highlight stroke +
+            // tenue shadow imita el look sin la API nueva.
+            content
+                .background(.regularMaterial, in: shape)
+                .overlay(
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.18),
+                                Color.white.opacity(0.04),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.5
+                    )
                 )
-            )
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+        }
     }
 }
 

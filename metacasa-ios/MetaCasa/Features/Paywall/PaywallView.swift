@@ -28,7 +28,7 @@ struct PaywallView: View {
                         .foregroundStyle(Color.brandWarning)
                         .padding(.top, 40)
 
-                    Text("Potenciá tu organización financiera")
+                    Text("paywall.title")
                         .font(.mcH1)
                         .foregroundStyle(Color.textPrimary)
                         .multilineTextAlignment(.center)
@@ -42,6 +42,7 @@ struct PaywallView: View {
                         if rcConfigured, let offering {
                             packagesGrid(offering: offering)
                             upgradeButton
+                            trialTimeline
                         } else {
                             pricesCard
                             if !rcConfigured {
@@ -59,7 +60,7 @@ struct PaywallView: View {
                             .multilineTextAlignment(.center)
                     }
 
-                    Text("Podés administrar o cancelar tu suscripción desde tu cuenta de Apple.")
+                    Text("paywall.manage.hint")
                         .font(.mcCaption)
                         .foregroundStyle(Color.textDim)
                         .multilineTextAlignment(.center)
@@ -69,7 +70,7 @@ struct PaywallView: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationTitle(Text("Premium"))
+        .navigationTitle(Text("paywall.navTitle"))
         .task { await bootstrap() }
     }
 
@@ -80,8 +81,8 @@ struct PaywallView: View {
             Image(systemName: "checkmark.seal.fill")
                 .foregroundStyle(Color.brandSuccess)
                 .font(.system(size: 44))
-            Text("Ya tenés Premium activo").font(.mcH2).foregroundStyle(Color.textPrimary)
-            Text("Gracias por apoyar el desarrollo de la app.")
+            Text("paywall.active.title").font(.mcH2).foregroundStyle(Color.textPrimary)
+            Text("paywall.active.thanks")
                 .font(.mcBody).foregroundStyle(Color.textMuted)
                 .multilineTextAlignment(.center)
         }
@@ -89,7 +90,7 @@ struct PaywallView: View {
     }
 
     private var pitchCard: some View {
-        Text("Desbloqueá herramientas avanzadas para entender mejor tu plata y tomar mejores decisiones.")
+        Text("paywall.pitch")
             .font(.mcBody)
             .foregroundStyle(Color.textMuted)
             .multilineTextAlignment(.center)
@@ -98,13 +99,13 @@ struct PaywallView: View {
 
     private var featuresList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            feature("Asistente IA ilimitado", icon: "sparkles")
-            feature("Reportes avanzados", icon: "chart.bar.doc.horizontal.fill")
-            feature("Modo voz", icon: "waveform")
-            feature("Importación XLSX", icon: "tray.and.arrow.down.fill")
-            feature("Exportación CSV, PDF y JSON", icon: "square.and.arrow.up.fill")
-            feature("Backup automático", icon: "icloud.and.arrow.up.fill")
-            feature("Más control para hogares y familias", icon: "person.3.fill")
+            feature(String(localized: "paywall.feature.aiUnlimited"), icon: "sparkles")
+            feature(String(localized: "paywall.feature.reports"), icon: "chart.bar.doc.horizontal.fill")
+            feature(String(localized: "paywall.feature.voice"), icon: "waveform")
+            feature(String(localized: "paywall.feature.importXLSX"), icon: "tray.and.arrow.down.fill")
+            feature(String(localized: "paywall.feature.export"), icon: "square.and.arrow.up.fill")
+            feature(String(localized: "paywall.feature.backup"), icon: "icloud.and.arrow.up.fill")
+            feature(String(localized: "paywall.feature.households"), icon: "person.3.fill")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .mcCard()
@@ -122,20 +123,42 @@ struct PaywallView: View {
 
     // Grid real con packages del offering actual.
     private func packagesGrid(offering: Offering) -> some View {
-        HStack(spacing: 12) {
+        let savings = annualSavingsPercent(in: offering)
+        return HStack(spacing: 12) {
             ForEach(offering.availablePackages, id: \.identifier) { package in
-                packageTile(package: package)
+                packageTile(
+                    package: package,
+                    savingsPercent: package.packageType == .annual ? savings : nil
+                )
             }
         }
+        .padding(.top, savings != nil ? 8 : 0) // aire para el badge flotante
     }
 
-    private func packageTile(package: Package) -> some View {
+    /// Ahorro real del plan anual vs pagar 12 meses del mensual, calculado con
+    /// los precios VIVOS del offering (nunca hardcodeado: si cambiás precios en
+    /// App Store Connect, el badge sigue siendo verdad).
+    /// Devuelve nil si no hay ambos planes o si el anual no ahorra nada.
+    private func annualSavingsPercent(in offering: Offering) -> Int? {
+        guard let annual = offering.availablePackages.first(where: { $0.packageType == .annual }),
+              let monthly = offering.availablePackages.first(where: { $0.packageType == .monthly })
+        else { return nil }
+        let annualPrice = annual.storeProduct.price as Decimal
+        let monthlyYear = (monthly.storeProduct.price as Decimal) * 12
+        guard monthlyYear > 0, annualPrice < monthlyYear else { return nil }
+        let ratio = (annualPrice / monthlyYear) as NSDecimalNumber
+        let pct = Int(((1 - ratio.doubleValue) * 100).rounded())
+        return pct > 0 ? pct : nil
+    }
+
+    private func packageTile(package: Package, savingsPercent: Int? = nil) -> some View {
         let isSelected = selectedPackage?.identifier == package.identifier
         let isAnnual = package.packageType == .annual
         let title = titleForPackage(package)
         let price = package.storeProduct.localizedPriceString
         let note = subtitleForPackage(package)
         return Button {
+            Haptics.play(.selection)
             selectedPackage = package
         } label: {
             VStack(spacing: 6) {
@@ -154,28 +177,78 @@ struct PaywallView: View {
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            // Badge de ahorro real sobre el borde superior del tile anual.
+            .overlay(alignment: .top) {
+                if let savingsPercent {
+                    Text(String(format: String(localized: "paywall.savings.badge %lld"), savingsPercent))
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.brandPrimary)
+                        .foregroundStyle(Color.appBackground)
+                        .clipShape(Capsule())
+                        .offset(y: -10)
+                }
+            }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text("\(title), \(price)"))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    /// Línea de tiempo del trial: qué pasa hoy, el día 5 y el día 7.
+    /// Reduce la ansiedad del "¿cuándo me cobran?" — patrón de Monarch, y los
+    /// benchmarks de RevenueCat lo asocian a menos cancelaciones tempranas.
+    private var trialTimeline: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("paywall.timeline.title")
+                .font(.mcLabel)
+                .foregroundStyle(Color.textMuted)
+            timelineRow(icon: "lock.open.fill", color: .brandSuccess,
+                        title: "paywall.timeline.today", subtitle: "paywall.timeline.today.detail")
+            timelineRow(icon: "bell.fill", color: .brandWarning,
+                        title: "paywall.timeline.day5", subtitle: "paywall.timeline.day5.detail")
+            timelineRow(icon: "creditcard.fill", color: .brandPrimary,
+                        title: "paywall.timeline.day7", subtitle: "paywall.timeline.day7.detail")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .mcCard()
+    }
+
+    private func timelineRow(icon: String, color: Color, title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(color)
+                .frame(width: 22, height: 22)
+                .background(color.opacity(0.15))
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.mcBody.weight(.semibold)).foregroundStyle(Color.textPrimary)
+                Text(subtitle).font(.mcCaption).foregroundStyle(Color.textMuted)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private func titleForPackage(_ package: Package) -> String {
         switch package.packageType {
-        case .annual:   return "Anual"
-        case .monthly:  return "Mensual"
-        case .weekly:   return "Semanal"
-        case .lifetime: return "De por vida"
-        case .sixMonth: return "6 meses"
-        case .threeMonth: return "3 meses"
-        case .twoMonth: return "2 meses"
+        case .annual:   return String(localized: "paywall.package.annual")
+        case .monthly:  return String(localized: "paywall.package.monthly")
+        case .weekly:   return String(localized: "paywall.package.weekly")
+        case .lifetime: return String(localized: "paywall.package.lifetime")
+        case .sixMonth: return String(localized: "paywall.package.sixMonth")
+        case .threeMonth: return String(localized: "paywall.package.threeMonth")
+        case .twoMonth: return String(localized: "paywall.package.twoMonth")
         default:        return package.identifier
         }
     }
 
     private func subtitleForPackage(_ package: Package) -> String {
         switch package.packageType {
-        case .annual:  return "/año"
-        case .monthly: return "/mes"
-        case .weekly:  return "/sem"
+        case .annual:  return String(localized: "paywall.per.year")
+        case .monthly: return String(localized: "paywall.per.month")
+        case .weekly:  return String(localized: "paywall.per.week")
         default:       return ""
         }
     }
@@ -183,8 +256,8 @@ struct PaywallView: View {
     // Placeholder cuando no hay SDK configurado.
     private var pricesCard: some View {
         HStack(spacing: 12) {
-            priceTile(title: "Mensual", price: "USD 4,99", note: "/mes")
-            priceTile(title: "Anual", price: "USD 39,99", note: "/año · -30%", highlighted: true)
+            priceTile(title: String(localized: "paywall.package.monthly"), price: "USD 4,99", note: String(localized: "paywall.per.month"))
+            priceTile(title: String(localized: "paywall.package.annual"), price: "USD 39,99", note: String(localized: "paywall.per.year.discount"), highlighted: true)
         }
     }
 
@@ -206,10 +279,17 @@ struct PaywallView: View {
 
     private var notConfiguredCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Compras deshabilitadas", systemImage: "info.circle.fill")
+            Label("paywall.unavailable.title", systemImage: "info.circle.fill")
                 .font(.mcLabel).foregroundStyle(Color.brandWarning)
-            Text("Agregá tu `REVENUECAT_API_KEY` al Info.plist para activar la compra real.")
+            // El copy de developer JAMÁS puede llegar a producción/review
+            // (lección leccion-monetizacion-release del harness).
+            #if DEBUG
+            Text(verbatim: "DEV: agregá tu `REVENUECAT_API_KEY` al Info.plist para activar la compra real.")
                 .font(.mcCaption).foregroundStyle(Color.textDim)
+            #else
+            Text("paywall.unavailable.message")
+                .font(.mcCaption).foregroundStyle(Color.textDim)
+            #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -235,20 +315,20 @@ struct PaywallView: View {
     }
 
     private var ctaLabel: String {
-        guard let package = selectedPackage else { return "Probar Premium" }
+        guard let package = selectedPackage else { return String(localized: "paywall.cta.try") }
         let price = package.storeProduct.localizedPriceString
         if let discount = package.storeProduct.introductoryDiscount,
            discount.paymentMode == .freeTrial {
-            return "Probar gratis · luego \(price)"
+            return String(format: String(localized: "paywall.cta.trial %@"), price)
         }
-        return "Desbloquear Premium · \(price)"
+        return String(format: String(localized: "paywall.cta.unlock %@"), price)
     }
 
     private var restoreButton: some View {
         Button {
             Task { await performRestore() }
         } label: {
-            Text("Restaurar compras")
+            Text("paywall.restore")
                 .font(.mcLabel)
                 .foregroundStyle(Color.textMuted)
         }
@@ -290,7 +370,7 @@ struct PaywallView: View {
                 Haptics.play(.success)
             } else {
                 Haptics.play(.warning)
-                errorMessage = "No pudimos verificar tu suscripción todavía. Probá nuevamente en unos segundos."
+                errorMessage = String(localized: "paywall.error.verify")
             }
         } catch RevenueCatService.ServiceError.userCanceled {
             // Silencioso: usuario canceló.
@@ -309,7 +389,7 @@ struct PaywallView: View {
             let ok = try await RevenueCatService.shared.restore()
             hasActivePremium = ok
             if !ok {
-                errorMessage = "No encontramos compras previas en tu cuenta de Apple. Revisá tu cuenta o intentá más tarde."
+                errorMessage = String(localized: "paywall.error.noPurchases")
             }
         } catch {
             errorMessage = error.localizedDescription

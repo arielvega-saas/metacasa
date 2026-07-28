@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Amount, type AmountKind } from "@/components/finance/amount";
+import { AnimatedAmount } from "@/components/finance/animated-amount";
 import { cn } from "@/lib/utils";
 
 export function KpiCard({
@@ -11,6 +12,7 @@ export function KpiCard({
   icon: Icon,
   hint,
   highlight = false,
+  animateValue = false,
 }: {
   label: string;
   value: number;
@@ -19,7 +21,10 @@ export function KpiCard({
   icon?: LucideIcon;
   hint?: string;
   highlight?: boolean;
+  /** Cuenta el monto desde 0 al montar (reservado para el KPI hero). */
+  animateValue?: boolean;
 }) {
+  const Value = animateValue ? AnimatedAmount : Amount;
   return (
     <Card
       glass={highlight}
@@ -32,7 +37,7 @@ export function KpiCard({
         {Icon && <Icon className="text-text-muted size-4" />}
       </div>
       <div className="mt-2.5 text-[26px] leading-none sm:text-[28px]">
-        <Amount value={value} currency={currency} kind={kind} serif />
+        <Value value={value} currency={currency} kind={kind} serif />
       </div>
       {hint && <p className="text-text-dim mt-1.5 text-xs">{hint}</p>}
     </Card>

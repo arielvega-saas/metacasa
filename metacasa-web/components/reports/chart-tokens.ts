@@ -1,28 +1,36 @@
 /**
- * Colores de marca para los charts de Reportes, centralizados. Recharts pinta
- * con valores concretos (no lee `var(--…)` en SVG de forma fiable cross-browser),
- * así que espejamos acá los tokens de `app/globals.css` (Midnight Sage) en un
- * único lugar — sin hex sueltos por los componentes.
+ * Colores de marca para los charts de Reportes, centralizados.
+ *
+ * Apuntan a CSS custom properties (`var(--mc-…)`) en vez de hex: así los charts
+ * cambian solos entre tema oscuro y claro sin re-render ni JS. Recharts los
+ * escribe como atributos de presentación SVG (`fill`, `stroke`, `stopColor`),
+ * que el navegador parsea como CSS y resuelven `var()` sin problema — es el
+ * mismo patrón que usan los charts de shadcn/ui.
  *
  * Módulo SERVER-SAFE (sin "use client"): lo importan tanto charts client como
  * el server component `reports-view` (para los puntos de leyenda).
  *
- *   --mc-sage-strong  #9fc4ad  → income / positivo
- *   --mc-expense      #e8b4a6  → gasto / negativo
- *   --mc-champagne    #d4c19c  → acento secundario / acumulado
- *   --mc-sage         #b8d4c2  → acento primario
- *   --mc-text-muted   #7a8782  → ejes / labels
+ * ⚠️ Como son `var()` y no hex, NO se pueden concatenar sufijos de alfa
+ * (`${color}2e`). Para opacidad usar `color-mix(in srgb, ${color} X%, transparent)`.
+ *
+ *   --mc-sage-strong  oscuro #9fc4ad / claro #1b6e45  → income / positivo
+ *   --mc-expense      oscuro #e8b4a6 / claro #a9452e  → gasto / negativo
+ *   --mc-champagne    oscuro #d4c19c / claro #7a5e1f  → acento secundario
+ *   --mc-sage         oscuro #b8d4c2 / claro #2c6b4e  → acento primario
+ *   --mc-text-muted   oscuro #7a8782 / claro #3f4e47  → ejes / labels (AA en ambos)
  */
 export const CHART = {
-  income: "#9fc4ad",
-  expense: "#e8b4a6",
-  champagne: "#d4c19c",
-  sage: "#b8d4c2",
-  axis: "#7a8782",
-  /** Grid sage muy tenue (igual que los charts existentes). */
-  grid: "rgba(184,212,194,0.08)",
-  /** Cursor de tooltip. */
-  cursor: "rgba(255,255,255,0.12)",
+  income: "var(--mc-sage-strong)",
+  expense: "var(--mc-expense)",
+  champagne: "var(--mc-champagne)",
+  sage: "var(--mc-sage)",
+  axis: "var(--mc-text-muted)",
+  /** Grid tenue (sage en oscuro, verde-carbón en claro). */
+  grid: "var(--mc-chart-grid)",
+  /** Cursor de tooltip (stroke, para charts de línea/área). */
+  cursor: "var(--mc-chart-cursor)",
+  /** Cursor de tooltip (fill, para charts de barras). */
+  cursorFill: "var(--mc-chart-cursor-fill)",
 } as const;
 
 /** Color semántico de un health score, según su tramo (paridad iOS). */

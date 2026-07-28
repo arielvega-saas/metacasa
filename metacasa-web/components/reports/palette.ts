@@ -9,18 +9,24 @@ export interface CategorySlice {
   total: number;
 }
 
-// Paleta Midnight Sage para series (sage → champagne → coral, escalonadas).
+/**
+ * Paleta de series (sage → champagne → coral, escalonadas).
+ * Vía CSS vars para que cambie sola con el tema: en oscuro son pasteles sobre
+ * midnight; en claro, versiones oscurecidas (todas ≥3:1 sobre la card blanca,
+ * requisito 1.4.11 porque el color identifica la categoría en la leyenda).
+ * Valores concretos en `app/globals.css` (`--mc-series-1..10`).
+ */
 export const PALETTE = [
-  "#9fc4ad",
-  "#c9b78a",
-  "#e8b4a6",
-  "#7fae93",
-  "#b8d4c2",
-  "#d8c9a0",
-  "#cf9d8e",
-  "#6b9a82",
-  "#a9c9b6",
-  "#e0cfae",
+  "var(--mc-series-1)",
+  "var(--mc-series-2)",
+  "var(--mc-series-3)",
+  "var(--mc-series-4)",
+  "var(--mc-series-5)",
+  "var(--mc-series-6)",
+  "var(--mc-series-7)",
+  "var(--mc-series-8)",
+  "var(--mc-series-9)",
+  "var(--mc-series-10)",
 ];
 
 export function colorForIndex(i: number): string {

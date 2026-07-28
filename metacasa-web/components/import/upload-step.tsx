@@ -106,7 +106,7 @@ export function UploadStep({ onParsed }: Props) {
         }}
         className={cn(
           "hairline flex cursor-pointer flex-col items-center justify-center rounded-[var(--radius-xl)] px-6 py-12 text-center transition-colors",
-          dragging ? "border-primary/50 bg-primary/5" : "bg-inset hover:bg-white/[0.03]",
+          dragging ? "border-primary/50 bg-primary/5" : "bg-inset hover:bg-tint-1",
           uploading && "pointer-events-none opacity-70",
         )}
       >

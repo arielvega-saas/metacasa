@@ -10,8 +10,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Scale,
-  CalendarClock,
-  Target,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -19,22 +17,12 @@ import { Card } from "@/components/ui/card";
 import { Amount } from "@/components/finance/amount";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
-import { FlowsChart } from "@/components/dashboard/flows-chart";
-import { StatSparkline } from "@/components/dashboard/stat-sparkline";
-import { NetWorthCard } from "@/components/dashboard/net-worth-card";
-import { SavingsSplitCard } from "@/components/dashboard/savings-split-card";
-import { HealthScoreCard } from "@/components/dashboard/health-score-card";
 import { RecurringAutorun } from "@/components/dashboard/recurring-autorun";
+import { StaggerItem } from "@/components/motion/stagger";
 import { SectionHeader } from "@/components/finance/section-header";
-import { TransactionRow } from "@/components/finance/transaction-row";
-import { formatMoney } from "@/lib/money";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { formatMonthYear, formatDayMonth } from "@/lib/i18n/dates";
+import { formatMonthYear } from "@/lib/i18n/dates";
 import type { Tables } from "@/lib/database.types";
-
-/** Colores del design system para los sparklines (sage = ingreso, coral = gasto). */
-const SPARK_INCOME = "#9fc4ad";
-const SPARK_EXPENSE = "#e8b4a6";
 
 const ACCOUNT_ICON: Record<string, LucideIcon> = {
   checking: Landmark,
@@ -54,33 +42,35 @@ export interface DashboardData {
   summary: { income: number; expense: number; balance: number };
   balanceDelta: number | null;
   accounts: (Tables<"accounts"> & { balance: number })[];
-  flows: { month: string; income: number; expense: number }[];
-  recent: Tables<"transactions">[];
-  bills: Tables<"bills">[];
-  goals: Tables<"goals">[];
-  /** Patrimonio neto ya consolidado en moneda base (assets/liabilities/net). */
-  netWorth: {
-    assets: number;
-    liabilities: number;
-    net: number;
-    hasUnconverted: boolean;
-  };
-  /** Series de 7 días para los sparklines de ingreso/gasto (último = hoy). */
-  sparklines: { income: number[]; expense: number[]; days: number };
-  /** Reparto ahorro/inversión sobre los ingresos del mes (paridad iOS). */
-  savingsSplit: {
-    income: number;
-    savingsPercent: number;
-    investmentPercent: number;
-    configured: boolean;
-  };
-  /** Salud financiera (0–100) + racha de días. */
-  health: { score: number; streak: number };
   /** Hogar activo (para el throttle del auto-run de recurrentes). */
   householdId: string;
+
+  // ── Slots transmitidos con <Suspense> desde la page ──────────────────────
+  /** Fila de sparklines de 7 días. */
+  sparklinesSlot: React.ReactNode;
+  /** Insights proactivos de gasto (puede resolverse en nada). */
+  insightsSlot: React.ReactNode;
+  /** Patrimonio neto + ahorro/inversión + salud financiera. */
+  overviewSlot: React.ReactNode;
+  /** Gráfico de flujos (va dentro de la card, cuyo header ya pinta el shell). */
+  flowsSlot: React.ReactNode;
+  /** Lista de movimientos recientes. */
+  recentSlot: React.ReactNode;
+  /** Próximos vencimientos. */
+  billsSlot: React.ReactNode;
+  /** Metas activas con su progreso. */
+  goalsSlot: React.ReactNode;
 }
 
-/** Presentación del dashboard (sin acceso a datos: recibe todo por props). */
+/**
+ * Shell del dashboard. Pinta de entrada lo que depende de las 3 queries rápidas
+ * (cuentas con saldo + resumen del mes actual y del anterior): encabezado, KPIs
+ * y la card de cuentas. Todo lo demás llega por `*Slot` ya envuelto en
+ * `<Suspense>` por la page, así que el usuario ve el shell sin esperar a las
+ * queries pesadas.
+ *
+ * Sin acceso a datos: recibe todo por props.
+ */
 export async function DashboardView({
   name,
   ym,
@@ -89,21 +79,18 @@ export async function DashboardView({
   summary,
   balanceDelta,
   accounts,
-  flows,
-  recent,
-  bills,
-  goals,
-  netWorth,
-  sparklines,
-  savingsSplit,
-  health,
   householdId,
+  sparklinesSlot,
+  insightsSlot,
+  overviewSlot,
+  flowsSlot,
+  recentSlot,
+  billsSlot,
+  goalsSlot,
 }: DashboardData) {
   const t = await getT();
   const locale = await getLocale();
   const [year, month] = ym.split("-").map(Number);
-  const hasSparkData =
-    sparklines.income.some((v) => v > 0) || sparklines.expense.some((v) => v > 0);
 
   return (
     <div className="space-y-6">
@@ -123,112 +110,70 @@ export async function DashboardView({
       {/* Auto-ejecución de recurrentes vencidos (cliente, idempotente, 1×/día). */}
       <RecurringAutorun householdId={householdId} />
 
-      {/* KPIs */}
+      {/* KPIs — entran escalonados (40 ms) y los montos hero cuentan desde 0. */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <KpiCard
-          label={t("dashboard.totalBalance")}
-          value={totalBalance}
-          currency={currency}
-          kind="balance"
-          highlight
-          hint={
-            accounts.length === 1
-              ? t("dashboard.accountCount", { count: accounts.length })
-              : t("dashboard.accountCountPlural", { count: accounts.length })
-          }
-        />
-        <KpiCard
-          label={t("dashboard.income")}
-          value={summary.income}
-          currency={currency}
-          kind="ingreso"
-          icon={ArrowDownLeft}
-          hint={t("common.thisMonth")}
-        />
-        <KpiCard
-          label={t("dashboard.expense")}
-          value={summary.expense}
-          currency={currency}
-          kind="gasto"
-          icon={ArrowUpRight}
-          hint={t("common.thisMonth")}
-        />
-        <KpiCard
-          label={t("dashboard.balance")}
-          value={summary.balance}
-          currency={currency}
-          kind="balance"
-          icon={Scale}
-          hint={
-            balanceDelta !== null
-              ? balanceDelta >= 0
-                ? t("dashboard.vsPrevMonthUp", { pct: Math.abs(balanceDelta) })
-                : t("dashboard.vsPrevMonthDown", { pct: Math.abs(balanceDelta) })
-              : t("dashboard.balanceFormula")
-          }
-        />
+        <StaggerItem index={0}>
+          <KpiCard
+            label={t("dashboard.totalBalance")}
+            value={totalBalance}
+            currency={currency}
+            kind="balance"
+            highlight
+            animateValue
+            hint={
+              accounts.length === 1
+                ? t("dashboard.accountCount", { count: accounts.length })
+                : t("dashboard.accountCountPlural", { count: accounts.length })
+            }
+          />
+        </StaggerItem>
+        <StaggerItem index={1}>
+          <KpiCard
+            label={t("dashboard.income")}
+            value={summary.income}
+            currency={currency}
+            kind="ingreso"
+            icon={ArrowDownLeft}
+            hint={t("common.thisMonth")}
+          />
+        </StaggerItem>
+        <StaggerItem index={2}>
+          <KpiCard
+            label={t("dashboard.expense")}
+            value={summary.expense}
+            currency={currency}
+            kind="gasto"
+            icon={ArrowUpRight}
+            hint={t("common.thisMonth")}
+          />
+        </StaggerItem>
+        <StaggerItem index={3}>
+          <KpiCard
+            label={t("dashboard.balance")}
+            value={summary.balance}
+            currency={currency}
+            kind="balance"
+            icon={Scale}
+            animateValue
+            hint={
+              balanceDelta !== null
+                ? balanceDelta >= 0
+                  ? t("dashboard.vsPrevMonthUp", { pct: Math.abs(balanceDelta) })
+                  : t("dashboard.vsPrevMonthDown", { pct: Math.abs(balanceDelta) })
+                : t("dashboard.balanceFormula")
+            }
+          />
+        </StaggerItem>
       </div>
 
-      {/* Tendencia 7 días (sparklines) — paridad iOS StatsRow. Solo si hay data. */}
-      {hasSparkData && (
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2">
-          <Card className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-text-muted flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
-                <ArrowDownLeft className="text-income size-3.5" />
-                {t("dashboard.sparklineIncome")}
-              </span>
-              <Amount
-                value={sparklines.income.reduce((s, v) => s + v, 0)}
-                currency={currency}
-                kind="ingreso"
-                className="text-sm font-semibold"
-              />
-            </div>
-            <div className="mt-3">
-              <StatSparkline values={sparklines.income} color={SPARK_INCOME} />
-            </div>
-          </Card>
-          <Card className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-text-muted flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
-                <ArrowUpRight className="text-expense size-3.5" />
-                {t("dashboard.sparklineExpense")}
-              </span>
-              <Amount
-                value={sparklines.expense.reduce((s, v) => s + v, 0)}
-                currency={currency}
-                kind="gasto"
-                className="text-sm font-semibold"
-              />
-            </div>
-            <div className="mt-3">
-              <StatSparkline values={sparklines.expense} color={SPARK_EXPENSE} />
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* Tendencia 7 días (sparklines) — paridad iOS StatsRow. */}
+      {sparklinesSlot}
+
+      {/* Insights proactivos de gasto: sólo aparece si hay algo que decir. */}
+      {insightsSlot}
 
       {/* Patrimonio neto + salud financiera + ahorro/inversión */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <NetWorthCard
-          assets={netWorth.assets}
-          liabilities={netWorth.liabilities}
-          net={netWorth.net}
-          currency={currency}
-          hasUnconverted={netWorth.hasUnconverted}
-        />
-        <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2">
-          <SavingsSplitCard
-            income={savingsSplit.income}
-            savingsPercent={savingsSplit.savingsPercent}
-            investmentPercent={savingsSplit.investmentPercent}
-            configured={savingsSplit.configured}
-            currency={currency}
-          />
-          <HealthScoreCard score={health.score} streak={health.streak} />
-        </div>
-      </div>
+      {overviewSlot}
 
       {/* Gráfico + cuentas */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -237,13 +182,7 @@ export async function DashboardView({
             title={t("dashboard.flowsTitle")}
             subtitle={t("dashboard.flowsSubtitle")}
           />
-          <FlowsChart
-            data={flows}
-            currency={currency}
-            incomeLabel={t("dashboard.flowsIncome")}
-            expenseLabel={t("dashboard.flowsExpense")}
-            emptyLabel={t("dashboard.flowsEmpty")}
-          />
+          {flowsSlot}
         </Card>
 
         <Card className="p-5">
@@ -300,42 +239,13 @@ export async function DashboardView({
               </Link>
             }
           />
-          {recent.length === 0 ? (
-            <EmptyState text={t("dashboard.recentEmpty")} />
-          ) : (
-            <div className="divide-y divide-border">
-              {recent.map((tx) => (
-                <TransactionRow key={tx.id} tx={tx} currency={currency} />
-              ))}
-            </div>
-          )}
+          {recentSlot}
         </Card>
 
         <div className="space-y-4">
           <Card className="p-5">
             <SectionHeader title={t("dashboard.billsTitle")} />
-            {bills.length === 0 ? (
-              <EmptyState text={t("dashboard.billsEmpty")} compact />
-            ) : (
-              <div className="divide-y divide-border">
-                {bills.map((b) => (
-                  <div key={b.id} className="flex items-center gap-3 py-2.5">
-                    <span className="bg-champagne/12 text-champagne flex size-9 items-center justify-center rounded-[var(--radius-md)]">
-                      <CalendarClock className="size-[18px]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{b.title}</p>
-                      <p className="text-text-muted text-xs">
-                        {formatDayMonth(b.due_date, locale)}
-                      </p>
-                    </div>
-                    <span className="tnum text-sm font-semibold">
-                      {formatMoney(Number(b.amount), b.currency || currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {billsSlot}
           </Card>
 
           <Card className="p-5">
@@ -347,32 +257,7 @@ export async function DashboardView({
                 </Link>
               }
             />
-            {goals.length === 0 ? (
-              <EmptyState text={t("dashboard.goalsEmpty")} compact />
-            ) : (
-              <div className="space-y-3.5">
-                {goals.map((g) => {
-                  const pct = Math.min(
-                    100,
-                    Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) || 0,
-                  );
-                  return (
-                    <div key={g.id}>
-                      <div className="mb-1.5 flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <Target className="text-primary size-3.5" />
-                          {g.name}
-                        </span>
-                        <span className="text-text-muted text-xs">{pct}%</span>
-                      </div>
-                      <div className="bg-inset h-2 overflow-hidden rounded-full">
-                        <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {goalsSlot}
           </Card>
         </div>
       </div>

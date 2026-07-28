@@ -67,7 +67,7 @@ function ToolCard({
     <button type="button" onClick={onClick} className="text-left">
       <Card
         className={`flex h-full items-start gap-3 p-4 transition-colors ${
-          active ? "ring-primary/40 ring-2" : "hover:bg-white/[0.03]"
+          active ? "ring-primary/40 ring-2" : "hover:bg-tint-1"
         }`}
       >
         <span className="bg-inset hairline grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)]">

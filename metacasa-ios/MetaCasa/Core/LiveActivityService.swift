@@ -92,50 +92,9 @@ enum LiveActivityService {
 }
 
 // MARK: - Attributes
-
-#if canImport(ActivityKit)
-/// Attributes del Live Activity del próximo bill. `billId` es fijo para la
-/// activity (attribute estático); el contenido dinámico (title, amount,
-/// dueDate) va en `ContentState`.
-///
-/// El Widget extension tiene que declarar:
-/// ```swift
-/// struct BillReminderLiveActivity: Widget {
-///     var body: some WidgetConfiguration {
-///         ActivityConfiguration(for: BillReminderAttributes.self) { context in
-///             // Lock screen / banner UI
-///         } dynamicIsland: { context in
-///             // Dynamic Island regions
-///         }
-///     }
-/// }
-/// ```
-/// Ese config vive en el Widget target (pendiente de crear con Team ID).
-@available(iOS 16.1, *)
-struct BillReminderAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var title: String
-        var amount: Decimal
-        var currency: String
-        var dueDate: Date
-
-        /// Formatted amount — para render en el Widget.
-        var formattedAmount: String {
-            let nf = NumberFormatter()
-            nf.numberStyle = .currency
-            nf.currencyCode = currency
-            nf.maximumFractionDigits = 0
-            return nf.string(from: amount as NSDecimalNumber) ?? "\(amount)"
-        }
-
-        /// Horas restantes hasta el vencimiento. Negativo si ya pasó.
-        var hoursUntilDue: Int {
-            Int(dueDate.timeIntervalSinceNow / 3600)
-        }
-    }
-
-    /// ID del bill. Identifica la activity de manera única; permite update
-    /// sin crear otra duplicada.
-    var billId: String
-}
-#endif
+//
+// `BillReminderAttributes` vive en `MetaCasaWidgets/BillReminderAttributes.swift`
+// y se compila en AMBOS targets (app + widget extension). ActivityKit matchea
+// la activity con su UI por identidad de tipo, así que la definición tiene que
+// ser una sola y compartida. La UI (lock screen + Dynamic Island) está en
+// `MetaCasaWidgets/BillReminderLiveActivity.swift`.

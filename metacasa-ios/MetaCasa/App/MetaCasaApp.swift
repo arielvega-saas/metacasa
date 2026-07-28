@@ -10,11 +10,15 @@ struct MetaCasaApp: App {
     @State private var notifPrefs = NotificationPreferences.shared
     @State private var dashboardPrefs = DashboardPreferences.shared
     @State private var onboarding = OnboardingProgress()
+    @State private var biometricLock = BiometricLockManager.shared
 
     init() {
         // Sentry primero — captura crashes tempranos que ocurran durante
         // bootstrap. No-op silencioso si SENTRY_DSN no está configurado.
         ObservabilityService.boot()
+
+        // TipKit: descubribilidad en contexto (privacidad, editor del dashboard).
+        AppTips.configure()
 
         // Solo NSException handler — el `signal(SIGTRAP)` handler con `exit()`
         // observado interfería con operaciones normales.
@@ -37,6 +41,7 @@ struct MetaCasaApp: App {
                 .environment(notifPrefs)
                 .environment(dashboardPrefs)
                 .environment(onboarding)
+                .environment(biometricLock)
                 // Propaga el locale override al environment de SwiftUI.
                 // Esto hace que Text(LocalizedStringKey), .formatted(), DatePicker,
                 // etc. respeten el idioma elegido por el usuario sin tocar cada view.

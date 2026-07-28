@@ -1,0 +1,41 @@
+# Configuración de deploy en Netlify — Home Finance web.
+#
+# Reemplaza al hosting de Vercel (el team quedó suspendido por facturación el
+# 2026-07-28). Se eligió Netlify porque su plan gratuito PERMITE uso comercial,
+# a diferencia del Hobby de Vercel, que es sólo para proyectos personales — y
+# Home Finance cobra suscripciones.
+#
+# Es un monorepo: la web vive en `metacasa-web/`, por eso `base`.
+# `publish` y `command` se resuelven RELATIVOS a `base`.
+
+[build]
+  base = "metacasa-web"
+  command = "npm run build"
+  publish = ".next"
+
+# Adaptador oficial de Next.js: traduce App Router, Server Actions, middleware
+# y rutas dinámicas a funciones de Netlify. Netlify lo instala solo al detectar
+# Next, pero declararlo evita sorpresas si cambia la autodetección.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  # El proyecto usa Node 20+ (ver package.json). Sin fijarlo, Netlify puede
+  # elegir una versión distinta a la local y romper el build por diferencias
+  # de engine.
+  NODE_VERSION = "20"
+
+# El service worker (serwist) se genera en build como `public/sw.js` y NO debe
+# quedar cacheado por el CDN: si el navegador se queda con un sw.js viejo,
+# sigue sirviendo assets viejos aunque se publique una versión nueva.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# VARIABLES DE ENTORNO (se cargan en el panel de Netlify, NO acá — este archivo
+# se versiona y no debe contener secretos):
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY   (publishable: es pública por diseño)
+#   NEXT_PUBLIC_APP_URL             (dominio final, ej. https://usehomefinance.com)
+#   NEXT_PUBLIC_SITE_URL            (usado por robots.txt / sitemap / OG)

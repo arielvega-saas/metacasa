@@ -51,7 +51,7 @@ export function MobileTabBar() {
 
         <Link
           href="/transactions?new=1"
-          className="bg-primary text-primary-foreground -mt-6 flex size-12 items-center justify-center rounded-full shadow-lg shadow-black/30"
+          className="bg-primary text-primary-foreground -mt-6 flex size-12 items-center justify-center rounded-full shadow-lg shadow-elevation"
           aria-label={t("nav.newTransaction")}
         >
           <Plus className="size-6" />

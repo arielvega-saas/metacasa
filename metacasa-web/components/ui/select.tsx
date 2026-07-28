@@ -40,7 +40,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "glass relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-[var(--radius-lg)] border border-border p-1 text-popover-foreground shadow-2xl shadow-black/50",
+        "glass relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-[var(--radius-lg)] border border-border p-1 text-popover-foreground shadow-2xl shadow-elevation",
         position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
         className,
       )}
@@ -68,7 +68,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex w-full cursor-pointer select-none items-center rounded-[var(--radius-sm)] py-2 pl-3 pr-8 text-sm outline-none transition-colors",
-      "focus:bg-white/[0.07] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "focus:bg-tint-2 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     {...props}
