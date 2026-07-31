@@ -6,12 +6,19 @@
 # Home Finance cobra suscripciones.
 #
 # Es un monorepo: la web vive en `metacasa-web/`, por eso `base`.
-# `publish` y `command` se resuelven RELATIVOS a `base`.
+#
+# OJO con las rutas — no se resuelven todas igual (verificado en el primer deploy,
+# 2026-07-31, con @netlify/plugin-nextjs 5.15.13):
+#   - `command` SÍ se ejecuta dentro de `base`.
+#   - `publish` se resuelve contra la RAÍZ DEL REPO, no contra `base`.
+# Con `publish = ".next"` el plugin buscó `app/.next` y falló con "publish directory
+# was not found", aunque el build de Next había terminado bien. Por eso va el path
+# completo desde la raíz.
 
 [build]
   base = "metacasa-web"
   command = "npm run build"
-  publish = ".next"
+  publish = "metacasa-web/.next"
 
 # Adaptador oficial de Next.js: traduce App Router, Server Actions, middleware
 # y rutas dinámicas a funciones de Netlify. Netlify lo instala solo al detectar

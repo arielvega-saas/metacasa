@@ -83,3 +83,6 @@ metacasa-flutter/**/*\ [0-9].*
 # healthcheck local
 .healthcheck.log
 .healthcheck.err.log
+
+# Local Netlify folder
+.netlify
