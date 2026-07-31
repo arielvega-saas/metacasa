@@ -79,3 +79,7 @@ metacasa-flutter/**/*\ [0-9].*
 # lock temporal de scheduled tasks
 .claude/scheduled_tasks.lock
 *.tsbuildinfo
+
+# healthcheck local
+.healthcheck.log
+.healthcheck.err.log

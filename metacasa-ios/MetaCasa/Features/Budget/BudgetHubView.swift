@@ -273,21 +273,11 @@ struct BudgetHubView: View {
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.brandPrimary.opacity(0.22),
-                            Color.brandSecondary.opacity(0.12),
-                            Color.appSurface
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.appSurface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                .stroke(Color.appBorder, lineWidth: 1)
         )
         // Swipe horizontal sobre el header para cambiar de mes. El threshold
         // de 50pt evita disparar sobre micro-gestos. Los chevrons quedan como
@@ -353,7 +343,14 @@ struct BudgetHubView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.appSurface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .glowIfPositive(glow, radius: 14)
+        .overlay(alignment: .top) {
+            if glow {
+                Capsule()
+                    .fill(color)
+                    .frame(width: 28, height: 3)
+                    .padding(.top, 1)
+            }
+        }
     }
 
     @ViewBuilder
@@ -371,24 +368,14 @@ struct BudgetHubView: View {
                     Haptics.play(.impactMedium)
                     editorState = EditorState(existing: nil)
                 } label: {
-                    Label {
-                        Text("budget.addCategory")
-                    } icon: {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.brandPrimary, Color.brandSecondary],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
+                    Image(systemName: "plus")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Color(hex: "#0E1312"))
+                        .frame(width: 36, height: 36)
+                        .background(Color.brandPrimary, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text("budget.addCategory"))
             }
 
             if viewModel.envelopes.isEmpty {
@@ -474,6 +461,17 @@ struct BudgetHubView: View {
         }
     }
 
+    /// Proyección de gasto del envelope dentro del período que está en pantalla.
+    ///
+    /// Devuelve `nil` si todavía no cargó el período, o si `BudgetPace` decide que proyectar no
+    /// aporta (mes futuro, mes cerrado, o muy pocos días transcurridos). Al usar las fechas del
+    /// período cargado y no "el mes actual", navegar a un mes pasado deja de mostrar proyecciones
+    /// automáticamente, que es lo correcto: ahí el gasto ya es un hecho.
+    private func pace(for env: BudgetHubViewModel.EnvelopeWithAllocation) -> BudgetPace? {
+        guard let period = viewModel.period else { return nil }
+        return env.status.pace(periodStart: period.periodStart, periodEnd: period.periodEnd)
+    }
+
     private func envelopeRow(_ env: BudgetHubViewModel.EnvelopeWithAllocation) -> some View {
         Button {
             Haptics.play(.selection)
@@ -481,8 +479,16 @@ struct BudgetHubView: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
-                    Text(CategoryCatalog.emoji(for: env.status.category))
-                        .font(.title3)
+                    // El anillo reemplaza al emoji suelto Y a la barra lineal que estaba debajo:
+                    // dos representaciones del mismo porcentaje en la misma fila era ruido.
+                    BudgetRing(
+                        percentUsed: env.status.percentUsed,
+                        severity: env.status.severity,
+                        pace: pace(for: env)
+                    ) {
+                        Text(CategoryCatalog.emoji(for: env.status.category))
+                            .font(.subheadline)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(env.status.category)
                             .font(.mcBody.weight(.bold))
@@ -492,9 +498,9 @@ struct BudgetHubView: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.textMuted)
                         }
-                        Text("\(Int(env.status.percentUsed * 100))% usado")
+                        Text("budget.percentUsed \(Int(env.status.percentUsed * 100))")
                             .font(.caption2)
-                            .foregroundStyle(env.status.percentUsed > 1 ? Color.brandDanger : Color.textMuted)
+                            .foregroundStyle(env.status.isOverBudget ? Color.brandDanger : Color.textMuted)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
@@ -503,8 +509,18 @@ struct BudgetHubView: View {
                             .font(.mcSerifInline)
                     }
                 }
-                ProgressView(value: min(1, env.status.percentUsed))
-                    .tint(env.status.percentUsed > 0.95 ? .brandDanger : env.status.percentUsed > 0.8 ? .brandWarning : .brandSuccess)
+                // La proyección sólo se muestra si el ritmo se pasa Y el envelope todavía no se pasó:
+                // si ya estás por encima del presupuesto, "vas a llegar al 110%" es peor que inútil,
+                // porque suena a advertencia futura sobre algo que ya pasó.
+                if let pace = pace(for: env), pace.willOverspend, !env.status.isOverBudget {
+                    Label {
+                        Text("budget.pace.projected \(Int(pace.projectedPercent * 100))")
+                    } icon: {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.brandDanger)
+                }
                 HStack {
                     AmountLabel(amount: env.status.spent, currency: householdCurrency, kind: .neutro)
                         .font(.caption.monospacedDigit())

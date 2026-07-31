@@ -7,6 +7,79 @@ struct MainTabView: View {
     enum Tab: Hashable { case home, transactions, add, budget, settings }
 
     var body: some View {
+        Group {
+            if #available(iOS 18.0, *) {
+                modernTabs
+            } else {
+                legacyTabs
+            }
+        }
+        .tint(.brandPrimary)
+        // Aviso "estás viendo datos guardados": va sobre el TabView para cubrir
+        // todas las pantallas (incluidas las push) con una sola aplicación.
+        .offlineDataBanner()
+        .onChange(of: selected) { _, new in
+            if new == .add {
+                Haptics.play(.impactMedium)
+                showAdd = true
+                selected = lastNonAddTab
+            } else {
+                lastNonAddTab = new
+            }
+        }
+        .sheet(isPresented: $showAdd) {
+            AddTransactionView()
+        }
+    }
+
+    /// Tab API declarativa de iOS 18+ (Fase 4.11 del `PLAN_NIVEL_PRO.md`).
+    ///
+    /// Además de ser la API vigente, `.sidebarAdaptable` es lo que hace que la misma declaración
+    /// se dibuje como tab bar en iPhone y como **sidebar en iPad**, sin escribir un
+    /// `NavigationSplitView` a mano ni duplicar la jerarquía. Hoy el target sigue siendo iPhone-only
+    /// (`TARGETED_DEVICE_FAMILY: "1"` en `project.yml`), así que en la práctica se ve como siempre;
+    /// habilitar iPad pasa a ser cambiar ese flag + subir screenshots de iPad a App Store Connect.
+    @available(iOS 18.0, *)
+    private var modernTabs: some View {
+        TabView(selection: $selected) {
+            SwiftUI.Tab(value: Tab.home) {
+                HomeView()
+            } label: {
+                Label { Text("tab.home") } icon: { Image(systemName: "house.fill") }
+            }
+
+            SwiftUI.Tab(value: Tab.transactions) {
+                TransactionListView()
+            } label: {
+                Label { Text("tab.transactions") } icon: { Image(systemName: "list.bullet.rectangle.fill") }
+            }
+
+            // Pseudo-tab: no muestra contenido, dispara el alta y vuelve al tab anterior
+            // (ver el `onChange` de arriba). Se mantiene el mismo truco que en la versión legacy.
+            SwiftUI.Tab(value: Tab.add) {
+                Color.clear
+            } label: {
+                Label { Text("tab.add") } icon: { Image(systemName: "plus.circle.fill") }
+            }
+            .accessibilityLabel(Text("a11y.fab.addTransaction"))
+
+            SwiftUI.Tab(value: Tab.budget) {
+                BudgetHubView()
+            } label: {
+                Label { Text("tab.budget") } icon: { Image(systemName: "chart.pie.fill") }
+            }
+
+            SwiftUI.Tab(value: Tab.settings) {
+                MoreView()
+            } label: {
+                Label { Text("tab.more") } icon: { Image(systemName: "ellipsis.circle.fill") }
+            }
+        }
+        .tabViewStyle(.sidebarAdaptable)
+    }
+
+    /// Camino para iOS 17, que sigue siendo el deployment target.
+    private var legacyTabs: some View {
         TabView(selection: $selected) {
             HomeView()
                 .tabItem {
@@ -58,22 +131,6 @@ struct MainTabView: View {
                     }
                 }
                 .tag(Tab.settings)
-        }
-        .tint(.brandPrimary)
-        // Aviso "estás viendo datos guardados": va sobre el TabView para cubrir
-        // todas las pantallas (incluidas las push) con una sola aplicación.
-        .offlineDataBanner()
-        .onChange(of: selected) { _, new in
-            if new == .add {
-                Haptics.play(.impactMedium)
-                showAdd = true
-                selected = lastNonAddTab
-            } else {
-                lastNonAddTab = new
-            }
-        }
-        .sheet(isPresented: $showAdd) {
-            AddTransactionView()
         }
     }
 }
