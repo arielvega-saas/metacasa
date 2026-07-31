@@ -33,6 +33,8 @@ struct GoalsView: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = GoalsViewModel()
     @State private var showAdd = false
+    @State private var pendingFund: PendingFund?
+    @State private var justCompletedGoal = false
 
     var body: some View {
         ZStack {
@@ -50,10 +52,19 @@ struct GoalsView: View {
                     ScrollView {
                         VStack(spacing: 12) {
                             ForEach(viewModel.goals) { g in
-                                NavigationLink(destination: GoalDetailView(goal: g, onChange: reload)) {
-                                    GoalRow(goal: g, currency: householdCurrency)
+                                // La card envuelve DOS zonas tocables distintas: el contenido, que
+                                // navega al detalle, y los chips de fondeo. Por eso el NavigationLink
+                                // va adentro y no alrededor de todo — si envolviera los chips, cada
+                                // toque en un monto navegaría en vez de aportar.
+                                VStack(spacing: 0) {
+                                    NavigationLink(destination: GoalDetailView(goal: g, onChange: reload)) {
+                                        GoalRow(goal: g, currency: householdCurrency)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    quickFundChips(for: g)
                                 }
-                                .buttonStyle(.plain)
+                                .mcCard()
                             }
                         }
                         .padding(.horizontal, 20).padding(.top, 12)
@@ -61,6 +72,22 @@ struct GoalsView: View {
                     .refreshable { await reload() }
                 }
             }
+        }
+        // El confeti va sobre toda la pantalla, no sobre la card: la meta cumplida es un momento
+        // de la app entera, no de una fila. `ConfettiOverlay` ya existía sin usarse en ningún lado.
+        .overlay { ConfettiOverlay(trigger: justCompletedGoal) }
+        .confirmationDialog(
+            Text("goals.fund.confirmTitle"),
+            isPresented: Binding(get: { pendingFund != nil }, set: { if !$0 { pendingFund = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingFund
+        ) { fund in
+            Button(Money.format(fund.amount, currency: fund.goal.currency)) {
+                Task { await commit(fund) }
+            }
+            Button(role: .cancel) { pendingFund = nil } label: { Text("action.cancel") }
+        } message: { fund in
+            Text(verbatim: fund.goal.name)
         }
         .navigationTitle(Text("more.goals"))
         .toolbar {
@@ -72,6 +99,74 @@ struct GoalsView: View {
             AddGoalView { await reload() }
         }
         .task { await reload() }
+    }
+
+    // MARK: - Fondeo rápido
+
+    /// Meta + monto esperando confirmación. Aportar mueve plata de verdad, así que no se
+    /// commitea con el toque del chip: hace falta un segundo toque deliberado.
+    private struct PendingFund: Identifiable {
+        let goal: Goal
+        let amount: Decimal
+        var id: String { "\(goal.id)-\(amount)" }
+    }
+
+    @ViewBuilder
+    private func quickFundChips(for goal: Goal) -> some View {
+        let suggestions = GoalQuickFund.suggestions(current: goal.currentAmount, target: goal.targetAmount)
+        // Sin sugerencias significa meta ya cumplida: mostrar chips ahí sería ofrecer pasarse de largo.
+        if goal.status == .active && !suggestions.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(suggestions) { s in
+                    Button {
+                        Haptics.play(.selection)
+                        pendingFund = PendingFund(goal: goal, amount: s.amount)
+                    } label: {
+                        Text(s.completesGoal
+                             ? String(localized: "goals.fund.complete")
+                             : Money.format(s.amount, currency: goal.currency, style: .compact))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(s.completesGoal ? Color(hex: "#0E1312") : Color.textPrimary)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(
+                                s.completesGoal ? Color.brandPrimary : Color.appSurfaceInset,
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("goals.fund.a11y \(Money.format(s.amount, currency: goal.currency))"))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 10)
+        }
+    }
+
+    private func commit(_ fund: PendingFund) async {
+        pendingFund = nil
+        guard let uid = appState.currentUserId else { return }
+        do {
+            _ = try await GoalService.shared.contribute(
+                userId: uid, goalId: fund.goal.id, amount: fund.amount
+            )
+            // El total y el estado los actualiza el trigger de la DB, así que hay que releer
+            // antes de decidir si celebrar — no alcanza con sumar en el cliente.
+            await reload()
+            let updated = viewModel.goals.first(where: { $0.id == fund.goal.id })
+            if updated?.status == .completed {
+                Haptics.play(.success)
+                justCompletedGoal = true
+                // Se rearma para que la próxima meta cumplida vuelva a disparar el overlay.
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    justCompletedGoal = false
+                }
+            } else {
+                Haptics.play(.impactLight)
+            }
+        } catch {
+            viewModel.errorMessage = error.localizedDescription
+        }
     }
 
     private var householdCurrency: String {
@@ -121,6 +216,8 @@ struct GoalRow: View {
                     .foregroundStyle(Color.brandPrimary)
             }
         }
-        .mcCard()
+        // La card la aplica el contenedor en GoalsView, porque envuelve también los chips de
+        // fondeo rápido. Acá sólo va el contenido.
+        .contentShape(Rectangle())
     }
 }
