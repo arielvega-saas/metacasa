@@ -26,7 +26,7 @@
 1. Iniciar sesión:
 
    ```bash
-   cd /Users/arielvega/Desktop/Proyectos/metacasa-app
+   cd ~/dev/HomeFinance/app
    npx netlify-cli login
    ```
 
