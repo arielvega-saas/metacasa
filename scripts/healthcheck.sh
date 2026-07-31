@@ -33,6 +33,8 @@ for arg in "$@"; do
 done
 
 FAILURES=()
+# Pendiente conocido: se registra en el log pero no dispara notificación.
+PENDING=""
 
 say() { [[ "$QUIET" -eq 1 ]] || printf '%s\n' "$1"; }
 
@@ -60,9 +62,37 @@ check_url() {
 say "Home Finance healthcheck — $(date '+%Y-%m-%d %H:%M:%S')"
 
 # --- Web pública -------------------------------------------------------------
-# Cuando la web vuelva a estar arriba (Netlify), esto tiene que dar 200.
-check_url "Web usehomefinance.com" "https://usehomefinance.com" 200
-check_url "Web www.usehomefinance.com" "https://www.usehomefinance.com" 200
+#
+# Hay DOS frentes y no son igual de graves:
+#
+#  a) El sitio de Netlify es el que **sirve la app hoy**. Si se cae, es una
+#     regresión de verdad y hay que enterarse ya.
+#  b) `usehomefinance.com` todavía apunta al DNS de Vercel (team suspendido) y
+#     devuelve 402. Eso es un pendiente CONOCIDO, no una novedad — pero sigue
+#     siendo el dominio que ven los usuarios, así que tampoco se puede ignorar.
+#
+# La distinción existe para que la alerta no se vuelva ruido: si las dos cosas
+# gritan igual de fuerte todas las horas, en dos días dejás de mirarlas y la
+# alarma pierde todo su valor — que es exactamente cómo se llegó a descubrir el
+# 402 a mano, días tarde.
+NETLIFY_SITE="https://home-finance-web.netlify.app"
+check_url "Sitio Netlify (sirve la app HOY)" "$NETLIFY_SITE" 200
+check_url "Sitio Netlify /login" "$NETLIFY_SITE/login" 200
+
+DOMAIN_STATUS="$(http_status "https://usehomefinance.com")"
+if [[ "$DOMAIN_STATUS" == "200" ]]; then
+  say "OK    Dominio usehomefinance.com ($DOMAIN_STATUS)"
+  say ""
+  say ">>> El DNS ya resolvió a Netlify. Queda pendiente actualizar al dominio real:"
+  say ">>> NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL y MP_OAUTH_REDIRECT_URI + Supabase Auth."
+elif [[ "$DOMAIN_STATUS" == "402" ]]; then
+  # Pendiente conocido: se anota en el log pero NO dispara notificación.
+  say "PEND  Dominio usehomefinance.com sigue en 402 — falta mover el DNS de Vercel a Netlify"
+  PENDING="dominio todavía en Vercel (402)"
+else
+  say "FALLA Dominio usehomefinance.com — HTTP $DOMAIN_STATUS"
+  FAILURES+=("usehomefinance.com devolvió HTTP $DOMAIN_STATUS")
+fi
 
 # --- Páginas legales (App Store las exige vivas) -----------------------------
 check_url "Legal: privacy" "https://metacasa-app-cf592.web.app/privacy.html" 200
@@ -98,9 +128,15 @@ fi
 # --- Resultado ---------------------------------------------------------------
 STAMP="$(date '+%Y-%m-%d %H:%M:%S')"
 if [[ "${#FAILURES[@]}" -eq 0 ]]; then
-  printf '%s OK\n' "$STAMP" >> "$LOG_FILE"
-  say ""
-  say "Todo OK."
+  if [[ -n "$PENDING" ]]; then
+    printf '%s OK (pendiente: %s)\n' "$STAMP" "$PENDING" >> "$LOG_FILE"
+    say ""
+    say "Servicios OK. Pendiente conocido: $PENDING"
+  else
+    printf '%s OK\n' "$STAMP" >> "$LOG_FILE"
+    say ""
+    say "Todo OK."
+  fi
   exit 0
 fi
 
