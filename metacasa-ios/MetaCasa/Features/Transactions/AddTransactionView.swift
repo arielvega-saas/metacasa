@@ -26,6 +26,15 @@ struct AddTransactionView: View {
     @State private var fxRateStr: String = ""
     @State private var knownFxRates: [String: Decimal] = [:]
 
+    init(template: TransactionTemplate? = nil) {
+        _type = State(initialValue: template?.type ?? .gasto)
+        _amountStr = State(initialValue: template.map { "\($0.amount)" } ?? "")
+        _category = State(initialValue: template?.category ?? "Alimentación")
+        _subcategory = State(initialValue: template?.subcategory)
+        _note = State(initialValue: template?.note ?? "")
+        _alternateCurrency = State(initialValue: template?.currency ?? "USD")
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {

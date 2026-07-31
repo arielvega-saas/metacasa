@@ -315,6 +315,7 @@ struct HomeView: View {
     /// Altas disparadas desde los estados vacíos de los widgets del Home.
     @State private var showAddGoal = false
     @State private var showAddBill = false
+    @State private var selectedTemplate: TransactionTemplate?
     /// Tip del editor del dashboard (TipKit decide cuándo mostrarlo).
     private let dashboardTip = DashboardEditorTip()
     /// Cuando el user toca Saldo / Ingresos / Gastos, presentamos el
@@ -426,6 +427,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showAddBill) {
                 AddBillView(onSaved: { await reload() })
+            }
+            .sheet(item: $selectedTemplate) { template in
+                AddTransactionView(template: template)
             }
             .sheet(isPresented: $showCompare) { CompareMonthsView() }
             .sheet(isPresented: $showAnnual) { AnnualView() }
@@ -588,7 +592,12 @@ struct HomeView: View {
         case .categories:
             CategoryDonutCard(items: viewModel.topCategories, currency: householdCurrency)
         case .shortcuts:
-            QuickShortcutsCarousel(templates: viewModel.templates)
+            QuickShortcutsCarousel(
+                templates: viewModel.templates,
+                onSelect: { template in
+                    selectedTemplate = template
+                }
+            )
         case .debts:
             DebtsAndPlansTiles(
                 debtsCount: viewModel.activeDebtsCount,
@@ -1683,6 +1692,7 @@ private struct CategoryDonutCard: View {
 
 private struct QuickShortcutsCarousel: View {
     let templates: [TransactionTemplate]
+    let onSelect: (TransactionTemplate) -> Void
 
     var body: some View {
         if !templates.isEmpty {
@@ -1693,7 +1703,13 @@ private struct QuickShortcutsCarousel: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(templates) { t in
-                            shortcutCard(t)
+                            Button {
+                                Haptics.play(.impactLight)
+                                onSelect(t)
+                            } label: {
+                                shortcutCard(t)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .scrollTargetLayout()
@@ -1709,38 +1725,47 @@ private struct QuickShortcutsCarousel: View {
     }
 
     private func shortcutCard(_ t: TransactionTemplate) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                if let e = t.emoji {
-                    Text(e).font(.title3)
+        HStack(spacing: 10) {
+            Group {
+                if let emoji = t.emoji {
+                    Text(emoji)
                 } else {
-                    Image(systemName: t.type == .gasto ? "minus" : "plus")
+                    Image(systemName: t.type == .gasto ? "arrow.up.right" : "arrow.down.left")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(t.type == .gasto ? Color.brandDanger : Color.brandSuccess)
                 }
+            }
+            .font(.title3)
+            .frame(width: 36, height: 36)
+            .background(Color.appSurfaceInset, in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
                 Text(t.name)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
-                Spacer(minLength: 0)
+                Text(Money.format(t.amount, currency: t.currency, style: .compact))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Color.textMuted)
+                    .lineLimit(1)
             }
-            Text(Money.format(t.amount, currency: t.currency, style: .compact))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Color.textDim)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .frame(width: 140, alignment: .leading)
+        .frame(width: 172, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(t.type == .gasto ? Color.brandDanger.opacity(0.12) : Color.brandSuccess.opacity(0.12))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.appSurfaceInset)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(t.type == .gasto ? Color.brandDanger.opacity(0.2) : Color.brandSuccess.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.appBorder, lineWidth: 1)
         )
+        .contentShape(Rectangle())
     }
 }
 
@@ -2361,5 +2386,3 @@ struct BalanceBreakdownView: View {
         .padding(.vertical, 8)
     }
 }
-
-

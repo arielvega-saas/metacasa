@@ -278,7 +278,11 @@ struct TransactionListView: View {
                 Section {
                     ForEach(groupedByDay[day] ?? []) { tx in
                         Button { editingTx = tx } label: {
-                            TransactionRow(transaction: tx, currency: householdCurrency)
+                            TransactionRow(
+                                transaction: tx,
+                                currency: householdCurrency,
+                                accountName: accountName(for: tx)
+                            )
                         }
                         .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
@@ -345,6 +349,13 @@ struct TransactionListView: View {
     private func deleteTransaction(_ tx: Transaction) async {
         try? await TransactionService.shared.delete(id: tx.id)
         await load()
+    }
+
+    private func accountName(for transaction: Transaction) -> String? {
+        guard let accountId = transaction.accountId else {
+            return transaction.account
+        }
+        return accounts.first(where: { $0.id == accountId })?.name
     }
 }
 
