@@ -86,3 +86,6 @@ metacasa-flutter/**/*\ [0-9].*
 
 # Local Netlify folder
 .netlify
+
+# Generado por el bootstrap de Netlify Edge Functions en cada build
+deno.lock
