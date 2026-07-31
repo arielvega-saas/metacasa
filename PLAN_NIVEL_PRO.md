@@ -177,18 +177,18 @@ Ya los tenemos ✅ / nos faltan ❌:
 1. ✅ Dashboard de widgets customizable (Monarch/Revolut 10) — iOS ya lo tiene con `DashboardEditorSheet`.
 2. ✅ Modo oculto de saldos "ojito" (estándar absoluto LatAm: MP/Ualá/Nubank/Naranja X) — iOS lo tiene (tapar la fuga, ítem 1.4); **web no lo tiene → agregarlo**.
 3. ✅ Número héroe serif con tabular figures (Nubank/Monzo) — ya es identidad de la app.
-4. ❌ Swift Charts interactivos con scrubbing (Copilot, Apple Design Award) → 3.4.
-5. ❌ Liquid Glass en capa funcional (tab bar, FAB con morph via `GlassEffectContainer`) → 2.4 y 4.11.
-6. ❌ Widgets de sistema + Dynamic Island (LA feature de retención) → 3.1.
+4. ✅ Swift Charts interactivos con scrubbing (Copilot, Apple Design Award) — hecho en **3.4** (RuleMark + haptic por mes en Reports).
+5. ✅ **parcial** Liquid Glass: el modifier real con fallback iOS 17-25 está en **2.4**. Falta el morph del FAB con `GlassEffectContainer`..
+6. ✅ Widgets de sistema + Dynamic Island — hecho en **3.1**. ⚠️ En device muestran estado vacío hasta que exista el App Group `group.com.metacasa.shared` en el Developer Portal.
 7. ✅ **(2026-07-31)** Anillos/diales de presupuesto animados con semáforo + proyección "a este ritmo llegás al 110%" (Copilot). `BudgetRing` + `BudgetPace` (12 tests). El anillo **reemplaza** a la barra lineal de la fila de envelope: dos representaciones del mismo porcentaje era ruido. Lo que define la feature es **cuándo calla**: antes del 15% del período (una compra el día 1 proyectaría 31× y alarmaría por algo normal), sobre un mes cerrado (ahí el gasto es un hecho, decir "proyectado" sería falso), sobre un mes futuro, y cuando el envelope YA se pasó (avisar de un 110% futuro sobre algo que ya ocurrió suena roto). Semáforo extraído a `EnvelopeStatus.severity` para que anillo, texto y color no puedan divergir; tick de proyección topeado en una vuelta para que 300% no dé tres vueltas.
 8. ✅ **parcial (2026-07-31)** Metas como "cajitas/pots" con fondeo de un toque + confeti + haptic. `GoalQuickFund` (13 tests) propone hasta 3 montos derivados de **lo que falta** (no del objetivo: si faltan $1.000, ofrecer "$5.000" haría pasarse de largo), redondeados hacia abajo a dos cifras significativas para que se lean como montos elegidos por una persona. Antes aportar costaba 5 pasos; ahora el caso común es un toque + confirmación. **La confirmación es deliberada a propósito**: se descartó el drag-para-fondear estilo Monzo porque un gesto que mueve plata según la distancia del arrastre genera aportes accidentales — en una app de finanzas eso no es "delightful", es un bug. De paso se cableó `ConfettiOverlay`, que existía sin usarse en ningún lado. **Falta el "Salary Sorter"** (repartir el ingreso del mes entre presupuestos), que es la mitad grande de esta idea y encaja con el waterfall multi-persona (ADR-008).
-9. ❌ IA embebida (Revolut AIR conversacional + Copilot invisible) → 4.3.
+9. ✅ IA embebida — hecho en **4.3**: categorización que aprende de correcciones (server-side, `category_rules` + trigger) e insights en pantalla.
 10. ❌ Grilla de accesos rápidos LatAm bajo el saldo (MP/Nubank shortcuts) — iOS tiene shortcuts carousel; elevarlo a fila de acciones circulares primarias.
 11. ❌ Onboarding de confianza gradual: modo manual/demo antes de pedir datos + quiz corto que personaliza + checklist gamificada (Copilot/Monarch/YNAB) — hay base (`WelcomeTourView` + `SetupChecklistCard`).
-12. ❌ Paywall estructural (datos RevenueCat) → 3.6.
-13. ❌ Feed de movimientos con logos de comercio, chevron ›, subtotales por día, densidad Monarch 2025.
-14. ❌ Insights proactivos ("gastaste 30% más en super que tu promedio") → 4.3.
-15. ❌ Motion con propósito + low-stimulus en pantallas de dinero (moderar viscosidad; `reduceMotion` siempre).
+12. ✅ Paywall estructural — hecho en **3.6** (badge de ahorro con precios vivos, timeline del trial, haptic de selección).
+13. ✅ **parcial (2026-07-31)** Feed de movimientos: densidad Monarch, chevron › y subtotales por día hechos. **Falta sólo los logos de comercio**, que necesitan una fuente de logos (Clearbit/Brandfetch) y decisión de privacidad: resolver el logo desde el cliente filtra el nombre del comercio a un tercero..
+14. ✅ Insights proactivos — hecho en **4.3(b)**. Con 0 insights la sección no renderiza nada, a propósito.
+15. ✅ **parcial** Motion: web con framer-motion en **3.8**, iOS con scrollTransition y haptics en **2.1/2.5**, anillos animados hoy. Todo respeta `reduceMotion`. Falta una pasada de coherencia (viscosidadsiempre).
 
 Lecciones de mercado clave: Mercado Pago **revirtió** su cambio de identidad a amarillo (la identidad de una app financiera no se toca a la ligera — defender Midnight Sage); Ualá optimiza transiciones para gama media (relevante Android futuro); la home de Ualá se **reordena por IA** según uso real.
 
