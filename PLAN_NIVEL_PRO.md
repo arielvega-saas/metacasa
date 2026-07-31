@@ -166,7 +166,7 @@
 - 4.8 [Web] Offline con serwist + banner de instalación; curaduría de los mejores ~15 widgets de la PWA legacy como sección "Insights" (donde la legacy le gana a Monarch en profundidad).
 - 4.9 [Backend] pgTAP (tests de RLS multi-hogar y triggers) + Supabase branching + CI — elimina el drift de raíz.
 - 4.10 [Backend] Push notifications APNs: alertas de envelope 80/95/100%, vencimientos de TC, bills.
-- 4.11 [iOS] iPad con NavigationSplitView; migración a Tab API iOS 18+ / `.tabViewBottomAccessory` iOS 26; `.navigationTransition(.zoom)` cards→detalle.
+- 4.11 ✅ **parcial (2026-07-31)** [iOS] Migrado a la **Tab API de iOS 18+** con `.tabViewStyle(.sidebarAdaptable)`, que da el sidebar de iPad sin escribir un `NavigationSplitView` a mano ni duplicar la jerarquía; iOS 17 conserva el camino legacy. **Falta la decisión de Ariel**: el target sigue `TARGETED_DEVICE_FAMILY: "1"` (iPhone-only). Habilitar iPad es cambiar ese flag, pero implica que App Review pruebe la app en iPad y que haya que subir screenshots de iPad — es decisión de tienda, no de código. Pendientes menores: `.tabViewBottomAccessory` iOS 26 (se omitió a propósito: sin un contenido que gane el espacio permanente es decoración) y `.navigationTransition(.zoom)` cards→detalle.
 
 ---
 
@@ -180,7 +180,7 @@ Ya los tenemos ✅ / nos faltan ❌:
 4. ❌ Swift Charts interactivos con scrubbing (Copilot, Apple Design Award) → 3.4.
 5. ❌ Liquid Glass en capa funcional (tab bar, FAB con morph via `GlassEffectContainer`) → 2.4 y 4.11.
 6. ❌ Widgets de sistema + Dynamic Island (LA feature de retención) → 3.1.
-7. ❌ Anillos/diales de presupuesto animados con semáforo verde→ámbar→rojo + proyección "a este ritmo llegás al 110%" (Copilot).
+7. ✅ **(2026-07-31)** Anillos/diales de presupuesto animados con semáforo + proyección "a este ritmo llegás al 110%" (Copilot). `BudgetRing` + `BudgetPace` (12 tests). El anillo **reemplaza** a la barra lineal de la fila de envelope: dos representaciones del mismo porcentaje era ruido. Lo que define la feature es **cuándo calla**: antes del 15% del período (una compra el día 1 proyectaría 31× y alarmaría por algo normal), sobre un mes cerrado (ahí el gasto es un hecho, decir "proyectado" sería falso), sobre un mes futuro, y cuando el envelope YA se pasó (avisar de un 110% futuro sobre algo que ya ocurrió suena roto). Semáforo extraído a `EnvelopeStatus.severity` para que anillo, texto y color no puedan divergir; tick de proyección topeado en una vuelta para que 300% no dé tres vueltas.
 8. ❌ Metas como "cajitas/pots" con gesto de fondeo + confeti + haptic (Nubank Cajitas / Monzo Pots / N26 Spaces). Idea estrella: **"Salary Sorter"** — repartir el ingreso del mes entre presupuestos con un gesto (encaja perfecto con el waterfall multi-persona, ADR-008).
 9. ❌ IA embebida (Revolut AIR conversacional + Copilot invisible) → 4.3.
 10. ❌ Grilla de accesos rápidos LatAm bajo el saldo (MP/Nubank shortcuts) — iOS tiene shortcuts carousel; elevarlo a fila de acciones circulares primarias.
