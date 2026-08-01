@@ -1,8 +1,30 @@
 # Home Finance — estado vivo
 
-> Última actualización: **2026-07-31**.
+> Última actualización: **2026-08-01**.
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
+
+## ⚡ EMPEZÁ ACÁ (sesión del 2026-08-02 en adelante)
+
+Lo primero, un solo comando:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://usehomefinance.com
+```
+
+- **Da 200 o 30x** → el certificado salió solo durante la noche. Seguí con "Cuando el certificado salga"
+  en el bloque 1 de abajo: desplegar `web-handoff` a la web nueva, el CORS de `ai-proxy` y cargar
+  Supabase Auth (Site URL + allowlist de redirects). Después de eso la migración está cerrada.
+- **Da 000** → el certificado sigue sin emitirse. **No repitas el diagnóstico**: está todo en el bloque 1,
+  incluido lo que ya se descartó. El siguiente paso es un ticket a soporte de Netlify por el registro
+  ALIAS defectuoso del apex en la zona `6a6e0d97c08a56003cef888e`.
+
+Nada está caído mientras tanto: la app sirve en `home-finance-web.netlify.app`, el apex responde por
+HTTP, y el email de Brevo funcionó sin interrupción durante toda la migración.
+
+Lo demás pendiente (9 hallazgos de auditoría) está en `AUDITORIA-2026-08-01.md`, ordenado por gravedad.
+
+---
 
 ## En una línea
 
@@ -90,6 +112,10 @@ cuando Netlify esté sirviendo el dominio.**
 
 ## Bitácora
 
+- **2026-08-01 (tarde)** — **DNS migrado de Vercel a Netlify.** Vercel bloqueaba la escritura de DNS por
+  la cuenta suspendida, así que se cambiaron los nameservers. Los 4 registros de email de Brevo se
+  espejaron ANTES del cambio: el correo nunca se cortó. Apex y www resuelven a Netlify, HTTP 200.
+  Falta sólo el certificado SSL, trabado del lado de Netlify. Sin pagar Vercel ni crear cuentas nuevas.
 - **2026-08-01** — Auditoría de tres frentes (producto, seguridad, App Store) + arreglos. **16 de 27
   hallazgos cerrados**, cada uno verificado a mano antes de tocar y contra producción después.
   Cerrados en prod: bypass del app lock, auto-inscripción en hogares ajenos, `wallet-proxy` que
