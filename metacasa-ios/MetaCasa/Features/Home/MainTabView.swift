@@ -137,187 +137,76 @@ struct MainTabView: View {
 
 /// Agrupador de pantallas secundarias (Cuentas, Metas, Recurrentes, Miembros, Paywall, Ajustes).
 struct MoreView: View {
+
+    /// Fila de navegación del menú.
+    ///
+    /// Existe para que agregar una pantalla sea una línea y no siete: la forma
+    /// `NavigationLink { } label: { Label { Text } icon: { Image } }` se repetía 19 veces idéntica y
+    /// enterraba la estructura del menú debajo del boilerplate. La clave se pasa como
+    /// `LocalizedStringKey` para que el String Catalog la siga extrayendo igual.
+    @ViewBuilder
+    private func moreLink<Destination: View>(
+        _ titleKey: LocalizedStringKey,
+        _ systemImage: String,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            Label {
+                Text(titleKey)
+            } icon: {
+                Image(systemName: systemImage)
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                Section("more.section.organization") {
-                    NavigationLink {
-                        AccountsView()
-                    } label: {
-                        Label {
-                            Text("more.accounts")
-                        } icon: {
-                            Image(systemName: "wallet.pass.fill")
-                        }
-                    }
-                    NavigationLink {
-                        GoalsView()
-                    } label: {
-                        Label {
-                            Text("more.goals")
-                        } icon: {
-                            Image(systemName: "target")
-                        }
-                    }
-                    NavigationLink {
-                        RecurringListView()
-                    } label: {
-                        Label {
-                            Text("more.recurring")
-                        } icon: {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                    }
-                    NavigationLink {
-                        BillsListView()
-                    } label: {
-                        Label {
-                            Text("more.bills")
-                        } icon: {
-                            Image(systemName: "calendar.badge.exclamationmark")
-                        }
-                    }
-                    NavigationLink {
-                        InstallmentsListView()
-                    } label: {
-                        Label {
-                            Text("more.installments")
-                        } icon: {
-                            Image(systemName: "creditcard.and.123")
-                        }
-                    }
-                    NavigationLink {
-                        DebtsListView()
-                    } label: {
-                        Label {
-                            Text("more.debts")
-                        } icon: {
-                            Image(systemName: "arrow.down.to.line")
-                        }
-                    }
-                    NavigationLink {
-                        BudgetView()
-                    } label: {
-                        Label {
-                            Text("more.envelopes")
-                        } icon: {
-                            Image(systemName: "tray.2.fill")
-                        }
-                    }
-                    NavigationLink {
-                        ReportsView()
-                    } label: {
-                        Label {
-                            Text("more.reports")
-                        } icon: {
-                            Image(systemName: "chart.bar.xaxis")
-                        }
-                    }
-                    NavigationLink {
-                        CompareMonthsView()
-                    } label: {
-                        Label {
-                            Text("more.compareMonths")
-                        } icon: {
-                            Image(systemName: "arrow.left.arrow.right.square")
-                        }
-                    }
-                    NavigationLink {
-                        AnnualView()
-                    } label: {
-                        Label {
-                            Text("more.annualView")
-                        } icon: {
-                            Image(systemName: "calendar")
-                        }
-                    }
-                    NavigationLink {
-                        FixedTermCalculatorView()
-                    } label: {
-                        Label {
-                            Text("more.fixedTerm")
-                        } icon: {
-                            Image(systemName: "percent")
-                        }
-                    }
-                    NavigationLink {
-                        CompoundInterestCalculatorView()
-                    } label: {
-                        Label {
-                            Text("more.compoundInterest")
-                        } icon: {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                        }
-                    }
-                    NavigationLink {
-                        SpendingHeatmapView()
-                    } label: {
-                        Label {
-                            Text("more.heatmap")
-                        } icon: {
-                            Image(systemName: "square.grid.3x3.square")
-                        }
-                    }
+                // Antes: UNA sección "Organización" con 13 pantallas seguidas. Media app quedaba
+                // escondida en una pared de texto que nadie escanea. Ahora se agrupa por el modelo
+                // mental del usuario — qué tengo / qué debo / cómo me fue / con qué calculo — que es
+                // como agrupan Monarch y YNAB. El orden dentro de cada grupo va de lo más usado a lo
+                // menos usado, no alfabético.
+                Section("more.section.money") {
+                    moreLink("more.accounts", "wallet.pass.fill") { AccountsView() }
+                    moreLink("more.envelopes", "tray.2.fill") { BudgetView() }
+                    moreLink("more.goals", "target") { GoalsView() }
                 }
+
+                Section("more.section.commitments") {
+                    moreLink("more.bills", "calendar.badge.exclamationmark") { BillsListView() }
+                    moreLink("more.recurring", "arrow.triangle.2.circlepath") { RecurringListView() }
+                    moreLink("more.installments", "creditcard.and.123") { InstallmentsListView() }
+                    moreLink("more.debts", "arrow.down.to.line") { DebtsListView() }
+                }
+
+                Section("more.section.analysis") {
+                    moreLink("more.reports", "chart.bar.xaxis") { ReportsView() }
+                    moreLink("more.compareMonths", "arrow.left.arrow.right.square") { CompareMonthsView() }
+                    moreLink("more.annualView", "calendar") { AnnualView() }
+                    moreLink("more.heatmap", "square.grid.3x3.square") { SpendingHeatmapView() }
+                }
+
+                Section("more.section.tools") {
+                    moreLink("more.fixedTerm", "percent") { FixedTermCalculatorView() }
+                    moreLink("more.compoundInterest", "chart.line.uptrend.xyaxis") { CompoundInterestCalculatorView() }
+                }
+
                 Section("more.section.household") {
-                    NavigationLink {
-                        HouseholdSettingsView()
-                    } label: {
-                        Label {
-                            Text("more.edit_household")
-                        } icon: {
-                            Image(systemName: "house.fill")
-                        }
-                    }
-                    NavigationLink {
-                        HouseholdMembersView()
-                    } label: {
-                        Label {
-                            Text("more.members")
-                        } icon: {
-                            Image(systemName: "person.3.fill")
-                        }
-                    }
-                    NavigationLink {
-                        ManageCategoriesView()
-                    } label: {
-                        Label {
-                            Text("more.categories")
-                        } icon: {
-                            Image(systemName: "tag.fill")
-                        }
-                    }
+                    moreLink("more.edit_household", "house.fill") { HouseholdSettingsView() }
+                    moreLink("more.members", "person.3.fill") { HouseholdMembersView() }
+                    moreLink("more.categories", "tag.fill") { ManageCategoriesView() }
                 }
+
                 Section("more.section.premium") {
-                    NavigationLink {
-                        PaywallView()
-                    } label: {
-                        Label {
-                            Text("more.upgrade")
-                        } icon: {
-                            Image(systemName: "crown.fill")
-                        }
-                    }
+                    moreLink("more.upgrade", "crown.fill") { PaywallView() }
                 }
+
                 Section("more.section.app") {
-                    NavigationLink {
-                        HelpCenterView()
-                    } label: {
-                        Label {
-                            Text("more.help")
-                        } icon: {
-                            Image(systemName: "questionmark.circle.fill")
-                        }
-                    }
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Label {
-                            Text("more.settings")
-                        } icon: {
-                            Image(systemName: "gearshape.fill")
-                        }
-                    }
+                    moreLink("more.help", "questionmark.circle.fill") { HelpCenterView() }
+                    moreLink("more.settings", "gearshape.fill") { SettingsView() }
                 }
             }
             .navigationTitle(Text("tab.more"))

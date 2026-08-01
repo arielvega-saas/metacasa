@@ -11893,6 +11893,29 @@
         }
       }
     },
+    "more.section.analysis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insights"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Análisis"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Análises"
+          }
+        }
+      }
+    },
     "more.section.app": {
       "extractionState": "stale",
       "localizations": {
@@ -11912,6 +11935,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "App"
+          }
+        }
+      }
+    },
+    "more.section.commitments": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commitments"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compromisos"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compromissos"
           }
         }
       }
@@ -11938,25 +11984,25 @@
         }
       }
     },
-    "more.section.organization": {
-      "extractionState": "stale",
+    "more.section.money": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Organization"
+            "value": "Your money"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Organización"
+            "value": "Tu dinero"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Organização"
+            "value": "Seu dinheiro"
           }
         }
       }
@@ -11980,6 +12026,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Premium"
+          }
+        }
+      }
+    },
+    "more.section.tools": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herramientas"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferramentas"
           }
         }
       }
