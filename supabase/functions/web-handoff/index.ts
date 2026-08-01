@@ -43,13 +43,15 @@ function corsHeaders(req: Request): Record<string, string> {
 
 // Destino de la web. `WEB_APP_URL` (secret) manda si está seteado.
 //
-// FALLBACK TEMPORAL (2026-07-28): apunta a la PWA de Firebase porque el
-// proyecto de Vercel que servía usehomefinance.com quedó SUSPENDIDO por
-// facturación y el dominio devuelve HTTP 402. Mandar al usuario ahí era
-// mandarlo a una página de error.
-// → Cuando la web nueva esté online (migración a Netlify), volver a
-//   "https://usehomefinance.com" o setear el secret WEB_APP_URL.
-const DEFAULT_WEB_APP_URL = "https://metacasa-app-cf592.web.app";
+// RESUELTO (2026-08-01): vuelve a `usehomefinance.com`. El dominio migró de
+// Vercel a Netlify (nameservers a dns1..4.p08.nsone.net), el certificado ya
+// está emitido y las 5 rutas críticas responden 200 por HTTPS.
+//
+// Esto importa más de lo que parece: la PWA de Firebase que se usaba como
+// fallback es un SPA sin la ruta `/auth/handoff`, así que el usuario llegaba
+// y tenía que loguearse A MANO. Con el dominio propio el handoff vuelve a ser
+// real: la app abre la web ya con sesión.
+const DEFAULT_WEB_APP_URL = "https://usehomefinance.com";
 
 // Bases que NO saben consumir `/auth/handoff?token_hash=...`. La PWA legacy es
 // un SPA de Vite sin esa ruta: el catch-all le serviría el index y el token se
