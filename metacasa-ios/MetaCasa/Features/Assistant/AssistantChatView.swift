@@ -1601,6 +1601,12 @@ final class AssistantViewModel {
             return NewTransactionInput(
                 householdId: hid,
                 userId: uid,
+                // Sin cuenta A PROPÓSITO: esto es un import MASIVO de un resumen, igual que
+                // `TransactionCSVImporter`. Adivinar la cuenta acá atribuye decenas de
+                // movimientos de golpe a la cuenta equivocada, y desarmarlo a mano es peor que
+                // no tener cuenta. El alta de a una (formulario, Siri, asistente conversacional)
+                // sí usa `AccountService.defaultAccountId`, porque ahí el error es de UN
+                // movimiento y el usuario lo ve al instante.
                 accountId: nil,
                 type: type,
                 amount: amount,
@@ -1652,7 +1658,7 @@ final class AssistantViewModel {
         let input = NewTransactionInput(
             householdId: hid,
             userId: uid,
-            accountId: nil,
+            accountId: await AccountService.shared.defaultAccountId(householdId: hid),
             type: .gasto,
             amount: amount,
             currencyOriginal: currency,
@@ -1700,7 +1706,7 @@ final class AssistantViewModel {
             let input = NewTransactionInput(
                 householdId: hid,
                 userId: uid,
-                accountId: nil,
+                accountId: await AccountService.shared.defaultAccountId(householdId: hid),
                 type: .gasto,
                 amount: amount,
                 currencyOriginal: receipt.currency ?? defaultCurrency,

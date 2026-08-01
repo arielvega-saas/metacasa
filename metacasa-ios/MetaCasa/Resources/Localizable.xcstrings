@@ -17566,6 +17566,29 @@
         }
       }
     },
+    "tx.field.account": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conta"
+          }
+        }
+      }
+    },
     "tx.field.amount": {
       "localizations": {
         "en": {

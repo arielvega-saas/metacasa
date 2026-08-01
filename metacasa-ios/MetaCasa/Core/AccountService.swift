@@ -4,6 +4,25 @@ actor AccountService {
     static let shared = AccountService()
     private init() {}
 
+    /// Cuenta a usar cuando el alta NO tiene UI para elegirla: Siri, los App Intents, el
+    /// asistente, los recibos y las notas de voz.
+    ///
+    /// Devuelve la última cuenta que el usuario eligió a mano en el formulario (la misma clave
+    /// que usa `AddTransactionView`), y si no existe o está inactiva, la primera activa del hogar.
+    /// Antes todos esos caminos mandaban `accountId: nil`, así que sus movimientos no movían
+    /// ningún saldo — la cuenta quedaba clavada en su balance inicial.
+    ///
+    /// `nil` sólo si el hogar no tiene cuentas activas: ahí no hay nada razonable que elegir.
+    func defaultAccountId(householdId: UUID) async -> UUID? {
+        let lastUsed = UserDefaults.standard.string(forKey: "lastUsedAccountId") ?? ""
+        let accounts = (try? await fetchAll(householdId: householdId)) ?? []
+        let activas = accounts.filter(\.isActive)
+        if let id = UUID(uuidString: lastUsed), activas.contains(where: { $0.id == id }) {
+            return id
+        }
+        return activas.first?.id
+    }
+
     /// Read-through cache (ítem 4.1). Ver `OfflineFallbackPolicy`: solo se
     /// sirve cache ante fallas de RED, nunca ante 401/4xx.
     func fetchAll(householdId: UUID, includingInactive: Bool = false) async throws -> [Account] {

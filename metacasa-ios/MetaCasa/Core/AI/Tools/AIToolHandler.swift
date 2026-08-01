@@ -131,7 +131,7 @@ final class AIToolHandler: @unchecked Sendable {
         let input = NewTransactionInput(
             householdId: householdId,
             userId: userId,
-            accountId: nil,
+            accountId: await AccountService.shared.defaultAccountId(householdId: householdId),
             type: txType,
             amount: amount,
             currencyOriginal: currency,

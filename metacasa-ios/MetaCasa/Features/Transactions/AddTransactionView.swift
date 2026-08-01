@@ -20,6 +20,19 @@ struct AddTransactionView: View {
     @State private var showSaveTemplate = false
     @State private var newTemplateName = ""
 
+    // Cuenta de la que sale (o entra) la plata.
+    //
+    // Hasta hoy TODAS las altas de iOS mandaban `accountId: nil`, y el RPC `account_balances`
+    // hace `LEFT JOIN ON t.account_id = a.id`: con nil devuelve exactamente `starting_balance`.
+    // O sea que para un usuario iOS-only la sección Cuentas y el patrimonio neto quedaban
+    // congelados en el saldo del día que creó la cuenta, por más movimientos que cargara.
+    @State private var accounts: [Account] = []
+    @State private var accountId: UUID?
+
+    /// La última cuenta usada se recuerda entre altas: en el uso real casi siempre es la misma,
+    /// y obligar a elegirla en cada movimiento agrega fricción a la acción más repetida de la app.
+    @AppStorage("lastUsedAccountId") private var lastUsedAccountId: String = ""
+
     // Multi-moneda inline (Sprint 9)
     @State private var useAlternateCurrency = false
     @State private var alternateCurrency: String = "USD"
@@ -46,6 +59,7 @@ struct AddTransactionView: View {
                         amountField
                         currencyToggleField
                         categoryPicker
+                        accountPicker
                         notesField
                         dateField
                         if let msg = errorMessage {
@@ -79,6 +93,7 @@ struct AddTransactionView: View {
                 await loadTemplates()
                 await loadCategoriesBlob()
                 await loadFxRates()
+                await loadAccounts()
             }
             .alert("shortcuts.saveTitle", isPresented: $showSaveTemplate) {
                 TextField("shortcuts.namePlaceholder", text: $newTemplateName)
@@ -403,6 +418,65 @@ struct AddTransactionView: View {
         knownFxRates = dict
     }
 
+    /// Selector de cuenta. Se oculta si el hogar no tiene ninguna: pedirle al usuario que elija
+    /// de una lista vacía es peor que no preguntar.
+    @ViewBuilder
+    private var accountPicker: some View {
+        if !accounts.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("tx.field.account").font(.mcLabel).foregroundStyle(Color.textMuted)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(accounts) { acc in
+                            MCChip(
+                                icon: acc.icon ?? AddTransactionView.emoji(for: acc.type),
+                                label: acc.name,
+                                isSelected: accountId == acc.id,
+                                action: {
+                                    Haptics.play(.selection)
+                                    accountId = acc.id
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func emoji(for type: AccountType) -> String {
+        switch type {
+        case .checking: "🏦"
+        case .savings: "🐖"
+        case .cash: "💵"
+        case .creditCard: "💳"
+        case .investment: "📈"
+        case .loan: "📄"
+        case .other: "📁"
+        }
+    }
+
+    private func loadAccounts() async {
+        guard let hid = appState.currentHouseholdId else { return }
+        let list = (try? await AccountService.shared.fetchAll(householdId: hid)) ?? []
+        accounts = list
+        accountId = Self.defaultAccountId(from: list, lastUsed: lastUsedAccountId)
+    }
+
+    /// Elige la cuenta preseleccionada. Pura para poder testearla.
+    ///
+    /// Prioridad: la última usada (si sigue existiendo y activa) → la primera activa → ninguna.
+    /// La validación de "sigue existiendo" importa: si el usuario borra la cuenta que tenía
+    /// guardada, un id colgante dejaría el picker sin selección visible pero con un `accountId`
+    /// apuntando a algo que ya no está, y la transacción se insertaría contra una FK muerta.
+    static func defaultAccountId(from accounts: [Account], lastUsed: String) -> UUID? {
+        let activas = accounts.filter(\.isActive)
+        if let id = UUID(uuidString: lastUsed), activas.contains(where: { $0.id == id }) {
+            return id
+        }
+        return activas.first?.id
+    }
+
     private var categoryPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("tx.field.category").font(.mcLabel).foregroundStyle(Color.textMuted)
@@ -553,7 +627,7 @@ struct AddTransactionView: View {
         let input = NewTransactionInput(
             householdId: hid,
             userId: uid,
-            accountId: nil,
+            accountId: accountId,
             type: type,
             amount: useAlternateCurrency ? (convertedAmount ?? amount) : amount,
             currencyOriginal: useAlternateCurrency ? alternateCurrency : nil,
@@ -566,6 +640,9 @@ struct AddTransactionView: View {
             _ = try await TransactionService.shared.insert(input)
             Haptics.play(.success)
             showSuccess = true
+            // Se recuerda recién ACÁ, después de que el insert salió bien: guardarla antes
+            // dejaría preseleccionada una cuenta de un alta que en realidad falló.
+            if let accountId { lastUsedAccountId = accountId.uuidString }
             // Donamos el intent al sistema para que iOS aprenda y sugiera
             // "Cargar gasto" en la Search / Lock Screen cuando el user
             // tenga ese patrón (ej: tarde/noche después de cenar).

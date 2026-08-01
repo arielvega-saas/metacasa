@@ -444,6 +444,12 @@ enum TransactionCSVImporter {
             return NewTransactionInput(
                 householdId: householdId,
                 userId: userId,
+                // Queda en nil A PROPÓSITO, a diferencia del alta manual y del asistente, que
+                // usan `AccountService.defaultAccountId`. Un import es un resumen ENTERO: si se
+                // adivina mal la cuenta, se atribuyen decenas de movimientos a la cuenta
+                // equivocada de una sola vez, y desarmar eso a mano es peor que no tener cuenta.
+                // Lo correcto es que el paso de preview le pregunte al usuario a qué cuenta
+                // corresponde el archivo. Anotado en .context/AUDITORIA-2026-08-01.md.
                 accountId: nil,
                 type: type,
                 amount: amount,

@@ -52,7 +52,7 @@ struct AddExpenseIntent: AppIntent {
         let input = NewTransactionInput(
             householdId: hid,
             userId: session.userId,
-            accountId: nil,
+            accountId: await AccountService.shared.defaultAccountId(householdId: hid),
             type: .gasto,
             amount: Decimal(amount),
             currencyOriginal: nil,
@@ -157,7 +157,7 @@ struct AddIncomeIntent: AppIntent {
         let input = NewTransactionInput(
             householdId: hid,
             userId: session.userId,
-            accountId: nil,
+            accountId: await AccountService.shared.defaultAccountId(householdId: hid),
             type: .ingreso,
             amount: Decimal(amount),
             currencyOriginal: nil,
