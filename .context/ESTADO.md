@@ -4,25 +4,31 @@
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
-## ⚡ EMPEZÁ ACÁ (sesión del 2026-08-02 en adelante)
+## ✅ MIGRACIÓN CERRADA (2026-08-01)
 
-Lo primero, un solo comando:
+`https://usehomefinance.com` está **EN LÍNEA**. La migración de Vercel a Netlify terminó completa:
 
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://usehomefinance.com
-```
+- DNS en Netlify (zona `6a6e0d97c08a56003cef888e`), nameservers `dns1..4.p08.nsone.net`
+- Certificado SSL emitido. Verificado por HTTPS: `/`, `/login`, `/privacy`, `/~offline`, `/register`
+  devuelven 200; `/dashboard` sin sesión hace 307 a `/login`; `www` hace 301 al apex
+- **El email de Brevo nunca se cortó**: los 4 registros (DKIM x2, DMARC, TXT) se espejaron ANTES de
+  mover los nameservers, así que durante la propagación ambas zonas decían lo mismo
+- `web-handoff` desplegado apuntando al dominio propio → el handoff desde la app vuelve a abrir la web
+  YA CON SESIÓN, en vez de mandar a la PWA vieja a loguearse a mano
+- Supabase Auth ya estaba correcto: Site URL `https://usehomefinance.com` y allowlist con
+  `https://usehomefinance.com/**`
+- Sin pagarle nada a Vercel y sin crear cuentas nuevas
 
-- **Da 200 o 30x** → el certificado salió solo durante la noche. Seguí con "Cuando el certificado salga"
-  en el bloque 1 de abajo: desplegar `web-handoff` a la web nueva, el CORS de `ai-proxy` y cargar
-  Supabase Auth (Site URL + allowlist de redirects). Después de eso la migración está cerrada.
-- **Da 000** → el certificado sigue sin emitirse. **No repitas el diagnóstico**: está todo en el bloque 1,
-  incluido lo que ya se descartó. El siguiente paso es un ticket a soporte de Netlify por el registro
-  ALIAS defectuoso del apex en la zona `6a6e0d97c08a56003cef888e`.
+**Pendiente menor:** `ai-proxy` en prod no tiene `home-finance-web.netlify.app` en su allowlist de CORS
+(sí tiene el dominio propio, que es el que importa). Sólo haría falta si se usa el subdominio temporal.
 
-Nada está caído mientras tanto: la app sirve en `home-finance-web.netlify.app`, el apex responde por
-HTTP, y el email de Brevo funcionó sin interrupción durante toda la migración.
+⚠️ **Para junio 2027:** el dominio **sigue registrado en Vercel** y auto-renueva el 1-jun-2027 a
+US$ 11,25. Si esa cuenta sigue suspendida, la renovación puede fallar. Conviene transferirlo a otro
+registrador en algún momento tranquilo.
 
-Lo demás pendiente (9 hallazgos de auditoría) está en `AUDITORIA-2026-08-01.md`, ordenado por gravedad.
+**Lo que sigue en el producto:** 9 hallazgos de auditoría en `AUDITORIA-2026-08-01.md`, ordenados por
+gravedad. Los grandes: rollover de sobres que nunca se calcula, transferencias que inflan los KPIs, y el
+preview del import que debería preguntar cuenta y moneda.
 
 ---
 
