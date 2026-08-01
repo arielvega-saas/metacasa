@@ -233,13 +233,20 @@ final class HomeViewModel {
             self.activeGoals = (try? await goals) ?? []
             self.templates = (try? await templatesTask) ?? []
 
-            // Net worth final: accounts + saldos del RPC + debts.
+            // Net worth final: accounts + saldos del RPC + debts, TODO convertido a la moneda
+            // base del hogar. Sin las tasas, una caja de ahorro en USD y una cuenta en ARS se
+            // sumaban como si fueran la misma moneda: un error de ~25× en la cifra más visible
+            // de la app. Si falla la carga de tasas se pasa un mapa vacío, y ahí `netWorth`
+            // omite lo no convertible y lo marca en `hasUnconvertible` en vez de mentir.
             let accounts = (try? await accountsTask) ?? []
             let balances = (try? await balancesTask) ?? [:]
+            let fxRates = (try? await FXService.shared.fetch(householdId: householdId)) ?? [:]
             self.netWorth = AccountBalanceService.netWorth(
                 accounts: accounts,
                 balances: balances,
-                debts: dbList
+                debts: dbList,
+                baseCurrency: householdCurrency,
+                fxRates: fxRates
             )
 
             // Persistir el estado fresco para el próximo cold start.

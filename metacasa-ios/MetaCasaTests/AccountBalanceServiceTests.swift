@@ -120,7 +120,9 @@ final class AccountBalanceServiceTests: XCTestCase {
         let bd = AccountBalanceService.netWorth(
             accounts: [acc],
             transactions: [],
-            debts: []
+            debts: [],
+            baseCurrency: "USD",
+            fxRates: [:]
         )
         XCTAssertEqual(bd.assets, 5000)
         XCTAssertEqual(bd.liabilities, 0)
@@ -133,7 +135,9 @@ final class AccountBalanceServiceTests: XCTestCase {
         let bd = AccountBalanceService.netWorth(
             accounts: [cc],
             transactions: [txExpense],
-            debts: []
+            debts: [],
+            baseCurrency: "USD",
+            fxRates: [:]
         )
         // CC balance = 0 - 1500 = -1500 → magnitud va a liabilities.
         XCTAssertEqual(bd.assets, 0)
@@ -147,7 +151,9 @@ final class AccountBalanceServiceTests: XCTestCase {
         let bd = AccountBalanceService.netWorth(
             accounts: [active, inactive],
             transactions: [],
-            debts: []
+            debts: [],
+            baseCurrency: "USD",
+            fxRates: [:]
         )
         XCTAssertEqual(bd.assets, 1000)
     }
@@ -159,9 +165,91 @@ final class AccountBalanceServiceTests: XCTestCase {
         let bd = AccountBalanceService.netWorth(
             accounts: [acc, cc],
             transactions: [ccExp],
-            debts: []
+            debts: [],
+            baseCurrency: "USD",
+            fxRates: [:]
         )
         // assets=10000, liab=1000 → ratio=0.091 (healthy <0.3)
         XCTAssertLessThan(bd.debtToAssetRatio, 0.3)
+    }
+
+    // MARK: - Multi-moneda (el bug de 25x)
+
+    private func rates(_ pairs: [String: Decimal]) -> FXRateMap {
+        pairs.mapValues { FXRate(rate: $0, updatedAt: "2026-08-01T00:00:00Z", source: "manual") }
+    }
+
+    /// El caso concreto del hallazgo: hogar en ARS con una cuenta en USD.
+    /// Antes: 5.000 + 300.000 = "305.000". Real: 5.000 x 1500 + 300.000 = 7.800.000.
+    func testHogarEnARSConCuentaEnUSDConvierteAntesDeSumar() {
+        var usd = makeAccount(type: .savings, startingBalance: 5000)
+        usd.currency = "USD"
+        var ars = makeAccount(type: .checking, startingBalance: 300_000)
+        ars.currency = "ARS"
+
+        let bd = AccountBalanceService.netWorth(
+            accounts: [usd, ars],
+            balances: [:],
+            debts: [],
+            baseCurrency: "ARS",
+            fxRates: rates(["USD": 1500])
+        )
+        XCTAssertEqual(bd.assets, 7_800_000, "5.000 USD a 1500 + 300.000 ARS")
+        XCTAssertEqual(bd.netWorth, 7_800_000)
+        XCTAssertFalse(bd.hasUnconvertible)
+    }
+
+    /// Sin tasa, la cuenta se OMITE y se marca — nunca se suma como si fuera moneda base.
+    /// Un total incompleto avisado es honesto; mezclar monedas da un numero que no significa nada.
+    func testCuentaSinTasaSeOmiteYSeMarca() {
+        var usd = makeAccount(type: .savings, startingBalance: 5000)
+        usd.currency = "USD"
+        var ars = makeAccount(type: .checking, startingBalance: 300_000)
+        ars.currency = "ARS"
+
+        let bd = AccountBalanceService.netWorth(
+            accounts: [usd, ars],
+            balances: [:],
+            debts: [],
+            baseCurrency: "ARS",
+            fxRates: [:]
+        )
+        XCTAssertEqual(bd.assets, 300_000, "solo la cuenta en moneda base")
+        XCTAssertTrue(bd.hasUnconvertible, "la UI tiene que poder avisar que falta algo")
+        XCTAssertEqual(bd.perAccount.count, 2, "la lista de cuentas las muestra igual, cada una en su moneda")
+    }
+
+    /// Las deudas tambien tienen moneda propia y tambien se convertian mal.
+    func testLasDeudasTambienSeConvierten() {
+        var ars = makeAccount(type: .checking, startingBalance: 1_000_000)
+        ars.currency = "ARS"
+        let deudaUSD = Debt(
+            id: UUID(), householdId: UUID(), creditor: "Prestamo",
+            originalAmount: 1000, currentBalance: 1000,
+            annualRate: 0, monthlyPayment: nil,
+            currency: "USD", startDate: Date(), maturityDate: nil,
+            category: nil, note: nil, status: .active,
+            createdBy: UUID(), createdAt: nil, updatedAt: nil
+        )
+        let bd = AccountBalanceService.netWorth(
+            accounts: [ars],
+            balances: [:],
+            debts: [deudaUSD],
+            baseCurrency: "ARS",
+            fxRates: rates(["USD": 1500])
+        )
+        XCTAssertEqual(bd.liabilities, 1_500_000, "1.000 USD a 1500")
+        XCTAssertEqual(bd.netWorth, -500_000)
+    }
+
+    /// Sin monedas extranjeras, el resultado no cambia respecto del comportamiento viejo.
+    func testMonedaUnicaSeComportaIgualQueAntes() {
+        let a = makeAccount(type: .checking, startingBalance: 5000)
+        let bd = AccountBalanceService.netWorth(
+            accounts: [a], balances: [:], debts: [],
+            baseCurrency: "USD", fxRates: [:]
+        )
+        XCTAssertEqual(bd.assets, 5000)
+        XCTAssertFalse(bd.hasUnconvertible)
     }
 }

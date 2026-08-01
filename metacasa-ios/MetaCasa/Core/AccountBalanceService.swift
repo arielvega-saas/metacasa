@@ -38,39 +38,71 @@ enum AccountBalanceService {
     ///
     /// Una cuenta sin entrada en `balances` cae a su `startingBalance` (no
     /// debería pasar: el RPC devuelve todas las activas del hogar).
+    /// - Parameters:
+    ///   - baseCurrency: moneda base del hogar. Todo se convierte a ésta antes de sumar.
+    ///   - fxRates: mapa de tasas del hogar. Una cuenta cuya moneda no tenga tasa se **omite**
+    ///     del total y se marca en `hasUnconvertible`.
+    ///
+    /// Antes esta función sumaba `balance` sin mirar `account.currency`, así que una caja de
+    /// ahorro en USD 5.000 y una cuenta corriente en ARS 300.000 daban "$305.000" — cuando el
+    /// valor real ronda los $7.800.000. **Un error de 25× en la cifra más visible de la app.**
+    /// Lo mismo pasaba con `debt.currentBalance`, que también tiene su propia moneda.
+    ///
+    /// El criterio de omitir-y-marcar (en vez de asumir tasa 1) es el que ya usa la web en
+    /// `dashboard/page.tsx`: mostrar un total incompleto y avisarlo es honesto; mezclar monedas
+    /// da un número con aspecto de correcto que no significa nada.
     static func netWorth(
         accounts: [Account],
         balances: [UUID: Decimal],
-        debts: [Debt]
+        debts: [Debt],
+        baseCurrency: String,
+        fxRates: FXRateMap
     ) -> NetWorthBreakdown {
         var assets: Decimal = 0
         var liabilities: Decimal = 0
         var perAccount: [AccountBalance] = []
+        var hasUnconvertible = false
 
         for account in accounts where account.isActive {
             let balance = balances[account.id] ?? account.startingBalance
+            // `perAccount` conserva el saldo en la moneda DE LA CUENTA: es lo que se muestra en
+            // la lista de cuentas, etiquetado con `account.currency`. Sólo el agregado convierte.
             perAccount.append(.init(account: account, balance: balance))
+
+            guard let converted = FXConverter.convert(
+                balance, from: account.currency, to: baseCurrency, rates: fxRates
+            ) else {
+                hasUnconvertible = true
+                continue
+            }
 
             switch account.type {
             case .checking, .savings, .cash, .investment, .other:
-                assets += balance
+                assets += converted
             case .creditCard, .loan:
-                if balance < 0 {
-                    liabilities += abs(balance)
+                if converted < 0 {
+                    liabilities += abs(converted)
                 } else {
-                    assets += balance
+                    assets += converted
                 }
             }
         }
 
         for debt in debts where debt.currentBalance > 0 {
-            liabilities += debt.currentBalance
+            guard let converted = FXConverter.convert(
+                debt.currentBalance, from: debt.currency, to: baseCurrency, rates: fxRates
+            ) else {
+                hasUnconvertible = true
+                continue
+            }
+            liabilities += converted
         }
 
         return NetWorthBreakdown(
             assets: assets,
             liabilities: liabilities,
-            perAccount: perAccount
+            perAccount: perAccount,
+            hasUnconvertible: hasUnconvertible
         )
     }
 
@@ -83,40 +115,23 @@ enum AccountBalanceService {
     static func netWorth(
         accounts: [Account],
         transactions: [Transaction],
-        debts: [Debt]
+        debts: [Debt],
+        baseCurrency: String,
+        fxRates: FXRateMap
     ) -> NetWorthBreakdown {
-        var assets: Decimal = 0
-        var liabilities: Decimal = 0
-        var perAccount: [AccountBalance] = []
-
+        // Delega en la variante con `balances:` en vez de duplicar la lógica. Antes eran dos
+        // implementaciones paralelas y las DOS tenían el mismo bug de sumar monedas distintas —
+        // que es lo que pasa cuando la misma regla vive en dos lugares.
+        var balances: [UUID: Decimal] = [:]
         for account in accounts where account.isActive {
-            let balance = currentBalance(account: account, transactions: transactions)
-            perAccount.append(.init(account: account, balance: balance))
-
-            switch account.type {
-            case .checking, .savings, .cash, .investment, .other:
-                // Tipo asset: el balance va directo a assets (aunque sea
-                // negativo, lo cual sería inusual pero informativo).
-                assets += balance
-            case .creditCard, .loan:
-                // Tipo liability: convención: negativo = deuda pendiente,
-                // positivo = overpayment (sumaría a assets).
-                if balance < 0 {
-                    liabilities += abs(balance)
-                } else {
-                    assets += balance
-                }
-            }
+            balances[account.id] = currentBalance(account: account, transactions: transactions)
         }
-
-        for debt in debts where debt.currentBalance > 0 {
-            liabilities += debt.currentBalance
-        }
-
-        return NetWorthBreakdown(
-            assets: assets,
-            liabilities: liabilities,
-            perAccount: perAccount
+        return netWorth(
+            accounts: accounts,
+            balances: balances,
+            debts: debts,
+            baseCurrency: baseCurrency,
+            fxRates: fxRates
         )
     }
 }
@@ -129,6 +144,13 @@ struct NetWorthBreakdown: Sendable, Equatable, Codable {
     let assets: Decimal
     let liabilities: Decimal
     let perAccount: [AccountBalance]
+
+    /// Alguna cuenta o deuda quedó FUERA del total por no tener tasa de cambio disponible.
+    /// La UI tiene que avisarlo: un total incompleto sin aviso se lee como completo.
+    ///
+    /// Default `false` para no romper el decode de los `HomeSnapshot` ya persistidos en disco
+    /// de versiones anteriores — la lección `leccion-swiftdata-migracion-default` del harness.
+    var hasUnconvertible: Bool = false
 
     var netWorth: Decimal { assets - liabilities }
 
