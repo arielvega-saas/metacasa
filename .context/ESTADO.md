@@ -22,33 +22,38 @@ queda está mayormente bloqueado por credenciales de Ariel, no por código.
 
 ## Bloqueos abiertos (necesitan a Ariel, no a una IA)
 
-1. **Migración a Netlify — EN CURSO (2026-07-31).** Vercel queda descartado: su Hobby prohíbe uso comercial
-   y Home Finance cobra suscripciones; ⚠️ **no tocar "Reactivate Plan"**, reintenta la prepaga que rebotó.
-   Ya hecho: sitio **`home-finance-web`** creado y vinculado (`home-finance-web.netlify.app`), las 7
-   variables de entorno cargadas, `main` al día y pusheado.
-   **La web YA está sirviendo en `https://home-finance-web.netlify.app`** (verificado: 5 rutas en 200,
-   sin errores de consola, y `/dashboard` sin sesión redirige 307 a `/login`, o sea que el middleware
-   levanta bien el cliente de Supabase). El dominio ya está registrado como `custom_domain` del sitio.
+1. **Migración a Netlify — DNS HECHO, falta el certificado SSL (2026-08-01).**
 
-   **Falta mover el DNS.** Situación: los nameservers de `usehomefinance.com` son **de Vercel**
-   (`ns1/ns2.vercel-dns.com`) — la zona la administra la cuenta suspendida. Registrador: **name.com**.
-   Averiguado antes de tocar nada: **no hay MX** (ningún email en riesgo) y los subdominios que parecen
-   existir (`api`, `app`, `mail`, `staging`, `admin`) son **wildcard de Vercel**, no registros reales —
-   verificado porque un subdominio inventado también resuelve. Lo ÚNICO real a preservar es un TXT:
-   `brevo-code:7f2d14c668fc97c9bfa98356551e7a14`.
+   **Hecho y verificado:**
+   - Zona DNS creada en Netlify (`zone_id 6a6e0d97c08a56003cef888e`) con los 4 registros de email de
+     Brevo espejados ANTES de tocar los nameservers, así que **el email nunca dejó de funcionar**:
+     `brevo1._domainkey`, `brevo2._domainkey` (DKIM), `_dmarc` y el TXT de verificación del apex.
+   - Nameservers cambiados en Vercel a `dns1..4.p08.nsone.net`. **Ya propagaron.**
+   - `usehomefinance.com` resuelve a `75.2.60.5` y **responde 200 por HTTP**.
+   - Las 3 variables de Netlify apuntan al dominio real y el sitio está redeployado.
 
-   Pasos (en name.com):
-   1. Cambiar los nameservers de Vercel a los propios de name.com.
-   2. `usehomefinance.com` → registro **A** a `75.2.60.5` (balanceador apex de Netlify).
-   3. `www` → **CNAME** a `home-finance-web.netlify.app`.
-   4. Volver a crear el **TXT de Brevo** de arriba.
+   **Bloqueado del lado de Netlify:** el panel dice "Netlify DNS propagating..." para el apex y el
+   certificado queda en "Waiting on DNS propagation". La causa: el registro **ALIAS (`NETLIFY`) que
+   ellos autogeneran para el apex nunca resolvió** — el del `www`, creado igual y al mismo tiempo, sí
+   funciona. Descartado que fuera conflicto con el registro A manual (se quitó y se esperó 7 min: el
+   ALIAS siguió mudo). La API rechaza crear registros `NETLIFY` a mano (`Unprocessable Entity`) y
+   también rechaza `provisionSiteTLSCertificate`. Resetear `custom_domain` no lo regeneró.
 
-   Netlify DNS no es opción: la cuenta es plan Free y `createDnsZone` devuelve 500.
+   **El apex hoy usa un registro A explícito a `75.2.60.5`**, que es la configuración documentada de
+   Netlify para DNS externo y funciona: por eso HTTP responde 200 — que es justo lo que Let's Encrypt
+   necesita para validar por HTTP-01.
 
-   **Cuando el DNS resuelva**, en el mismo movimiento: actualizar `NEXT_PUBLIC_APP_URL`,
-   `NEXT_PUBLIC_SITE_URL` y `MP_OAUTH_REDIRECT_URI` (hoy apuntan al subdominio temporal **a propósito**,
-   para que el smoke test fuera real), redeployar, y cargar las URLs en Supabase Auth (Site URL +
-   allowlist de redirects) o los magic links y la confirmación de email no van a funcionar.
+   **Siguiente paso si no sale solo:** ticket a soporte de Netlify por el ALIAS defectuoso del apex en
+   la zona. La verificación de DNS puede tardar hasta 24 h según su documentación.
+
+   **Cuando el certificado salga**, queda por hacer: desplegar `web-handoff` apuntado a la web nueva
+   (hasta entonces sigue mandando a la PWA de Firebase, que funciona), el CORS de `ai-proxy`, y cargar
+   en Supabase Auth la Site URL y la allowlist de redirects con el dominio nuevo.
+
+   ⚠️ **Para el futuro:** el dominio **sigue registrado en Vercel** y auto-renueva el 1-jun-2027 a
+   US$ 11,25. Si la cuenta sigue suspendida para entonces, esa renovación puede fallar y perder el
+   dominio sería catastrófico. Conviene transferirlo a otro registrador en algún momento tranquilo.
+
 2. **App Group `group.com.metacasa.shared`** sin crear en el Developer Portal → los widgets compilan e
    instalan pero muestran estado vacío.
 3. **Redirect URI de Mercado Pago** sin registrar (app `2693470312497962`) → las wallets no se pueden
