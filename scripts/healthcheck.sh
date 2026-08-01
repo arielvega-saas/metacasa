@@ -67,9 +67,9 @@ say "Home Finance healthcheck — $(date '+%Y-%m-%d %H:%M:%S')"
 #
 #  a) El sitio de Netlify es el que **sirve la app hoy**. Si se cae, es una
 #     regresión de verdad y hay que enterarse ya.
-#  b) `usehomefinance.com` todavía apunta al DNS de Vercel (team suspendido) y
-#     devuelve 402. Eso es un pendiente CONOCIDO, no una novedad — pero sigue
-#     siendo el dominio que ven los usuarios, así que tampoco se puede ignorar.
+#  b) `usehomefinance.com` es el dominio que ven los usuarios. Desde el 2026-08-01
+#     sirve desde Netlify con certificado propio; cualquier código != 200 acá es
+#     una regresión real y tiene que gritar.
 #
 # La distinción existe para que la alerta no se vuelva ruido: si las dos cosas
 # gritan igual de fuerte todas las horas, en dos días dejás de mirarlas y la
@@ -82,13 +82,6 @@ check_url "Sitio Netlify /login" "$NETLIFY_SITE/login" 200
 DOMAIN_STATUS="$(http_status "https://usehomefinance.com")"
 if [[ "$DOMAIN_STATUS" == "200" ]]; then
   say "OK    Dominio usehomefinance.com ($DOMAIN_STATUS)"
-  say ""
-  say ">>> El DNS ya resolvió a Netlify. Queda pendiente actualizar al dominio real:"
-  say ">>> NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL y MP_OAUTH_REDIRECT_URI + Supabase Auth."
-elif [[ "$DOMAIN_STATUS" == "402" ]]; then
-  # Pendiente conocido: se anota en el log pero NO dispara notificación.
-  say "PEND  Dominio usehomefinance.com sigue en 402 — falta mover el DNS de Vercel a Netlify"
-  PENDING="dominio todavía en Vercel (402)"
 else
   say "FALLA Dominio usehomefinance.com — HTTP $DOMAIN_STATUS"
   FAILURES+=("usehomefinance.com devolvió HTTP $DOMAIN_STATUS")
