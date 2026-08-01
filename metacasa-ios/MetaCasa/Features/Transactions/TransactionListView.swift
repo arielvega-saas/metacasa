@@ -103,7 +103,7 @@ struct TransactionListView: View {
             .task { await load() }
             .toolbar { toolbarContent }
             .sheet(item: $editingTx) { tx in
-                EditTransactionView(transaction: tx) { await load() }
+                EditTransactionView(transaction: tx, baseCurrency: householdCurrency) { await load() }
             }
             .sheet(isPresented: $showFilters) {
                 TransactionFiltersSheet(

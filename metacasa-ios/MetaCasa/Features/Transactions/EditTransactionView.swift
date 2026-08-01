@@ -11,9 +11,17 @@ struct EditTransactionView: View {
 
     let onSaved: () async -> Void
 
-    init(transaction: Transaction, onSaved: @escaping () async -> Void) {
+    /// `baseCurrency` se inyecta porque el init no puede leer el `AppState` del entorno,
+    /// y el monto que se edita está en moneda base.
+    let baseCurrency: String
+
+    init(transaction: Transaction, baseCurrency: String, onSaved: @escaping () async -> Void) {
+        self.baseCurrency = baseCurrency
         self._transaction = State(initialValue: transaction)
-        self._amountStr = State(initialValue: CurrencyFormatter.format(transaction.amount, currency: transaction.currencyOriginal ?? "USD"))
+        // El campo edita `amount`, que está en moneda BASE, así que se formatea con la base.
+        // Antes se formateaba con `currencyOriginal`: al abrir un gasto en USD el campo mostraba
+        // el monto YA CONVERTIDO con los separadores de la moneda extranjera.
+        self._amountStr = State(initialValue: CurrencyFormatter.format(transaction.amount, currency: baseCurrency))
         self._note = State(initialValue: transaction.note ?? "")
         self.onSaved = onSaved
     }
@@ -127,7 +135,12 @@ struct EditTransactionView: View {
             accountId: transaction.accountId,
             type: transaction.type,
             amount: amount,
-            currencyOriginal: transaction.currencyOriginal,
+            // El monto editado está en moneda base, así que el duplicado nace en base con tasa 1.
+            // Arrastrar `currencyOriginal` de la original acá crearía una fila inconsistente:
+            // monto en base etiquetado como extranjero, que es justo el bug que se está cerrando.
+            amountOriginal: amount,
+            currencyOriginal: baseCurrency,
+            fxRateToBase: 1,
             category: transaction.category,
             subcategory: transaction.subcategory,
             note: note.isEmpty ? nil : note,

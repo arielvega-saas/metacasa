@@ -99,7 +99,7 @@ enum SpotlightIndexer {
     private static func makeTransactionItem(tx: Transaction, currency: String) -> CSSearchableItem {
         let attr = CSSearchableItemAttributeSet(contentType: UTType.content)
         let typeEmoji = tx.type == .gasto ? "💸" : "💰"
-        let amountFmt = Money.format(tx.amount, currency: tx.currencyOriginal ?? currency, style: .compact)
+        let amountFmt = Money.format(tx.amount, currency: currency, style: .compact)
         attr.title = "\(typeEmoji) \(tx.category) · \(amountFmt)"
         let df = DateFormatter()
         df.locale = AppLocaleStorage.effectiveLocale

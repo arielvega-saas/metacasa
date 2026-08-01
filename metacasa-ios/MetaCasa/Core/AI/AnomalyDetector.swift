@@ -60,7 +60,7 @@ enum AnomalyDetector {
                     format: "%.1fx",
                     multiplier
                 )
-                let fmt = Money.format(tx.amount, currency: tx.currencyOriginal ?? currency)
+                let fmt = Money.format(tx.amount, currency: currency)
                 let categoryFmt = tx.category
                 let dateStr = formatDate(tx.date)
                 anomalies.append(.init(
@@ -75,7 +75,7 @@ enum AnomalyDetector {
         let categoriesSeenPreviously = Set(baselineTxs.filter { $0.type == .gasto }.map(\.category))
         for tx in currentMonthTxs where tx.type == .gasto {
             if !categoriesSeenPreviously.contains(tx.category) {
-                let fmt = Money.format(tx.amount, currency: tx.currencyOriginal ?? currency)
+                let fmt = Money.format(tx.amount, currency: currency)
                 let dateStr = formatDate(tx.date)
                 anomalies.append(.init(
                     kind: .firstInCategory,
@@ -91,7 +91,7 @@ enum AnomalyDetector {
                 if tx.category == other.category
                     && tx.amount == other.amount
                     && abs(tx.date.timeIntervalSince(other.date)) < 86_400 {
-                    let fmt = Money.format(tx.amount, currency: tx.currencyOriginal ?? currency)
+                    let fmt = Money.format(tx.amount, currency: currency)
                     let dateStr = formatDate(tx.date)
                     let lateDate = formatDate(other.date)
                     anomalies.append(.init(

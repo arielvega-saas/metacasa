@@ -201,7 +201,7 @@ enum FinancialContextBuilder {
         let recentPreview: [String] = tl.prefix(5).map { tx in
             let sign = tx.type == .gasto ? "−" : "+"
             let noteStr = tx.note.flatMap { $0.isEmpty ? nil : " — \($0)" } ?? ""
-            return "  \(df.string(from: tx.date)): \(sign)\(Money.format(tx.amount, currency: tx.currencyOriginal ?? currency)) \(tx.category)\(noteStr)"
+            return "  \(df.string(from: tx.date)): \(sign)\(Money.format(tx.amount, currency: currency)) \(tx.category)\(noteStr)"
         }
 
         // Liquid assets: suma startingBalance de cuentas no-credit_card y no-loan.

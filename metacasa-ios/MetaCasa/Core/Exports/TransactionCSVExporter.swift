@@ -148,7 +148,10 @@ enum TransactionCSVExporter {
                 weekday,
                 type,
                 formatAmount(signedAmount),
-                formatAmount(tx.amount),
+                // Columna "monto original": lo que tipeó el usuario, en SU moneda.
+                // Antes acá iba `tx.amount`, que está en moneda BASE, etiquetado con la moneda
+                // extranjera — la misma inversión que tenía la fila del feed.
+                formatAmount(tx.amountOriginal ?? tx.amount),
                 tx.currencyOriginal ?? householdCurrency,
                 amountBase.map(formatAmount) ?? "",
                 baseCurrency,
@@ -170,26 +173,21 @@ enum TransactionCSVExporter {
         return lines.joined(separator: "\r\n") + "\r\n"
     }
 
-    /// Si la transacción tiene FX aplicado, calcula amount * fx_rate_to_base.
-    /// Si no, devuelve el amount tal cual con la currency del hogar.
+    /// Monto en moneda base del hogar.
+    ///
+    /// `tx.amount` YA ESTÁ en moneda base — es el contrato canónico
+    /// (`metacasa-web/AGENTS_CONTRACT.md`), y sobre él se calculan todos los agregados.
+    /// Devolverlo tal cual es todo el trabajo.
+    ///
+    /// Antes esta función aplicaba la convención CONTRARIA: trataba `amount` como si estuviera en
+    /// `currency_original` y lo MULTIPLICABA por `fx_rate_to_base`. O sea que dentro del mismo
+    /// target convivían dos convenciones opuestas sobre las mismas columnas, y un gasto de USD 100
+    /// a 1500 se exportaba como 225.000.000 en la columna base (150.000 × 1500).
     private static func resolveBaseAmount(
         tx: Transaction,
         householdCurrency: String
     ) -> (amount: Decimal?, currency: String) {
-        let txCurrency = tx.currencyOriginal ?? householdCurrency
-
-        // Caso 1: la tx está en la moneda base del hogar → no hace falta FX.
-        if txCurrency == householdCurrency {
-            return (tx.amount, householdCurrency)
-        }
-
-        // Caso 2: hay rate a base explícito → aplicar.
-        if let rate = tx.fxRateToBase {
-            return (tx.amount * rate, householdCurrency)
-        }
-
-        // Caso 3: distinta moneda pero sin rate (pendiente de conciliación).
-        return (nil, householdCurrency)
+        (tx.amount, householdCurrency)
     }
 
     /// Formato numérico UNIVERSAL: `.` decimal, sin miles, 2 decimales fijos.

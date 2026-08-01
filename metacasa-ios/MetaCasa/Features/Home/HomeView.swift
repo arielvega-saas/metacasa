@@ -40,6 +40,15 @@ final class HomeViewModel {
     var templates: [TransactionTemplate] = []
     var recentTransactions: [Transaction] = []
 
+    /// Ventana RODANTE de 40 días para las métricas de constancia (health score, racha,
+    /// sparkline de 7 días). Va aparte de `recentTransactions`, que es el mes CALENDARIO.
+    ///
+    /// Con una sola ventana mensual, el día 1 de cada mes el usuario perdía ~19 puntos de score y
+    /// la racha se iba a 0 sin haber cambiado nada de su comportamiento: el 31 de enero mostraba
+    /// "racha 30 🔥" y el 1 de febrero a la mañana, "racha 0". Justo la métrica que sostiene el
+    /// hábito, rota justo cuando más importa retener.
+    var consistencyTransactions: [Transaction] = []
+
     /// Patrimonio neto del hogar computado con `AccountBalanceService`.
     /// Assets - Liabilities. Usa ventana de 365 días de transacciones para
     /// running balance — suficiente para la mayoría de cuentas activas.
@@ -69,7 +78,7 @@ final class HomeViewModel {
         }
         let cal = Calendar.current
         let last30 = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let daysWithTx = Set(recentTransactions.filter { $0.date >= last30 }.map { cal.startOfDay(for: $0.date) }).count
+        let daysWithTx = Set(consistencyTransactions.filter { $0.date >= last30 }.map { cal.startOfDay(for: $0.date) }).count
         score += min(20, Double(daysWithTx) * 0.67)
         return max(0, min(100, Int(score)))
     }
@@ -78,7 +87,7 @@ final class HomeViewModel {
     /// menos una transacción cargada. Usado en el widget 🔥 del Home.
     var streak: Int {
         let cal = Calendar.current
-        var days = Set(recentTransactions.map { cal.startOfDay(for: $0.date) })
+        var days = Set(consistencyTransactions.map { cal.startOfDay(for: $0.date) })
         // Fallback: si recentTransactions tiene <1 mes de data pero el user
         // carga hoy, contamos desde hoy. Esto funciona porque siempre hay al
         // menos la ventana del mes en recentTransactions.
@@ -193,6 +202,12 @@ final class HomeViewModel {
             async let totals = TransactionService.shared.totals(householdId: householdId, from: start, to: end)
             async let prevTotals = TransactionService.shared.totals(householdId: householdId, from: prevStart, to: prevEnd)
             async let transactions = TransactionService.shared.fetchForPeriod(householdId: householdId, from: start, to: end, limit: 500)
+            // 40 días y no 30: da margen para que la racha pueda cruzar el borde del mes y
+            // seguir contando hacia atrás sin cortarse.
+            let consistencyStart = cal.date(byAdding: .day, value: -40, to: now) ?? start
+            async let consistencyTxs = TransactionService.shared.fetchForPeriod(
+                householdId: householdId, from: consistencyStart, to: now, limit: 500
+            )
             async let budgetPeriod = BudgetService.shared.fetchPeriod(householdId: householdId, containing: now)
             async let bills = BillService.shared.fetchUpcoming(householdId: householdId, daysAhead: 14)
             async let debts = DebtService.shared.fetchAll(householdId: householdId, includeSettled: false)
@@ -215,6 +230,7 @@ final class HomeViewModel {
 
             let txs = try await transactions
             self.recentTransactions = txs
+            self.consistencyTransactions = (try? await consistencyTxs) ?? txs
             self.topGastos = Array(txs.filter { $0.type == .gasto }.sorted { $0.amount > $1.amount }.prefix(5))
 
             var byCat: [String: Decimal] = [:]

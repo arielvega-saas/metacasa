@@ -69,8 +69,20 @@ struct NewTransactionInput: Codable, Sendable {
     var userId: UUID
     var accountId: UUID?
     var type: TxType
+    /// **Siempre en la moneda BASE del hogar.** Es el contrato canónico, escrito en
+    /// `metacasa-web/AGENTS_CONTRACT.md`: todos los agregados (totales del Home,
+    /// `envelope_balance`, el matview mensual) asumen que esta columna está en base.
     var amount: Decimal
+    /// Monto tal como lo tipeó el usuario, en `currencyOriginal`.
+    ///
+    /// Faltaba, y por eso el original se perdía para siempre: iOS guardaba el monto ya convertido
+    /// pero lo etiquetaba con la moneda extranjera. Un gasto de USD 100 en un hogar ARS a 1500 se
+    /// guardaba como 150000 con `currency_original = "USD"`, y la lista mostraba "US$ 150.000".
+    var amountOriginal: Decimal?
     var currencyOriginal: String?
+    /// Cuántas unidades de la moneda base equivalen a 1 de `currencyOriginal`.
+    /// Vale 1 cuando no hubo conversión. Invariante: `amount == amountOriginal * fxRateToBase`.
+    var fxRateToBase: Decimal?
     var category: String
     var subcategory: String?
     var note: String?
@@ -89,7 +101,9 @@ struct NewTransactionInput: Codable, Sendable {
         accountId: UUID?,
         type: TxType,
         amount: Decimal,
+        amountOriginal: Decimal? = nil,
         currencyOriginal: String?,
+        fxRateToBase: Decimal? = nil,
         category: String,
         subcategory: String?,
         note: String?,
@@ -100,7 +114,9 @@ struct NewTransactionInput: Codable, Sendable {
         self.accountId = accountId
         self.type = type
         self.amount = amount
+        self.amountOriginal = amountOriginal
         self.currencyOriginal = currencyOriginal
+        self.fxRateToBase = fxRateToBase
         self.category = category
         self.subcategory = subcategory
         self.note = note
@@ -113,7 +129,9 @@ struct NewTransactionInput: Codable, Sendable {
         case accountId = "account_id"
         case type
         case amount
+        case amountOriginal = "amount_original"
         case currencyOriginal = "currency_original"
+        case fxRateToBase = "fx_rate_to_base"
         case category
         case subcategory
         case note

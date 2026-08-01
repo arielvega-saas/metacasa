@@ -629,8 +629,19 @@ struct AddTransactionView: View {
             userId: uid,
             accountId: accountId,
             type: type,
+            // Contrato canónico (`metacasa-web/AGENTS_CONTRACT.md`): `amount` va SIEMPRE en la
+            // moneda base del hogar, y el trío original/moneda/tasa describe lo que tipeó el
+            // usuario. Antes se guardaba el monto ya convertido pero etiquetado con la moneda
+            // EXTRANJERA, y sin `amountOriginal` ni `fxRateToBase` el original se perdía para
+            // siempre: un gasto de USD 100 a 1500 se mostraba como "US$ 150.000".
+            //
+            // Cuando no hay conversión se escribe igual el trío completo (original = amount,
+            // moneda = base, tasa = 1) en vez de dejar nulos, que es lo que hace la web. Así
+            // cualquier lector puede confiar en la invariante sin ramas especiales.
             amount: useAlternateCurrency ? (convertedAmount ?? amount) : amount,
-            currencyOriginal: useAlternateCurrency ? alternateCurrency : nil,
+            amountOriginal: useAlternateCurrency ? amount : amount,
+            currencyOriginal: useAlternateCurrency ? alternateCurrency : householdCurrency,
+            fxRateToBase: useAlternateCurrency ? effectiveFxRate : 1,
             category: category,
             subcategory: subcategory,
             note: note.isEmpty ? nil : note,

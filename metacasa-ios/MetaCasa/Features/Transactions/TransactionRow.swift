@@ -31,13 +31,28 @@ struct TransactionRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 2) {
+                // `transaction.amount` está SIEMPRE en moneda base: se formatea con la base.
+                // Antes se formateaba con `currencyOriginal`, o sea el monto ya convertido
+                // etiquetado con la moneda extranjera — un gasto de USD 100 a 1500 se leía
+                // "US$ 150.000".
                 AmountLabel(
                     amount: transaction.amount,
-                    currency: transaction.currencyOriginal ?? currency,
+                    currency: currency,
                     kind: transaction.type == .gasto ? .gasto : .ingreso
                 )
                 .font(.mcBody.weight(.semibold))
+
+                // El original va como línea secundaria, sólo si hubo conversión de verdad
+                // (mismo criterio que la web). Con moneda base no aporta nada y sería ruido.
+                if let original = transaction.amountOriginal,
+                   let originalCurrency = transaction.currencyOriginal,
+                   originalCurrency.uppercased() != currency.uppercased() {
+                    MoneyText(amount: original, currency: originalCurrency)
+                        .font(.caption2)
+                        .foregroundStyle(Color.textMuted)
+                }
+
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color.textDim)
