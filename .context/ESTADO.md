@@ -85,6 +85,14 @@ cuando Netlify esté sirviendo el dominio.**
 
 ## Bitácora
 
+- **2026-08-01** — Auditoría de tres frentes (producto, seguridad, App Store) + arreglos. **16 de 27
+  hallazgos cerrados**, cada uno verificado a mano antes de tocar y contra producción después.
+  Cerrados en prod: bypass del app lock, auto-inscripción en hogares ajenos, `wallet-proxy` que
+  filtraba el `MP_CLIENT_SECRET`, CORS que rompía borrar-cuenta desde la web, sobres que ignoraban
+  subcategorías. Bugs de dinero: patrimonio neto multi-moneda, fecha que corría el mes, cuotas sin
+  residuo, paywall que podía cobrar sin desbloquear, y el selector de cuenta (51 de 61 transacciones
+  no tenían cuenta). **Tests: 31 → 85.** Detalle en `AUDITORIA-2026-08-01.md`.
+
 - **2026-07-31 (tarde)** — Web **en línea** en `home-finance-web.netlify.app` (verificado: 5 rutas en 200,
   cero errores de consola, claro y oscuro sin fallos de contraste AA, `/dashboard` redirige 307 a `/login`).
   iOS: anillos de presupuesto con proyección de ritmo, metas con fondeo de un toque, Tab API iOS 18.
