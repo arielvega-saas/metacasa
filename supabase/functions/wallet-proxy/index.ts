@@ -61,6 +61,31 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { action } = body;
 
+    // ---------------------------------------------------------------------
+    // AUTENTICACIÓN — va ANTES del switch de acciones, no después.
+    //
+    // Antes, `oauth_exchange` y `oauth_refresh` corrían sin validar sesión: la validación
+    // estaba más abajo, sólo en la rama de proxy. `verify_jwt: true` no alcanza, porque
+    // sólo exige un JWT firmado por el proyecto — y la anon key ES uno, y es pública por
+    // diseño (viaja en todos los clientes).
+    //
+    // Verificado contra producción: con sólo la anon key y sin sesión de usuario, el pedido
+    // llegaba a Mercado Pago usando nuestro MP_CLIENT_SECRET (devolvía `invalid_grant` de MP,
+    // no un 401 nuestro). O sea que cualquiera en internet podía usar el client_secret como
+    // oráculo: `oauth_refresh` acuñaba tokens a partir de un refresh_token arbitrario y
+    // DEVOLVÍA el payload completo (access + refresh) al llamador.
+    // ---------------------------------------------------------------------
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
+    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+    const callerUserId = userData.user.id;
+
     // OAuth exchange: authorization_code -> access_token upstream
     if (action === "oauth_exchange") {
       const provider: string = body.provider || "mercadopago";
@@ -115,16 +140,7 @@ Deno.serve(async (req: Request) => {
     if (!baseUrl) return json({ error: "Unknown provider: " + provider }, 400);
     if (!wallet_id) return json({ error: "Missing wallet_id" }, 400);
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
-    if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
-    const callerUserId = userData.user.id;
+    // `admin` y `callerUserId` ya se resolvieron arriba, antes del switch de acciones.
 
     // Validar ownership de la wallet
     const { data: wallet, error: walletErr } = await admin

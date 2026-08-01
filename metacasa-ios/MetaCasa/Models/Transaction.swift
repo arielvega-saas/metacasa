@@ -74,7 +74,38 @@ struct NewTransactionInput: Codable, Sendable {
     var category: String
     var subcategory: String?
     var note: String?
-    var date: Date
+
+    /// Fecha del movimiento, **siempre normalizada a mediodía UTC** por el init.
+    ///
+    /// El `private(set)` y el init son a propósito: la normalización tiene que ser imposible de
+    /// saltear. Hay 8 caminos que crean transacciones (alta manual, import CSV, dos App Intents,
+    /// asistente, recibos, voz, tool de IA) y parchear cada uno dejaba la puerta abierta al noveno.
+    /// Poniéndolo acá, el que agregue un camino nuevo lo hereda sin enterarse.
+    private(set) var date: Date
+
+    init(
+        householdId: UUID,
+        userId: UUID,
+        accountId: UUID?,
+        type: TxType,
+        amount: Decimal,
+        currencyOriginal: String?,
+        category: String,
+        subcategory: String?,
+        note: String?,
+        date: Date
+    ) {
+        self.householdId = householdId
+        self.userId = userId
+        self.accountId = accountId
+        self.type = type
+        self.amount = amount
+        self.currencyOriginal = currencyOriginal
+        self.category = category
+        self.subcategory = subcategory
+        self.note = note
+        self.date = date.stableForStorage()
+    }
 
     enum CodingKeys: String, CodingKey {
         case householdId = "household_id"

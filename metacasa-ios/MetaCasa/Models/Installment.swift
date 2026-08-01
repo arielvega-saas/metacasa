@@ -37,9 +37,34 @@ struct InstallmentPlan: Codable, Identifiable, Hashable, Sendable {
         case updatedAt = "updated_at"
     }
 
+    /// Cuota mensual "de catálogo", redondeada a 2 decimales.
+    ///
+    /// Es lo que se muestra para las cuotas 1..n−1. La última la ajusta `amount(forInstallment:)`
+    /// para absorber el residuo.
     var monthlyAmount: Decimal {
         guard totalInstallments > 0 else { return 0 }
-        return totalAmount / Decimal(totalInstallments)
+        return Self.roundedToCents(totalAmount / Decimal(totalInstallments))
+    }
+
+    /// Monto de la cuota `n` (1-indexed), con el residuo absorbido en la última.
+    ///
+    /// Sin esto, un plan de $1.000.000 en 12 daba doce cuotas de `83333,333…` que la UI mostraba
+    /// como $83.333 — y 12 × $83.333 = **$999.996**. Faltaban $4 que no estaban en ninguna cuota,
+    /// y el usuario que suma sus cuotas no llega al total de su plan. Cualquier tarjeta factura al
+    /// revés: n−1 cuotas parejas y la última cierra la diferencia exacta.
+    func amount(forInstallment n: Int) -> Decimal {
+        guard totalInstallments > 0, n >= 1, n <= totalInstallments else { return 0 }
+        let regular = monthlyAmount
+        guard n == totalInstallments else { return regular }
+        // La última cierra: total − lo ya facturado. Así la suma da SIEMPRE el total exacto.
+        return totalAmount - regular * Decimal(totalInstallments - 1)
+    }
+
+    static func roundedToCents(_ value: Decimal) -> Decimal {
+        var input = value
+        var output = Decimal()
+        NSDecimalRound(&output, &input, 2, .plain)
+        return output
     }
 
     /// Fecha efectiva de la cuota número `n` (1-indexed).

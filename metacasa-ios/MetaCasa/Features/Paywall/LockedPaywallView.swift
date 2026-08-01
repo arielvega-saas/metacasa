@@ -48,8 +48,20 @@ struct LockedPaywallView: View {
                         packagesGrid(offering: offering)
                         subscribeButton
                     } else {
-                        pricesPlaceholder
+                        // Antes acá se mostraban `pricesPlaceholder` (USD 4,99 / 39,99
+                        // HARDCODEADOS) y ningún botón de compra. Dos problemas serios:
+                        //
+                        // 1. Un usuario que quiere pagar, no puede. Está en la pantalla que
+                        //    bloquea la app, viendo precios, sin forma de avanzar.
+                        // 2. Esos precios pueden no coincidir con los de App Store Connect, y si
+                        //    el reviewer cae en este estado es rechazo por 2.1 / 3.1.2 — precios
+                        //    que no matchean e IAP no funcional.
+                        //
+                        // Mostrar un precio inventado es peor que no mostrar ninguno: promete algo
+                        // que la app no puede cumplir en ese momento. Ahora se explica el estado y
+                        // se ofrece reintentar, que es la única acción útil que existe acá.
                         notConfiguredCard
+                        retryOfferingButton
                     }
 
                     restoreButton
@@ -154,12 +166,10 @@ struct LockedPaywallView: View {
         }
     }
 
-    private var pricesPlaceholder: some View {
-        HStack(spacing: 12) {
-            priceTile(title: String(localized: "paywall.package.monthly"), price: "USD 4,99", note: String(localized: "paywall.per.month"))
-            priceTile(title: String(localized: "paywall.package.annual"), price: "USD 39,99", note: String(localized: "paywall.per.year.discount"), highlighted: true)
-        }
-    }
+    // `pricesPlaceholder` (USD 4,99 / 39,99 hardcodeados) se eliminó a propósito. Dejarlo como
+    // código muerto era una trampa: el próximo que lo viera lo volvería a usar, y son precios
+    // inventados que pueden no coincidir con App Store Connect. Los precios reales SIEMPRE salen
+    // del offering de StoreKit, nunca de una constante.
 
     private func priceTile(title: String, price: String, note: String, highlighted: Bool = false) -> some View {
         VStack(spacing: 6) {
@@ -175,6 +185,24 @@ struct LockedPaywallView: View {
                 .stroke(highlighted ? Color.brandPrimary : Color.appBorder, lineWidth: highlighted ? 2 : 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// Reintenta cargar el offering. Es la única salida real cuando la carga falló por red o
+    /// porque los productos todavía no estaban aprobados: sin esto, el usuario bloqueado tiene
+    /// que matar la app y volver a abrirla para tener otra chance de pagar.
+    private var retryOfferingButton: some View {
+        Button {
+            Haptics.play(.selection)
+            Task { await bootstrap() }
+        } label: {
+            if isWorking {
+                ProgressView().tint(Color(hex: "#0E1312"))
+            } else {
+                Text("paywall.locked.retry")
+            }
+        }
+        .buttonStyle(MCPrimaryButton())
+        .disabled(isWorking)
     }
 
     private var notConfiguredCard: some View {
@@ -264,9 +292,17 @@ struct LockedPaywallView: View {
         defer { isWorking = false }
         do {
             let ok = try await RevenueCatService.shared.purchase(package: package)
+            // `onUnlock()` se llama SIEMPRE, gane o pierda el booleano de RevenueCat.
+            //
+            // Ese booleano sale de `entitlements["premium"]?.isActive`, así que da `false` si el
+            // entitlement del dashboard no se llama literalmente "premium" o si RC todavía no
+            // propagó la compra. Antes, en ese caso, Apple YA HABÍA COBRADO y la app seguía
+            // trabada — con la respuesta correcta a una línea de distancia, porque `onUnlock()`
+            // consulta StoreKit 2 directo (`AccessController`), que sí concede el acceso.
+            // El booleano de RC ahora sólo decide el mensaje, no el acceso.
+            await onUnlock()
             if ok {
                 Haptics.play(.success)
-                await onUnlock()
             } else {
                 Haptics.play(.warning)
                 errorMessage = String(localized: "paywall.locked.error.pending")
@@ -286,9 +322,12 @@ struct LockedPaywallView: View {
         defer { isWorking = false }
         do {
             let ok = try await RevenueCatService.shared.restore()
+            // Mismo criterio que en la compra: quien manda es StoreKit, no RevenueCat.
+            // Antes, alguien que reinstalaba habiendo pagado podía ver "no tenés suscripciones"
+            // aunque StoreKit tuviera la suya activa. Eso termina en refund y una estrella.
+            await onUnlock()
             if ok {
                 Haptics.play(.success)
-                await onUnlock()
             } else {
                 errorMessage = String(localized: "paywall.locked.error.noSubs")
             }

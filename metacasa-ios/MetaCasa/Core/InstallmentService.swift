@@ -81,7 +81,11 @@ actor InstallmentService {
                         period_year: period.year,
                         period_month: period.month,
                         installment_number: n,
-                        amount: plan.monthlyAmount
+                        // `amount(forInstallment:)` y no `monthlyAmount`: la última cuota absorbe
+                        // el residuo del redondeo. Acá es donde de verdad importaba — estas filas
+                        // son las que después se suman como gasto real del plan, así que con la
+                        // cuota pareja el plan quedaba facturado por menos que su propio total.
+                        amount: plan.amount(forInstallment: n)
                     )
                 )
             } catch {

@@ -44,10 +44,13 @@ struct PaywallView: View {
                             upgradeButton
                             trialTimeline
                         } else {
-                            pricesCard
-                            if !rcConfigured {
-                                notConfiguredCard
-                            }
+                            // Mismo criterio que en LockedPaywallView: nada de precios
+                            // hardcodeados. Si el offering no cargó, los precios reales no se
+                            // conocen, y mostrar "USD 4,99" inventado puede no coincidir con App
+                            // Store Connect (rechazo 2.1 / 3.1.2) además de prometerle al usuario
+                            // algo que la app no puede cobrar en ese momento.
+                            notConfiguredCard
+                            retryOfferingButton
                         }
 
                         restoreButton
@@ -275,6 +278,22 @@ struct PaywallView: View {
                 .stroke(highlighted ? Color.brandPrimary : Color.appBorder, lineWidth: highlighted ? 2 : 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// Reintenta cargar el offering, para no obligar a matar la app cuando la carga falló.
+    private var retryOfferingButton: some View {
+        Button {
+            Haptics.play(.selection)
+            Task { await bootstrap() }
+        } label: {
+            if isPurchasing {
+                ProgressView().tint(Color(hex: "#0E1312"))
+            } else {
+                Text("paywall.locked.retry")
+            }
+        }
+        .buttonStyle(MCPrimaryButton())
+        .disabled(isPurchasing)
     }
 
     private var notConfiguredCard: some View {
