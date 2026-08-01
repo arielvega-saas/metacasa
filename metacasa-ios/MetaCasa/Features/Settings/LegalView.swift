@@ -101,9 +101,9 @@ struct LegalView: View {
     completo descargable.
     • Rectificación: editar transacciones, cuentas, categorías y otros datos \
     directamente en la app.
-    • Eliminación: Más → Ajustes → Hogar → Eliminar hogar (irreversible, \
-    borra todo en cascada). Para eliminar la cuenta completa de auth, enviá \
-    un email a soporte; eliminamos todo dentro de 30 días.
+    • Eliminación: Más → Ajustes → Eliminar cuenta. Borra la cuenta completa \
+    (auth incluido) desde la app, sin trámite por email, y es irreversible. \
+    Para borrar sólo un hogar: Más → Ajustes → Hogar → Eliminar hogar.
     • Restringir procesamiento: podés desactivar el asistente IA en \
     Ajustes para que ningún dato se envíe a Anthropic/ElevenLabs.
     • Retirar consentimiento: podés cerrar tu cuenta en cualquier momento.

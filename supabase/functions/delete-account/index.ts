@@ -35,6 +35,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://usehomefinance.com",
   "https://www.usehomefinance.com",
   "https://metacasa-app-cf592.web.app",
+  "https://home-finance-web.netlify.app",
   "https://metacasa-app-cf592.firebaseapp.com",
   "http://localhost:3000",
   "http://localhost:5173",

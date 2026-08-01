@@ -96,18 +96,38 @@ final class BiometricLockManager {
             }
             return ok
         } catch let error as LAError {
-            switch error.code {
-            case .userCancel, .appCancel, .systemCancel:
-                // El user canceló: sigue bloqueada, puede reintentar con el botón.
-                return false
-            default:
-                // Error duro (passcodeNotSet, etc.) → fail-open, ver doc arriba.
-                isLocked = false
-                return true
-            }
-        } catch {
+            guard Self.shouldFailOpen(error.code) else { return false }
             isLocked = false
             return true
+        } catch {
+            // Error desconocido, no-LAError: sigue bloqueada. Abrir ante un error que no
+            // sabemos interpretar es exactamente el bypass que este lock existe para evitar.
+            return false
+        }
+    }
+
+    /// ¿Este error significa que el device **no puede** autenticar, o que la autenticación **falló**?
+    ///
+    /// Es la distinción de la que depende todo el lock, y estaba invertida: el `default:` anterior
+    /// abría la app ante CUALQUIER código que no fuera una cancelación, incluido
+    /// `.authenticationFailed`. O sea: fallabas Face ID, te caía el passcode, lo ponías mal, y la app
+    /// se abría con todos los saldos a la vista. El lock era decorativo contra el único atacante que
+    /// importa — alguien con el teléfono en la mano.
+    ///
+    /// Ahora es una lista blanca: se abre sólo cuando el sistema no tiene NINGUNA forma de
+    /// autenticar al dueño, porque ahí dejarlo cerrado lo encerraría afuera de sus propios datos
+    /// sin salida. Todo lo demás mantiene el lock y el usuario puede reintentar.
+    /// `nonisolated` porque es una función pura sobre un enum: no toca estado del manager y así
+    /// se puede testear sin saltar al main actor.
+    nonisolated static func shouldFailOpen(_ code: LAError.Code) -> Bool {
+        switch code {
+        case .passcodeNotSet, .biometryNotAvailable, .biometryNotEnrolled:
+            // El device no puede autenticar. Sin passcode tampoco hay seguridad de OS que proteger.
+            return true
+        default:
+            // .authenticationFailed, .biometryLockout, .userFallback, .userCancel, .appCancel,
+            // .systemCancel, .invalidContext, .notInteractive… todos mantienen el lock.
+            return false
         }
     }
 

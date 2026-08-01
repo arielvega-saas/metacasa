@@ -484,14 +484,14 @@ enum HelpContent {
                     • Datos at-rest: Postgres cifrado en Supabase.
                     • Row Level Security (RLS): solo vos y miembros de tu hogar ven tus datos. Otros users NO pueden acceder aunque sepan tu ID.
                     • Biometría: si la activás, la app pide Face ID / Touch ID al abrirla.
-                    • IA: on-device (Apple Intelligence). Tus datos NO salen del iPhone.
+                    • IA: podés elegir el modo. En "solo on-device" (Apple Intelligence) tus datos no salen del iPhone. Si activás el asistente en la nube, se envían a nuestros proveedores el texto de tu consulta, un resumen de tus números y las fotos de comprobantes que subas. Podés revocarlo cuando quieras desde Ajustes → Privacidad del Asistente IA.
                     """),
                 HelpTopic(id: "delete-account", emoji: "🗑️", title: "Eliminar tu cuenta",
                     summary: "Borrado completo dentro de 30 días",
                     content: """
-                    Si querés eliminar tu cuenta y todos tus datos, enviá un email a soporte@homefinance.app desde la cuenta registrada con el pedido explícito.
+                    Podés eliminar tu cuenta desde la app, sin escribirle a nadie: Más → Ajustes → Eliminar cuenta. Te pedimos confirmar dos veces porque es irreversible.
 
-                    Borramos todo dentro de los 30 días siguientes:
+                    El borrado se ejecuta en el momento e incluye:
                     • Usuario en Supabase Auth
                     • Hogares donde sos único miembro
                     • Transacciones, cuentas, categorías, metas, presupuestos, recurrentes, vencimientos

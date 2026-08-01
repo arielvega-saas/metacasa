@@ -4,4 +4,4 @@
 export const APP_STORE_URL = "https://apps.apple.com/app/id6769792040";
 
 /** Email de soporte público. */
-export const SUPPORT_EMAIL = "soporte@metacasa.app";
+export const SUPPORT_EMAIL = "vegaariel976@gmail.com";
