@@ -96,9 +96,18 @@ struct ParsedImportRow: Identifiable, Hashable {
     let subcategory: String?
     let note: String?
     let account: String?
-    let issues: [String]             // errores de validación
+    var issues: [String]             // errores de validación
 
-    var isValid: Bool { issues.isEmpty && date != nil && type != nil && amount != nil }
+    /// Monto llevado a la **moneda base del hogar**, que es lo único que puede ir a `amount`.
+    /// Queda en nil hasta que `resolvingCurrency` corre, y también si no hay cotización.
+    var amountInBase: Decimal?
+    /// Cuántas unidades de base equivalen a 1 de `currency`. Vale 1 si no hubo conversión.
+    var fxRateToBase: Decimal?
+
+    /// Una fila sin `amountInBase` NO es importable: su monto está en otra moneda y meterlo en
+    /// `amount` tal cual lo trataría como si fuera base. Es la misma forma del bug de 25× del
+    /// patrimonio neto, pero multiplicado por cada fila del archivo.
+    var isValid: Bool { issues.isEmpty && date != nil && type != nil && amount != nil && amountInBase != nil }
     var isDuplicate: Bool = false    // se marca después en dedupe
 }
 
@@ -324,7 +333,9 @@ enum TransactionCSVImporter {
             subcategory: value(for: .subcategory),
             note: value(for: .note),
             account: value(for: .account),
-            issues: issues
+            issues: issues,
+            amountInBase: nil,
+            fxRateToBase: nil
         )
     }
 
@@ -418,15 +429,71 @@ enum TransactionCSVImporter {
         }
     }
 
+    // MARK: - Moneda
+
+    /// Lleva cada fila a la moneda base del hogar, **antes** del preview.
+    ///
+    /// Se hace acá y no al importar por una razón concreta: si la conversión fallara recién en el
+    /// commit, el preview diría "120 válidas" y entrarían 90. Resolviendo antes, las filas sin
+    /// cotización aparecen como error en la lista, el contador dice la verdad y el usuario decide
+    /// —cargar la cotización o sacar esas filas— en vez de enterarse después.
+    ///
+    /// `fallbackCurrency` es la moneda que el usuario le asigna al archivo entero en el preview.
+    /// Se usa sólo para las filas que no traen columna de moneda propia. Antes se asumía en
+    /// silencio la base del hogar: un resumen entero en dólares importado a un hogar en pesos
+    /// entraba con los montos crudos, o sea dividido por la cotización, en TODOS los agregados.
+    static func resolvingCurrency(
+        _ parsed: ParsedImport,
+        base: String,
+        rates: FXRateMap,
+        fallbackCurrency: String
+    ) -> ParsedImport {
+        let base = base.uppercased()
+        let rows = parsed.rows.map { row -> ParsedImportRow in
+            var r = row
+            guard let amount = row.amount else { return r }
+            let moneda = (row.currency ?? fallbackCurrency).uppercased()
+
+            if moneda == base {
+                r.amountInBase = amount
+                r.fxRateToBase = 1
+            } else if let convertido = FXConverter.convert(amount, from: moneda, to: base, rates: rates),
+                      let tasa = rates[moneda]?.rate {
+                r.amountInBase = convertido
+                r.fxRateToBase = tasa
+            } else {
+                r.issues.append(String(
+                    format: String(localized: "import.issue.noRate %@ %@"), moneda, base
+                ))
+            }
+            return r
+        }
+        return ParsedImport(headers: parsed.headers, mapping: parsed.mapping, rows: rows, delimiter: parsed.delimiter)
+    }
+
+    /// Las monedas distintas de la base que aparecen en el archivo y no tienen cotización cargada.
+    /// El preview las usa para explicar qué falta en vez de mostrar N errores sueltos.
+    static func monedasSinCotizacion(_ parsed: ParsedImport, base: String, rates: FXRateMap, fallbackCurrency: String) -> [String] {
+        let base = base.uppercased()
+        var faltan: Set<String> = []
+        for row in parsed.rows where row.amount != nil {
+            let m = (row.currency ?? fallbackCurrency).uppercased()
+            if m != base && rates[m] == nil { faltan.insert(m) }
+        }
+        return faltan.sorted()
+    }
+
     /// Convierte filas válidas (no duplicadas) en `NewTransactionInput` listos
     /// para mandar al `TransactionService`.
     static func buildInputs(
         from parsed: ParsedImport,
         householdId: UUID,
         userId: UUID,
+        accountId: UUID?,
         defaultCurrency: String
     ) -> [NewTransactionInput] {
-        buildInputs(from: parsed, householdId: householdId, userId: userId, defaultCurrency: defaultCurrency, forceImportDuplicates: [])
+        buildInputs(from: parsed, householdId: householdId, userId: userId, accountId: accountId,
+                    defaultCurrency: defaultCurrency, forceImportDuplicates: [])
     }
 
     /// Overload que permite forzar import de ciertos duplicados (Set de IDs).
@@ -434,26 +501,30 @@ enum TransactionCSVImporter {
         from parsed: ParsedImport,
         householdId: UUID,
         userId: UUID,
+        accountId: UUID?,
         defaultCurrency: String,
         forceImportDuplicates: Set<UUID>
     ) -> [NewTransactionInput] {
         parsed.rows.compactMap { row -> NewTransactionInput? in
             guard row.isValid else { return nil }
             if row.isDuplicate && !forceImportDuplicates.contains(row.id) { return nil }
-            guard let date = row.date, let type = row.type, let amount = row.amount else { return nil }
+            guard let date = row.date, let type = row.type, let amount = row.amount,
+                  let enBase = row.amountInBase else { return nil }
             return NewTransactionInput(
                 householdId: householdId,
                 userId: userId,
-                // Queda en nil A PROPÓSITO, a diferencia del alta manual y del asistente, que
-                // usan `AccountService.defaultAccountId`. Un import es un resumen ENTERO: si se
-                // adivina mal la cuenta, se atribuyen decenas de movimientos a la cuenta
-                // equivocada de una sola vez, y desarmar eso a mano es peor que no tener cuenta.
-                // Lo correcto es que el paso de preview le pregunte al usuario a qué cuenta
-                // corresponde el archivo. Anotado en .context/AUDITORIA-2026-08-01.md.
-                accountId: nil,
+                // La cuenta la elige el usuario en el preview, no se adivina. Un import es un
+                // resumen ENTERO: adivinar mal atribuye decenas de movimientos a la cuenta
+                // equivocada de una sola vez, y desarmarlo a mano es peor que no tener cuenta.
+                // Sigue pudiendo ser nil si elige "sin cuenta".
+                accountId: accountId,
                 type: type,
-                amount: amount,
+                // `amount` va SIEMPRE en base (contrato de AGENTS_CONTRACT.md); el monto tal como
+                // venía en el archivo se preserva en `amountOriginal` para no perder el original.
+                amount: enBase,
+                amountOriginal: amount,
                 currencyOriginal: row.currency ?? defaultCurrency,
+                fxRateToBase: row.fxRateToBase ?? 1,
                 category: row.category ?? "Otros",
                 subcategory: row.subcategory,
                 note: row.note,

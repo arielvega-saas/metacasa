@@ -80,3 +80,80 @@ enum FXConverter {
         return amount * r.rate
     }
 }
+
+// MARK: - Alta de transacciones en moneda extranjera
+
+/// Falla al construir una transacción cuya moneda no se puede llevar a base.
+enum FXConversionError: LocalizedError {
+    case sinCotizacion(moneda: String, base: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .sinCotizacion(moneda, base):
+            return String(format: String(localized: "fx.error.noRate %@ %@"), moneda, base)
+        }
+    }
+}
+
+extension NewTransactionInput {
+    /// **El único constructor que se debe usar cuando el monto puede venir en otra moneda.**
+    ///
+    /// `amount` es, por contrato (`metacasa-web/AGENTS_CONTRACT.md`), siempre la moneda base del
+    /// hogar: es lo que suman los totales del Home, `envelope_balance` y el matview mensual. Pero
+    /// hay 8 caminos que crean transacciones (formulario, edición, import CSV, import del
+    /// asistente, dos App Intents, recibos por foto, voz, tool de IA, restore de backup) y cada uno
+    /// resolvía la moneda por su cuenta — o no la resolvía.
+    ///
+    /// El resultado era el mismo bug repetido: un recibo en USD escaneado en un hogar en pesos
+    /// insertaba `amount = 100` etiquetado "USD". Los totales quedaban divididos por la cotización
+    /// y la lista mostraba "US$ 100" donde el usuario había gastado ARS 150.000. Sin error, con un
+    /// número plausible, en la cifra que mira para saber cuánta plata tiene.
+    ///
+    /// Tira si no hay cotización, a propósito: no existe forma honesta de guardar el monto, y
+    /// meterlo crudo es peor que no meterlo. Ver `leccion-una-sola-implementacion-de-cada-regla`.
+    static func converting(
+        householdId: UUID,
+        userId: UUID,
+        accountId: UUID?,
+        type: TxType,
+        amountOriginal: Decimal,
+        currency: String?,
+        baseCurrency: String,
+        rates: FXRateMap,
+        category: String,
+        subcategory: String? = nil,
+        note: String? = nil,
+        date: Date
+    ) throws -> NewTransactionInput {
+        let base = baseCurrency.uppercased()
+        let moneda = (currency ?? base).uppercased()
+
+        let enBase: Decimal
+        let tasa: Decimal
+        if moneda == base {
+            enBase = amountOriginal
+            tasa = 1
+        } else if let convertido = FXConverter.convert(amountOriginal, from: moneda, to: base, rates: rates),
+                  let r = rates[moneda]?.rate {
+            enBase = convertido
+            tasa = r
+        } else {
+            throw FXConversionError.sinCotizacion(moneda: moneda, base: base)
+        }
+
+        return NewTransactionInput(
+            householdId: householdId,
+            userId: userId,
+            accountId: accountId,
+            type: type,
+            amount: enBase,
+            amountOriginal: amountOriginal,
+            currencyOriginal: moneda,
+            fxRateToBase: tasa,
+            category: category,
+            subcategory: subcategory,
+            note: note,
+            date: date
+        )
+    }
+}

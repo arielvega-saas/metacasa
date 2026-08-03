@@ -1597,7 +1597,11 @@ final class AssistantViewModel {
         let inputs: [NewTransactionInput] = parsed.rows.compactMap { row in
             guard row.isValid else { return nil }
             if row.isDuplicate && !force { return nil }
-            guard let date = row.date, let type = row.type, let amount = row.amount else { return nil }
+            guard let date = row.date, let type = row.type, let amount = row.amount,
+                  // `amountInBase` lo llena `TransactionCSVImporter.resolvingCurrency`. Si es nil,
+                  // la fila está en una moneda sin cotización: descartarla es lo correcto, meter
+                  // el monto crudo la trataría como si ya estuviera en base.
+                  let enBase = row.amountInBase else { return nil }
             let edit = categoryEdits[row.id]
             return NewTransactionInput(
                 householdId: hid,
@@ -1610,8 +1614,10 @@ final class AssistantViewModel {
                 // movimiento y el usuario lo ve al instante.
                 accountId: nil,
                 type: type,
-                amount: amount,
+                amount: enBase,
+                amountOriginal: amount,
                 currencyOriginal: row.currency ?? defaultCurrency,
+                fxRateToBase: row.fxRateToBase ?? 1,
                 category: edit?.category ?? row.category ?? "Otros",
                 subcategory: edit?.subcategory ?? row.subcategory,
                 note: row.note,
@@ -1656,18 +1662,26 @@ final class AssistantViewModel {
             ?? appState.households.first(where: { $0.id == hid })?.defaultCurrency
             ?? "USD"
 
-        let input = NewTransactionInput(
-            householdId: hid,
-            userId: uid,
-            accountId: await AccountService.shared.defaultAccountId(householdId: hid),
-            type: .gasto,
-            amount: amount,
-            currencyOriginal: currency,
-            category: receipt.category ?? "Otro",
-            subcategory: nil,
-            note: receipt.merchant.map { "Recibo: \($0)" },
-            date: receipt.date ?? Date()
-        )
+        let input: NewTransactionInput
+        do {
+            input = try NewTransactionInput.converting(
+                householdId: hid,
+                userId: uid,
+                accountId: await AccountService.shared.defaultAccountId(householdId: hid),
+                type: .gasto,
+                amountOriginal: amount,
+                currency: currency,
+                baseCurrency: appState.households.first { $0.id == hid }?.defaultCurrency ?? "USD",
+                rates: (try? await FXService.shared.fetch(householdId: hid)) ?? [:],
+                category: receipt.category ?? "Otro",
+                note: receipt.merchant.map { "Recibo: \($0)" },
+                date: receipt.date ?? Date()
+            )
+        } catch {
+            // Un recibo en una moneda sin cotización no se guarda mal: se avisa.
+            appendSystem(error.localizedDescription)
+            return
+        }
 
         do {
             _ = try await TransactionService.shared.insert(input)
@@ -1702,20 +1716,22 @@ final class AssistantViewModel {
 
         var inserted = 0
         var failed = 0
+        let tasas = (try? await FXService.shared.fetch(householdId: hid)) ?? [:]
         for receipt in receipts {
             guard let amount = receipt.amount else { failed += 1; continue }
-            let input = NewTransactionInput(
+            guard let input = try? NewTransactionInput.converting(
                 householdId: hid,
                 userId: uid,
                 accountId: await AccountService.shared.defaultAccountId(householdId: hid),
                 type: .gasto,
-                amount: amount,
-                currencyOriginal: receipt.currency ?? defaultCurrency,
+                amountOriginal: amount,
+                currency: receipt.currency ?? defaultCurrency,
+                baseCurrency: defaultCurrency,
+                rates: tasas,
                 category: receipt.category ?? "Otro",
-                subcategory: nil,
                 note: receipt.merchant.map { "De foto: \($0)" },
                 date: receipt.date ?? Date()
-            )
+            ) else { failed += 1; continue }
             do {
                 _ = try await TransactionService.shared.insert(input)
                 inserted += 1

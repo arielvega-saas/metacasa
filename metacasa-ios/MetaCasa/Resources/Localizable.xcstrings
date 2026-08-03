@@ -10739,6 +10739,29 @@
         }
       }
     },
+    "fx.error.noRate %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay cotización de %1$@ a %2$@. Cargala en Ajustes → Monedas para poder guardar este movimiento."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no %1$@ to %2$@ rate. Add it in Settings → Currencies to save this transaction."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não há cotação de %1$@ para %2$@. Cadastre-a em Ajustes → Moedas para salvar este lançamento."
+          }
+        }
+      }
+    },
     "fx.list.header": {
       "localizations": {
         "en": {
@@ -12693,6 +12716,121 @@
         }
       }
     },
+    "import.destination": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destino"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destination"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destino"
+          }
+        }
+      }
+    },
+    "import.destination.account": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conta"
+          }
+        }
+      }
+    },
+    "import.destination.currency": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moneda del archivo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File currency"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moeda do arquivo"
+          }
+        }
+      }
+    },
+    "import.destination.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los movimientos del archivo entran en esta cuenta. La moneda se usa para las filas que no traen columna de moneda propia."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every transaction in the file goes into this account. The currency is used for rows that have no currency column of their own."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos os lançamentos do arquivo entram nesta conta. A moeda é usada nas linhas que não trazem coluna de moeda própria."
+          }
+        }
+      }
+    },
+    "import.destination.noAccount": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin cuenta"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No account"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem conta"
+          }
+        }
+      }
+    },
     "import.duplicates.hint": {
       "localizations": {
         "en": {
@@ -12876,6 +13014,29 @@
         }
       }
     },
+    "import.issue.noRate %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin cotización de %1$@ a %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No %1$@ to %2$@ rate"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem cotação de %1$@ para %2$@"
+          }
+        }
+      }
+    },
     "import.mapping": {
       "extractionState": "stale",
       "localizations": {
@@ -12895,6 +13056,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mapeamento de colunas"
+          }
+        }
+      }
+    },
+    "import.missingRates %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El archivo trae montos en %1$@ y no hay cotización a %2$@. Cargala en Ajustes → Monedas, o esas filas no se van a importar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file has amounts in %1$@ and there is no rate to %2$@. Add it in Settings → Currencies, or those rows will not be imported."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O arquivo traz valores em %1$@ e não há cotação para %2$@. Cadastre-a em Ajustes → Moedas, ou essas linhas não serão importadas."
           }
         }
       }

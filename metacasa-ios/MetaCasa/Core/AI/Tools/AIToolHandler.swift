@@ -128,13 +128,18 @@ final class AIToolHandler: @unchecked Sendable {
         let date = parseDate(p.date) ?? Date()
         let amount = Decimal(p.amount)
 
-        let input = NewTransactionInput(
+        let input = try NewTransactionInput.converting(
             householdId: householdId,
             userId: userId,
             accountId: await AccountService.shared.defaultAccountId(householdId: householdId),
             type: txType,
-            amount: amount,
-            currencyOriginal: currency,
+            amountOriginal: amount,
+            currency: currency,
+            // `currency` YA es la base del hogar: el tool de IA no acepta moneda como argumento,
+            // así que acá nunca hay conversión. Va por `converting` igual para que el día que se
+            // agregue el argumento herede la regla en vez de reimplementarla.
+            baseCurrency: currency,
+            rates: [:],
             category: p.category,
             subcategory: p.subcategory,
             note: p.note,

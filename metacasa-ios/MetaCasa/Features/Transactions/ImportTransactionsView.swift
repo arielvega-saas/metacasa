@@ -30,6 +30,22 @@ struct ImportTransactionsView: View {
     /// IDs de rows marcadas como duplicate que el user quiere importar igual.
     @State private var forceImportDups: Set<UUID> = []
 
+    /// Cuenta a la que pertenece el archivo. La elige el usuario; `nil` = "sin cuenta".
+    @State private var cuentaDestino: UUID?
+    /// Moneda del archivo, para las filas que no traen columna de moneda propia.
+    @State private var monedaArchivo: String = ""
+    @State private var cuentas: [Account] = []
+    @State private var fxRates: FXRateMap = [:]
+
+    private var monedaBase: String {
+        appState.households.first { $0.id == appState.currentHouseholdId }?.defaultCurrency ?? "USD"
+    }
+
+    /// Monedas ofrecidas para el archivo: la base primero, más las que tengan cotización cargada.
+    private var monedasDisponibles: [String] {
+        [monedaBase] + fxRates.keys.map { $0.uppercased() }.filter { $0 != monedaBase }.sorted()
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -55,6 +71,11 @@ struct ImportTransactionsView: View {
                 handlePicker(result: result)
             }
             .task {
+                monedaArchivo = monedaBase
+                if let hid = appState.currentHouseholdId {
+                    cuentas = (try? await AccountService.shared.fetchAll(householdId: hid)) ?? []
+                    fxRates = (try? await FXService.shared.fetch(householdId: hid)) ?? [:]
+                }
                 // Traer transacciones existentes para dedupe (últimos 365 días)
                 if let hid = appState.currentHouseholdId {
                     let now = Date()
@@ -92,6 +113,25 @@ struct ImportTransactionsView: View {
                 summaryCard(parsed: parsed)
             }
 
+            // A qué cuenta y en qué moneda entra el archivo. Va ANTES del mapping porque
+            // determina los montos que el preview muestra más abajo.
+            Section {
+                Picker("import.destination.account", selection: $cuentaDestino) {
+                    Text("import.destination.noAccount").tag(UUID?.none)
+                    ForEach(cuentas) { cuenta in
+                        Text(cuenta.name).tag(UUID?.some(cuenta.id))
+                    }
+                }
+                Picker("import.destination.currency", selection: $monedaArchivo) {
+                    ForEach(monedasDisponibles, id: \.self) { Text($0).tag($0) }
+                }
+                .onChange(of: monedaArchivo) { _, _ in reresolverMoneda() }
+            } header: {
+                Text("import.destination")
+            } footer: {
+                Text("import.destination.hint")
+            }
+
             // Mapping editable
             Section("import.mapping") {
                 ForEach(parsed.headers.indices, id: \.self) { i in
@@ -120,6 +160,23 @@ struct ImportTransactionsView: View {
                 if parsed.rows.count > 10 {
                     Text("+ \(parsed.rows.count - 10) filas más")
                         .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            // Si el archivo trae una moneda sin cotización, decirlo UNA vez y con nombre, en vez
+            // de dejar N errores sueltos de "sin cotización" que no explican qué hacer.
+            let sinCotizacion = TransactionCSVImporter.monedasSinCotizacion(
+                parsed, base: monedaBase, rates: fxRates, fallbackCurrency: monedaArchivo
+            )
+            if !sinCotizacion.isEmpty {
+                Section {
+                    Label {
+                        Text("import.missingRates \(sinCotizacion.joined(separator: ", ")) \(monedaBase)")
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.brandWarning)
+                    }
+                    .font(.mcCaption)
                 }
             }
 
@@ -268,13 +325,20 @@ struct ImportTransactionsView: View {
             }
             Spacer()
             if let amount = row.amount, let type = row.type {
-                Text(Money.format(
-                    type == .gasto ? -amount : amount,
-                    currency: row.currency ?? (appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "USD"),
-                    style: .compact
-                ))
-                .font(.caption.bold())
-                .foregroundStyle(type == .gasto ? Color.brandDanger : Color.brandSuccess)
+                let moneda = (row.currency ?? monedaArchivo).uppercased()
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(Money.format(type == .gasto ? -amount : amount, currency: moneda, style: .compact))
+                        .font(.caption.bold())
+                        .foregroundStyle(type == .gasto ? Color.brandDanger : Color.brandSuccess)
+                    // Cuando hay conversión mostramos el equivalente en base, que es lo que va a
+                    // quedar guardado y lo que van a sumar los totales. Sin esto el usuario aprueba
+                    // un preview que dice "US$ 100" y en la app le aparecen $ 150.000.
+                    if moneda != monedaBase, let enBase = row.amountInBase {
+                        Text(Money.format(type == .gasto ? -enBase : enBase, currency: monedaBase, style: .compact))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -342,6 +406,20 @@ struct ImportTransactionsView: View {
         }.count
     }
 
+    /// Lleva las filas a la moneda base. Todo parse o cambio de mapping pasa por acá — si algún
+    /// camino se la saltea, sus filas quedan sin `amountInBase` y el commit las descarta en vez de
+    /// importarlas con el monto crudo.
+    private func resuelto(_ p: ParsedImport) -> ParsedImport {
+        TransactionCSVImporter.resolvingCurrency(
+            p, base: monedaBase, rates: fxRates, fallbackCurrency: monedaArchivo.isEmpty ? monedaBase : monedaArchivo
+        )
+    }
+
+    private func reresolverMoneda() {
+        guard let parsed else { return }
+        self.parsed = resuelto(parsed)
+    }
+
     // MARK: - Actions
 
     private func handlePicker(result: Result<[URL], Error>) {
@@ -365,7 +443,7 @@ struct ImportTransactionsView: View {
                             householdId: hid, from: start, to: Date(), limit: 5000
                         )) ?? []
                     }
-                    parsed = TransactionCSVImporter.parse(text: text, existing: existing)
+                    parsed = resuelto(TransactionCSVImporter.parse(text: text, existing: existing))
                 } catch {
                     errorMessage = "No se pudo leer el archivo: \(error.localizedDescription)"
                 }
@@ -388,7 +466,8 @@ struct ImportTransactionsView: View {
             text: text,
             existing: existing
         )
-        self.parsed = parsed
+        // Re-resolver siempre: cambiar el mapping puede agregar o quitar la columna de moneda.
+        self.parsed = resuelto(parsed)
     }
 
     @MainActor
@@ -402,12 +481,12 @@ struct ImportTransactionsView: View {
             errorMessage = String(localized: "error.session_missing")
             return
         }
-        let defaultCurrency = appState.households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
         let inputs = TransactionCSVImporter.buildInputs(
             from: parsed,
             householdId: hid,
             userId: uid,
-            defaultCurrency: defaultCurrency,
+            accountId: cuentaDestino,
+            defaultCurrency: monedaArchivo.isEmpty ? monedaBase : monedaArchivo,
             forceImportDuplicates: forceImportDups
         )
 

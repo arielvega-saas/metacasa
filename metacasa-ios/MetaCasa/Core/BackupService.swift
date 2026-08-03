@@ -236,8 +236,13 @@ actor BackupService {
                 userId: userId,
                 accountId: nil,
                 type: tx.type,
+                // `tx.amount` del backup YA está en base. Lo que se perdía era el original:
+                // restaurar sólo `currencyOriginal` dejaba el monto base etiquetado con la moneda
+                // extranjera, y la lista mostraba "US$ 150.000" para un gasto de US$ 100.
                 amount: tx.amount,
+                amountOriginal: tx.amountOriginal ?? tx.amount,
                 currencyOriginal: tx.currencyOriginal,
+                fxRateToBase: tx.fxRateToBase ?? 1,
                 category: tx.category,
                 subcategory: tx.subcategory,
                 note: tx.note,
