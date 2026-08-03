@@ -2,18 +2,80 @@
   "sourceLanguage": "es",
   "strings": {
     "": {},
-    "%": {},
-    "%@": {},
-    "%@ ": {},
-    "%@ Premium": {},
-    "%@ con errores (se saltean)": {},
-    "%@ duplicadas (se saltean)": {},
+    "%": {
+      "shouldTranslate": false
+    },
+    "%@": {
+      "shouldTranslate": false
+    },
+    "%@ ": {
+      "shouldTranslate": false
+    },
+    "%@ Premium": {
+      "shouldTranslate": false
+    },
+    "%@ con errores (se saltean)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ con errores (se saltean)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ with errors (skipped)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ com erros (ignoradas)"
+          }
+        }
+      }
+    },
+    "%@ duplicadas (se saltean)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ duplicadas (se saltean)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ duplicates (skipped)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ duplicadas (ignoradas)"
+          }
+        }
+      }
+    },
     "%@ movimiento%@": {
       "localizations": {
         "es": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%1$@ movimiento%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ transaction%2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ lançamento%2$@"
           }
         }
       }
@@ -22,45 +84,164 @@
       "localizations": {
         "es": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%1$@ subcategoría%2$@"
           }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ subcategor%2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ subcategoria%2$@"
+          }
         }
       }
     },
-    "%@ válidas": {},
+    "%@ válidas": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ válidas"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ valid"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ válidas"
+          }
+        }
+      }
+    },
     "%@ · %@": {
+      "shouldTranslate": false
+    },
+    "%@%%": {
+      "shouldTranslate": false
+    },
+    "%@%% completado": {
       "localizations": {
         "es": {
           "stringUnit": {
-            "state": "new",
-            "value": "%1$@ · %2$@"
+            "state": "translated",
+            "value": "%@%% completado"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% complete"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% concluído"
           }
         }
       }
     },
-    "%@%%": {},
-    "%@%% completado": {},
-    "%@%% debts.detail.paid": {},
-    "%@%% usado": {},
+    "%@%% debts.detail.paid": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% pagado"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% paid"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% pago"
+          }
+        }
+      }
+    },
+    "%@%% usado": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% usado"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% used"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% usado"
+          }
+        }
+      }
+    },
     "%@/%@": {
+      "shouldTranslate": false
+    },
+    "%@d": {
+      "shouldTranslate": false
+    },
+    "+ %@ filas más": {
       "localizations": {
         "es": {
           "stringUnit": {
-            "state": "new",
-            "value": "%1$@/%2$@"
+            "state": "translated",
+            "value": "+ %@ filas más"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ %@ more rows"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ %@ linhas"
           }
         }
       }
     },
-    "%@d": {},
-    "+ %@ filas más": {},
-    "+%@": {},
-    "/": {},
-    "/ 100": {},
-    "1": {},
-    "1 %@ =": {},
-    "=": {},
+    "+%@": {
+      "shouldTranslate": false
+    },
+    "/": {
+      "shouldTranslate": false
+    },
+    "/ 100": {
+      "shouldTranslate": false
+    },
+    "1": {
+      "shouldTranslate": false
+    },
+    "1 %@ =": {
+      "shouldTranslate": false
+    },
+    "=": {
+      "shouldTranslate": false
+    },
     "Aceptar y continuar": {
       "localizations": {
         "en": {
@@ -77,8 +258,38 @@
         }
       }
     },
-    "Agregá tu `REVENUECAT_API_KEY` al Info.plist para activar la compra real.": {},
-    "Agregá tus gastos fijos mensuales (alquiler, servicios, suscripciones).": {},
+    "Agregá tu `REVENUECAT_API_KEY` al Info.plist para activar la compra real.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your `REVENUECAT_API_KEY` to Info.plist to enable real purchases."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione sua `REVENUECAT_API_KEY` ao Info.plist para ativar a compra real."
+          }
+        }
+      }
+    },
+    "Agregá tus gastos fijos mensuales (alquiler, servicios, suscripciones).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your fixed monthly expenses (rent, utilities, subscriptions)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione suas despesas fixas mensais (aluguel, contas, assinaturas)."
+          }
+        }
+      }
+    },
     "Alertas de movimientos atípicos": {
       "comment": "Notification toggle for anomaly detection alerts",
       "localizations": {
@@ -152,13 +363,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anthropic does NOT train models with API queries."
+            "value": "Anthropic does NOT train models on API queries."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anthropic NÃO treina modelos com consultas da API."
+            "value": "A Anthropic NÃO treina modelos com consultas da API."
           }
         }
       }
@@ -180,8 +391,38 @@
         }
       }
     },
-    "Aportes": {},
-    "Asignar": {},
+    "Aportes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contributions"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aportes"
+          }
+        }
+      }
+    },
+    "Asignar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assign"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atribuir"
+          }
+        }
+      }
+    },
     "Asistente IA": {
       "comment": "AssistantConsentSheet header title",
       "localizations": {
@@ -199,9 +440,41 @@
         }
       }
     },
-    "Ayuda": {},
-    "Aún no registraste aportes.": {},
-    "CSV": {},
+    "Ayuda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Help"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuda"
+          }
+        }
+      }
+    },
+    "Aún no registraste aportes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You haven't logged any contributions yet."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você ainda não registrou aportes."
+          }
+        }
+      }
+    },
+    "CSV": {
+      "shouldTranslate": false
+    },
     "Cancelar": {
       "extractionState": "stale",
       "localizations": {
@@ -219,14 +492,157 @@
         }
       }
     },
-    "Categoría": {},
-    "Cierre": {},
-    "Comparar meses": {},
-    "Confirmación final": {},
-    "Continuar": {},
-    "Crear": {},
-    "Crear cuenta": {},
-    "Creá un hogar nuevo o unite a uno con invite.": {},
+    "Categoría": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categoria"
+          }
+        }
+      }
+    },
+    "Cierre": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Closing"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fechamento"
+          }
+        }
+      }
+    },
+    "Comparar meses": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare months"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparar meses"
+          }
+        }
+      }
+    },
+    "Confirmación final": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Final confirmation"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmação final"
+          }
+        }
+      }
+    },
+    "Continuar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuar"
+          }
+        }
+      }
+    },
+    "Crear": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar"
+          }
+        }
+      }
+    },
+    "Crear cuenta": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar conta"
+          }
+        }
+      }
+    },
+    "Creá un hogar nuevo o unite a uno con invite.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a new household or join one with an invite."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crie um novo lar ou entre em um com um convite."
+          }
+        }
+      }
+    },
+    "Cualquier suscripción activa via App Store (gestionala desde Ajustes → Apple ID → Suscripciones).": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cualquier suscripción activa via App Store (gestionala desde Ajustes → Apple ID → Suscripciones)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any active App Store subscription (manage it from Settings → Apple ID → Subscriptions)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualquer assinatura ativa via App Store (gerencie em Ajustes → Apple ID → Assinaturas)."
+          }
+        }
+      }
+    },
     "Cómo procesamos tu data en el Asistente IA": {
       "comment": "Settings footer link to assistant-ai disclosure",
       "localizations": {
@@ -244,9 +660,100 @@
         }
       }
     },
-    "Disfrutaste 7 días completos de %@. Para seguir usando la app, elegí un plan. Cancelás cuando quieras desde tu cuenta de App Store.": {},
-    "Día %@": {},
-    "Editar hogar": {},
+    "Datos enviados: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datos enviados: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data sent: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dados enviados: %@"
+          }
+        }
+      }
+    },
+    "Disfrutaste 7 días completos de %@. Para seguir usando la app, elegí un plan. Cancelás cuando quieras desde tu cuenta de App Store.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You enjoyed a full 7 days of %@. To keep using the app, choose a plan. Cancel anytime from your App Store account."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você aproveitou 7 dias completos do %@. Para continuar usando o app, escolha um plano. Cancele quando quiser na sua conta da App Store."
+          }
+        }
+      }
+    },
+    "Día %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dia %@"
+          }
+        }
+      }
+    },
+    "ELIMINAR": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ELIMINAR"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DELETE"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EXCLUIR"
+          }
+        }
+      }
+    },
+    "Editar hogar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit household"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar lar"
+          }
+        }
+      }
+    },
     "El asistente usa solo Apple Intelligence on-device. Más lento, pero ningún dato sale del iPhone.": {
       "localizations": {
         "en": {
@@ -263,9 +770,163 @@
         }
       }
     },
-    "El modo voz envía tus mensajes y un resumen de tus finanzas a Anthropic (Claude), y el texto de la respuesta a ElevenLabs para convertirlo en audio. Activá el procesamiento en la nube para usarlo.": {},
-    "Elegir moneda": {},
-    "En": {},
+    "El historial del Asistente IA guardado en tu cuenta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El historial del Asistente IA guardado en tu cuenta."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI Assistant history stored in your account."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O histórico do Assistente de IA salvo na sua conta."
+          }
+        }
+      }
+    },
+    "El modo voz envía tus mensajes y un resumen de tus finanzas a Anthropic (Claude), y el texto de la respuesta a ElevenLabs para convertirlo en audio. Activá el procesamiento en la nube para usarlo.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice mode sends your messages and a summary of your finances to Anthropic (Claude), and the text of the reply to ElevenLabs to turn it into audio. Turn on cloud processing to use it."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modo voz envia suas mensagens e um resumo das suas finanças para a Anthropic (Claude), e o texto da resposta para a ElevenLabs para virar áudio. Ative o processamento na nuvem para usar."
+          }
+        }
+      }
+    },
+    "El reconocimiento de voz y el OCR de recibos corren on-device con Apple Speech y Vision.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition and receipt OCR run on-device with Apple Speech and Vision."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O reconhecimento de voz e o OCR de recibos rodam no dispositivo com Apple Speech e Vision."
+          }
+        }
+      }
+    },
+    "Elegir moneda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose currency"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolher moeda"
+          }
+        }
+      }
+    },
+    "Eliminando...": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminando..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting..."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluindo..."
+          }
+        }
+      }
+    },
+    "Eliminar cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar cuenta"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir conta"
+          }
+        }
+      }
+    },
+    "Eliminar cuenta permanentemente": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar cuenta permanentemente"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account permanently"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluir conta permanentemente"
+          }
+        }
+      }
+    },
+    "En": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em"
+          }
+        }
+      }
+    },
     "En la nube (solo cuando hace falta)": {
       "extractionState": "stale",
       "localizations": {
@@ -278,7 +939,24 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Na nuvem (apenas quando necessário)"
+            "value": "Na nuvem (só quando necessário)"
+          }
+        }
+      }
+    },
+    "En tu iPhone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On your iPhone"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No seu iPhone"
           }
         }
       }
@@ -301,7 +979,22 @@
         }
       }
     },
-    "Entendido": {},
+    "Entendido": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got it"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entendi"
+          }
+        }
+      }
+    },
     "Escanear recibo": {
       "comment": "Attachments menu — scan receipt option",
       "localizations": {
@@ -319,9 +1012,54 @@
         }
       }
     },
-    "Esta acción es permanente": {},
-    "Esta cuenta no tiene detalles de TC cargados.": {},
-    "Estamos terminando de habilitar los pagos. Volvé a intentar en unos minutos.": {},
+    "Esta acción es permanente": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This action is permanent"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta ação é permanente"
+          }
+        }
+      }
+    },
+    "Esta cuenta no tiene detalles de TC cargados.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account has no credit card details set up."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta conta não tem dados de cartão de crédito."
+          }
+        }
+      }
+    },
+    "Estamos terminando de habilitar los pagos. Volvé a intentar en unos minutos.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We're finishing setting up payments. Try again in a few minutes."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estamos terminando de habilitar os pagamentos. Tente de novo em alguns minutos."
+          }
+        }
+      }
+    },
     "Estos controles son inmediatos y persistentes — los respetamos en todos los modos (chat, voz, vision).": {
       "localizations": {
         "en": {
@@ -338,7 +1076,22 @@
         }
       }
     },
-    "Fecha": {},
+    "Fecha": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data"
+          }
+        }
+      }
+    },
     "Forzar solo on-device": {
       "localizations": {
         "en": {
@@ -355,17 +1108,211 @@
         }
       }
     },
-    "Gastos": {},
-    "Gastos por categoría / Expenses by category": {},
-    "Gracias por apoyar el desarrollo de la app.": {},
-    "Guardando...": {},
-    "Guardar cambios": {},
-    "Hasta %@": {},
-    "Hogar": {},
-    "Importar %@ transacciones": {},
-    "Ingresos": {},
-    "Insight del día": {},
-    "Interés si pagás solo el mínimo (%@/mes)": {},
+    "Gastos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expenses"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despesas"
+          }
+        }
+      }
+    },
+    "Gastos por categoría / Expenses by category": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gastos por categoría"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expenses by category"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despesas por categoria"
+          }
+        }
+      }
+    },
+    "Gracias por apoyar el desarrollo de la app.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thanks for supporting the app's development."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obrigado por apoiar o desenvolvimento do app."
+          }
+        }
+      }
+    },
+    "Guardando...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving..."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvando..."
+          }
+        }
+      }
+    },
+    "Guardar cambios": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save changes"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvar alterações"
+          }
+        }
+      }
+    },
+    "Hasta %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Until %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Até %@"
+          }
+        }
+      }
+    },
+    "Hogar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Household"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lar"
+          }
+        }
+      }
+    },
+    "Importar %@ transacciones": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import %@ transactions"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar %@ transações"
+          }
+        }
+      }
+    },
+    "Ingresos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Receitas"
+          }
+        }
+      }
+    },
+    "Insight del día": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insight of the day"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Insight do dia"
+          }
+        }
+      }
+    },
+    "Interés si pagás solo el mínimo (%@/mes)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interest if you only pay the minimum (%@/mo)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Juros se você pagar só o mínimo (%@/mês)"
+          }
+        }
+      }
+    },
+    "LLM del Asistente IA (chat, voz, visión).": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM del Asistente IA (chat, voz, visión)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM behind the AI Assistant (chat, voice, vision)."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM do Assistente de IA (chat, voz, visão)."
+          }
+        }
+      }
+    },
     "Las preguntas complejas se procesan con Claude (Anthropic). Enviamos tu pregunta + un resumen de tus datos (montos, categorías, fechas). Nunca emails, ni tarjetas, ni contraseñas.": {
       "extractionState": "stale",
       "localizations": {
@@ -383,25 +1330,377 @@
         }
       }
     },
-    "Las suscripciones se gestionan en tu cuenta de App Store.": {},
-    "Leer la Política de Privacidad": {},
-    "Limpiar": {},
-    "Llevá tu gestión financiera al siguiente nivel. Hogares ilimitados, metas, reportes avanzados, asistente IA y sin anuncios.": {},
-    "LÍMITE": {},
-    "Línea %@": {},
-    "MONEDA PRINCIPAL": {},
-    "Moneda": {},
-    "Monto": {},
-    "Movimientos": {},
-    "Mínimo (%@)": {},
-    "No vamos a poder recuperar tu cuenta una vez confirmes.": {},
-    "Nota": {},
-    "Nuevo aporte": {},
-    "On-device · Privado": {},
-    "PDF": {},
-    "Para %@": {},
-    "Para confirmar la eliminación, escribí la palabra **%@** abajo:": {},
-    "Pedile al admin del hogar que te genere un invite.": {},
+    "Las suscripciones se gestionan en tu cuenta de App Store.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscriptions are managed in your App Store account."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As assinaturas são gerenciadas na sua conta da App Store."
+          }
+        }
+      }
+    },
+    "Leer la Política de Privacidad": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the Privacy Policy"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ler a Política de Privacidade"
+          }
+        }
+      }
+    },
+    "Limpiar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpar"
+          }
+        }
+      }
+    },
+    "Llevá tu gestión financiera al siguiente nivel. Hogares ilimitados, metas, reportes avanzados, asistente IA y sin anuncios.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take your finances to the next level. Unlimited households, goals, advanced reports, AI assistant and no ads."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leve sua gestão financeira ao próximo nível. Lares ilimitados, metas, relatórios avançados, assistente de IA e sem anúncios."
+          }
+        }
+      }
+    },
+    "LÍMITE": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LIMIT"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LIMITE"
+          }
+        }
+      }
+    },
+    "Línea %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linha %@"
+          }
+        }
+      }
+    },
+    "MONEDA PRINCIPAL": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MAIN CURRENCY"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MOEDA PRINCIPAL"
+          }
+        }
+      }
+    },
+    "Moneda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moeda"
+          }
+        }
+      }
+    },
+    "Monto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amount"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valor"
+          }
+        }
+      }
+    },
+    "Movimientos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transactions"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lançamentos"
+          }
+        }
+      }
+    },
+    "Mínimo (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimum (%@)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mínimo (%@)"
+          }
+        }
+      }
+    },
+    "No se pudo eliminar la cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo eliminar la cuenta"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not delete the account"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível excluir a conta"
+          }
+        }
+      }
+    },
+    "No vamos a poder recuperar tu cuenta una vez confirmes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We won't be able to recover your account once you confirm."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não vamos poder recuperar sua conta depois que você confirmar."
+          }
+        }
+      }
+    },
+    "Nota": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nota"
+          }
+        }
+      }
+    },
+    "Nuevo aporte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New contribution"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Novo aporte"
+          }
+        }
+      }
+    },
+    "Nunca enviamos tus emails, contraseñas ni números de tarjeta. Anthropic y ElevenLabs no entrenan modelos de IA con tus datos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We never send your emails, passwords or card numbers. Anthropic and ElevenLabs do not train AI models on your data."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nunca enviamos seus e-mails, senhas ou números de cartão. Anthropic e ElevenLabs não treinam modelos de IA com seus dados."
+          }
+        }
+      }
+    },
+    "OK": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "On-device · Privado": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device · Private"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No dispositivo · Privado"
+          }
+        }
+      }
+    },
+    "PDF": {
+      "shouldTranslate": false
+    },
+    "Para %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para %@"
+          }
+        }
+      }
+    },
+    "Para confirmar la eliminación, escribí la palabra **%@** abajo:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To confirm deletion, type the word **%@** below:"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para confirmar a exclusão, digite a palavra **%@** abaixo:"
+          }
+        }
+      }
+    },
+    "Para responderte enviamos a Anthropic: tus mensajes y transcripciones de voz, un resumen de tus finanzas (montos, categorías, saldos, metas) y las fotos de recibos que elijas escanear.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To answer you we send Anthropic: your messages and voice transcripts, a summary of your finances (amounts, categories, balances, goals) and the receipt photos you choose to scan."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para responder, enviamos à Anthropic: suas mensagens e transcrições de voz, um resumo das suas finanças (valores, categorias, saldos, metas) e as fotos de recibos que você escolher escanear."
+          }
+        }
+      }
+    },
+    "Pedile al admin del hogar que te genere un invite.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask your household admin to generate an invite for you."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peça ao admin do lar para gerar um convite para você."
+          }
+        }
+      }
+    },
     "Permite usar Claude (Anthropic) para consultas complejas.": {
       "localizations": {
         "en": {
@@ -418,7 +1717,39 @@
         }
       }
     },
-    "Podés revocar el consentimiento o activar el modo solo on-device en cualquier momento desde Ajustes → Privacidad del Asistente IA.": {},
+    "Podés activar el modo solo on-device en Ajustes — más lento para preguntas largas, pero garantizado offline.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can switch to on-device only mode in Settings — slower for long questions, but guaranteed offline."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você pode ativar o modo somente no dispositivo em Ajustes — mais lento para perguntas longas, mas garantidamente offline."
+          }
+        }
+      }
+    },
+    "Podés revocar el consentimiento o activar el modo solo on-device en cualquier momento desde Ajustes → Privacidad del Asistente IA.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can revoke consent or switch to on-device only mode at any time from Settings → AI Assistant Privacy."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você pode revogar o consentimento ou ativar o modo somente no dispositivo a qualquer momento em Ajustes → Privacidade do Assistente de IA."
+          }
+        }
+      }
+    },
     "Podés revocar el consentimiento o activar el modo solo on-device en cualquier momento desde Ajustes → Privacidad. Detalles en nuestra Política de Privacidad.": {
       "extractionState": "stale",
       "localizations": {
@@ -436,8 +1767,25 @@
         }
       }
     },
-    "Por asignar": {},
-    "Premium": {},
+    "Por asignar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To assign"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A atribuir"
+          }
+        }
+      }
+    },
+    "Premium": {
+      "shouldTranslate": false
+    },
     "Privacidad del Asistente": {
       "comment": "AssistantPrivacyView title",
       "localizations": {
@@ -473,6 +1821,29 @@
         }
       }
     },
+    "Procesado on-device. Nada sale del iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procesado on-device. Nada sale del iPhone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processed on-device. Nothing leaves your iPhone."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processado no dispositivo. Nada sai do seu iPhone."
+          }
+        }
+      }
+    },
     "Procesamiento en la nube": {
       "localizations": {
         "en": {
@@ -496,6 +1867,35 @@
             "state": "new",
             "value": "Página %1$@ / %2$@"
           }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %1$@ / %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Página %1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "Qué NUNCA se envía": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is NEVER sent"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que NUNCA é enviado"
+          }
         }
       }
     },
@@ -515,20 +1915,92 @@
         }
       }
     },
-    "Qué procesamos en tu dispositivo y qué no": {},
+    "Qué procesamos en tu dispositivo y qué no": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What we process on your device and what we don't"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que processamos no seu dispositivo e o que não"
+          }
+        }
+      }
+    },
+    "Qué se envía a Anthropic (Claude)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is sent to Anthropic (Claude)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que é enviado para a Anthropic (Claude)"
+          }
+        }
+      }
+    },
+    "Qué se envía a ElevenLabs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is sent to ElevenLabs"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que é enviado para a ElevenLabs"
+          }
+        }
+      }
+    },
     "Reconocimiento de voz y OCR de recibos siempre on-device (Apple Speech + Vision).": {
       "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speech recognition and receipt OCR are always on-device (Apple Speech + Vision)."
+            "value": "Speech recognition and receipt OCR always on-device (Apple Speech + Vision)."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Reconhecimento de voz e OCR de recibos sempre no dispositivo (Apple Speech + Vision)."
+          }
+        }
+      }
+    },
+    "Reconocimiento de voz y OCR de recibos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconocimiento de voz y OCR de recibos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition and receipt OCR."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconhecimento de voz e OCR de recibos."
           }
         }
       }
@@ -550,9 +2022,71 @@
         }
       }
     },
-    "Recurrentes": {},
-    "Red: %@": {},
-    "Restaurar compras": {},
+    "Reconocimiento de voz, OCR de recibos y comandos rápidos corren on-device con Apple Speech y Vision. Nada sale del teléfono.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition, receipt OCR and quick commands run on-device with Apple Speech and Vision. Nothing leaves your phone."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconhecimento de voz, OCR de recibos e comandos rápidos rodam no dispositivo com Apple Speech e Vision. Nada sai do seu celular."
+          }
+        }
+      }
+    },
+    "Recurrentes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recurring"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorrentes"
+          }
+        }
+      }
+    },
+    "Red: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rede: %@"
+          }
+        }
+      }
+    },
+    "Restaurar compras": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore purchases"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar compras"
+          }
+        }
+      }
+    },
     "Revocar consentimiento y borrar historial": {
       "localizations": {
         "en": {
@@ -586,11 +2120,86 @@
         }
       }
     },
-    "SALDO DEL RESUMEN": {},
-    "Se borran todas las contribuciones registradas.": {},
-    "Se eliminan hogar, miembros, categorías, cuentas, transacciones, presupuestos y metas. Irreversible.": {},
-    "Seleccionar...": {},
-    "Servicios de terceros que usamos": {},
+    "SALDO DEL RESUMEN": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STATEMENT BALANCE"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SALDO DA FATURA"
+          }
+        }
+      }
+    },
+    "Se borran todas las contribuciones registradas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All logged contributions will be deleted."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todas as contribuições registradas serão excluídas."
+          }
+        }
+      }
+    },
+    "Se eliminan hogar, miembros, categorías, cuentas, transacciones, presupuestos y metas. Irreversible.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Household, members, categories, accounts, transactions, budgets and goals will be deleted. Irreversible."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lar, membros, categorias, contas, transações, orçamentos e metas serão excluídos. Irreversível."
+          }
+        }
+      }
+    },
+    "Seleccionar...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select..."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecionar..."
+          }
+        }
+      }
+    },
+    "Servicios de terceros que usamos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party services we use"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serviços de terceiros que usamos"
+          }
+        }
+      }
+    },
     "Si activás cloud: tu pregunta + un resumen de tus datos (montos, categorías) van a Claude. Nunca emails, ni tarjetas, ni contraseñas.": {
       "extractionState": "stale",
       "localizations": {
@@ -608,10 +2217,167 @@
         }
       }
     },
-    "Si eliminás tu cuenta, vas a perder el acceso a:": {},
-    "Sin movimientos este mes.": {},
-    "Suscripción auto-renovable. Se cobra a tu Apple ID. Se renueva salvo que la canceles al menos 24 h antes del fin del período, desde Ajustes → Apple ID.": {},
-    "Top categorías": {},
+    "Si activás cloud: tus mensajes y transcripciones de voz, un resumen de tus finanzas (montos, categorías, saldos) y las fotos de recibos que escanees van a Claude. Nunca emails, ni tarjetas, ni contraseñas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you turn on cloud: your messages and voice transcripts, a summary of your finances (amounts, categories, balances) and the receipt photos you scan go to Claude. Never emails, cards or passwords."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se você ativar a nuvem: suas mensagens e transcrições de voz, um resumo das suas finanças (valores, categorias, saldos) e as fotos de recibos que você escanear vão para o Claude. Nunca e-mails, cartões ou senhas."
+          }
+        }
+      }
+    },
+    "Si eliminás tu cuenta, vas a perder el acceso a:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you delete your account, you will lose access to:"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se você excluir sua conta, vai perder o acesso a:"
+          }
+        }
+      }
+    },
+    "Si tu pregunta requiere razonamiento complejo o entender una imagen, la enviamos a Claude (Anthropic) junto con un resumen de tus finanzas. Nunca enviamos emails, contraseñas ni números de tarjeta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If your question needs complex reasoning or understanding an image, we send it to Claude (Anthropic) together with a summary of your finances. We never send emails, passwords or card numbers."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se sua pergunta exige raciocínio complexo ou entender uma imagem, enviamos ao Claude (Anthropic) junto com um resumo das suas finanças. Nunca enviamos e-mails, senhas ou números de cartão."
+          }
+        }
+      }
+    },
+    "Sin movimientos este mes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transactions this month."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem lançamentos neste mês."
+          }
+        }
+      }
+    },
+    "Solo el texto de la respuesta del asistente.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo el texto de la respuesta del asistente."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the text of the assistant's reply."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apenas o texto da resposta do assistente."
+          }
+        }
+      }
+    },
+    "Solo en el modo voz: el texto de la respuesta del asistente se envía a ElevenLabs para convertirlo en audio.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In voice mode only: the text of the assistant's reply is sent to ElevenLabs to turn it into audio."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Só no modo voz: o texto da resposta do assistente é enviado à ElevenLabs para virar áudio."
+          }
+        }
+      }
+    },
+    "Suscripción auto-renovable. Se cobra a tu Apple ID. Se renueva salvo que la canceles al menos 24 h antes del fin del período, desde Ajustes → Apple ID.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-renewing subscription. Charged to your Apple ID. It renews unless you cancel at least 24 h before the end of the period, from Settings → Apple ID."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assinatura com renovação automática. Cobrada no seu Apple ID. Renova a menos que você cancele pelo menos 24 h antes do fim do período, em Ajustes → Apple ID."
+          }
+        }
+      }
+    },
+    "Síntesis de voz (TTS) cuando usás el modo voz.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Síntesis de voz (TTS) cuando usás el modo voz."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech synthesis (TTS) when you use voice mode."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Síntese de voz (TTS) quando você usa o modo voz."
+          }
+        }
+      }
+    },
+    "Top categorías": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top categories"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Principais categorias"
+          }
+        }
+      }
+    },
     "Tu data no se usa para entrenar": {
       "extractionState": "stale",
       "localizations": {
@@ -629,8 +2395,84 @@
         }
       }
     },
-    "Tu privacidad, primero": {},
-    "Tu prueba gratuita terminó": {},
+    "Tu membresía en todos los hogares compartidos. Si sos el único miembro de un hogar, sus datos quedan inaccesibles.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu membresía en todos los hogares compartidos. Si sos el único miembro de un hogar, sus datos quedan inaccesibles."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your membership in every shared household. If you are the only member of a household, its data becomes inaccessible."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua participação em todos os lares compartilhados. Se você for o único membro de um lar, os dados dele ficam inacessíveis."
+          }
+        }
+      }
+    },
+    "Tu perfil y datos de inicio de sesión.": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu perfil y datos de inicio de sesión."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your profile and sign-in data."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seu perfil e dados de login."
+          }
+        }
+      }
+    },
+    "Tu privacidad, primero": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your privacy first"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua privacidade em primeiro lugar"
+          }
+        }
+      }
+    },
+    "Tu prueba gratuita terminó": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your free trial ended"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seu teste grátis terminou"
+          }
+        }
+      }
+    },
     "Tus conversaciones se guardan localmente en tu iPhone (encriptado). Podés borrarlas desde acá.": {
       "extractionState": "stale",
       "localizations": {
@@ -643,7 +2485,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suas conversas ficam salvas localmente no iPhone (criptografadas). Você pode apagar daqui."
+            "value": "Suas conversas ficam salvas localmente no seu iPhone (criptografadas). Você pode apagá-las aqui."
           }
         }
       }
@@ -664,13 +2506,28 @@
         }
       }
     },
-    "Unirme": {},
+    "Unirme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Join"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrar"
+          }
+        }
+      }
+    },
     "Usar solo on-device (más lento)": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Use only on-device (slower)"
+            "value": "Use on-device only (slower)"
           }
         },
         "pt-BR": {
@@ -681,7 +2538,22 @@
         }
       }
     },
-    "VENCIMIENTO": {},
+    "VENCIMIENTO": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DUE DATE"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VENCIMENTO"
+          }
+        }
+      }
+    },
     "Vas a borrar el historial guardado del Asistente IA en este hogar. La próxima vez que abras el chat, te pedimos consentimiento de nuevo.": {
       "localizations": {
         "en": {
@@ -698,10 +2570,93 @@
         }
       }
     },
-    "Vas a poder agregar otras monedas y cambiar esta después.": {},
-    "Vence": {},
-    "Vista anual": {},
-    "Vos": {},
+    "Vas a poder agregar otras monedas y cambiar esta después.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll be able to add other currencies and change this later."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você vai poder adicionar outras moedas e mudar esta depois."
+          }
+        }
+      }
+    },
+    "Vence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Due"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vence"
+          }
+        }
+      }
+    },
+    "Vista anual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly view"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visão anual"
+          }
+        }
+      }
+    },
+    "Volver": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltar"
+          }
+        }
+      }
+    },
+    "Vos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você"
+          }
+        }
+      }
+    },
     "Vos decidís qué pasa con tu data": {
       "localizations": {
         "en": {
@@ -718,7 +2673,39 @@
         }
       }
     },
-    "Ya tenés Premium activo": {},
+    "Vos mandás": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You decide"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você decide"
+          }
+        }
+      }
+    },
+    "Ya tenés Premium activo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already have Premium"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você já tem o Premium ativo"
+          }
+        }
+      }
+    },
     "a11y.button.generic": {
       "extractionState": "stale",
       "localizations": {
@@ -1761,6 +3748,52 @@
         }
       }
     },
+    "assistantPrivacy.section.thirdParties": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servicios de terceros que usamos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party services we use"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serviços de terceiros que usamos"
+          }
+        }
+      }
+    },
+    "assistantPrivacy.section.whatWeProcess": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué procesamos"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What we process"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que processamos"
+          }
+        }
+      }
+    },
     "auth.button.signin": {
       "localizations": {
         "en": {
@@ -2256,26 +4289,61 @@
         }
       }
     },
-    "backup.report.skipped %@": {},
     "backup.report.skipped %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld items skipped due to errors"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld elemento omitido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld elementos omitidos"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld items saltados por error"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item skipped"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items skipped"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld itens ignorados por erro"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item ignorado"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld itens ignorados"
+                }
+              }
+            }
           }
         }
       }
@@ -2391,50 +4459,120 @@
         }
       }
     },
-    "bills.days.in %@": {},
     "bills.days.in %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In %lld days"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "en %lld día"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "en %lld días"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En %lld d"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld days"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Em %lld d"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "em %lld dia"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "em %lld dias"
+                }
+              }
+            }
           }
         }
       }
     },
-    "bills.days.overdue %@": {},
     "bills.days.overdue %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld days overdue"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día de atraso"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días de atraso"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vencido hace %lld d"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day overdue"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days overdue"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld d vencido"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dia de atraso"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dias de atraso"
+                }
+              }
+            }
           }
         }
       }
@@ -5440,26 +7578,61 @@
         }
       }
     },
-    "debts.detail.daysLeft %@": {},
     "debts.detail.daysLeft %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld days left"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "falta %lld día"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "faltan %lld días"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld días restantes"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day left"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days left"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld dias restantes"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "falta %lld dia"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "faltam %lld dias"
+                }
+              }
+            }
           }
         }
       }
@@ -6047,26 +8220,61 @@
         }
       }
     },
-    "debts.row.months %@": {},
     "debts.row.months %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%lld mo to payoff"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mes"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld meses"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%lld m al fin"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld month"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld months"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "~%lld m até quitar"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mês"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld meses"
+                }
+              }
+            }
           }
         }
       }
@@ -8030,26 +10238,25 @@
         }
       }
     },
-    "form.priority.format %@": {},
     "form.priority.format %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priority: %lld"
-          }
-        },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prioridad: %lld"
+            "value": "Prioridad %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Priority %lld"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prioridade: %lld"
+            "value": "Prioridade %lld"
           }
         }
       }
@@ -10299,7 +12506,6 @@
         }
       }
     },
-    "home.streak %@": {},
     "home.streak %d": {
       "extractionState": "stale",
       "localizations": {
@@ -10324,23 +12530,60 @@
       }
     },
     "home.streak %lld": {
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld-day streak"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día seguido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días seguidos"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Racha %lld días"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld-day streak"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld-day streak"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sequência %lld dias"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dia seguido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dias seguidos"
+                }
+              }
+            }
           }
         }
       }
@@ -10391,26 +12634,61 @@
         }
       }
     },
-    "import.commit %@": {},
     "import.commit %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import %lld transactions"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transacción"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transacciones"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar %lld movimientos"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Import %lld transaction"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Import %lld transactions"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importar %lld movimentos"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transação"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transações"
+                }
+              }
+            }
           }
         }
       }
@@ -10735,26 +13013,61 @@
         }
       }
     },
-    "import.success.count %@": {},
     "import.success.count %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld transactions added to your household."
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transacción importada"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transacciones importadas"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld movimientos agregados a tu hogar."
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transaction imported"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transactions imported"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld movimentos adicionados à sua casa."
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transação importada"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transações importadas"
+                }
+              }
+            }
           }
         }
       }
@@ -10803,29 +13116,19 @@
         }
       }
     },
-    "installments.detail.month %@ %@": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "new",
-            "value": "installments.detail.month %1$@ %2$@"
-          }
-        }
-      }
-    },
     "installments.detail.month %lld %@": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Installment %1$lld · %2$@"
-          }
-        },
         "es": {
           "stringUnit": {
             "state": "translated",
             "value": "Cuota %1$lld · %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installment %1$lld · %2$@"
           }
         },
         "pt-BR": {
@@ -10970,26 +13273,61 @@
         }
       }
     },
-    "installments.form.count %@": {},
     "installments.form.count %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Installments: %lld"
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld cuota"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld cuotas"
+                }
+              }
+            }
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuotas: %lld"
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld installment"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld installments"
+                }
+              }
+            }
           }
         },
         "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parcelas: %lld"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld parcela"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld parcelas"
+                }
+              }
+            }
           }
         }
       }
@@ -11151,29 +13489,19 @@
         }
       }
     },
-    "installments.progress %@ %@": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "new",
-            "value": "installments.progress %1$@ %2$@"
-          }
-        }
-      }
-    },
     "installments.progress %lld %lld": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld of %2$lld paid"
-          }
-        },
         "es": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld de %2$lld pagadas"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld paid"
           }
         },
         "pt-BR": {
@@ -12392,7 +14720,6 @@
         }
       }
     },
-    "notif.bills.daysBeforeValue %@": {},
     "notif.bills.daysBeforeValue %d": {
       "extractionState": "stale",
       "localizations": {
@@ -12412,6 +14739,65 @@
           "stringUnit": {
             "state": "translated",
             "value": "%d dia(s)"
+          }
+        }
+      }
+    },
+    "notif.bills.daysBeforeValue %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día antes"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días antes"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day before"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days before"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dia antes"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld dias antes"
+                }
+              }
+            }
           }
         }
       }
@@ -12460,16 +14846,6 @@
         }
       }
     },
-    "notif.bills.timingHint %@ %@": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "new",
-            "value": "notif.bills.timingHint %1$@ %2$@"
-          }
-        }
-      }
-    },
     "notif.bills.timingHint %d %@": {
       "extractionState": "stale",
       "localizations": {
@@ -12489,6 +14865,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avisamos %d dia(s) antes de cada vencimento às %@."
+          }
+        }
+      }
+    },
+    "notif.bills.timingHint %lld %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te avisamos %1$lld días antes del vencimiento, a las %2$@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We'll notify you %1$lld days before the due date, at %2$@."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avisamos %1$lld dias antes do vencimento, às %2$@."
           }
         }
       }
@@ -12630,7 +15029,6 @@
         }
       }
     },
-    "notif.goals.dayOfMonthValue %@": {},
     "notif.goals.dayOfMonthValue %d": {
       "extractionState": "stale",
       "localizations": {
@@ -12650,6 +15048,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dia %d"
+          }
+        }
+      }
+    },
+    "notif.goals.dayOfMonthValue %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Día %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day %lld"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dia %lld"
           }
         }
       }
@@ -12676,7 +15097,6 @@
         }
       }
     },
-    "notif.goals.timingHint %@": {},
     "notif.goals.timingHint %d": {
       "extractionState": "stale",
       "localizations": {
@@ -12696,6 +15116,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lembretes de metas chegam no dia %d de cada mês às 10:00."
+          }
+        }
+      }
+    },
+    "notif.goals.timingHint %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te recordamos tus metas el día %lld de cada mes."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We'll remind you about your goals on day %lld of each month."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lembramos suas metas no dia %lld de cada mês."
           }
         }
       }
@@ -15517,8 +17960,20 @@
       "localizations": {
         "es": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "rol: %1$@ · expira %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "role: %1$@ · expires %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "função: %1$@ · expira %2$@"
           }
         }
       }
@@ -17992,14 +20447,7 @@
       }
     },
     "v%@ (%@)": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "new",
-            "value": "v%1$@ (%2$@)"
-          }
-        }
-      }
+      "shouldTranslate": false
     },
     "view.calendar": {
       "extractionState": "stale",
@@ -18660,10 +21108,50 @@
         }
       }
     },
-    "ya cargada": {},
-    "·": {},
-    "· %@": {},
-    "· próximo %@": {},
+    "ya cargada": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ya cargada"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "already added"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "já adicionada"
+          }
+        }
+      }
+    },
+    "·": {
+      "shouldTranslate": false
+    },
+    "· %@": {
+      "shouldTranslate": false
+    },
+    "· próximo %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· next %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· próximo %@"
+          }
+        }
+      }
+    },
     "¿Revocar consentimiento y borrar historial del Asistente?": {
       "extractionState": "stale",
       "localizations": {
@@ -18681,14 +21169,56 @@
         }
       }
     },
-    "Último resumen: %@": {},
-    "Δ": {},
-    "•": {},
-    "• %@": {},
-    "•••": {},
-    "•••••": {},
-    "… y %@ más. Vé al tab Movimientos para verlos todos.": {},
-    "🔥": {}
+    "Último resumen: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last statement: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última fatura: %@"
+          }
+        }
+      }
+    },
+    "Δ": {
+      "shouldTranslate": false
+    },
+    "•": {
+      "shouldTranslate": false
+    },
+    "• %@": {
+      "shouldTranslate": false
+    },
+    "•••": {
+      "shouldTranslate": false
+    },
+    "•••••": {
+      "shouldTranslate": false
+    },
+    "… y %@ más. Vé al tab Movimientos para verlos todos.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "… and %@ more. Go to the Transactions tab to see them all."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "… e mais %@. Vá à aba Lançamentos para ver todos."
+          }
+        }
+      }
+    },
+    "🔥": {
+      "shouldTranslate": false
+    }
   },
   "version": "1.0"
 }

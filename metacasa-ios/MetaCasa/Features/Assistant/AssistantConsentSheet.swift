@@ -145,7 +145,10 @@ struct AssistantConsentSheet: View {
         }
     }
 
-    private func row(icon: String, title: String, body: String) -> some View {
+    /// `title`/`body` como `LocalizedStringKey`: con `String`, `Text` usa la sobrecarga
+    /// `verbatim` y el texto no pasa por el catálogo. Es la pantalla de consentimiento de IA —
+    /// tiene que estar en el idioma del usuario para que el consentimiento signifique algo.
+    private func row(icon: String, title: LocalizedStringKey, body: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.subheadline.weight(.semibold))

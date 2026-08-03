@@ -171,22 +171,6 @@ struct LockedPaywallView: View {
     // inventados que pueden no coincidir con App Store Connect. Los precios reales SIEMPRE salen
     // del offering de StoreKit, nunca de una constante.
 
-    private func priceTile(title: String, price: String, note: String, highlighted: Bool = false) -> some View {
-        VStack(spacing: 6) {
-            Text(title.uppercased()).font(.mcLabel).foregroundStyle(Color.textMuted)
-            Text(price).font(.mcSerifAmount).foregroundStyle(Color.textPrimary)
-            Text(note).font(.mcCaption).foregroundStyle(Color.textMuted)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(highlighted ? Color.brandPrimary.opacity(0.12) : Color.appSurface)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(highlighted ? Color.brandPrimary : Color.appBorder, lineWidth: highlighted ? 2 : 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
     /// Reintenta cargar el offering. Es la única salida real cuando la carga falló por red o
     /// porque los productos todavía no estaban aprobados: sin esto, el usuario bloqueado tiene
     /// que matar la app y volver a abrirla para tener otra chance de pagar.

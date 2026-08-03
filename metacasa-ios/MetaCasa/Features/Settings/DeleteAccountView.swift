@@ -15,7 +15,14 @@ struct DeleteAccountView: View {
     @State private var errorMessage: String?
 
     private enum Step { case explain, confirm }
-    private let requiredWord = "ELIMINAR"
+
+    /// La palabra que el usuario tiene que tipear, **traducida**.
+    ///
+    /// Si quedara fija en español, a un usuario en inglés le pediríamos escribir "ELIMINAR" —
+    /// una palabra que no entiende, en la pantalla más irreversible de la app. Es exactamente el
+    /// tipo de fricción que App Review marca en 5.1.1(v): el borrado tiene que ser comprensible,
+    /// no un acertijo.
+    private var requiredWord: String { String(localized: "ELIMINAR") }
 
     var body: some View {
         NavigationStack {
@@ -176,7 +183,13 @@ struct DeleteAccountView: View {
         }
     }
 
-    private func bullet(_ text: String) -> some View {
+    /// Toma `LocalizedStringKey`, **no `String`**.
+    ///
+    /// Con `String`, Swift resuelve `Text(_ verbatim: String)` y el texto sale tal cual, sin pasar
+    /// por el catálogo: los cuatro bullets quedaban en español para todos los idiomas aunque el
+    /// `.xcstrings` tuviera las traducciones. No hay warning ni error — las dos sobrecargas de
+    /// `Text` compilan igual, y la diferencia sólo se ve corriendo la app en otro idioma.
+    private func bullet(_ text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "xmark.circle.fill")
                 .foregroundStyle(Color.brandDanger.opacity(0.85))

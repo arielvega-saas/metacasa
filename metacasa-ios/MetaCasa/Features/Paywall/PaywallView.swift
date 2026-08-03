@@ -256,29 +256,11 @@ struct PaywallView: View {
         }
     }
 
-    // Placeholder cuando no hay SDK configurado.
-    private var pricesCard: some View {
-        HStack(spacing: 12) {
-            priceTile(title: String(localized: "paywall.package.monthly"), price: "USD 4,99", note: String(localized: "paywall.per.month"))
-            priceTile(title: String(localized: "paywall.package.annual"), price: "USD 39,99", note: String(localized: "paywall.per.year.discount"), highlighted: true)
-        }
-    }
-
-    private func priceTile(title: String, price: String, note: String, highlighted: Bool = false) -> some View {
-        VStack(spacing: 6) {
-            Text(title.uppercased()).font(.mcLabel).foregroundStyle(Color.textMuted)
-            Text(price).font(.mcSerifAmount).foregroundStyle(Color.textPrimary)
-            Text(note).font(.mcCaption).foregroundStyle(Color.textMuted)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(highlighted ? Color.brandPrimary.opacity(0.12) : Color.appSurface)
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(highlighted ? Color.brandPrimary : Color.appBorder, lineWidth: highlighted ? 2 : 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
+    // `pricesCard` (USD 4,99 / 39,99 hardcodeados) y su `priceTile` se eliminaron a propósito.
+    // Ya no los usaba nadie —el paywall muestra `notConfiguredCard`+reintento cuando el offering
+    // no carga— pero dejarlos era una trampa: el próximo que los viera los volvería a cablear, y
+    // son precios inventados que pueden no coincidir con lo que cobra App Store Connect en la
+    // tienda del usuario. Los precios reales SIEMPRE salen del offering, nunca de una constante.
 
     /// Reintenta cargar el offering, para no obligar a matar la app cuando la carga falló.
     private var retryOfferingButton: some View {

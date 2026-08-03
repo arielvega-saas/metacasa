@@ -141,7 +141,7 @@ struct AssistantPrivacyView: View {
     private var explanationCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Qué procesamos")
+                Text("assistantPrivacy.section.whatWeProcess")
                     .font(.mcLabel)
                     .foregroundStyle(Color.textMuted)
                 VStack(alignment: .leading, spacing: 8) {
@@ -155,7 +155,7 @@ struct AssistantPrivacyView: View {
             Divider().background(Color.appBorder)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Servicios de terceros que usamos")
+                Text("assistantPrivacy.section.thirdParties")
                     .font(.mcLabel)
                     .foregroundStyle(Color.textMuted)
                 VStack(alignment: .leading, spacing: 10) {
@@ -182,15 +182,19 @@ struct AssistantPrivacyView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private func serviceRow(name: String, purpose: String, dataSent: String) -> some View {
+    /// `name` queda `String` a propósito: "Anthropic (Claude)", "ElevenLabs" y "Apple Speech +
+    /// Vision" son nombres propios y no se traducen. `purpose` y `dataSent` sí, y la etiqueta
+    /// "Datos enviados" va como formato —no concatenada— porque en otros idiomas el orden de las
+    /// dos partes no tiene por qué ser el mismo.
+    private func serviceRow(name: String, purpose: LocalizedStringKey, dataSent: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(name)
+            Text(verbatim: name)
                 .font(.mcBody.weight(.semibold))
                 .foregroundStyle(Color.textPrimary)
             Text(purpose)
                 .font(.mcCaption)
                 .foregroundStyle(Color.textMuted)
-            Text("Datos enviados: " + dataSent)
+            Text("Datos enviados: \(Text(dataSent))")
                 .font(.mcCaption)
                 .foregroundStyle(Color.textDim)
         }
@@ -215,7 +219,10 @@ struct AssistantPrivacyView: View {
         .buttonStyle(.plain)
     }
 
-    private func bullet(_ text: String) -> some View {
+    /// `LocalizedStringKey`, no `String`: con `String` Swift elige `Text(_ verbatim:)` y el texto
+    /// sale sin pasar por el catálogo. Esta es la pantalla que App Review lee para el disclosure
+    /// de IA — tiene que estar en el idioma del usuario, no en el mío.
+    private func bullet(_ text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text("•").foregroundStyle(Color.brandPrimary)
             Text(text)

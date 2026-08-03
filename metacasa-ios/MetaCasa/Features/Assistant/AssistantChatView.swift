@@ -627,7 +627,7 @@ private struct PrivacyExplainerSheet: View {
                 privacyRow(
                     icon: "cloud",
                     title: "En la nube (solo cuando hace falta)",
-                    body: "Si tu pregunta requiere razonamiento complejo o entender una imagen, la enviamos a Claude (Anthropic). Nunca compartimos saldos, ni números de tarjeta, ni emails."
+                    body: "Si tu pregunta requiere razonamiento complejo o entender una imagen, la enviamos a Claude (Anthropic) junto con un resumen de tus finanzas. Nunca enviamos emails, contraseñas ni números de tarjeta."
                 )
                 privacyRow(
                     icon: "hand.raised.fill",
@@ -647,7 +647,8 @@ private struct PrivacyExplainerSheet: View {
         .background(Color.appBackground.ignoresSafeArea())
     }
 
-    private func privacyRow(icon: String, title: String, body: String) -> some View {
+    /// Ver la nota de `AssistantConsentSheet.row`: `LocalizedStringKey`, no `String`.
+    private func privacyRow(icon: String, title: LocalizedStringKey, body: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.subheadline.weight(.semibold))

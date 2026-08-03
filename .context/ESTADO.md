@@ -1,6 +1,6 @@
 # Home Finance — estado vivo
 
-> Última actualización: **2026-08-01**.
+> Última actualización: **2026-08-03**.
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
@@ -34,9 +34,10 @@ preview del import que debería preguntar cuenta y moneda.
 
 ## En una línea
 
-App de finanzas del hogar para LATAM. iOS publicada y funcionando; la web está **caída** por facturación
-de Vercel; el plan de nivel pro (`app/PLAN_NIVEL_PRO.md`) tiene las Fases 1-4 casi completas y lo que
-queda está mayormente bloqueado por credenciales de Ariel, no por código.
+App de finanzas del hogar para LATAM. iOS publicada y funcionando; la web **en línea** en
+`usehomefinance.com` (Netlify, migrada el 1-ago-2026); el plan de nivel pro (`app/PLAN_NIVEL_PRO.md`)
+tiene las Fases 1-4 casi completas y lo que queda está mayormente bloqueado por credenciales de Ariel,
+no por código.
 
 ## Qué está vivo y qué no
 
@@ -44,7 +45,7 @@ queda está mayormente bloqueado por credenciales de Ariel, no por código.
 |---|---|---|
 | iOS | **Publicada** en App Store `1.0.3` (4-jun-2026). Local va `1.0.3` build `12` con cambios sin publicar. | `app/metacasa-ios` |
 | Android | `.aab` generados, sin publicar. | `app/metacasa-flutter`, binarios en `builds/` |
-| Web (futuro) | Next.js 15, código listo. **Caída: `usehomefinance.com` da HTTP 402.** | `app/metacasa-web` |
+| Web | Next.js 15 en Netlify. **En línea** en `usehomefinance.com`, SSL emitido. | `app/metacasa-web` |
 | Web (legacy) | PWA en Vite. **Se retira.** No invertir UI acá. Sus wallets LatAm ya fueron portadas. | `app/src` |
 | Backend | Supabase `rgslvrxdppphzvqgcwbx`, **ACTIVE_HEALTHY**, org en plan **pro**. | `app/supabase` |
 
