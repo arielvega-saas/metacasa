@@ -51,7 +51,15 @@ actor BudgetService {
         return try await SupabaseRPC.insert(into: "budget_periods", payload: payload)
     }
 
-    func upsertAllocation(periodId: UUID, category: String, subcategory: String = "", allocated: Decimal, currency: String = "USD") async throws -> BudgetAllocation {
+    /// `currency` es OBLIGATORIO a propósito: antes tenía default `"USD"`.
+    ///
+    /// Todos los llamadores actuales la pasan bien, así que no había bug activo — pero el default
+    /// era una trampa cargada para el próximo. En un hogar en ARS, un sobre creado sin moneda
+    /// explícita entra en dólares, y a partir de ahí `envelope_balance` convierte: un sobre de
+    /// 100 "USD" en un hogar ARS a 1560 se compara contra gastos 1560× más chicos. Es exactamente
+    /// la forma del bug de 25× que ya apareció en el patrimonio neto — donde también había un
+    /// default silencioso asumiendo una sola moneda.
+    func upsertAllocation(periodId: UUID, category: String, subcategory: String = "", allocated: Decimal, currency: String) async throws -> BudgetAllocation {
         struct Payload: Encodable {
             let period_id: UUID
             let category: String
