@@ -29,11 +29,34 @@ final class BudgetHubViewModel {
     struct EnvelopeWithAllocation: Identifiable {
         let allocation: BudgetAllocation
         let status: EnvelopeStatus
+        /// No se pudo determinar el saldo: el sobre está en otra moneda y no hay tasa de cambio.
+        ///
+        /// `envelope_balance` devuelve NULL en ese caso **a propósito** — es fail-loud deliberado del
+        /// SQL. Antes acá se hacía `(try? …) ?? budgeted`, que convertía ese NULL en `spent = 0`:
+        /// el "no se puede saber" del backend se transformaba en "no gastaste nada" en pantalla,
+        /// anulando justo la protección que el SQL se tomó el trabajo de escribir.
+        let balanceUnknown: Bool
         var id: UUID { allocation.id }
     }
 
-    /// Total asignado en todos los envelopes del período.
-    var totalAssigned: Decimal {
+    /// Plata asignada **desde el ingreso de ESTE mes**. Sin el arrastre.
+    ///
+    /// Es lo único que puede restarse de `ingresosMes`: el `rolloverFromPrev` viene fondeado con el
+    /// ingreso del mes ANTERIOR, así que descontarlo de nuevo sería cobrarlo dos veces.
+    ///
+    /// Mientras el rollover valía siempre 0 (nadie lo calculaba, ver la migración
+    /// `20260803120000_envelope_rollover.sql`) esta distinción no se notaba y acá se sumaban las dos
+    /// cosas. Desde que el trigger de rollover escribe valores reales, sumarlas hace que un sobre
+    /// arrastrado — que nace con `allocated = 0` y `rollover > 0` — le baje al usuario el "listo
+    /// para asignar" sin que haya asignado nada este mes. La web siempre sumó sólo `allocated`.
+    var totalAllocated: Decimal {
+        allocations.reduce(Decimal(0)) { $0 + $1.allocated }
+    }
+
+    /// Total presupuestado: lo asignado este mes MÁS lo arrastrado. Es la plata que hay
+    /// efectivamente en los sobres, y por eso es el número que tiene que cerrar con la suma de las
+    /// filas de sobres — no el que alimenta "listo para asignar".
+    var totalBudgeted: Decimal {
         allocations.reduce(Decimal(0)) { $0 + $1.allocated + $1.rolloverFromPrev }
     }
 
@@ -42,9 +65,10 @@ final class BudgetHubViewModel {
         envelopes.reduce(Decimal(0)) { $0 + $1.status.spent }
     }
 
-    /// Disponible para asignar: ingresos del mes - total asignado.
+    /// Disponible para asignar: ingreso del mes menos lo asignado DESDE ese ingreso.
+    /// Usa `totalAllocated`, no `totalBudgeted`: descontar el arrastre sería cobrarlo dos veces.
     var readyToAssign: Decimal {
-        ingresosMes - totalAssigned
+        ingresosMes - totalAllocated
     }
 
     func load(householdId: UUID) async {
@@ -75,10 +99,13 @@ final class BudgetHubViewModel {
             var computed: [EnvelopeWithAllocation] = []
             for a in allocs {
                 let budgeted = a.allocated + a.rolloverFromPrev
-                let remaining = (try? await BudgetService.shared.envelopeBalance(
+                let remaining = try? await BudgetService.shared.envelopeBalance(
                     periodId: p.id, category: a.category, subcategory: a.subcategory
-                )) ?? budgeted
-                let spent = budgeted - remaining
+                )
+                // `nil` = el SQL devolvió NULL (sin tasa de cambio) o falló la consulta. En los dos
+                // casos el gasto es DESCONOCIDO, no cero. Se marca y la fila lo dice.
+                let unknown = remaining == nil
+                let spent = unknown ? 0 : budgeted - (remaining ?? 0)
                 computed.append(EnvelopeWithAllocation(
                     allocation: a,
                     status: EnvelopeStatus(
@@ -86,7 +113,8 @@ final class BudgetHubViewModel {
                         subcategory: a.subcategory,
                         allocated: budgeted,
                         spent: spent
-                    )
+                    ),
+                    balanceUnknown: unknown
                 ))
             }
             self.envelopes = computed.sorted { $0.status.percentUsed > $1.status.percentUsed }
@@ -311,12 +339,12 @@ struct BudgetHubView: View {
             summaryTile(
                 icon: "dot.arrowtriangles.up.right.down.left.circle",
                 labelKey: "budget.assigned",
-                amount: viewModel.totalAssigned,
+                amount: viewModel.totalBudgeted,
                 kind: .neutro,
                 color: .brandPrimary,
                 // Asignado glow si gastado está dentro del budget. Premia al
                 // usuario por mantenerse en presupuesto.
-                glow: viewModel.totalAssigned > 0 && viewModel.totalSpent <= viewModel.totalAssigned
+                glow: viewModel.totalBudgeted > 0 && viewModel.totalSpent <= viewModel.totalBudgeted
             )
             summaryTile(
                 icon: "arrow.up.circle.fill",
@@ -481,10 +509,12 @@ struct BudgetHubView: View {
                 HStack(alignment: .top) {
                     // El anillo reemplaza al emoji suelto Y a la barra lineal que estaba debajo:
                     // dos representaciones del mismo porcentaje en la misma fila era ruido.
+                    // Con saldo desconocido el anillo va vacío y neutro: pintarlo verde al 0%
+                    // sería afirmar "no gastaste nada", que es exactamente lo que no sabemos.
                     BudgetRing(
-                        percentUsed: env.status.percentUsed,
-                        severity: env.status.severity,
-                        pace: pace(for: env)
+                        percentUsed: env.balanceUnknown ? 0 : env.status.percentUsed,
+                        severity: env.balanceUnknown ? .ok : env.status.severity,
+                        pace: env.balanceUnknown ? nil : pace(for: env)
                     ) {
                         Text(CategoryCatalog.emoji(for: env.status.category))
                             .font(.subheadline)
@@ -498,9 +528,19 @@ struct BudgetHubView: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.textMuted)
                         }
-                        Text("budget.percentUsed \(Int(env.status.percentUsed * 100))")
+                        if env.balanceUnknown {
+                            Label {
+                                Text("budget.balanceUnknown")
+                            } icon: {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                            }
                             .font(.caption2)
-                            .foregroundStyle(env.status.isOverBudget ? Color.brandDanger : Color.textMuted)
+                            .foregroundStyle(Color.brandWarning)
+                        } else {
+                            Text("budget.percentUsed \(Int(env.status.percentUsed * 100))")
+                                .font(.caption2)
+                                .foregroundStyle(env.status.isOverBudget ? Color.brandDanger : Color.textMuted)
+                        }
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {

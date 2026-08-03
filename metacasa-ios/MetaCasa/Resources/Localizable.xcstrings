@@ -3290,6 +3290,29 @@
         }
       }
     },
+    "budget.balanceUnknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending unknown — missing exchange rate"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gasto desconocido — falta la tasa de cambio"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gasto desconhecido — falta a taxa de câmbio"
+          }
+        }
+      }
+    },
     "budget.categories": {
       "localizations": {
         "en": {
