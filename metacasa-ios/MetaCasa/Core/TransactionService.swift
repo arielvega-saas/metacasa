@@ -15,7 +15,12 @@ actor TransactionService {
                 query: PgQuery()
                     .eq("household_id", householdId)
                     .gte("date", from)
-                    .lte("date", to)
+                    // El extremo se extiende al FINAL de su día. Sin esto, un `to` que venga a
+                    // medianoche —como `budget_periods.period_end`, que es un `date`— deja afuera
+                    // todas las transacciones del último día cargadas después de las 00:00, que
+                    // en la práctica son casi todas. `totals()` delega acá, así que este único
+                    // punto cubre totales, sobres y reportes.
+                    .lte("date", to.endOfDayUTC())
                     .order("date", ascending: false)
                     .limit(limit)
             )

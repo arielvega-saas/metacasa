@@ -91,4 +91,45 @@ final class StableDateTests: XCTestCase {
         XCTAssertEqual(parts.month, 2)
         XCTAssertEqual(parts.day, 29)
     }
+
+    // MARK: - Cierre de rango inclusivo
+
+    /// El bug: `period_end` es un `date` que decodifica a medianoche UTC, y se pasaba tal cual a
+    /// `lte`. Todo lo cargado el último día del mes después de las 00:00 quedaba afuera de los
+    /// totales, los sobres y los reportes. En producción, 28 de 61 transacciones tienen hora != 00:00.
+    func testFinDeDiaCubreTodoElUltimoDia() {
+        let medianoche = utcCalendar().date(from: DateComponents(year: 2026, month: 1, day: 31))!
+        let fin = medianoche.endOfDayUTC()
+        let p = utcCalendar().dateComponents([.year, .month, .day, .hour, .minute, .second], from: fin)
+        XCTAssertEqual(p.year, 2026)
+        XCTAssertEqual(p.month, 1)
+        XCTAssertEqual(p.day, 31, "no debe saltar al día siguiente")
+        XCTAssertEqual(p.hour, 23)
+        XCTAssertEqual(p.minute, 59)
+        XCTAssertEqual(p.second, 59)
+    }
+
+    /// Una transacción normalizada a mediodía UTC del último día tiene que CAER dentro del rango.
+    /// Es exactamente el caso que se perdía.
+    func testUnaTxDelUltimoDiaEntraEnElRango() {
+        let cal = utcCalendar()
+        let finDeMes = cal.date(from: DateComponents(year: 2026, month: 1, day: 31))!
+        let tx = cal.date(from: DateComponents(year: 2026, month: 1, day: 31, hour: 12))!
+        XCTAssertGreaterThan(tx, finDeMes, "la tx es posterior a la medianoche del último día")
+        XCTAssertLessThanOrEqual(tx, finDeMes.endOfDayUTC(), "pero debe entrar en el rango extendido")
+    }
+
+    /// El día siguiente NO debe entrar: extender el rango no puede filtrar de más.
+    func testElDiaSiguienteQuedaAfuera() {
+        let cal = utcCalendar()
+        let finDeMes = cal.date(from: DateComponents(year: 2026, month: 1, day: 31))!
+        let febrero = cal.date(from: DateComponents(year: 2026, month: 2, day: 1))!
+        XCTAssertGreaterThan(febrero, finDeMes.endOfDayUTC(), "el 1-feb no puede contar en enero")
+    }
+
+    func testEsIdempotenteSobreUnFinDeDia() {
+        let cal = utcCalendar()
+        let d = cal.date(from: DateComponents(year: 2026, month: 6, day: 15))!
+        XCTAssertEqual(d.endOfDayUTC(), d.endOfDayUTC().endOfDayUTC())
+    }
 }

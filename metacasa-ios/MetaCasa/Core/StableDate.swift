@@ -17,6 +17,28 @@ extension Date {
     ///
     /// Es el mismo criterio que la web ya aplica en `toStableDate` (`lib/db/transactions.ts:209`);
     /// iOS había quedado afuera de ese fix.
+    /// Final del día (23:59:59.999 UTC) al que pertenece esta fecha.
+    ///
+    /// Sirve para cerrar rangos con `lte`, donde el extremo tiene que INCLUIR todo el último día.
+    ///
+    /// El bug que resuelve: `budget_periods.period_end` es un `date` que decodifica a medianoche
+    /// UTC, y las consultas de iOS lo pasaban tal cual a `.lte("date", to)`. Resultado: toda
+    /// transacción del último día del mes con hora > 00:00 quedaba AFUERA de los totales, de los
+    /// sobres y de los reportes. No es teórico — en la base de producción 28 de 61 transacciones
+    /// tienen hora distinta de 00:00, porque es lo que graba el alta desde el teléfono.
+    ///
+    /// Es el equivalente del `inclusiveDateEnd` que la web ya tenía (`lib/db/budget.ts`); iOS
+    /// nunca recibió ese fix.
+    ///
+    /// Se calcula en UTC a propósito: los montos se guardan normalizados a mediodía UTC
+    /// (ver `stableForStorage`), así que el rango tiene que razonar en el mismo huso.
+    func endOfDayUTC() -> Date {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let start = utc.startOfDay(for: self)
+        return utc.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? self
+    }
+
     func stableForStorage(calendar: Calendar = .current) -> Date {
         let parts = calendar.dateComponents([.year, .month, .day], from: self)
         var utc = DateComponents()
