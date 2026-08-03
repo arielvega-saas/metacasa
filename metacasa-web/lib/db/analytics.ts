@@ -37,6 +37,7 @@ export async function getActiveDays(
     .from("transactions")
     .select("date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", start.toISOString());
   if (error) throw error;
 
@@ -80,6 +81,7 @@ export async function getDailySpend(
     .from("transactions")
     .select("amount, date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .eq("type", "GASTO")
     .gte("date", start.toISOString())
     .lt("date", end.toISOString());
@@ -125,6 +127,7 @@ export async function getAnnualFlows(
     .from("transactions")
     .select("amount, type, date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", start.toISOString())
     .lt("date", end.toISOString());
   if (error) throw error;

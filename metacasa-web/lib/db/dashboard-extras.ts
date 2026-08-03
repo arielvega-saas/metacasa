@@ -75,6 +75,7 @@ export async function getDailyFlowSparklines(
     .from("transactions")
     .select("amount, type, date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", startUtc.toISOString());
   if (error) throw error;
 
@@ -112,6 +113,7 @@ export async function getActiveTxDays(
     .from("transactions")
     .select("date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", start.toISOString());
   if (error) throw error;
   const out = new Set<string>();

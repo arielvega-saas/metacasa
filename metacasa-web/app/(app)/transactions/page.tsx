@@ -243,7 +243,10 @@ async function filteredSummary(
   let q = supabase
     .from("transactions")
     .select("amount, type")
-    .eq("household_id", householdId);
+    .eq("household_id", householdId)
+    // Los totales del pie de la lista son agregados: las transferencias no cuentan. La LISTA de
+    // arriba sí las muestra — el usuario tiene que poder ver que movió plata entre sus cuentas.
+    .is("transfer_group_id", null);
 
   if (f.from) q = q.gte("date", f.from);
   if (f.to) q = q.lte("date", f.to);

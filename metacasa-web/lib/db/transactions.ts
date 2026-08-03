@@ -78,6 +78,7 @@ export async function getMonthSummary(
     .from("transactions")
     .select("amount, type")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", start.toISOString())
     .lt("date", end.toISOString());
   if (error) throw error;
@@ -112,6 +113,7 @@ export async function getMonthlyFlows(
     .from("transactions")
     .select("amount, type, date")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .gte("date", startUtc.toISOString());
   if (error) throw error;
 
@@ -149,6 +151,7 @@ export async function getCategoryBreakdown(
     .from("transactions")
     .select("amount, category, type")
     .eq("household_id", householdId)
+    .is("transfer_group_id", null)
     .eq("type", "GASTO")
     .gte("date", start.toISOString())
     .lt("date", end.toISOString());

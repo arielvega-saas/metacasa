@@ -26,21 +26,36 @@ function inclusiveDateEnd(periodEnd: string): string {
  * representación numérica de JS (la columna es numeric en DB). Es la ÚNICA
  * fuente de verdad del `total_income` para crear y para recomputar en vivo.
  */
-async function sumPeriodIncome(
+/**
+ * Totales del período según la **definición canónica del servidor**
+ * (`public.budget_period_summary`).
+ *
+ * Antes esto se calculaba acá con un `sumPeriodIncome` local, y era la QUINTA implementación de
+ * la misma regla (iOS, el card del Home, el hub de Presupuesto, el asistente de IA y ésta). Las
+ * cinco divergían en cosas que cuestan plata:
+ *
+ *  - **Contaba las transferencias como ingreso.** Mover $500.000 de la caja de ahorro a la cuenta
+ *    corriente le sumaba $500.000 al "listo para asignar" — plata que no existe.
+ *  - **No convertía monedas al sumar lo asignado.** Un sobre en dólares en un hogar en pesos se
+ *    sumaba como si fuera pesos, o sea dividido por la cotización.
+ *  - **Ignoraba los sobres sin cotización**, que el RPC cuenta aparte (`fx_missing_count`) en vez
+ *    de asumir un 1 silencioso.
+ *
+ * El RPC no puede driftear porque no guarda nada: se calcula sobre las tasas de HOY, que el job
+ * diario reescribe. Ver `supabase/migrations/20260803170000_budget_period_summary.sql`.
+ */
+async function periodSummary(
   supabase: Client,
-  householdId: string,
-  periodStart: string,
-  periodEnd: string,
-): Promise<number> {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("amount")
-    .eq("household_id", householdId)
-    .eq("type", "INGRESO")
-    .gte("date", periodStart)
-    .lte("date", inclusiveDateEnd(periodEnd));
+  periodId: string,
+): Promise<{ total_income: number; total_allocated: number; ready_to_assign: number }> {
+  const { data, error } = await supabase.rpc("budget_period_summary", { p_period_id: periodId });
   if (error) throw error;
-  return (data ?? []).reduce((s, r) => s + Number(r.amount ?? 0), 0);
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    total_income: Number(row?.total_income ?? 0),
+    total_allocated: Number(row?.total_allocated ?? 0),
+    ready_to_assign: Number(row?.ready_to_assign ?? 0),
+  };
 }
 
 /** Período de presupuesto vigente hoy (si existe). */
@@ -67,18 +82,7 @@ export async function getCurrentPeriod(
   // computa acá; las mutaciones igual mantienen la DB sincronizada. El rango de
   // ingresos usa el MISMO helper que `createPeriod`, así que el `total_income`
   // recomputado coincide con el que se guardó al crear el período.
-  const [totalIncome, { data: allocRows }] = await Promise.all([
-    sumPeriodIncome(supabase, householdId, data.period_start, data.period_end),
-    supabase.from("budget_allocations").select("allocated").eq("period_id", data.id),
-  ]);
-  const totalAllocated = (allocRows ?? []).reduce((s, r) => s + Number(r.allocated ?? 0), 0);
-
-  return {
-    ...data,
-    total_income: totalIncome,
-    total_allocated: totalAllocated,
-    ready_to_assign: totalIncome - totalAllocated,
-  };
+  return { ...data, ...(await periodSummary(supabase, data.id)) };
 }
 
 /**
@@ -114,18 +118,7 @@ export async function getPeriodForMonth(
   if (error) throw error;
   if (!data) return null;
 
-  const [totalIncome, { data: allocRows }] = await Promise.all([
-    sumPeriodIncome(supabase, householdId, data.period_start, data.period_end),
-    supabase.from("budget_allocations").select("allocated").eq("period_id", data.id),
-  ]);
-  const totalAllocated = (allocRows ?? []).reduce((s, r) => s + Number(r.allocated ?? 0), 0);
-
-  return {
-    ...data,
-    total_income: totalIncome,
-    total_allocated: totalAllocated,
-    ready_to_assign: totalIncome - totalAllocated,
-  };
+  return { ...data, ...(await periodSummary(supabase, data.id)) };
 }
 
 /** Asignaciones (envelopes) de un período. */
@@ -175,18 +168,10 @@ export async function createPeriod(
     periodEnd: string; // ISO date YYYY-MM-DD
   },
 ): Promise<BudgetPeriod> {
-  // Ingresos del hogar dentro del rango del período (moneda base del hogar).
-  // Cota superior INCLUSIVA compartida con `getCurrentPeriod`: antes este path
-  // usaba `.lte("date", periodEnd)` con fecha-sólo y se comía el último día del
-  // mes (las tx se guardan a mediodía UTC). Ahora el `total_income` guardado
-  // coincide con el recomputado en vivo.
-  const totalIncome = await sumPeriodIncome(
-    supabase,
-    input.householdId,
-    input.periodStart,
-    input.periodEnd,
-  );
-
+  // Sin cálculo local: `tg_budget_periods_zz_totals` siembra `total_income`,
+  // `total_allocated` y `ready_to_assign` en el INSERT, con la misma definición que usa el resto
+  // de la app (sin transferencias, con conversión de moneda y con el arrastre ya aplicado por el
+  // trigger de rollover, que corre antes). Calcularlo acá era garantizar una sexta verdad.
   const { data, error } = await supabase
     .from("budget_periods")
     .insert({
@@ -194,9 +179,6 @@ export async function createPeriod(
       period_type: input.periodType ?? "month",
       period_start: input.periodStart,
       period_end: input.periodEnd,
-      total_income: totalIncome,
-      total_allocated: 0,
-      ready_to_assign: totalIncome,
     })
     .select("*")
     .single();
@@ -204,38 +186,10 @@ export async function createPeriod(
   return data;
 }
 
-/** Recalcula `total_allocated` y `ready_to_assign` del período tras tocar sobres. */
-async function syncPeriodTotals(
-  supabase: Client,
-  periodId: string,
-): Promise<void> {
-  const { data: rows, error: sumError } = await supabase
-    .from("budget_allocations")
-    .select("allocated")
-    .eq("period_id", periodId);
-  if (sumError) throw sumError;
-
-  const totalAllocated = (rows ?? []).reduce(
-    (sum, r) => sum + Number(r.allocated ?? 0),
-    0,
-  );
-
-  const { data: period, error: periodError } = await supabase
-    .from("budget_periods")
-    .select("total_income")
-    .eq("id", periodId)
-    .single();
-  if (periodError) throw periodError;
-
-  const { error: updError } = await supabase
-    .from("budget_periods")
-    .update({
-      total_allocated: totalAllocated,
-      ready_to_assign: Number(period.total_income ?? 0) - totalAllocated,
-    })
-    .eq("id", periodId);
-  if (updError) throw updError;
-}
+// `syncPeriodTotals` se eliminó: `tg_budget_allocations_totals` recalcula el período en cada
+// INSERT/UPDATE/DELETE de sobres, con conversión de moneda incluida. La versión de acá sumaba
+// `allocated` en crudo, así que en un hogar multi-moneda escribía un total MAL sobre lo que el
+// trigger había dejado bien — el último en escribir ganaba, y era éste.
 
 /**
  * Crea o actualiza una asignación (envelope) por (period_id, category, subcategory).
@@ -267,7 +221,6 @@ export async function upsertAllocation(
     .single();
   if (error) throw error;
 
-  await syncPeriodTotals(supabase, input.periodId);
   return data;
 }
 
@@ -283,5 +236,4 @@ export async function deleteAllocation(
     .eq("id", allocationId);
   if (error) throw error;
 
-  await syncPeriodTotals(supabase, periodId);
 }

@@ -387,6 +387,47 @@ export type Database = {
           },
         ]
       }
+      category_rules: {
+        Row: {
+          category: string
+          hits: number
+          household_id: string
+          id: string
+          pattern: string
+          source: string
+          subcategory: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          hits?: number
+          household_id: string
+          id?: string
+          pattern: string
+          source?: string
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          hits?: number
+          household_id?: string
+          id?: string
+          pattern?: string
+          source?: string
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_rules_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connected_wallets: {
         Row: {
           access_token: string | null
@@ -1085,6 +1126,7 @@ export type Database = {
           created_at: string
           entitlement_id: string
           environment: string
+          event_id: string | null
           expires_at: string | null
           id: string
           latest_receipt_hash: string | null
@@ -1106,6 +1148,7 @@ export type Database = {
           created_at?: string
           entitlement_id: string
           environment?: string
+          event_id?: string | null
           expires_at?: string | null
           id?: string
           latest_receipt_hash?: string | null
@@ -1127,6 +1170,7 @@ export type Database = {
           created_at?: string
           entitlement_id?: string
           environment?: string
+          event_id?: string | null
           expires_at?: string | null
           id?: string
           latest_receipt_hash?: string | null
@@ -1220,7 +1264,9 @@ export type Database = {
           period_month: number | null
           period_year: number | null
           subcategory: string | null
+          transfer_group_id: string | null
           type: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -1241,7 +1287,9 @@ export type Database = {
           period_month?: number | null
           period_year?: number | null
           subcategory?: string | null
+          transfer_group_id?: string | null
           type: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -1262,7 +1310,9 @@ export type Database = {
           period_month?: number | null
           period_year?: number | null
           subcategory?: string | null
+          transfer_group_id?: string | null
           type?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1281,6 +1331,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_access_anchors: {
+        Row: {
+          created_at: string
+          ios_original_purchase_date: string | null
+          trial_started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ios_original_purchase_date?: string | null
+          trial_started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ios_original_purchase_date?: string | null
+          trial_started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_entitlements: {
         Row: {
@@ -1381,12 +1455,37 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_transfer_health: {
+        Row: {
+          desbalance: number | null
+          gastos: number | null
+          household_id: string | null
+          ingresos: number | null
+          piernas: number | null
+          transfer_group_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_household_invitation: {
         Args: { invite_token: string }
         Returns: string
+      }
+      account_balances: {
+        Args: { p_household: string }
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
       }
       ai_check_and_increment_quota: {
         Args: {
@@ -1404,6 +1503,18 @@ export type Database = {
           monthly_used: number
         }[]
       }
+      budget_period_summary: {
+        Args: { p_period_id: string }
+        Returns: {
+          base_currency: string
+          fx_missing_count: number
+          period_id: string
+          ready_to_assign: number
+          total_allocated: number
+          total_budgeted: number
+          total_income: number
+        }[]
+      }
       create_household: {
         Args: { p_currency?: string; p_name: string; p_timezone?: string }
         Returns: {
@@ -1418,10 +1529,25 @@ export type Database = {
           timezone: string
           updated_at: string
         }
+        SetofOptions: {
+          from: "*"
+          to: "households"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      current_user_default_household: { Args: never; Returns: string }
-      current_user_household_ids: { Args: never; Returns: string[] }
-      current_user_household_role: { Args: { hid: string }; Returns: string }
+      create_transfer: {
+        Args: {
+          p_amount: number
+          p_date: string
+          p_from_account: string
+          p_household: string
+          p_note?: string
+          p_to_account: string
+        }
+        Returns: string
+      }
+      delete_transfer: { Args: { p_group: string }; Returns: number }
       envelope_balance: {
         Args: {
           p_category: string
@@ -1431,34 +1557,48 @@ export type Database = {
         Returns: number
       }
       get_wallet_access_token: { Args: { wid: string }; Returns: string }
+      has_active_entitlement: { Args: { ent: string }; Returns: boolean }
+      latest_fx_rate: {
+        Args: { p_base: string; p_quote: string }
+        Returns: number
+      }
+      month_summary: {
+        Args: { p_household: string; p_month: number; p_year: number }
+        Returns: {
+          gastos: number
+          ingresos: number
+          movimientos: number
+          neto: number
+        }[]
+      }
       spending_insights: {
         Args: { p_household: string; p_limit?: number }
         Returns: {
-          category: string
           actual: number
-          promedio: number
+          category: string
           delta_pct: number
-          /** 'subio' | 'bajo' */
           direccion: string
+          promedio: number
         }[]
       }
       suggest_category: {
         Args: { p_household: string; p_note: string }
         Returns: {
           category: string
-          subcategory: string | null
           confidence: number
           matched_pattern: string
+          subcategory: string
         }[]
       }
-      has_active_entitlement: { Args: { ent: string }; Returns: boolean }
-      web_access_state: { Args: Record<string, never>; Returns: Json }
-      is_household_member: { Args: { hid: string }; Returns: boolean }
-      latest_fx_rate: {
-        Args: { p_base: string; p_quote: string }
-        Returns: number
+      transaction_totals: {
+        Args: { p_from: string; p_household: string; p_to: string }
+        Returns: {
+          gastos: number
+          ingresos: number
+        }[]
       }
       wallet_encryption_key: { Args: never; Returns: string }
+      web_access_state: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never
@@ -1469,22 +1609,122 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database["public"]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-/** Fila de una tabla pública: `Tables<"transactions">`. */
-export type Tables<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Row"]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
-/** Payload de insert: `TablesInsert<"transactions">`. */
-export type TablesInsert<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Insert"]
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-/** Payload de update: `TablesUpdate<"transactions">`. */
-export type TablesUpdate<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Update"]
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-export type Enums<T extends keyof PublicSchema["Enums"]> =
-  PublicSchema["Enums"][T]
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {
