@@ -97,19 +97,28 @@ actor TransactionService {
         )
     }
 
-    /// Ingresos y gastos del período. **Excluye transferencias entre cuentas propias.**
+    /// Ingresos y gastos del período, **agregados en el servidor**.
     ///
-    /// Mover $500.000 de la caja de ahorro a la cuenta corriente generaba +$500.000 de ingresos Y
-    /// +$500.000 de gastos: hundía el health score, metía "Transferencia" como categoría top y
-    /// consumía el sobre si existía uno con ese nombre. La plata nunca salió del hogar.
+    /// Antes bajaba hasta 1000 filas ordenadas por fecha DESC y las sumaba acá. Pasado ese tope se
+    /// descartaban las transacciones MÁS VIEJAS del rango y los totales salían bajos sin ningún
+    /// aviso — el usuario veía menos gastos de los que tuvo. Un hogar con movimientos diarios llega
+    /// a 1000 en pocos meses.
     ///
-    /// `fetchForPeriod` a propósito NO filtra: alimenta también el listado de movimientos, donde
-    /// las transferencias sí tienen que verse. El filtro va en los agregados.
+    /// Además, sumar en el cliente obligaba a repetir acá las reglas de negocio (excluir
+    /// transferencias, el rango inclusivo del último día). El RPC las tiene una sola vez, junto a
+    /// `budget_period_summary` y `envelope_balance`.
     func totals(householdId: UUID, from: Date, to: Date) async throws -> (ingresos: Decimal, gastos: Decimal) {
-        let txs = try await fetchForPeriod(householdId: householdId, from: from, to: to, limit: 1000)
-            .excludingTransfers
-        let ing = txs.filter { $0.type == .ingreso }.reduce(Decimal(0)) { $0 + $1.amount }
-        let gast = txs.filter { $0.type == .gasto }.reduce(Decimal(0)) { $0 + $1.amount }
-        return (ing, gast)
+        struct Params: Encodable {
+            let p_household: UUID
+            let p_from: Date
+            let p_to: Date
+        }
+        struct Row: Decodable { let ingresos: Decimal; let gastos: Decimal }
+        let rows: [Row] = try await SupabaseRPC.call(
+            "transaction_totals",
+            params: Params(p_household: householdId, p_from: from, p_to: to)
+        )
+        guard let r = rows.first else { return (0, 0) }
+        return (r.ingresos, r.gastos)
     }
 }
