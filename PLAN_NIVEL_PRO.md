@@ -109,6 +109,8 @@
 
 **Backend**
 - 3.15 Jobs `pg_cron`: materializar recurring/installments, recordatorios de bills (`reminder_days` hoy no dispara nada), limpieza de hogares huérfanos, barrido de trials.
+
+> **Rollover de sobres ✅ (2026-08-03).** Era una feature 100% decorativa: la columna `rollover_from_prev` y el toggle de tres modos existían desde abril, pero un grep por escrituras daba CERO — ni trigger, ni job, ni server action. El usuario ponía "arrastrar sobrante" y no pasaba nada. Ahora va como **trigger sobre el INSERT de `budget_periods`**, no como job de `pg_cron`: los períodos se crean por demanda al navegar a un mes, no el día 1, así que un cron no cubriría a quien abre marzo estando en enero. `surplus` arrastra sólo lo positivo, `full` arrastra también el déficit (para eso existe ese modo), `none` no crea nada. Si `envelope_balance` da NULL por falta de tasa se SALTEA el sobre: inventar un 0 sería afirmar "no te sobró nada" cuando la verdad es "no se puede saber", y en un sobre de arrastre eso es plata que desaparece. Idempotente. **8/8 pgTAP verdes contra prod, 0 filas residuales** (`supabase/tests/envelope_rollover.sql`).
 - 3.16 Realtime: agregar tablas core a la publication (hoy vacía) + suscripción por household en iOS/web — el sync multi-dispositivo hoy es polling.
 - 3.17 Soft-delete (`deleted_at`) + `audit_log` append-only + `updated_at` en `transactions` (hoy no se puede auditar una edición).
 - 3.18 Sentry + logging estructurado en las 6 edge functions; tabla de log de webhooks RC para reconciliación.
