@@ -931,40 +931,42 @@ final class AIToolHandler: @unchecked Sendable {
         let now = Date()
         let baseNote = p.note?.isEmpty == false ? p.note! : "Transferencia entre cuentas"
 
-        // Leg 1: gasto en cuenta origen
-        let expense = NewTransactionInput(
-            householdId: householdId,
-            userId: userId,
-            accountId: fromId,
-            type: .gasto,
-            amount: amount,
-            currencyOriginal: nil,
-            category: "Transferencia",
-            subcategory: nil,
-            note: "→ \(baseNote)",
-            date: now
-        )
-        // Leg 2: ingreso en cuenta destino
-        let income = NewTransactionInput(
-            householdId: householdId,
-            userId: userId,
-            accountId: toId,
-            type: .ingreso,
-            amount: amount,
-            currencyOriginal: nil,
-            category: "Transferencia",
-            subcategory: nil,
-            note: "← \(baseNote)",
-            date: now
-        )
-
+        // Una sola RPC atómica en vez de dos inserts sueltos.
+        //
+        // Antes esto hacía `insert(expense)` y después `insert(income)`: dos requests HTTP
+        // independientes. Si el segundo fallaba quedaba un GASTO huérfano que le comía plata al
+        // usuario sin contrapartida — y el mensaje de error lo admitía, pidiéndole que lo
+        // arreglara a mano desde Movimientos.
+        //
+        // `create_transfer` inserta las dos piernas en un solo statement: o entran las dos o no
+        // entra ninguna. Además las vincula con `transfer_group_id`, que es lo que permite que los
+        // agregados las excluyan (mover plata entre cuentas propias no es ingreso ni gasto) y que
+        // se puedan borrar juntas.
+        struct TransferParams: Encodable {
+            let p_household: UUID
+            let p_from_account: UUID
+            let p_to_account: UUID
+            let p_amount: Decimal
+            let p_date: Date
+            let p_note: String
+        }
         do {
-            _ = try await TransactionService.shared.insert(expense)
-            _ = try await TransactionService.shared.insert(income)
+            let _: UUID = try await SupabaseRPC.call(
+                "create_transfer",
+                params: TransferParams(
+                    p_household: householdId,
+                    p_from_account: fromId,
+                    p_to_account: toId,
+                    p_amount: amount,
+                    p_date: now,
+                    p_note: baseNote
+                )
+            )
             let formatted = Money.format(amount, currency: currency, style: .compact)
-            return "✅ Transferencia ejecutada: \(formatted) movido entre cuentas. Se crearon 2 transacciones linkeadas."
+            return "✅ Transferencia ejecutada: \(formatted) movido entre cuentas."
         } catch {
-            return "Error en la transferencia: \(error.localizedDescription). Si solo se ejecuto la primera pierna, hace falta corregir manualmente desde Movimientos."
+            // Sin "puede que haya quedado a medias": la RPC es atómica, si falló no entró nada.
+            return "Error en la transferencia: \(error.localizedDescription). No se creó ningún movimiento."
         }
     }
     #endif

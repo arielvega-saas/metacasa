@@ -78,7 +78,7 @@ final class HomeViewModel {
         }
         let cal = Calendar.current
         let last30 = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let daysWithTx = Set(consistencyTransactions.filter { $0.date >= last30 }.map { cal.startOfDay(for: $0.date) }).count
+        let daysWithTx = Set(consistencyTransactions.excludingTransfers.filter { $0.date >= last30 }.map { cal.startOfDay(for: $0.date) }).count
         score += min(20, Double(daysWithTx) * 0.67)
         return max(0, min(100, Int(score)))
     }
@@ -87,7 +87,7 @@ final class HomeViewModel {
     /// menos una transacción cargada. Usado en el widget 🔥 del Home.
     var streak: Int {
         let cal = Calendar.current
-        var days = Set(consistencyTransactions.map { cal.startOfDay(for: $0.date) })
+        var days = Set(consistencyTransactions.excludingTransfers.map { cal.startOfDay(for: $0.date) })
         // Fallback: si recentTransactions tiene <1 mes de data pero el user
         // carga hoy, contamos desde hoy. Esto funciona porque siempre hay al
         // menos la ventana del mes en recentTransactions.
@@ -107,7 +107,7 @@ final class HomeViewModel {
         let cal = Calendar.current
         let now = Date()
         var daily: [Decimal] = Array(repeating: 0, count: 7)
-        for tx in recentTransactions where tx.type == .gasto {
+        for tx in recentTransactions.excludingTransfers where tx.type == .gasto {
             let days = cal.dateComponents([.day], from: tx.date, to: now).day ?? 99
             if days >= 0 && days < 7 {
                 daily[6 - days] += tx.amount
@@ -121,7 +121,7 @@ final class HomeViewModel {
         let cal = Calendar.current
         let now = Date()
         var daily: [Decimal] = Array(repeating: 0, count: 7)
-        for tx in recentTransactions where tx.type == .ingreso {
+        for tx in recentTransactions.excludingTransfers where tx.type == .ingreso {
             let days = cal.dateComponents([.day], from: tx.date, to: now).day ?? 99
             if days >= 0 && days < 7 {
                 daily[6 - days] += tx.amount
@@ -139,7 +139,7 @@ final class HomeViewModel {
         prevMonthIngresos = s.prevMonthIngresos
         prevMonthGastos = s.prevMonthGastos
         recentTransactions = s.recentTransactions
-        topGastos = Array(s.recentTransactions.filter { $0.type == .gasto }
+        topGastos = Array(s.recentTransactions.excludingTransfers.filter { $0.type == .gasto }
             .sorted { $0.amount > $1.amount }.prefix(5))
         topCategories = s.topCategories.map { (category: $0.category, total: $0.total) }
         period = s.period
@@ -231,10 +231,10 @@ final class HomeViewModel {
             let txs = try await transactions
             self.recentTransactions = txs
             self.consistencyTransactions = (try? await consistencyTxs) ?? txs
-            self.topGastos = Array(txs.filter { $0.type == .gasto }.sorted { $0.amount > $1.amount }.prefix(5))
+            self.topGastos = Array(txs.excludingTransfers.filter { $0.type == .gasto }.sorted { $0.amount > $1.amount }.prefix(5))
 
             var byCat: [String: Decimal] = [:]
-            for tx in txs where tx.type == .gasto {
+            for tx in txs.excludingTransfers where tx.type == .gasto {
                 byCat[tx.category, default: 0] += tx.amount
             }
             self.topCategories = byCat.sorted { $0.value > $1.value }.prefix(5)
@@ -459,7 +459,9 @@ struct HomeView: View {
             .sheet(item: $breakdownMode) { mode in
                 BalanceBreakdownView(
                     mode: mode,
-                    transactions: viewModel.recentTransactions,
+                    // Excluye transferencias igual que `totalIngresos`/`totalGastos`: si el
+                    // desglose las incluyera, no cerraría con el total que muestra arriba.
+                    transactions: viewModel.recentTransactions.excludingTransfers,
                     ingresos: viewModel.totalIngresos,
                     gastos: viewModel.totalGastos,
                     currency: householdCurrency

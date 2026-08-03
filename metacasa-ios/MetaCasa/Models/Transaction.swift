@@ -19,6 +19,19 @@ struct Transaction: Codable, Identifiable, Hashable, Sendable {
     var date: Date
     var periodYear: Int?
     var periodMonth: Int?
+
+    /// Vincula las dos piernas de una transferencia entre cuentas propias. `nil` = movimiento normal.
+    ///
+    /// REGLA (ver `20260803140000_transfer_group_id.sql`):
+    /// - Los agregados de ingreso/gasto/categoría/score DEBEN excluirlas: mover plata entre cuentas
+    ///   propias no es ni ingreso ni gasto del hogar, la plata sigue adentro. Sumarlas infla ambos
+    ///   lados a la vez y hunde el health score.
+    /// - Los agregados de SALDO POR CUENTA **no** las excluyen: ahí las dos piernas SON el mecanismo
+    ///   por el que la plata se mueve de una cuenta a la otra.
+    ///
+    /// Usar el helper `[Transaction].excludingTransfers` en vez de escribir el filtro a mano.
+    var transferGroupId: UUID?
+
     let createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -40,8 +53,22 @@ struct Transaction: Codable, Identifiable, Hashable, Sendable {
         case date
         case periodYear = "period_year"
         case periodMonth = "period_month"
+        case transferGroupId = "transfer_group_id"
         case createdAt = "created_at"
     }
+
+    /// `true` si es una de las dos piernas de una transferencia entre cuentas propias.
+    var isTransfer: Bool { transferGroupId != nil }
+}
+
+extension Array where Element == Transaction {
+    /// Quita las transferencias entre cuentas propias.
+    ///
+    /// Existe como helper y no como filtro suelto para que el criterio sea buscable: cuando alguien
+    /// agregue un agregado nuevo, `grep excludingTransfers` muestra todos los que ya lo aplican.
+    /// El auditor contó ~35 sitios en iOS que suman dinero; escribir `$0.transferGroupId == nil` a
+    /// mano en cada uno es cómo se olvida el número 36.
+    var excludingTransfers: [Transaction] { filter { !$0.isTransfer } }
 }
 
 enum TxType: String, Codable, Hashable, Sendable, CaseIterable {
