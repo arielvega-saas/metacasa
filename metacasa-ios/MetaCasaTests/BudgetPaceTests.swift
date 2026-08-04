@@ -50,12 +50,21 @@ final class BudgetPaceTests: XCTestCase {
         XCTAssertTrue(p.willOverspend)
     }
 
-    func testElDiaEnCursoCuentaComoTranscurrido() {
+    func testElDiaEnCursoCuentaComoTranscurrido() throws {
         // El día 1 es 1/31 de mes transcurrido, no 0/31 — con 0 la división explotaría.
-        // Como 1/31 < 0.15, acá se verifica vía el día 5 (5/31 ≈ 0,161).
-        let p = pace(spent: 100, allocated: 1000, on: 5)
-        XCTAssertNotNil(p)
-        XCTAssertEqual(p!.fractionElapsed, 5.0 / 31.0, accuracy: 0.0001)
+        //
+        // Se verifica en el día 8 y no en el 5: el piso subió a 0,25 el 2026-08-04 porque con 0,15
+        // el alquiler pagado el día 1 seguía proyectando 575%. 8/31 ≈ 0,258 es el primer día que
+        // proyecta. Si el piso vuelve a moverse, este test falla y hay que elegir otro día a
+        // propósito — que es lo correcto: la fracción exacta es parte del contrato.
+        let p = try XCTUnwrap(pace(spent: 100, allocated: 1000, on: 8))
+        XCTAssertEqual(p.fractionElapsed, 8.0 / 31.0, accuracy: 0.0001)
+    }
+
+    /// El piso, explícito: un día antes no proyecta, el día del piso sí.
+    func testElPisoEsExactamenteElDia8() {
+        XCTAssertNil(pace(spent: 100, allocated: 1000, on: 7), "7/31 ≈ 0,226 < 0,25")
+        XCTAssertNotNil(pace(spent: 100, allocated: 1000, on: 8), "8/31 ≈ 0,258 ≥ 0,25")
     }
 
     func testRitmoQueNoSePasaNoMarcaOverspend() {
@@ -142,4 +151,58 @@ final class BudgetPaceTests: XCTestCase {
         XCTAssertTrue(s.isOverBudget)
         XCTAssertEqual(s.severity, .critical)
     }
+
+    // MARK: - El gasto fijo de principio de mes (bug encontrado en pantalla, 2026-08-04)
+
+    /// El caso real: alquiler de 520.000 sobre un sobre de 560.000, pagado el día 1.
+    /// Con el piso viejo de 0,15 (día 5) esto mostraba **"a este ritmo llegás al 575%"**.
+    ///
+    /// La proyección lineal asume que el gasto se reparte parejo en el mes, y los gastos fijos de
+    /// principio de mes rompen ese supuesto: un pago único proyectado como ritmo da un número
+    /// absurdo. El número era matemáticamente correcto y completamente inútil.
+    func testElAlquilerDelDia1NoProyectaEnLaPrimeraSemana() {
+        let pace = BudgetPace.compute(
+            spent: 520_000, allocated: 560_000,
+            periodStart: date(2026, 8, 1), periodEnd: date(2026, 8, 31),
+            now: date(2026, 8, 5), calendar: calendar
+        )
+        XCTAssertNil(pace, "el día 5 el ritmo todavía es un gasto fijo disfrazado de tendencia")
+    }
+
+    /// Pasado el piso nuevo sí proyecta — pero el número gigante no se muestra como número.
+    func testUnaProyeccionAbsurdaNoSeMuestraComoNumero() throws {
+        let pace = try XCTUnwrap(BudgetPace.compute(
+            spent: 520_000, allocated: 560_000,
+            periodStart: date(2026, 8, 1), periodEnd: date(2026, 8, 31),
+            now: date(2026, 8, 10), calendar: calendar
+        ))
+        XCTAssertTrue(pace.willOverspend, "pasarse es cierto y hay que avisarlo")
+        XCTAssertFalse(pace.hasMeaningfulPercent,
+                       "un 288% se lee como error de la app; el aviso va en cualitativo")
+    }
+
+    /// Y una proyección razonable SÍ conserva el número, que es más accionable.
+    func testUnaProyeccionRazonableConservaElNumero() throws {
+        let pace = try XCTUnwrap(BudgetPace.compute(
+            spent: 60_000, allocated: 100_000,
+            periodStart: date(2026, 8, 1), periodEnd: date(2026, 8, 31),
+            now: date(2026, 8, 16), calendar: calendar
+        ))
+        XCTAssertTrue(pace.willOverspend)
+        XCTAssertTrue(pace.hasMeaningfulPercent)
+        XCTAssertEqual(pace.projectedPercent, 1.16, accuracy: 0.02, "116%: informativo y creíble")
+    }
+
+    /// El piso nuevo deja activa la mayor parte del mes, que es cuando sirve.
+    func testElPisoNuevoNoApagaLaFeature() {
+        for dia in 8...31 {
+            let pace = BudgetPace.compute(
+                spent: 60_000, allocated: 100_000,
+                periodStart: date(2026, 8, 1), periodEnd: date(2026, 8, 31),
+                now: date(2026, 8, dia), calendar: calendar
+            )
+            XCTAssertNotNil(pace, "el día \(dia) debería proyectar")
+        }
+    }
+
 }

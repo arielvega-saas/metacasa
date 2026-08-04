@@ -5788,6 +5788,29 @@
         }
       }
     },
+    "budget.pace.willOverspend": {
+      "extractionState": "manual",
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A este ritmo te vas a pasar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At this pace you will go over"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nesse ritmo você vai estourar"
+          }
+        }
+      }
+    },
     "budget.percentUsed %lld": {
       "extractionState": "manual",
       "localizations": {

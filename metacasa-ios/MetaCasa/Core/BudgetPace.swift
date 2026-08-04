@@ -20,10 +20,26 @@ struct BudgetPace: Equatable, Sendable {
     /// Mínimo de período transcurrido para proyectar.
     ///
     /// Sin este piso la proyección es ruido peligroso: una compra el día 1 de un mes de 31 días proyecta
-    /// 31× el gasto y dispararía una alarma roja por algo perfectamente normal. 0,15 cae cerca del día 5,
-    /// que es el primer momento en que el ritmo dice algo real. Es el mismo criterio por el que la app no
-    /// muestra insights de desvíos menores al 25%: una alerta que se ignora entrena a ignorar la zona.
-    static let minimumElapsedFraction = 0.15
+    /// 31× el gasto y dispararía una alarma roja por algo perfectamente normal.
+    ///
+    /// **Subido de 0,15 a 0,25 el 2026-08-04, viéndolo en pantalla.** 0,15 caía en el día 5, y ahí el
+    /// alquiler —que se paga el día 1 y es un pago ÚNICO, no un ritmo— seguía proyectando 575%. La
+    /// proyección lineal asume que el gasto se reparte parejo, y los gastos fijos de principio de mes
+    /// rompen ese supuesto de lleno. Recién cerca del día 8 el gasto variable pesa lo suficiente como
+    /// para que el ritmo diga algo. Sigue quedando el 75% del mes con la proyección activa, que es
+    /// cuando todavía se puede hacer algo al respecto.
+    static let minimumElapsedFraction = 0.25
+
+    /// Tope a partir del cual el NÚMERO deja de informar.
+    ///
+    /// Un "llegás al 575%" no dice nada que "llegás al 210%" no diga: los dos significan "te vas a
+    /// pasar por mucho". Pero el número gigante se lee como error de la app, y una alerta que parece
+    /// rota entrena a ignorar toda la zona — el mismo motivo por el que no se muestran desvíos
+    /// menores al 25%. Arriba del tope se avisa igual, en cualitativo.
+    static let maximumMeaningfulPercent = 2.0
+
+    /// El porcentaje proyectado es informativo (no un artefacto de un gasto fijo temprano).
+    var hasMeaningfulPercent: Bool { projectedPercent <= Self.maximumMeaningfulPercent }
 
     /// Devuelve la proyección, o `nil` cuando proyectar no aporta o mentiría.
     ///

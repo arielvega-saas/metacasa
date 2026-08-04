@@ -52,16 +52,28 @@ enum TrialManager {
 
     // MARK: - Fuentes
 
+    /// Cuánto se espera a `AppTransaction` antes de usar el fallback del Keychain.
+    ///
+    /// Sin tope, la app se colgaba en el splash: `AppTransaction.shared` no vuelve cuando Apple
+    /// throttlea, y el `do/catch` no ayuda porque un cuelgue no lanza. 4 segundos es de sobra
+    /// cuando StoreKit responde (típico < 1s) y no se nota en un arranque normal.
+    private static let appTransactionTimeout: Duration = .seconds(4)
+
     private static func appStoreOriginalPurchaseDate() async -> Date? {
-        do {
-            let result = try await AppTransaction.shared
-            if case .verified(let appTransaction) = result {
-                return appTransaction.originalPurchaseDate
+        // El doble opcional es a propósito: `nil` externo = se acabó el tiempo,
+        // `nil` interno = StoreKit contestó que no hay fecha.
+        let resultado: Date?? = await withTimeout(appTransactionTimeout) { () -> Date? in
+            do {
+                let result = try await AppTransaction.shared
+                if case .verified(let appTransaction) = result {
+                    return appTransaction.originalPurchaseDate
+                }
+                return nil
+            } catch {
+                return nil
             }
-            return nil
-        } catch {
-            return nil
         }
+        return resultado ?? nil
     }
 
     private static func keychainFirstLaunchDate() -> Date {

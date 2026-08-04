@@ -52,21 +52,48 @@ final class AccessController {
         Task { await refresh() }
     }
 
+    /// Cuánto se espera a StoreKit antes de decidir sin él.
+    ///
+    /// `Transaction.currentEntitlements` puede no terminar NUNCA: cuando Apple throttlea
+    /// (`AppTransaction throttled`, error SKInternal 12), cuando no hay conexión con el App Store,
+    /// o cuando la cuenta del dispositivo está en un estado raro. Sin tope, el `for await` queda
+    /// colgado, `state` se queda en `.loading` y `RootView` muestra `LaunchView()` **para siempre**:
+    /// la app queda inutilizable en el splash, sin error, sin reintento y sin forma de entrar.
+    ///
+    /// Encontrado el 2026-08-04 en el simulador, pero no es un problema del simulador: el throttle
+    /// de StoreKit es del lado de Apple y le puede pasar a cualquier usuario.
+    private static let storeKitTimeout: Duration = .seconds(6)
+
     /// Re-evalúa acceso: suscripción activa O trial vigente.
+    ///
+    /// El orden importa. El trial se calcula LOCAL (comparación de fechas, sin red), así que se
+    /// resuelve primero y corta: un usuario en trial entra sin depender de StoreKit para nada.
+    /// Sólo si el trial venció hace falta preguntar por la suscripción, y esa consulta va acotada.
     func refresh() async {
-        let subscribed = await Self.hasActiveSubscription()
         let inTrial = await TrialManager.isInTrial()
         let days = await TrialManager.daysRemaining()
-
-        isSubscribed = subscribed
         isInTrial = inTrial
         trialDaysRemaining = days
 
-        if subscribed || inTrial {
+        if inTrial {
+            // No se toca StoreKit: el trial alcanza para entrar.
             state = .granted
-        } else {
-            state = .locked
+            return
         }
+
+        let subscribed = await Self.hasActiveSubscriptionBounded()
+        isSubscribed = subscribed
+
+        // Si StoreKit no contestó, `subscribed` viene en false y se cae al paywall — que TIENE
+        // botón de reintento. Es la salida correcta: no regala acceso (sería el agujero de
+        // monetización que ya costó una vez) y tampoco deja la app colgada. Un suscriptor real
+        // recupera el acceso apenas StoreKit responde, sin reinstalar nada.
+        state = subscribed ? .granted : .locked
+    }
+
+    /// `hasActiveSubscription()` con tope de tiempo. Devuelve `false` si StoreKit no contestó.
+    private static func hasActiveSubscriptionBounded() async -> Bool {
+        await withTimeout(storeKitTimeout) { await hasActiveSubscription() } ?? false
     }
 
     /// Recorre los entitlements actuales de StoreKit y devuelve `true` si hay

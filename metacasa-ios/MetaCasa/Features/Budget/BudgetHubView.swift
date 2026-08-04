@@ -568,7 +568,14 @@ struct BudgetHubView: View {
                 // porque suena a advertencia futura sobre algo que ya pasó.
                 if let pace = pace(for: env), pace.willOverspend, !env.status.isOverBudget {
                     Label {
-                        Text("budget.pace.projected \(Int(pace.projectedPercent * 100))")
+                        // Arriba del tope el número no informa y encima se lee como error de la app.
+                        // "Llegás al 575%" pasa a "vas a pasarte": misma información accionable, sin
+                        // el ruido que entrena a ignorar la alerta.
+                        if pace.hasMeaningfulPercent {
+                            Text("budget.pace.projected \(Int(pace.projectedPercent * 100))")
+                        } else {
+                            Text("budget.pace.willOverspend")
+                        }
                     } icon: {
                         Image(systemName: "chart.line.uptrend.xyaxis")
                     }
