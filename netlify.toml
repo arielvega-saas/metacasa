@@ -7,18 +7,26 @@
 #
 # Es un monorepo: la web vive en `metacasa-web/`, por eso `base`.
 #
-# OJO con las rutas — no se resuelven todas igual (verificado en el primer deploy,
-# 2026-07-31, con @netlify/plugin-nextjs 5.15.13):
-#   - `command` SÍ se ejecuta dentro de `base`.
-#   - `publish` se resuelve contra la RAÍZ DEL REPO, no contra `base`.
-# Con `publish = ".next"` el plugin buscó `app/.next` y falló con "publish directory
-# was not found", aunque el build de Next había terminado bien. Por eso va el path
-# completo desde la raíz.
+# OJO con `publish`: se resuelve DISTINTO según quién construya, y es la diferencia
+# que rompió el primer build automático (2026-08-03, "Failed Due To Plugin Error"):
+#
+#   - Build en Netlify (desde el repo): `publish` es relativo a `base`. El valor
+#     correcto es `.next`.
+#   - `netlify deploy --build` desde la máquina: lo resuelve contra la RAÍZ DEL REPO,
+#     y ahí hay que escribir `metacasa-web/.next`.
+#
+# O sea que el valor que funciona en un modo falla en el otro, y el síntoma no se
+# parece a un problema de rutas: con el valor equivocado el build de Next termina
+# BIEN y lo que falla después es el plugin.
+#
+# Este archivo queda con el valor del CI, que es el camino normal ahora que el repo
+# está conectado. Si alguna vez hay que deployear a mano, usar:
+#   netlify deploy --build --prod --dir metacasa-web/.next
 
 [build]
   base = "metacasa-web"
   command = "npm run build"
-  publish = "metacasa-web/.next"
+  publish = ".next"
 
 # Adaptador oficial de Next.js: traduce App Router, Server Actions, middleware
 # y rutas dinámicas a funciones de Netlify. Netlify lo instala solo al detectar
