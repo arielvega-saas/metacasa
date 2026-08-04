@@ -7,6 +7,7 @@ import '../../../data/repositories/bill_repository.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/debt_repository.dart';
 import '../../../data/repositories/goal_repository.dart';
+import '../../../core/finance/tx_currency.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../models/models.dart';
 import '../domain/ai_money_format.dart';
@@ -245,12 +246,17 @@ class FinanceToolExecutor {
     final Decimal amount = _dec(amountD);
     final String category = _resolveCategory(categoryRaw);
 
-    final NewTransactionInput input = NewTransactionInput(
+    // `currency` YA es la base del hogar (`household.defaultCurrency`): el tool no acepta
+    // moneda como argumento, así que acá nunca hay conversión. Va por `converting` igual
+    // para que el día que se agregue el argumento herede la regla en vez de reimplementarla.
+    final NewTransactionInput input = NewTransactionInputConverting.converting(
       householdId: householdId,
       userId: userId,
       type: txType,
-      amount: amount,
-      currencyOriginal: currency,
+      amountOriginal: amount,
+      currency: currency,
+      baseCurrency: currency,
+      rates: const <String, FXRate>{},
       category: category,
       subcategory: _s(i, 'subcategory'),
       note: _s(i, 'note'),

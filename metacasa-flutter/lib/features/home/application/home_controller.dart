@@ -239,7 +239,7 @@ class HomeController extends AsyncNotifier<HomeState> {
     // `amountInBase` (== amount con el contrato actual) para ser explícitos.
     var totalIngresos = Decimal.zero;
     var totalGastos = Decimal.zero;
-    for (final Transaction tx in periodTxs) {
+    for (final Transaction tx in periodTxs.excludingTransfers) {
       switch (tx.type) {
         case TxType.ingreso:
           totalIngresos += tx.amountInBase;
@@ -251,7 +251,7 @@ class HomeController extends AsyncNotifier<HomeState> {
     // ── Top categorías de gasto ────────────────────────────────────────────
     // iOS: agrupa GASTO por `category`, suma, ordena desc, toma prefix(5).
     final Map<String, Decimal> byCategory = <String, Decimal>{};
-    for (final Transaction tx in periodTxs) {
+    for (final Transaction tx in periodTxs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       byCategory[tx.category] =
           (byCategory[tx.category] ?? Decimal.zero) + tx.amountInBase;
@@ -274,7 +274,7 @@ class HomeController extends AsyncNotifier<HomeState> {
         .toDecimal(scaleOnInfinitePrecision: 4);
 
     var todayExpenses = Decimal.zero;
-    for (final Transaction tx in periodTxs) {
+    for (final Transaction tx in periodTxs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       if (_isSameDay(tx.date, now)) todayExpenses += tx.amountInBase;
     }
@@ -380,7 +380,7 @@ class HomeController extends AsyncNotifier<HomeState> {
 
       // Gasto por categoría dentro del período (suma de subcategorías incluida).
       final Map<String, Decimal> spentByCategory = <String, Decimal>{};
-      for (final Transaction tx in periodTxs) {
+      for (final Transaction tx in periodTxs.excludingTransfers) {
         if (tx.type != TxType.gasto) continue;
         spentByCategory[tx.category] =
             (spentByCategory[tx.category] ?? Decimal.zero) + tx.amountInBase;

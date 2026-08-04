@@ -102,7 +102,7 @@ class WaterfallCalculator {
 
   // MARK: - Cálculos individuales
 
-  Decimal _totalIncome() => transactions
+  Decimal _totalIncome() => transactions.excludingTransfers
       .where((Transaction t) => t.type == TxType.ingreso)
       .fold(Decimal.zero, (Decimal acc, Transaction t) => acc + t.amount);
 

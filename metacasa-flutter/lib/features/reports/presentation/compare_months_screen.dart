@@ -128,7 +128,7 @@ class _CompareMonthsScreenState extends ConsumerState<CompareMonthsScreen> {
   static _Totals _totalsOf(List<Transaction> txs) {
     var ing = Decimal.zero;
     var gas = Decimal.zero;
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       switch (tx.type) {
         case TxType.ingreso:
           ing += tx.amountInBase;
@@ -141,7 +141,7 @@ class _CompareMonthsScreenState extends ConsumerState<CompareMonthsScreen> {
 
   static Map<String, Decimal> _gastoByCategory(List<Transaction> txs) {
     final Map<String, Decimal> out = <String, Decimal>{};
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       out[tx.category] = (out[tx.category] ?? Decimal.zero) + tx.amountInBase;
     }

@@ -27,6 +27,7 @@ _Transaction _$TransactionFromJson(Map<String, dynamic> json) => _Transaction(
       date: DateTime.parse(json['date'] as String),
       periodYear: (json['period_year'] as num?)?.toInt(),
       periodMonth: (json['period_month'] as num?)?.toInt(),
+      transferGroupId: json['transfer_group_id'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -54,6 +55,7 @@ Map<String, dynamic> _$TransactionToJson(_Transaction instance) =>
       'date': instance.date.toIso8601String(),
       'period_year': instance.periodYear,
       'period_month': instance.periodMonth,
+      'transfer_group_id': instance.transferGroupId,
       'created_at': instance.createdAt?.toIso8601String(),
     };
 
@@ -69,7 +71,11 @@ _NewTransactionInput _$NewTransactionInputFromJson(Map<String, dynamic> json) =>
       accountId: json['account_id'] as String?,
       type: $enumDecode(_$TxTypeEnumMap, json['type']),
       amount: const DecimalConverter().fromJson(json['amount']),
+      amountOriginal:
+          const DecimalNullConverter().fromJson(json['amount_original']),
       currencyOriginal: json['currency_original'] as String?,
+      fxRateToBase:
+          const DecimalNullConverter().fromJson(json['fx_rate_to_base']),
       category: json['category'] as String,
       subcategory: json['subcategory'] as String?,
       note: json['note'] as String?,
@@ -84,7 +90,11 @@ Map<String, dynamic> _$NewTransactionInputToJson(
       'account_id': instance.accountId,
       'type': _$TxTypeEnumMap[instance.type]!,
       'amount': const DecimalConverter().toJson(instance.amount),
+      'amount_original':
+          const DecimalNullConverter().toJson(instance.amountOriginal),
       'currency_original': instance.currencyOriginal,
+      'fx_rate_to_base':
+          const DecimalNullConverter().toJson(instance.fxRateToBase),
       'category': instance.category,
       'subcategory': instance.subcategory,
       'note': instance.note,

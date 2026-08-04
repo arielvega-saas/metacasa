@@ -220,7 +220,7 @@ class ReportsController extends AsyncNotifier<ReportsState> {
       final int m = monthDate.month;
       var ing = Decimal.zero;
       var gas = Decimal.zero;
-      for (final Transaction tx in txs) {
+      for (final Transaction tx in txs.excludingTransfers) {
         if (tx.date.year != y || tx.date.month != m) continue;
         switch (tx.type) {
           case TxType.ingreso:
@@ -251,7 +251,7 @@ class ReportsController extends AsyncNotifier<ReportsState> {
   ) {
     final Map<String, Decimal> byCat = <String, Decimal>{};
     var total = Decimal.zero;
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       if (tx.date.year != now.year || tx.date.month != now.month) continue;
       byCat[tx.category] =
@@ -284,7 +284,7 @@ class ReportsController extends AsyncNotifier<ReportsState> {
   static (int, double) _healthScore(List<Transaction> txs, DateTime now) {
     var ing = Decimal.zero;
     var gast = Decimal.zero;
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       switch (tx.type) {
         case TxType.ingreso:
           ing += tx.amountInBase;
@@ -313,7 +313,7 @@ class ReportsController extends AsyncNotifier<ReportsState> {
     // Streak bonus (cap 20): días distintos con ≥1 tx en los últimos 30 días.
     final DateTime last30 = now.subtract(const Duration(days: 30));
     final Set<int> daysWithTx = <int>{};
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       if (tx.date.isBefore(last30)) continue;
       // Clave de día calendario local (estable y única por día).
       daysWithTx.add(tx.date.year * 10000 + tx.date.month * 100 + tx.date.day);

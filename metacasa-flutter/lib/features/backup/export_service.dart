@@ -297,7 +297,7 @@ class ExportService {
     // Totales en Decimal.
     Decimal totalIngresos = Decimal.zero;
     Decimal totalGastos = Decimal.zero;
-    for (final Transaction tx in txs) {
+    for (final Transaction tx in txs.excludingTransfers) {
       if (tx.type == TxType.ingreso) {
         totalIngresos += tx.amount;
       } else {

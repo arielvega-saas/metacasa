@@ -741,10 +741,14 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
       userId: userId,
       accountId: _accountId,
       type: _type,
-      // Si hay moneda alternativa, guardamos el convertido a base; si no, el
-      // monto tal cual. Igual que iOS.
+      // `amount` va SIEMPRE en la base del hogar. El monto tipeado y la tasa se
+      // guardan aparte: sin ellos el original se perdía y la lista mostraba
+      // "US$ 150.000" para un gasto de US$ 100 — el monto base con la etiqueta
+      // de la moneda extranjera. Invariante: amount == amountOriginal * fxRateToBase.
       amount: _useAlternateCurrency ? (_convertedAmount ?? amount) : amount,
+      amountOriginal: amount,
       currencyOriginal: _useAlternateCurrency ? _alternateCurrency : null,
+      fxRateToBase: _useAlternateCurrency ? _effectiveFxRate : Decimal.one,
       category: category,
       subcategory: _subcategory,
       note: note.isEmpty ? null : note,

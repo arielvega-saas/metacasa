@@ -337,7 +337,7 @@ class TransactionsController extends AsyncNotifier<TransactionsState> {
 
     var ingresos = Decimal.zero;
     var gastos = Decimal.zero;
-    for (final Transaction t in filtered) {
+    for (final Transaction t in filtered.excludingTransfers) {
       switch (t.type) {
         case TxType.ingreso:
           ingresos += t.amount;
@@ -376,7 +376,7 @@ class TransactionsController extends AsyncNotifier<TransactionsState> {
       final List<Transaction> dayTxs = byDay[day]!;
       var ingresos = Decimal.zero;
       var gastos = Decimal.zero;
-      for (final Transaction t in dayTxs) {
+      for (final Transaction t in dayTxs.excludingTransfers) {
         switch (t.type) {
           case TxType.ingreso:
             ingresos += t.amount;

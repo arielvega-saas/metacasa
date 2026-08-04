@@ -116,7 +116,7 @@ class _SpendingHeatmapScreenState extends ConsumerState<SpendingHeatmapScreen> {
               );
       if (!mounted) return;
       final Map<int, Decimal> totals = <int, Decimal>{};
-      for (final Transaction tx in txs) {
+      for (final Transaction tx in txs.excludingTransfers) {
         if (tx.type != TxType.gasto) continue;
         final int key =
             tx.date.year * 10000 + tx.date.month * 100 + tx.date.day;

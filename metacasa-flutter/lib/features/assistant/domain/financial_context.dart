@@ -361,7 +361,7 @@ abstract final class FinancialContextBuilder {
 
     // Top categorías de gasto del mes.
     final Map<String, Decimal> byCat = <String, Decimal>{};
-    for (final Transaction tx in monthTxs) {
+    for (final Transaction tx in monthTxs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       byCat[tx.category] = (byCat[tx.category] ?? Decimal.zero) + tx.amount;
     }
@@ -383,7 +383,7 @@ abstract final class FinancialContextBuilder {
 
     // Mayor gasto único del mes.
     ExpenseSignal? biggest;
-    for (final Transaction tx in monthTxs) {
+    for (final Transaction tx in monthTxs.excludingTransfers) {
       if (tx.type != TxType.gasto) continue;
       if (biggest == null || tx.amount > biggest.amount) {
         biggest = ExpenseSignal(

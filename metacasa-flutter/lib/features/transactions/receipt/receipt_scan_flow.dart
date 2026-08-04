@@ -6,10 +6,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../config/supabase_init.dart';
+import '../../../core/finance/tx_currency.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../data/repositories/category_repository.dart';
+import '../../../data/repositories/fx_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../models/models.dart';
 import '../../../shared/widgets/widgets.dart';
@@ -568,24 +570,36 @@ class _ParsedTransactionsReviewSheetState
     setState(() => _saving = true);
 
     final TransactionRepository repo = ref.read(transactionRepositoryProvider);
+    // Antes se guardaba el monto del ticket TAL CUAL, sólo etiquetado con su moneda. Pero
+    // `amount` va siempre en la base del hogar: un recibo de USD 100 en un hogar en pesos
+    // entraba como 100, y todos los totales quedaban divididos por la cotización. Sin
+    // error y con un número plausible.
+    final Map<String, FXRate> rates =
+        await ref.read(fxRepositoryProvider).getRates(householdId);
     int inserted = 0;
+    int sinCotizacion = 0;
     for (final _ReviewRow row in _rows) {
-      // Si la moneda detectada difiere de la base, la guardamos como
-      // `currency_original` (sin convertir: el monto leído ya está en esa
-      // moneda y el usuario puede ajustar tasa luego). Mismo criterio que iOS,
-      // que setea `currencyOriginal` con la moneda del recibo.
       final String currency =
           row.currency.isEmpty ? baseCurrency : row.currency;
-      final NewTransactionInput input = NewTransactionInput(
-        householdId: householdId,
-        userId: userId,
-        type: TxType.gasto,
-        amount: row.amount,
-        currencyOriginal: currency == baseCurrency ? null : currency,
-        category: row.category.isEmpty ? 'Otros' : row.category,
-        note: row.merchant.isEmpty ? null : 'Recibo: ${row.merchant}',
-        date: row.date,
-      );
+      final NewTransactionInput input;
+      try {
+        input = NewTransactionInputConverting.converting(
+          householdId: householdId,
+          userId: userId,
+          type: TxType.gasto,
+          amountOriginal: row.amount,
+          currency: currency,
+          baseCurrency: baseCurrency,
+          rates: rates,
+          category: row.category.isEmpty ? 'Otros' : row.category,
+          note: row.merchant.isEmpty ? null : 'Recibo: ${row.merchant}',
+          date: row.date,
+        );
+      } on FxConversionException {
+        // Sin cotización no se guarda mal: se cuenta y se avisa al final.
+        sinCotizacion++;
+        continue;
+      }
       try {
         await repo.insert(input);
         inserted++;
@@ -604,7 +618,12 @@ class _ParsedTransactionsReviewSheetState
       await HapticFeedback.heavyImpact();
       setState(() {
         _saving = false;
-        _error = 'No pudimos crear las transacciones. Reintentá.';
+        // Distinguir el motivo importa: "reintentá" no sirve de nada si lo que falta
+        // es la cotización, y el usuario reintentaría para siempre.
+        _error = sinCotizacion > 0
+            ? 'El recibo está en otra moneda y no hay cotización cargada. '
+                'Agregala en Ajustes → Monedas y reintentá.'
+            : 'No pudimos crear las transacciones. Reintentá.';
       });
       return;
     }
@@ -619,8 +638,11 @@ class _ParsedTransactionsReviewSheetState
               ? (inserted == 1
                   ? 'Gasto cargado desde el recibo.'
                   : '$inserted gastos cargados desde el recibo.')
-              : 'Cargamos $inserted de ${_rows.length}. Algunos fallaron, '
-                  'reintentá esos a mano.',
+              : sinCotizacion > 0
+                  ? 'Cargamos $inserted de ${_rows.length}. Faltan cotizaciones '
+                      'para el resto (Ajustes → Monedas).'
+                  : 'Cargamos $inserted de ${_rows.length}. Algunos fallaron, '
+                      'reintentá esos a mano.',
           style: AppText.caption(colors.textPrimary),
         ),
         backgroundColor: colors.appSurfaceInset,

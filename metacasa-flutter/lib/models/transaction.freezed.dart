@@ -46,6 +46,17 @@ mixin _$Transaction {
   int? get periodYear;
   @JsonKey(name: 'period_month')
   int? get periodMonth;
+
+  /// Une las DOS piernas de una transferencia entre cuentas propias: un GASTO en
+  /// la cuenta de origen y un INGRESO en la de destino, con el mismo id.
+  ///
+  /// Es una columna aditiva y no un valor nuevo de [TxType] a propósito. Un valor
+  /// de enum desconocido hace fallar `$enumDecode` con `ArgumentError`, y como el
+  /// decode es de lista, UNA fila rara vacía la pantalla entera en vez de mostrar
+  /// un movimiento raro. Una key JSON extra, en cambio, la ignora cualquier
+  /// cliente viejo que no la conozca.
+  @JsonKey(name: 'transfer_group_id')
+  String? get transferGroupId;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
 
@@ -93,6 +104,8 @@ mixin _$Transaction {
                 other.periodYear == periodYear) &&
             (identical(other.periodMonth, periodMonth) ||
                 other.periodMonth == periodMonth) &&
+            (identical(other.transferGroupId, transferGroupId) ||
+                other.transferGroupId == transferGroupId) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -119,12 +132,13 @@ mixin _$Transaction {
         date,
         periodYear,
         periodMonth,
+        transferGroupId,
         createdAt
       ]);
 
   @override
   String toString() {
-    return 'Transaction(id: $id, householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, fxSource: $fxSource, fxStatus: $fxStatus, category: $category, subcategory: $subcategory, account: $account, note: $note, date: $date, periodYear: $periodYear, periodMonth: $periodMonth, createdAt: $createdAt)';
+    return 'Transaction(id: $id, householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, fxSource: $fxSource, fxStatus: $fxStatus, category: $category, subcategory: $subcategory, account: $account, note: $note, date: $date, periodYear: $periodYear, periodMonth: $periodMonth, transferGroupId: $transferGroupId, createdAt: $createdAt)';
   }
 }
 
@@ -157,6 +171,7 @@ abstract mixin class $TransactionCopyWith<$Res> {
       DateTime date,
       @JsonKey(name: 'period_year') int? periodYear,
       @JsonKey(name: 'period_month') int? periodMonth,
+      @JsonKey(name: 'transfer_group_id') String? transferGroupId,
       @JsonKey(name: 'created_at') DateTime? createdAt});
 }
 
@@ -190,6 +205,7 @@ class _$TransactionCopyWithImpl<$Res> implements $TransactionCopyWith<$Res> {
     Object? date = null,
     Object? periodYear = freezed,
     Object? periodMonth = freezed,
+    Object? transferGroupId = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(_self.copyWith(
@@ -265,6 +281,10 @@ class _$TransactionCopyWithImpl<$Res> implements $TransactionCopyWith<$Res> {
           ? _self.periodMonth
           : periodMonth // ignore: cast_nullable_to_non_nullable
               as int?,
+      transferGroupId: freezed == transferGroupId
+          ? _self.transferGroupId
+          : transferGroupId // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -299,6 +319,7 @@ class _Transaction implements Transaction {
       required this.date,
       @JsonKey(name: 'period_year') this.periodYear,
       @JsonKey(name: 'period_month') this.periodMonth,
+      @JsonKey(name: 'transfer_group_id') this.transferGroupId,
       @JsonKey(name: 'created_at') this.createdAt});
   factory _Transaction.fromJson(Map<String, dynamic> json) =>
       _$TransactionFromJson(json);
@@ -352,6 +373,18 @@ class _Transaction implements Transaction {
   @override
   @JsonKey(name: 'period_month')
   final int? periodMonth;
+
+  /// Une las DOS piernas de una transferencia entre cuentas propias: un GASTO en
+  /// la cuenta de origen y un INGRESO en la de destino, con el mismo id.
+  ///
+  /// Es una columna aditiva y no un valor nuevo de [TxType] a propósito. Un valor
+  /// de enum desconocido hace fallar `$enumDecode` con `ArgumentError`, y como el
+  /// decode es de lista, UNA fila rara vacía la pantalla entera en vez de mostrar
+  /// un movimiento raro. Una key JSON extra, en cambio, la ignora cualquier
+  /// cliente viejo que no la conozca.
+  @override
+  @JsonKey(name: 'transfer_group_id')
+  final String? transferGroupId;
   @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
@@ -405,6 +438,8 @@ class _Transaction implements Transaction {
                 other.periodYear == periodYear) &&
             (identical(other.periodMonth, periodMonth) ||
                 other.periodMonth == periodMonth) &&
+            (identical(other.transferGroupId, transferGroupId) ||
+                other.transferGroupId == transferGroupId) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -431,12 +466,13 @@ class _Transaction implements Transaction {
         date,
         periodYear,
         periodMonth,
+        transferGroupId,
         createdAt
       ]);
 
   @override
   String toString() {
-    return 'Transaction(id: $id, householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, fxSource: $fxSource, fxStatus: $fxStatus, category: $category, subcategory: $subcategory, account: $account, note: $note, date: $date, periodYear: $periodYear, periodMonth: $periodMonth, createdAt: $createdAt)';
+    return 'Transaction(id: $id, householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, fxSource: $fxSource, fxStatus: $fxStatus, category: $category, subcategory: $subcategory, account: $account, note: $note, date: $date, periodYear: $periodYear, periodMonth: $periodMonth, transferGroupId: $transferGroupId, createdAt: $createdAt)';
   }
 }
 
@@ -471,6 +507,7 @@ abstract mixin class _$TransactionCopyWith<$Res>
       DateTime date,
       @JsonKey(name: 'period_year') int? periodYear,
       @JsonKey(name: 'period_month') int? periodMonth,
+      @JsonKey(name: 'transfer_group_id') String? transferGroupId,
       @JsonKey(name: 'created_at') DateTime? createdAt});
 }
 
@@ -504,6 +541,7 @@ class __$TransactionCopyWithImpl<$Res> implements _$TransactionCopyWith<$Res> {
     Object? date = null,
     Object? periodYear = freezed,
     Object? periodMonth = freezed,
+    Object? transferGroupId = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(_Transaction(
@@ -579,6 +617,10 @@ class __$TransactionCopyWithImpl<$Res> implements _$TransactionCopyWith<$Res> {
           ? _self.periodMonth
           : periodMonth // ignore: cast_nullable_to_non_nullable
               as int?,
+      transferGroupId: freezed == transferGroupId
+          ? _self.transferGroupId
+          : transferGroupId // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _self.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -596,10 +638,24 @@ mixin _$NewTransactionInput {
   @JsonKey(name: 'account_id')
   String? get accountId;
   TxType get type;
+
+  /// **Siempre en la moneda BASE del hogar** — es el contrato de
+  /// `metacasa-web/AGENTS_CONTRACT.md`: todos los agregados lo asumen.
   @DecimalConverter()
   Decimal get amount;
+
+  /// Monto tal como lo tipeó el usuario, en [currencyOriginal].
+  @JsonKey(name: 'amount_original')
+  @DecimalNullConverter()
+  Decimal? get amountOriginal;
   @JsonKey(name: 'currency_original')
   String? get currencyOriginal;
+
+  /// Cuántas unidades de base equivalen a 1 de [currencyOriginal]. 1 si no hubo
+  /// conversión. Invariante: `amount == amountOriginal * fxRateToBase`.
+  @JsonKey(name: 'fx_rate_to_base')
+  @DecimalNullConverter()
+  Decimal? get fxRateToBase;
   String get category;
   String? get subcategory;
   String? get note;
@@ -628,8 +684,12 @@ mixin _$NewTransactionInput {
                 other.accountId == accountId) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.amountOriginal, amountOriginal) ||
+                other.amountOriginal == amountOriginal) &&
             (identical(other.currencyOriginal, currencyOriginal) ||
                 other.currencyOriginal == currencyOriginal) &&
+            (identical(other.fxRateToBase, fxRateToBase) ||
+                other.fxRateToBase == fxRateToBase) &&
             (identical(other.category, category) ||
                 other.category == category) &&
             (identical(other.subcategory, subcategory) ||
@@ -640,12 +700,24 @@ mixin _$NewTransactionInput {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, householdId, userId, accountId,
-      type, amount, currencyOriginal, category, subcategory, note, date);
+  int get hashCode => Object.hash(
+      runtimeType,
+      householdId,
+      userId,
+      accountId,
+      type,
+      amount,
+      amountOriginal,
+      currencyOriginal,
+      fxRateToBase,
+      category,
+      subcategory,
+      note,
+      date);
 
   @override
   String toString() {
-    return 'NewTransactionInput(householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, currencyOriginal: $currencyOriginal, category: $category, subcategory: $subcategory, note: $note, date: $date)';
+    return 'NewTransactionInput(householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, category: $category, subcategory: $subcategory, note: $note, date: $date)';
   }
 }
 
@@ -661,7 +733,13 @@ abstract mixin class $NewTransactionInputCopyWith<$Res> {
       @JsonKey(name: 'account_id') String? accountId,
       TxType type,
       @DecimalConverter() Decimal amount,
+      @JsonKey(name: 'amount_original')
+      @DecimalNullConverter()
+      Decimal? amountOriginal,
       @JsonKey(name: 'currency_original') String? currencyOriginal,
+      @JsonKey(name: 'fx_rate_to_base')
+      @DecimalNullConverter()
+      Decimal? fxRateToBase,
       String category,
       String? subcategory,
       String? note,
@@ -686,7 +764,9 @@ class _$NewTransactionInputCopyWithImpl<$Res>
     Object? accountId = freezed,
     Object? type = null,
     Object? amount = null,
+    Object? amountOriginal = freezed,
     Object? currencyOriginal = freezed,
+    Object? fxRateToBase = freezed,
     Object? category = null,
     Object? subcategory = freezed,
     Object? note = freezed,
@@ -713,10 +793,18 @@ class _$NewTransactionInputCopyWithImpl<$Res>
           ? _self.amount
           : amount // ignore: cast_nullable_to_non_nullable
               as Decimal,
+      amountOriginal: freezed == amountOriginal
+          ? _self.amountOriginal
+          : amountOriginal // ignore: cast_nullable_to_non_nullable
+              as Decimal?,
       currencyOriginal: freezed == currencyOriginal
           ? _self.currencyOriginal
           : currencyOriginal // ignore: cast_nullable_to_non_nullable
               as String?,
+      fxRateToBase: freezed == fxRateToBase
+          ? _self.fxRateToBase
+          : fxRateToBase // ignore: cast_nullable_to_non_nullable
+              as Decimal?,
       category: null == category
           ? _self.category
           : category // ignore: cast_nullable_to_non_nullable
@@ -746,7 +834,13 @@ class _NewTransactionInput implements NewTransactionInput {
       @JsonKey(name: 'account_id') this.accountId,
       required this.type,
       @DecimalConverter() required this.amount,
+      @JsonKey(name: 'amount_original')
+      @DecimalNullConverter()
+      this.amountOriginal,
       @JsonKey(name: 'currency_original') this.currencyOriginal,
+      @JsonKey(name: 'fx_rate_to_base')
+      @DecimalNullConverter()
+      this.fxRateToBase,
       required this.category,
       this.subcategory,
       this.note,
@@ -765,12 +859,28 @@ class _NewTransactionInput implements NewTransactionInput {
   final String? accountId;
   @override
   final TxType type;
+
+  /// **Siempre en la moneda BASE del hogar** — es el contrato de
+  /// `metacasa-web/AGENTS_CONTRACT.md`: todos los agregados lo asumen.
   @override
   @DecimalConverter()
   final Decimal amount;
+
+  /// Monto tal como lo tipeó el usuario, en [currencyOriginal].
+  @override
+  @JsonKey(name: 'amount_original')
+  @DecimalNullConverter()
+  final Decimal? amountOriginal;
   @override
   @JsonKey(name: 'currency_original')
   final String? currencyOriginal;
+
+  /// Cuántas unidades de base equivalen a 1 de [currencyOriginal]. 1 si no hubo
+  /// conversión. Invariante: `amount == amountOriginal * fxRateToBase`.
+  @override
+  @JsonKey(name: 'fx_rate_to_base')
+  @DecimalNullConverter()
+  final Decimal? fxRateToBase;
   @override
   final String category;
   @override
@@ -808,8 +918,12 @@ class _NewTransactionInput implements NewTransactionInput {
                 other.accountId == accountId) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.amountOriginal, amountOriginal) ||
+                other.amountOriginal == amountOriginal) &&
             (identical(other.currencyOriginal, currencyOriginal) ||
                 other.currencyOriginal == currencyOriginal) &&
+            (identical(other.fxRateToBase, fxRateToBase) ||
+                other.fxRateToBase == fxRateToBase) &&
             (identical(other.category, category) ||
                 other.category == category) &&
             (identical(other.subcategory, subcategory) ||
@@ -820,12 +934,24 @@ class _NewTransactionInput implements NewTransactionInput {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, householdId, userId, accountId,
-      type, amount, currencyOriginal, category, subcategory, note, date);
+  int get hashCode => Object.hash(
+      runtimeType,
+      householdId,
+      userId,
+      accountId,
+      type,
+      amount,
+      amountOriginal,
+      currencyOriginal,
+      fxRateToBase,
+      category,
+      subcategory,
+      note,
+      date);
 
   @override
   String toString() {
-    return 'NewTransactionInput(householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, currencyOriginal: $currencyOriginal, category: $category, subcategory: $subcategory, note: $note, date: $date)';
+    return 'NewTransactionInput(householdId: $householdId, userId: $userId, accountId: $accountId, type: $type, amount: $amount, amountOriginal: $amountOriginal, currencyOriginal: $currencyOriginal, fxRateToBase: $fxRateToBase, category: $category, subcategory: $subcategory, note: $note, date: $date)';
   }
 }
 
@@ -843,7 +969,13 @@ abstract mixin class _$NewTransactionInputCopyWith<$Res>
       @JsonKey(name: 'account_id') String? accountId,
       TxType type,
       @DecimalConverter() Decimal amount,
+      @JsonKey(name: 'amount_original')
+      @DecimalNullConverter()
+      Decimal? amountOriginal,
       @JsonKey(name: 'currency_original') String? currencyOriginal,
+      @JsonKey(name: 'fx_rate_to_base')
+      @DecimalNullConverter()
+      Decimal? fxRateToBase,
       String category,
       String? subcategory,
       String? note,
@@ -868,7 +1000,9 @@ class __$NewTransactionInputCopyWithImpl<$Res>
     Object? accountId = freezed,
     Object? type = null,
     Object? amount = null,
+    Object? amountOriginal = freezed,
     Object? currencyOriginal = freezed,
+    Object? fxRateToBase = freezed,
     Object? category = null,
     Object? subcategory = freezed,
     Object? note = freezed,
@@ -895,10 +1029,18 @@ class __$NewTransactionInputCopyWithImpl<$Res>
           ? _self.amount
           : amount // ignore: cast_nullable_to_non_nullable
               as Decimal,
+      amountOriginal: freezed == amountOriginal
+          ? _self.amountOriginal
+          : amountOriginal // ignore: cast_nullable_to_non_nullable
+              as Decimal?,
       currencyOriginal: freezed == currencyOriginal
           ? _self.currencyOriginal
           : currencyOriginal // ignore: cast_nullable_to_non_nullable
               as String?,
+      fxRateToBase: freezed == fxRateToBase
+          ? _self.fxRateToBase
+          : fxRateToBase // ignore: cast_nullable_to_non_nullable
+              as Decimal?,
       category: null == category
           ? _self.category
           : category // ignore: cast_nullable_to_non_nullable

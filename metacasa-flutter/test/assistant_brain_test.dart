@@ -12,19 +12,19 @@ import 'package:metacasa/features/assistant/domain/chat_message.dart';
 /// parseo de turnos Anthropic, mensajes de error y catálogo de tools.
 void main() {
   group('AiPrompts.rebrand', () {
-    test('reescribe modelos de terceros a MetaCasa IA', () {
+    test('reescribe modelos de terceros al nombre del asistente', () {
       expect(AiPrompts.rebrand('Soy Claude, tu asistente.'),
-          'Soy MetaCasa IA, tu asistente.');
+          'Soy Asistente de Home Finance, tu asistente.');
       expect(AiPrompts.rebrand('Powered by Anthropic and OpenAI'),
-          'Powered by MetaCasa IA and MetaCasa IA');
+          'Powered by Asistente de Home Finance and Asistente de Home Finance');
       expect(AiPrompts.rebrand('Hecho con GPT-4 y Gemini'),
-          'Hecho con MetaCasa IA y MetaCasa IA');
+          'Hecho con Asistente de Home Finance y Asistente de Home Finance');
     });
 
     test('colapsa menciones contiguas repetidas', () {
       // "Claude (Anthropic)" → dos menciones contiguas → una sola.
       expect(AiPrompts.rebrand('Claude Anthropic responde'),
-          'MetaCasa IA responde');
+          'Asistente de Home Finance responde');
     });
 
     test('no toca texto sin nombres de modelos', () {
@@ -34,7 +34,7 @@ void main() {
 
     test('reescribe "modelo de lenguaje"', () {
       expect(AiPrompts.rebrand('Soy un modelo de lenguaje entrenado'),
-          'Soy MetaCasa IA entrenado');
+          'Soy Asistente de Home Finance entrenado');
     });
   });
 

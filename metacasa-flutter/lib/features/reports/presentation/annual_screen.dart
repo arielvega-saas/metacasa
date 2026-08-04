@@ -94,7 +94,7 @@ class _AnnualScreenState extends ConsumerState<AnnualScreen> {
         final int m = i + 1;
         var ing = Decimal.zero;
         var gas = Decimal.zero;
-        for (final Transaction tx in txs) {
+        for (final Transaction tx in txs.excludingTransfers) {
           if (tx.date.month != m) continue;
           switch (tx.type) {
             case TxType.ingreso:

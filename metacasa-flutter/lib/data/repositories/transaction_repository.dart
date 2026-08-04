@@ -65,7 +65,10 @@ class TransactionRepository {
         .select()
         .eq('household_id', householdId)
         .gte('date', from.toIso8601String())
-        .lte('date', to.toIso8601String())
+        // El extremo se extiende al FINAL de su día. Sin esto, un [to] que venga a
+        // medianoche deja afuera todas las transacciones de ese día cargadas después
+        // de las 00:00 — que en la práctica son casi todas.
+        .lte('date', _endOfDayUtc(to).toIso8601String())
         .order('date', ascending: false)
         .limit(limit);
     return rows
@@ -73,29 +76,55 @@ class TransactionRepository {
         .toList();
   }
 
-  /// Suma `amount` por tipo (ingresos / gastos) sobre un rango de fechas.
-  /// Port de `TransactionService.totals`: fetch + reduce en cliente con
-  /// [Decimal] para no perder precisión. Usa el mismo rango que [fetchRange].
+  /// Cierra el rango al final del día, en UTC.
+  static DateTime _endOfDayUtc(DateTime d) {
+    final DateTime u = d.toUtc();
+    return DateTime.utc(u.year, u.month, u.day, 23, 59, 59, 999);
+  }
+
+  /// Ingresos y gastos del rango, **agregados en el servidor**.
+  ///
+  /// Antes bajaba hasta 1000 filas ordenadas por fecha DESC y las sumaba acá. Pasado ese
+  /// tope se descartaban las transacciones MÁS VIEJAS del rango y los totales salían
+  /// bajos sin ningún aviso — el usuario veía menos gastos de los que tuvo. Un hogar con
+  /// movimientos diarios llega a 1000 en pocos meses.
+  ///
+  /// El fix no es subir el límite: es dejar de bajar filas para sumar. Además, sumar en
+  /// el cliente obliga a repetir acá las reglas de negocio (excluir transferencias, el
+  /// rango inclusivo del último día); el RPC las tiene una sola vez, compartidas con iOS
+  /// y con la web.
   Future<TransactionTotals> totals({
     required String householdId,
     required DateTime from,
     required DateTime to,
   }) async {
-    final List<Transaction> txs = await fetchRange(
-      householdId: householdId,
-      from: from,
-      to: to,
-      limit: 1000,
+    final List<dynamic> rows = await supabase.rpc<List<dynamic>>(
+      'transaction_totals',
+      params: <String, dynamic>{
+        'p_household': householdId,
+        'p_from': from.toUtc().toIso8601String(),
+        'p_to': to.toUtc().toIso8601String(),
+      },
     );
-    return totalsOf(txs);
+    if (rows.isEmpty) {
+      return TransactionTotals(ingresos: Decimal.zero, gastos: Decimal.zero);
+    }
+    final Map<String, dynamic> r = rows.first as Map<String, dynamic>;
+    return TransactionTotals(
+      ingresos: Decimal.parse('${r['ingresos'] ?? 0}'),
+      gastos: Decimal.parse('${r['gastos'] ?? 0}'),
+    );
   }
 
-  /// Variante pura (sin red): calcula totales sobre una lista ya fetcheada.
-  /// Útil cuando el caller (HomeViewModel) ya tiene las txs en memoria.
+  /// Variante pura (sin red): totales sobre una lista ya fetcheada.
+  ///
+  /// Excluye las transferencias, igual que el RPC. Si no lo hiciera, la misma pantalla
+  /// mostraría un número distinto según viniera del servidor o de la lista en memoria —
+  /// y el que se calcula acá es el que se ve mientras carga.
   TransactionTotals totalsOf(List<Transaction> transactions) {
     var ingresos = Decimal.zero;
     var gastos = Decimal.zero;
-    for (final Transaction tx in transactions) {
+    for (final Transaction tx in transactions.excludingTransfers) {
       switch (tx.type) {
         case TxType.ingreso:
           ingresos += tx.amount;
