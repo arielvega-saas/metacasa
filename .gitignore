@@ -89,3 +89,10 @@ metacasa-flutter/**/*\ [0-9].*
 
 # Generado por el bootstrap de Netlify Edge Functions en cada build
 deno.lock
+
+# Respaldo del .git dañado (2026-08-04). Faltaba el objeto 3550fe64 y `git gc` y
+# `git rev-list --all` fallaban. Se reemplazó SOLO la base de objetos por un clon
+# limpio de GitHub, dejando el working tree intacto — ahí viven el .env y el
+# upload-keystore.jks de Play, que no se pueden perder.
+# Se puede borrar cuando confirmes que todo anda: rm -rf .git-danado-20260804
+.git-danado-*/
