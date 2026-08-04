@@ -69,7 +69,9 @@ export const authNav: LocaleModule = {
       // Reset password: verificación de sesión + estados
       resetCheckingLink: "Verificando tu link…",
       resetSuccessTitle: "¡Listo! Tu contraseña se actualizó",
-      resetSuccessBody: "Te estamos llevando a tu cuenta…",
+      resetSuccessBody: "Ya podés entrar con tu contraseña nueva, acá o en la app de tu teléfono.",
+      resetSuccessGoWeb: "Ir a mi cuenta en la web",
+      resetSuccessAppHint: "Para usar la app, abrila y entrá con tu contraseña nueva.",
       resetLinkInvalidTitle: "Este link ya no es válido",
       resetLinkInvalidBody:
         "El link para restablecer tu contraseña venció o ya se usó. Pedí uno nuevo y te lo enviamos al instante.",
@@ -196,7 +198,9 @@ export const authNav: LocaleModule = {
       passwordUpdatedDescription: "You can now use it to sign in.",
       resetCheckingLink: "Verifying your link…",
       resetSuccessTitle: "Done! Your password was updated",
-      resetSuccessBody: "Taking you to your account…",
+      resetSuccessBody: "You can sign in with your new password, here or in the app on your phone.",
+      resetSuccessGoWeb: "Go to my account on the web",
+      resetSuccessAppHint: "To use the app, open it and sign in with your new password.",
       resetLinkInvalidTitle: "This link is no longer valid",
       resetLinkInvalidBody:
         "Your password reset link expired or was already used. Request a new one and we'll send it right away.",
@@ -317,7 +321,9 @@ export const authNav: LocaleModule = {
       passwordUpdatedDescription: "Já pode usá-la para entrar.",
       resetCheckingLink: "Verificando seu link…",
       resetSuccessTitle: "Pronto! Sua senha foi atualizada",
-      resetSuccessBody: "Levando você para sua conta…",
+      resetSuccessBody: "Você já pode entrar com sua nova senha, aqui ou no app do seu celular.",
+      resetSuccessGoWeb: "Ir para minha conta na web",
+      resetSuccessAppHint: "Para usar o app, abra-o e entre com sua nova senha.",
       resetLinkInvalidTitle: "Este link não é mais válido",
       resetLinkInvalidBody:
         "Seu link para redefinir a senha expirou ou já foi usado. Peça um novo e enviamos na hora.",

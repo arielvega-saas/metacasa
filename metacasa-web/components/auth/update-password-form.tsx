@@ -100,7 +100,11 @@ export function UpdatePasswordForm({ linkError }: { linkError?: boolean }) {
     toast.success(t("auth.passwordUpdatedTitle"), {
       description: t("auth.passwordUpdatedDescription"),
     });
-    router.push("/dashboard");
+    // Antes acá había un `router.push("/dashboard")` inmediato. El reset de contraseña se hace
+    // en la web A PROPÓSITO (el link tiene que funcionar cross-device, en un aparato donde la app
+    // puede no estar instalada), pero redirigir sin preguntar deja a quien abrió el mail en el
+    // teléfono metido en la web, sin señal de que ya puede entrar a la app. Ahora la pantalla de
+    // éxito lo dice y el usuario elige.
     router.refresh();
   }
 
@@ -149,6 +153,12 @@ export function UpdatePasswordForm({ linkError }: { linkError?: boolean }) {
         </h2>
         <p className="text-text-muted mt-2 text-sm leading-relaxed">
           {t("auth.resetSuccessBody")}
+        </p>
+        <Button asChild size="lg" className="mt-6 w-full">
+          <Link href="/dashboard">{t("auth.resetSuccessGoWeb")}</Link>
+        </Button>
+        <p className="text-text-muted mt-5 text-xs leading-relaxed">
+          {t("auth.resetSuccessAppHint")}
         </p>
       </div>
     );
