@@ -41,6 +41,19 @@ export function BulkActionsBar({ ids, accounts, categories, onClear }: Props) {
   const t = useT();
   const [pending, startTransition] = React.useTransition();
 
+  // Hay nombres que existen en las dos listas ("Otros"). Como el value del item ES
+  // el nombre de la categoría, repetirlo daría dos opciones idénticas que hacen lo
+  // mismo y le pediría al usuario una decisión que no existe. Se muestra una sola
+  // vez, en el primer grupo donde aparece.
+  const gastos = React.useMemo(
+    () => Array.from(new Set(categories.gastos)),
+    [categories.gastos],
+  );
+  const ingresos = React.useMemo(() => {
+    const yaEstan = new Set(gastos);
+    return Array.from(new Set(categories.ingresos)).filter((c) => !yaEstan.has(c));
+  }, [categories.ingresos, gastos]);
+
   const count = ids.length;
   if (count === 0) return null;
 
@@ -94,7 +107,7 @@ export function BulkActionsBar({ ids, accounts, categories, onClear }: Props) {
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>{t("transactions.expense")}</SelectLabel>
-                {categories.gastos.map((c) => (
+                {gastos.map((c) => (
                   <SelectItem key={`g-${c}`} value={c}>
                     {c}
                   </SelectItem>
@@ -102,7 +115,7 @@ export function BulkActionsBar({ ids, accounts, categories, onClear }: Props) {
               </SelectGroup>
               <SelectGroup>
                 <SelectLabel>{t("transactions.income")}</SelectLabel>
-                {categories.ingresos.map((c) => (
+                {ingresos.map((c) => (
                   <SelectItem key={`i-${c}`} value={c}>
                     {c}
                   </SelectItem>

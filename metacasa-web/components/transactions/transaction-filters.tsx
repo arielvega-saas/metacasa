@@ -131,12 +131,20 @@ export function TransactionFilters({ categories, accounts }: Props) {
   );
 
   // Las categorías a mostrar dependen del tipo elegido.
-  const catOptions =
-    type === TX_TYPE.INCOME
-      ? categories.ingresos
-      : type === TX_TYPE.EXPENSE
-        ? categories.gastos
-        : [...categories.gastos, ...categories.ingresos];
+  //
+  // Se deduplica porque hay nombres que existen en las DOS listas ("Otros" es el
+  // caso real): con el tipo en "Todos" la opción aparecía repetida en el desplegable
+  // y React tiraba "two children with the same key". Como el filtro se aplica por
+  // nombre, las dos entradas hacían exactamente lo mismo.
+  const catOptions = React.useMemo(() => {
+    const base =
+      type === TX_TYPE.INCOME
+        ? categories.ingresos
+        : type === TX_TYPE.EXPENSE
+          ? categories.gastos
+          : [...categories.gastos, ...categories.ingresos];
+    return Array.from(new Set(base));
+  }, [type, categories]);
 
   const hasActiveFilters =
     type !== ALL ||

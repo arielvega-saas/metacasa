@@ -63,9 +63,22 @@ interface Props {
   templates?: TransactionTemplate[];
 }
 
+/**
+ * Convierte `YYYY-MM-DD` en una fecha a medianoche **local**.
+ *
+ * `new Date("2026-08-03")` NO hace esto: el string de sólo-fecha lo interpreta el
+ * runtime como medianoche **UTC**, y al formatearlo en un huso negativo —toda
+ * LatAm— retrocede un día. Los movimientos se agrupaban bajo el día anterior: uno
+ * cargado hoy aparecía como "Ayer", y los del lunes bajo "domingo".
+ */
+function parseDayLocal(iso: string): Date {
+  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
 /** Etiqueta legible del grupo de fecha (Hoy / Ayer / "lunes, 5 de mayo"). */
 function dateLabel(iso: string, t: TFn, locale: Locale): string {
-  const d = new Date(iso);
+  const d = parseDayLocal(iso);
   if (isToday(d)) return t("transactions.today");
   if (isYesterday(d)) return t("transactions.yesterday");
   return formatWeekdayLong(d, locale);
