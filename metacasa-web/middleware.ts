@@ -18,8 +18,16 @@ const PUBLIC_PREFIXES = [
   "/auth", // /auth/handoff, /auth/callback, /auth/confirm
   // Páginas legales estáticas (en public/): públicas, para que el link de
   // Privacidad/Términos de las apps abra sin rebotar al login.
+  //
+  // Van las DOS formas. Las apps enlazan la versión con `.html`, pero la forma sin
+  // extensión también tiene que ser pública: es la que escribe una persona, la que
+  // indexa un buscador y la que suele pedir un formulario de tienda. Mandar la
+  // política de privacidad a una pantalla de login es exactamente el tipo de cosa
+  // que App Review marca, y el redirect ni siquiera se ve como un error.
   "/privacy.html",
   "/terms.html",
+  "/privacy",
+  "/terms",
   // Fallback offline del PWA. Tiene que ser público: el service worker lo
   // precachea al instalarse (puede pasar con el usuario deslogueado) y, si el
   // middleware lo redirigiera a /login, guardaríamos el login como "página
