@@ -4,6 +4,26 @@
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
+## Sesión 2026-08-04 (tarde) — la app cargada con datos reales
+
+Se cargó el agosto real del hogar de Ariel (40 movimientos, 5 vencimientos, presupuesto con 11
+sobres) y **usarla con datos de verdad destapó dos bugs que con la base vacía no existían**:
+
+- **Los movimientos se agrupaban bajo el día anterior.** `dateLabel` hacía `new Date("2026-08-04")`:
+  un string de sólo-fecha se interpreta como medianoche **UTC** y al formatearlo en huso negativo
+  —toda LatAm— retrocede un día. Un movimiento cargado hoy salía como "Ayer". Ahora se parsea a
+  medianoche local. **Quedan tres sospechas del mismo patrón sin verificar**: `debt-card.tsx:199`
+  y `goal-card.tsx:100` (`new Date(<columna date>)`), y `bills-view.tsx:54`, que calcula "hoy" con
+  `toISOString()` — después de las 21 h en Argentina eso ya devuelve el día siguiente.
+- **El filtro de categorías repetía "Otros"** (está en gastos y en ingresos) con warning de claves
+  duplicadas en React.
+
+Verificado en el navegador con la sesión real: selección múltiple, barra de lote, buscador,
+presupuesto y dashboard. Nota de producto: **no existe el tipo de cuenta "Billetera virtual"**, que
+en LatAm es la cuenta principal de mucha gente (Mercado Pago, Ualá, Naranja X).
+
+---
+
 ## Sesión 2026-08-04 (mañana) — screenshots de tienda y dos bugs que salieron de ahí
 
 Se retomó la regeneración de los screenshots para poder subir la **1.1.0**. Intentar usar la app en
