@@ -27,6 +27,15 @@
         "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npx next dev -p ${PORT:-3100}"
       ],
       "autoPort": true
+    },
+    {
+      "name": "metacasa-web-3210",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npx next dev -p 3210"
+      ],
+      "port": 3210
     }
   ]
 }

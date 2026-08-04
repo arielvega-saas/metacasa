@@ -341,3 +341,73 @@ export async function bulkCreateTransactions(
   }
   return inserted;
 }
+
+/** Campos que la edición en lote puede tocar. Deliberadamente NO incluye dinero. */
+export type BulkEditableFields = {
+  category?: string;
+  account_id?: string | null;
+};
+
+export interface BulkUpdateResult {
+  /** Filas efectivamente modificadas. */
+  updated: number;
+  /** Seleccionadas que se saltearon por ser piernas de una transferencia. */
+  skippedTransfers: number;
+}
+
+/**
+ * Edición en lote de movimientos. Sólo toca categoría y cuenta: **ningún campo de
+ * dinero, moneda o fecha**. Cambiar montos en masa no tiene caso de uso real y sí
+ * tiene forma de desastre silencioso, así que no está.
+ *
+ * Las **transferencias quedan afuera**. Una transferencia son dos filas atadas por
+ * `transfer_group_id`, y las dos piernas son el mecanismo: recategorizar una, o
+ * mandarla a otra cuenta, deja el par describiendo un movimiento de dinero que no
+ * ocurrió y descuadra los saldos por cuenta. Se saltean y se devuelve cuántas
+ * fueron, para que la UI lo diga en vez de fingir que se aplicó a todas.
+ *
+ * RLS valida pertenencia al hogar, y además se filtra por `household_id` explícito
+ * (defensa en profundidad, igual que el resto del módulo).
+ */
+export async function bulkUpdateTransactions(
+  supabase: Client,
+  ids: string[],
+  householdId: string,
+  fields: BulkEditableFields,
+  batchSize = 200,
+): Promise<BulkUpdateResult> {
+  if (ids.length === 0 || Object.keys(fields).length === 0) {
+    return { updated: 0, skippedTransfers: 0 };
+  }
+
+  // Cuáles de las seleccionadas son transferencias. Se pregunta antes de escribir:
+  // el UPDATE no puede distinguirlas si no se las excluye por id.
+  const { data: transfers, error: transferError } = await supabase
+    .from("transactions")
+    .select("id")
+    .in("id", ids)
+    .eq("household_id", householdId)
+    .not("transfer_group_id", "is", null);
+  if (transferError) throw transferError;
+
+  const transferIds = new Set((transfers ?? []).map((r) => r.id));
+  const editable = ids.filter((id) => !transferIds.has(id));
+  if (editable.length === 0) {
+    return { updated: 0, skippedTransfers: transferIds.size };
+  }
+
+  let updated = 0;
+  for (let i = 0; i < editable.length; i += batchSize) {
+    const chunk = editable.slice(i, i + batchSize);
+    const { data, error } = await supabase
+      .from("transactions")
+      .update(fields)
+      .in("id", chunk)
+      .eq("household_id", householdId)
+      .select("id");
+    if (error) throw error;
+    updated += data?.length ?? 0;
+  }
+
+  return { updated, skippedTransfers: transferIds.size };
+}

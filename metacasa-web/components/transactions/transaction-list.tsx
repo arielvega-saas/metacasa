@@ -31,9 +31,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ExportButton } from "@/components/export/export-button";
 import { QuickAddBar } from "@/components/templates/quick-add-bar";
 import { TransactionFormDialog } from "./transaction-form-dialog";
+import { BulkActionsBar } from "./bulk-actions-bar";
+import { useListShortcuts } from "./use-list-shortcuts";
 import type { TransactionTemplate } from "@/lib/db/templates";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
@@ -144,6 +147,9 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
   }, [accounts]);
 
   // Agrupa las filas por día preservando el orden (ya vienen desc por fecha).
+  // Cada grupo lleva el índice global de su primera fila: los atajos de teclado
+  // numeran sobre `visibleRows`, que es plano, y así el offset no hay que
+  // recalcularlo buscando en el array al pintar cada fila.
   const groups = React.useMemo(() => {
     const map = new Map<string, Tx[]>();
     for (const tx of visibleRows) {
@@ -152,8 +158,79 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
       if (arr) arr.push(tx);
       else map.set(key, [tx]);
     }
-    return Array.from(map.entries());
+    let offset = 0;
+    return Array.from(map.entries()).map(([day, txs]) => {
+      const grupo = { day, txs, offset };
+      offset += txs.length;
+      return grupo;
+    });
   }, [visibleRows]);
+
+  // Selección múltiple. Se guarda por id (no por índice) para que sobreviva a
+  // que la lista se reordene o a un borrado optimista.
+  const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
+
+  // Si una fila deja de existir (borrado, cambio de filtro), su id no puede
+  // quedar seleccionado: la barra contaría movimientos que ya no están.
+  React.useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const vivos = new Set(visibleRows.map((r) => r.id));
+      const next = new Set([...prev].filter((id) => vivos.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [visibleRows]);
+
+  const toggleOne = React.useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const setMany = React.useCallback((ids: string[], on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = React.useCallback(() => setSelected(new Set()), []);
+
+  const allIds = React.useMemo(() => visibleRows.map((r) => r.id), [visibleRows]);
+  const allSelected = selected.size > 0 && selected.size === allIds.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  // Atajos de teclado. El índice es sobre `visibleRows`, que es el mismo orden en
+  // que se pintan los grupos por día, así que numerar las filas al renderizar
+  // alcanza para que ↑/↓ y el resaltado coincidan.
+  const { activeIndex, setActiveIndex } = useListShortcuts({
+    count: visibleRows.length,
+    searchInputId: "flt-q",
+    onNew: openCreate,
+    onOpen: (i) => {
+      const tx = visibleRows[i];
+      if (tx) openEdit(tx);
+    },
+    onToggleSelect: (i) => {
+      const tx = visibleRows[i];
+      if (tx) toggleOne(tx.id);
+    },
+    onClearSelection: clearSelection,
+  });
+
+  // Traer a la vista la fila activa cuando se navega con el teclado.
+  React.useEffect(() => {
+    if (activeIndex < 0) return;
+    const el = document.querySelector<HTMLElement>(`[data-tx-index="${activeIndex}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
 
   function openCreate() {
     setEditing(null);
@@ -227,8 +304,17 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
         </div>
       )}
 
-      {/* Barra de acciones de la lista: exportar el filtro actual a Excel. */}
-      <div className="mb-3 flex items-center justify-end">
+      {/* Barra de acciones de la lista: seleccionar todo + exportar el filtro actual. */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <label className="text-text-muted flex cursor-pointer items-center gap-2 text-xs">
+          <Checkbox
+            checked={allSelected}
+            indeterminate={someSelected}
+            onChange={(e) => setMany(allIds, e.target.checked)}
+            aria-label={t("transactions.selectAll")}
+          />
+          {t("transactions.selectAll")}
+        </label>
         <ExportButton
           href={exportHref}
           label={t("exportTools.actions.exportExcel")}
@@ -237,13 +323,25 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
       </div>
 
       <div className="bg-card hairline overflow-hidden rounded-[var(--radius-xl)]">
-        {groups.map(([day, txs]) => (
+        {groups.map(({ day, txs, offset }) => {
+          const dayIds = txs.map((tx) => tx.id);
+          const dayAllSelected = dayIds.every((id) => selected.has(id));
+          const daySomeSelected = !dayAllSelected && dayIds.some((id) => selected.has(id));
+          return (
           <div key={day}>
             {/* Encabezado de grupo por día */}
             <div className="bg-surface/60 flex items-center justify-between px-4 py-2 sm:px-5">
-              <span className="text-text-muted text-xs font-semibold capitalize tracking-wide">
-                {dateLabel(day, t, locale)}
-              </span>
+              <label className="flex cursor-pointer items-center gap-2">
+                <Checkbox
+                  checked={dayAllSelected}
+                  indeterminate={daySomeSelected}
+                  onChange={(e) => setMany(dayIds, e.target.checked)}
+                  aria-label={t("transactions.selectDay")}
+                />
+                <span className="text-text-muted text-xs font-semibold capitalize tracking-wide">
+                  {dateLabel(day, t, locale)}
+                </span>
+              </label>
               <span className="text-text-dim text-xs">
                 {txs.length === 1
                   ? t("transactions.count", { count: txs.length })
@@ -252,7 +350,9 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
             </div>
 
             <ul className="divide-y divide-border">
-              {txs.map((tx) => {
+              {txs.map((tx, i) => {
+                const index = offset + i;
+                const isActive = index === activeIndex;
                 const isIncome = tx.type === TX_TYPE.INCOME;
                 const acc = tx.account_id ? accountName.get(tx.account_id) : null;
                 const letter = (tx.category || "?").charAt(0).toUpperCase();
@@ -265,8 +365,20 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
                 return (
                   <li
                     key={tx.id}
-                    className="hover:bg-tint-1 flex items-center gap-3 px-4 py-3 transition-colors sm:px-5"
+                    data-tx-index={index}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={cn(
+                      "hover:bg-tint-1 flex items-center gap-3 px-4 py-3 transition-colors sm:px-5",
+                      selected.has(tx.id) && "bg-tint-1",
+                      isActive && "ring-ring/40 relative z-10 ring-2 ring-inset",
+                    )}
                   >
+                    <Checkbox
+                      checked={selected.has(tx.id)}
+                      onChange={() => toggleOne(tx.id)}
+                      aria-label={t("transactions.selectRow")}
+                    />
+
                     {/* Avatar inicial con color por tipo */}
                     <span
                       className={cn(
@@ -341,8 +453,16 @@ export function TransactionList({ rows, currency, accounts, categories, openNew,
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </div>
+
+      <BulkActionsBar
+        ids={[...selected]}
+        accounts={accounts}
+        categories={categories}
+        onClear={clearSelection}
+      />
 
       {/* Form de alta / edición */}
       <TransactionFormDialog

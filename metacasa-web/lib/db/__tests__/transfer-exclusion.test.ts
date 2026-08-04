@@ -35,6 +35,10 @@ const SIN_FILTRO: Record<string, string> = {
   updateTransaction: "mutación",
   deleteTransaction: "mutación",
   bulkCreateTransactions: "mutación",
+  bulkUpdateTransactions:
+    "mutación. Igual excluye las transferencias, pero no con este filtro: las resuelve por id en " +
+    "un SELECT previo, porque además de no tocarlas necesita CONTARLAS para avisarle al usuario " +
+    "cuántas quedaron sin cambios (ver bulk-transactions.test.ts)",
 };
 
 function archivosTS(dir: string): string[] {

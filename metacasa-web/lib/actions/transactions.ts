@@ -8,7 +8,9 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  bulkUpdateTransactions,
   type TxMutationInput,
+  type BulkUpdateResult,
 } from "@/lib/db/transactions";
 import { TX_TYPE, type TxType } from "@/lib/constants";
 
@@ -108,6 +110,45 @@ export async function deleteTransactionAction(id: string) {
   await deleteTransaction(supabase, id, active.id);
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+}
+
+/**
+ * Recategoriza varios movimientos de una. Es el verbo que sólo tiene sentido en la
+ * compu: recategorizar 40 movimientos del súper después de importar un resumen.
+ */
+export async function bulkRecategorizeAction(
+  ids: string[],
+  category: string,
+): Promise<BulkUpdateResult> {
+  const t = await getT();
+  const clean = category.trim();
+  if (!clean) throw new Error(t("errors.missingCategory"));
+  return runBulk(ids, { category: clean });
+}
+
+/** Mueve varios movimientos a otra cuenta. `null` los deja sin cuenta. */
+export async function bulkSetAccountAction(
+  ids: string[],
+  accountId: string | null,
+): Promise<BulkUpdateResult> {
+  return runBulk(ids, { account_id: accountId });
+}
+
+/** Tronco común de las acciones en lote: resuelve hogar, escribe y revalida. */
+async function runBulk(
+  ids: string[],
+  fields: Parameters<typeof bulkUpdateTransactions>[3],
+): Promise<BulkUpdateResult> {
+  const t = await getT();
+  if (!ids.length) throw new Error(t("errors.missingTxId"));
+  const supabase = await createClient();
+  const { active } = await resolveActiveHousehold(supabase);
+  if (!active) throw new Error(t("errors.noHousehold"));
+
+  const result = await bulkUpdateTransactions(supabase, ids, active.id, fields);
+  revalidatePath("/transactions");
+  revalidatePath("/dashboard");
+  return result;
 }
 
 /** Redondeo a 2 decimales evitando errores de coma flotante. */
