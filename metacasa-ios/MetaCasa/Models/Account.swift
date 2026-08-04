@@ -64,6 +64,11 @@ enum AccountOwnership: String, Codable, Hashable, Sendable, CaseIterable {
     }
 }
 
+/// Tipo de cuenta.
+///
+/// Tolera valores que esta versión no conoce (caen en `.other`): el backend es
+/// compartido con la web, así que un tipo nuevo creado desde ahí no puede dejar
+/// sin cuentas a quien tenga una versión anterior. Ver `UnknownTolerantDecodable`.
 enum AccountType: String, Codable, Hashable, Sendable, CaseIterable {
     case checking, savings, cash
     case creditCard = "credit_card"
@@ -92,6 +97,10 @@ enum AccountType: String, Codable, Hashable, Sendable, CaseIterable {
         case .other: "circle"
         }
     }
+}
+
+extension AccountType: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .other }
 }
 
 /// Extensión 1:1 con `public.credit_cards` para cuentas type=creditCard.

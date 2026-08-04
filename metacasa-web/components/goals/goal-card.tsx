@@ -11,6 +11,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { format } from "date-fns";
+import { parseDayLocal } from "@/lib/i18n/dates";
 import { es, enUS, ptBR } from "date-fns/locale";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { Card } from "@/components/ui/card";
@@ -97,7 +98,7 @@ export function GoalCard({ goal, defaultCurrency }: GoalCardProps) {
             {goal.target_date ? (
               <p className="text-text-muted flex items-center gap-1 text-xs">
                 <CalendarClock className="size-3" />
-                {format(new Date(goal.target_date), t("goals.dateFormat"), {
+                {format(parseDayLocal(goal.target_date), t("goals.dateFormat"), {
                   locale: DATE_LOCALES[locale],
                 })}
               </p>

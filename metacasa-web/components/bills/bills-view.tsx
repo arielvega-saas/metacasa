@@ -26,7 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { formatDayMonth } from "@/lib/i18n/dates";
+import { formatDayMonth, todayLocal } from "@/lib/i18n/dates";
 import { BillDialog } from "@/components/bills/bill-dialog";
 import { DeleteBillDialog } from "@/components/bills/delete-bill-dialog";
 import { setBillStatusAction } from "@/lib/actions/bills";
@@ -51,10 +51,14 @@ type DialogState =
  * ambos al inicio del día). <0 = vencido, 0 = hoy.
  */
 function daysUntilDue(dueDate: string): number {
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const [ty, tm, td] = todayISO.split("-").map(Number);
+  // "Hoy" tiene que ser el día del calendario DEL USUARIO. Con
+  // `new Date().toISOString()` se tomaba el día UTC, y en Argentina a partir de
+  // las 21 h eso ya es mañana: a esa hora un vencimiento de mañana pasaba a
+  // contarse como "hoy" y uno de hoy como vencido. La resta sigue siendo
+  // UTC contra UTC, que es lo correcto para contar días-calendario.
+  const hoy = todayLocal();
   const [dy, dm, dd] = dueDate.split("-").map(Number);
-  const today = Date.UTC(ty, (tm ?? 1) - 1, td ?? 1);
+  const today = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   const due = Date.UTC(dy, (dm ?? 1) - 1, dd ?? 1);
   return Math.round((due - today) / 86_400_000);
 }

@@ -43,11 +43,41 @@ export function formatMonthShort(
 }
 
 /**
+ * Convierte `YYYY-MM-DD` (o un timestamp ISO) en una fecha a medianoche **local**.
+ *
+ * **Usar esto siempre que se vaya a MOSTRAR una fecha guardada.** `new Date("2026-08-10")`
+ * no sirve: el string de sólo-fecha se interpreta como medianoche **UTC**, y al
+ * formatearlo en un huso negativo —toda LatAm, que es el mercado de esta app— sale
+ * el día anterior. Vencimientos, metas y deudas mostraban un día menos, y los
+ * movimientos se agrupaban bajo "Ayer" el mismo día que se cargaban.
+ *
+ * La fecha de un movimiento, un vencimiento o una meta es **un día del calendario
+ * del usuario**, no un instante en el tiempo. Ese es el criterio, y es el mismo que
+ * aplica `toStableDate` al escribir.
+ */
+export function parseDayLocal(date: string): Date {
+  const [y, m, d] = String(date).slice(0, 10).split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+/**
+ * Hoy, a medianoche local, como `Date`.
+ *
+ * No usar `new Date().toISOString().slice(0, 10)` para esto: eso da el día **UTC**,
+ * y en Argentina a partir de las 21 h ya devuelve mañana. Un vencimiento de mañana
+ * pasaba a contarse como "hoy" con sólo que se hiciera de noche.
+ */
+export function todayLocal(): Date {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+/**
  * Día + mes corto, localizado. Acepta `Date` o ISO string.
  * "5 may" / "May 5" / "5 mai".
  */
 export function formatDayMonth(date: Date | string, l: Locale): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? parseDayLocal(date) : date;
   return d.toLocaleDateString(intlLocale(l), { day: "numeric", month: "short" });
 }
 

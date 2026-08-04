@@ -11,6 +11,7 @@ import {
   Landmark,
 } from "lucide-react";
 import { format } from "date-fns";
+import { parseDayLocal } from "@/lib/i18n/dates";
 import { es, enUS, ptBR } from "date-fns/locale";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { Card } from "@/components/ui/card";
@@ -196,7 +197,7 @@ export function DebtCard({
                 ? t("debts.overdue")
                 : t("debts.maturity", {
                     date: format(
-                      new Date(debt.maturity_date),
+                      parseDayLocal(debt.maturity_date),
                       "d MMM yyyy",
                       { locale: DATE_LOCALES[locale] },
                     ),
