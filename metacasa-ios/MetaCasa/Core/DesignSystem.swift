@@ -46,6 +46,28 @@ extension Color {
     static let brandDanger    = Color(hex: "#E8B4A6")  // warm coral (no red frío)
     static let brandWarning   = Color(hex: "#D4C19C")  // champagne (reusa secondary)
 
+    /// Paleta para series categóricas de gráficos (donut de gastos, Pareto 80/20).
+    ///
+    /// **Es la única paleta de gráficos de la app.** Antes había dos comportamientos: el
+    /// donut del Home usaba una lista propia de 5 colores de marca —con `brandWarning` y
+    /// `brandSecondary` repetidos, o sea 4 tonos reales para 5 porciones— y el Pareto de
+    /// Reportes no fijaba ninguna, así que Swift Charts caía en su paleta por defecto:
+    /// azul, verde, naranja, magenta, rojo. Justo el look "fintech saturado" del que este
+    /// design system se declara contrapunto, en la pantalla que se usa para vender la app.
+    ///
+    /// Ocho tonos, todos desaturados y dentro de la familia Midnight Sage, ordenados para
+    /// que dos porciones contiguas nunca se confundan.
+    static let chartCategories: [Color] = [
+        Color(hex: "#B8D4C2"),  // sage glow
+        Color(hex: "#D4C19C"),  // champagne
+        Color(hex: "#E8B4A6"),  // coral cálido
+        Color(hex: "#8FB3A0"),  // sage profundo
+        Color(hex: "#C9B3D4"),  // lavanda apagada
+        Color(hex: "#A8C8D4"),  // azul sage frío
+        Color(hex: "#D4CBA6"),  // arena
+        Color(hex: "#9FC4AD"),  // sage saturado
+    ]
+
     init(hex: String) {
         let s = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
         var int: UInt64 = 0

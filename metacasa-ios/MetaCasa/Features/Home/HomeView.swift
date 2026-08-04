@@ -1710,8 +1710,7 @@ private struct CategoryDonutCard: View {
     }
 
     private func colorFor(idx: Int) -> Color {
-        let palette: [Color] = [.brandPrimary, .brandSecondary, .brandWarning, .brandSuccess, .brandDanger]
-        return palette[idx % palette.count]
+        Color.chartCategories[idx % Color.chartCategories.count]
     }
 }
 

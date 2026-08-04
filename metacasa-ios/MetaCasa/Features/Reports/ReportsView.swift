@@ -283,6 +283,13 @@ struct ReportsView: View {
                     )
                     .foregroundStyle(by: .value("Categoría", slice.category))
                 }
+                // Sin escala explícita, Swift Charts pinta con SU paleta (azul/verde/naranja/
+                // magenta/rojo) y el gráfico se ve de otra app. `by:` se mantiene para no
+                // perder la leyenda que asocia color y categoría.
+                .chartForegroundStyleScale(
+                    domain: paretoData.prefix(8).map { $0.category },
+                    range: Color.chartCategories
+                )
                 .frame(height: 200)
 
                 VStack(spacing: 4) {
