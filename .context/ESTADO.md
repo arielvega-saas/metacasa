@@ -4,6 +4,39 @@
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
+## Sesión 2026-08-04 (mañana) — screenshots de tienda y dos bugs que salieron de ahí
+
+Se retomó la regeneración de los screenshots para poder subir la **1.1.0**. Intentar usar la app en
+el simulador destapó dos problemas reales de producto:
+
+- **El trial pedía login de Apple en cada arranque.** `TrialManager.trialStartDate()` llamaba a
+  `AppTransaction.shared` —que es **interactivo**— en todos los arranques. Sin sesión de App Store
+  iniciada, StoreKit abre "Iniciar sesión en cuenta de Apple"; al cancelarlo volvía a aparecer, en
+  loop, con la app trabada en el splash detrás. No es del simulador: le pasa a cualquiera con la
+  sesión caída, y un pedido de credenciales de Apple sin contexto en una app de finanzas es lo que
+  entrena al usuario a caer en phishing. Ahora el ancla se resuelve **una vez** y queda en Keychain.
+  8 tests: con ancla resuelve en 0,005 s; sin ancla tarda los 4 s del timeout de StoreKit.
+  El comentario de `AccessController` que decía "el trial se calcula LOCAL, sin red" **era falso**
+  hasta este arreglo.
+- **El Pareto 80/20 se pintaba con la paleta de Swift Charts** (azul, verde, naranja, magenta, rojo):
+  el look "fintech saturado" del que el design system se declara contrapunto, justo en una pantalla
+  que se usa para vender la app. Ahora hay **una sola** paleta de gráficos (`Color.chartCategories`,
+  8 tonos Midnight Sage) y la usan tanto Reportes como el donut del Home — que tenía su propia lista
+  con dos colores repetidos.
+
+**Screenshots**: el set publicado (18 imágenes) no estaba viejo sólo en 4 pantallas — está armado
+con el **logo anterior** (verde neón 3D) en las 18. Ahora se componen por script
+(`scripts/screenshots/compose.py`, ver su README) desde el ícono y los colores vigentes.
+**es-MX: 5 de 6 listas** en `store/ready/es-MX/`.
+
+**Lo que quedó trabado y por qué:**
+- `05-debts` — Vencimientos, Cuotas y Deudas están **vacíos** en la cuenta que se usa para capturar.
+- `en-US` y `pt-BR` — el hogar demo se llama "Mi Hogar", las categorías son "Vivienda"/"Alimentación"
+  y la moneda es ARS. Con la app en inglés eso se ve mitad traducido y en pesos. Hace falta un hogar
+  demo por mercado (USD / BRL), como ya pedía `APP_STORE_COPY.md` § 6.
+
+---
+
 ## Sesión 2026-08-03/04 — qué cambió
 
 **Dinero (los tres clientes ahora derivan del servidor):**
@@ -74,52 +107,18 @@ no por código.
 
 ## Bloqueos abiertos (necesitan a Ariel, no a una IA)
 
-1. **Migración a Netlify — DNS HECHO, falta el certificado SSL (2026-08-01).**
-
-   **Hecho y verificado:**
-   - Zona DNS creada en Netlify (`zone_id 6a6e0d97c08a56003cef888e`) con los 4 registros de email de
-     Brevo espejados ANTES de tocar los nameservers, así que **el email nunca dejó de funcionar**:
-     `brevo1._domainkey`, `brevo2._domainkey` (DKIM), `_dmarc` y el TXT de verificación del apex.
-   - Nameservers cambiados en Vercel a `dns1..4.p08.nsone.net`. **Ya propagaron.**
-   - `usehomefinance.com` resuelve a `75.2.60.5` y **responde 200 por HTTP**.
-   - Las 3 variables de Netlify apuntan al dominio real y el sitio está redeployado.
-
-   **Bloqueado del lado de Netlify:** el panel dice "Netlify DNS propagating..." para el apex y el
-   certificado queda en "Waiting on DNS propagation". La causa: el registro **ALIAS (`NETLIFY`) que
-   ellos autogeneran para el apex nunca resolvió** — el del `www`, creado igual y al mismo tiempo, sí
-   funciona. Descartado que fuera conflicto con el registro A manual (se quitó y se esperó 7 min: el
-   ALIAS siguió mudo). La API rechaza crear registros `NETLIFY` a mano (`Unprocessable Entity`) y
-   también rechaza `provisionSiteTLSCertificate`. Resetear `custom_domain` no lo regeneró.
-
-   **El apex hoy usa un registro A explícito a `75.2.60.5`**, que es la configuración documentada de
-   Netlify para DNS externo y funciona: por eso HTTP responde 200 — que es justo lo que Let's Encrypt
-   necesita para validar por HTTP-01.
-
-   **Siguiente paso si no sale solo:** ticket a soporte de Netlify por el ALIAS defectuoso del apex en
-   la zona. La verificación de DNS puede tardar hasta 24 h según su documentación.
-
-   **Cuando el certificado salga**, queda por hacer: desplegar `web-handoff` apuntado a la web nueva
-   (hasta entonces sigue mandando a la PWA de Firebase, que funciona), el CORS de `ai-proxy`, y cargar
-   en Supabase Auth la Site URL y la allowlist de redirects con el dominio nuevo.
-
-   ⚠️ **Para el futuro:** el dominio **sigue registrado en Vercel** y auto-renueva el 1-jun-2027 a
-   US$ 11,25. Si la cuenta sigue suspendida para entonces, esa renovación puede fallar y perder el
-   dominio sería catastrófico. Conviene transferirlo a otro registrador en algún momento tranquilo.
-
-2. **App Group `group.com.metacasa.shared`** sin crear en el Developer Portal → los widgets compilan e
+1. **App Group `group.com.metacasa.shared`** sin crear en el Developer Portal → los widgets compilan e
    instalan pero muestran estado vacío.
-3. **Redirect URI de Mercado Pago** sin registrar (app `2693470312497962`) → las wallets no se pueden
+2. **Redirect URI de Mercado Pago** sin registrar (app `2693470312497962`) → las wallets no se pueden
    conectar. Falta `https://usehomefinance.com/wallets/callback` + `http://localhost:3000/wallets/callback`.
-4. **Sign in with Apple** (4.6), **push APNs** (4.10) y **CI** (4.9) — esperan credenciales / repo en GitHub.
+3. **Sign in with Apple** (4.6), **push APNs** (4.10) y **CI** (4.9) — esperan credenciales / repo en GitHub.
+4. **Subir la 1.1.0 a App Store Connect** — el binario y los screenshots están listos, falta el Apple ID.
+5. **Datos demo de vencimientos, cuotas y deudas** — están vacíos en la cuenta que se usa para capturar,
+   así que la pantalla 5 del set de tienda (`05-debts`) no se puede sacar hasta poblarlos.
 
-**El dominio NO corre riesgo**: `usehomefinance.com` renueva el 1-jun-2027.
-
-## Mitigación que está aplicada ahora mismo
-
-El banner de handoff de la app iOS **no** apunta a `usehomefinance.com` (que está muerto): la edge function
-`web-handoff` devuelve la PWA de Firebase, y detecta destinos sin soporte de handoff para devolver la URL
-pelada en vez de quemar un magic link. **Revertir a `usehomefinance.com` (o setear el secret `WEB_APP_URL`)
-cuando Netlify esté sirviendo el dominio.**
+⚠️ **Para junio 2027:** el dominio **sigue registrado en Vercel** y auto-renueva el 1-jun-2027 a
+US$ 11,25. Si esa cuenta sigue suspendida, la renovación puede fallar. Conviene transferirlo a otro
+registrador en algún momento tranquilo.
 
 ## Reglas de este proyecto que ya costaron caro
 
