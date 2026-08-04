@@ -93,23 +93,10 @@ final class HomeViewModel {
         return max(0, min(100, Int(score)))
     }
 
-    /// Racha de días consecutivos (contando hacia atrás desde hoy) con al
-    /// menos una transacción cargada. Usado en el widget 🔥 del Home.
+    /// Racha de días consecutivos con movimientos. La lógica vive en `Streak` para poder
+    /// testearla — embebida acá no tenía un solo test y devolvía siempre 1.
     var streak: Int {
-        let cal = Calendar.current
-        var days = Set(consistencyTransactions.excludingTransfers.map { cal.startOfDay(for: $0.date) })
-        // Fallback: si recentTransactions tiene <1 mes de data pero el user
-        // carga hoy, contamos desde hoy. Esto funciona porque siempre hay al
-        // menos la ventana del mes en recentTransactions.
-        var count = 0
-        var cursor = cal.startOfDay(for: Date())
-        while days.contains(cursor) {
-            count += 1
-            guard let prev = cal.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = prev
-            _ = days.remove(prev) // asegura que el set se achique para evitar loops sobre gaps
-        }
-        return count
+        Streak.consecutiveDays(transactions: consistencyTransactions.excludingTransfers)
     }
 
     /// Sparkline: últimos 7 días de gastos acumulados.
