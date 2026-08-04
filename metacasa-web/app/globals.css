@@ -449,3 +449,40 @@
   background: color-mix(in srgb, var(--mc-sage) 28%, transparent);
   background-clip: padding-box;
 }
+
+/* ── Ocultar saldos ("modo ojito") ───────────────────────────────────────────
+ *
+ * Se hace en CSS puro sobre un atributo de <html> que pone el SERVIDOR, no con
+ * lógica de React: así aplica en el primer paint, antes de que corra JS. Con
+ * `localStorage` + useEffect los montos reales alcanzan a pintarse, que es
+ * exactamente lo que esta función existe para evitar.
+ *
+ * Se reemplaza el texto por puntos en vez de aplicar `blur`: un blur se puede
+ * revertir con una captura y un filtro, y además deja adivinar la MAGNITUD por
+ * el ancho. Los puntos no filtran nada.
+ *
+ * El ancho se fija en `ch` para que ocultar y mostrar no salte el layout.
+ */
+[data-hide-balances] .mc-money {
+  position: relative;
+  color: transparent !important;
+  user-select: none;
+}
+
+[data-hide-balances] .mc-money::after {
+  content: "••••";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: inherit;
+  color: var(--muted-foreground);
+  letter-spacing: 0.1em;
+}
+
+/* `contentTransition`/animaciones de número no tienen sentido oculto. */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-money {
+    transition: color 120ms ease;
+  }
+}

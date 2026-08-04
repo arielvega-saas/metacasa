@@ -4,14 +4,29 @@
     {
       "name": "metacasa-dev",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && npm run dev -- --port 5173"],
+      "runtimeArgs": [
+        "-c",
+        "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && npm run dev -- --port 5173"
+      ],
       "port": 5173
     },
     {
       "name": "metacasa-web",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npm run dev"],
+      "runtimeArgs": [
+        "-c",
+        "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npm run dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "metacasa-web-auto",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "export NVM_DIR=\"$HOME/.nvm\" && source \"$NVM_DIR/nvm.sh\" && nvm use 22 && cd metacasa-web && npx next dev -p ${PORT:-3100}"
+      ],
+      "autoPort": true
     }
   ]
 }

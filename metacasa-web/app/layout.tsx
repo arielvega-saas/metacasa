@@ -6,6 +6,8 @@ import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getTheme } from "@/lib/theme-server";
+import { getBalancesHidden } from "@/lib/balance-privacy-server";
+import { BALANCE_PRIVACY_ATTR } from "@/lib/balance-privacy";
 import { themeClass, themeInitScript } from "@/lib/theme";
 import { SITE_URL } from "@/lib/site";
 
@@ -77,7 +79,11 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [locale, theme] = await Promise.all([getLocale(), getTheme()]);
+  const [locale, theme, ocultarSaldos] = await Promise.all([
+    getLocale(),
+    getTheme(),
+    getBalancesHidden(),
+  ]);
   const dict = getDictionary(locale);
   // `light`/`dark` van directo desde la cookie (SSR sin flash). Con `system`
   // la clase queda vacía → `:root` de globals.css (oscuro) y el script inline
@@ -86,6 +92,10 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={`${themeClass(theme)} ${fraunces.variable} ${manrope.variable}`}
+      // El atributo se resuelve en el SERVIDOR, no al hidratar: con `localStorage` la primera
+      // pintura mostraría los montos reales y recién después se ocultarían. Ese parpadeo es
+      // justo lo que la función existe para evitar.
+      {...(ocultarSaldos ? { [BALANCE_PRIVACY_ATTR]: "" } : {})}
       suppressHydrationWarning
     >
       <head>

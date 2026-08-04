@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AmountsVisibilityToggle } from "@/components/finance/amounts-visibility-toggle";
 import { PreferencesBootstrap } from "@/components/finance/preferences-bootstrap";
 import { getT } from "@/lib/i18n/server";
+import { getBalancesHidden } from "@/lib/balance-privacy-server";
 
 interface HouseholdLite {
   id: string;
@@ -23,7 +24,7 @@ export async function Topbar({
   activeId: string;
   user: { name?: string | null; email?: string | null };
 }) {
-  const t = await getT();
+  const [t, saldosOcultos] = await Promise.all([getT(), getBalancesHidden()]);
   return (
     <header className="glass sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border px-4 sm:px-6">
       <div className="lg:hidden">
@@ -38,7 +39,10 @@ export async function Topbar({
 
       <div className="flex-1" />
 
-      <AmountsVisibilityToggle className="text-text-muted" />
+      <AmountsVisibilityToggle
+        className="text-text-muted"
+        initialHidden={saldosOcultos}
+      />
 
       <Button asChild size="sm" className="hidden sm:inline-flex">
         <Link href="/transactions?new=1">

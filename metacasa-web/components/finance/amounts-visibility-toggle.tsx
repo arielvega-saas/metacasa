@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/components/i18n/locale-provider";
@@ -7,6 +8,7 @@ import {
   useAmountsHidden,
   toggleAmountsHidden,
 } from "@/components/finance/amounts-visibility";
+import { setBalancesHidden } from "@/lib/actions/balance-privacy";
 
 /**
  * Botón de la topbar para ocultar/mostrar montos (modo privacidad).
@@ -14,11 +16,17 @@ import {
  */
 export function AmountsVisibilityToggle({
   className,
+  initialHidden = false,
 }: {
   className?: string;
+  /** Valor leído de la cookie en el servidor: evita que el ícono parpadee al hidratar. */
+  initialHidden?: boolean;
 }) {
   const t = useT();
-  const hidden = useAmountsHidden();
+  const store = useAmountsHidden();
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const hidden = hydrated ? store : initialHidden;
   const label = hidden ? t("privacy.showAmounts") : t("privacy.hideAmounts");
 
   return (
@@ -26,7 +34,11 @@ export function AmountsVisibilityToggle({
       type="button"
       variant="ghost"
       size="icon"
-      onClick={() => toggleAmountsHidden()}
+      onClick={() => {
+        toggleAmountsHidden();
+        // Persiste para el próximo render del servidor. La UI ya cambió en `toggleAmountsHidden`.
+        void setBalancesHidden(!hidden);
+      }}
       aria-label={label}
       aria-pressed={hidden}
       title={label}
