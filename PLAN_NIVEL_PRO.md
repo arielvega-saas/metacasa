@@ -177,7 +177,7 @@
 Ya los tenemos ✅ / nos faltan ❌:
 
 1. ✅ Dashboard de widgets customizable (Monarch/Revolut 10) — iOS ya lo tiene con `DashboardEditorSheet`.
-2. ✅ Modo oculto de saldos "ojito" (estándar absoluto LatAm: MP/Ualá/Nubank/Naranja X) — iOS lo tiene (tapar la fuga, ítem 1.4); **web no lo tiene → agregarlo**.
+2. ✅ **(2026-08-03)** Modo oculto de saldos "ojito" (estándar absoluto LatAm: MP/Ualá/Nubank/Naranja X). Corrección a este mismo plan: la web **sí lo tenía**, pero con un agujero peor que no tenerlo — el estado vivía en `localStorage`, así que el servidor renderizaba los montos VISIBLES en cada carga y se ocultaban recién al hidratar. Daba confianza sin darla. Ahora es cookie + `<html data-hide-balances>` + CSS, que aplica en el primer paint. Puntos y no `blur` (un blur se revierte con una captura y deja adivinar la magnitud por el ancho); se marca el MONTO y no la fila (si no, la pantalla queda inutilizable en vez de privada); y se saca el `title`, que es lo único que el CSS no puede tapar porque no puede borrar un atributo.
 3. ✅ Número héroe serif con tabular figures (Nubank/Monzo) — ya es identidad de la app.
 4. ✅ Swift Charts interactivos con scrubbing (Copilot, Apple Design Award) — hecho en **3.4** (RuleMark + haptic por mes en Reports).
 5. ✅ **parcial** Liquid Glass: el modifier real con fallback iOS 17-25 está en **2.4**. Falta el morph del FAB con `GlassEffectContainer`..
