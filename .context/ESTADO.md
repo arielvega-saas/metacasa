@@ -1,8 +1,31 @@
 # Home Finance — estado vivo
 
-> Última actualización: **2026-08-03**.
+> Última actualización: **2026-08-04**.
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
+
+## Sesión 2026-08-03/04 — qué cambió
+
+**Dinero (los tres clientes ahora derivan del servidor):**
+- `amount` va SIEMPRE en la moneda base. El import CSV y los recibos guardaban el monto crudo
+  etiquetado con la moneda extranjera: un resumen en dólares entraba dividido por la cotización.
+  Un solo constructor (`NewTransactionInput.converting`) en iOS y Flutter, que TIRA sin cotización.
+- Totales agregados en el servidor (`transaction_totals`). Antes se bajaban 1000 filas y se sumaba
+  en el cliente, descartando en silencio las más viejas.
+- "Listo para asignar" tenía CINCO definiciones. Ahora todas leen `budget_period_summary`.
+- Transferencias excluidas de los agregados en los tres clientes (18 sitios en Flutter, 9 en web).
+  Los saldos por cuenta NO filtran: ahí las dos piernas son el mecanismo.
+
+**Infra:**
+- Netlify deployea desde el repo (antes era manual; el sitio sirvió código viejo 2 días sin que
+  nadie se enterara). `publish` se resuelve distinto por CLI que por CI — ver netlify.toml.
+- Migraciones: repo y ledger idénticos, 51 = 51. `scripts/check-migration-drift.sh` lo vigila.
+- Linter de Supabase: 0 errores. Se cerraron dos agujeros introducidos ese mismo día.
+
+**i18n:** catálogo al 100% (985 claves). 16 claves mostraban el identificador CRUDO en los tres
+idiomas por un desfase `%lld` vs `%@`.
+
+---
 
 ## ✅ MIGRACIÓN CERRADA (2026-08-01)
 
