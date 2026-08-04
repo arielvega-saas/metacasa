@@ -96,3 +96,36 @@ struct EnvelopeStatus: Hashable, Sendable {
     }
     var isOverBudget: Bool { spent > allocated }
 }
+
+
+/// Resumen canónico de un período, tal como lo devuelve `public.budget_period_summary`.
+///
+/// Es la ÚNICA definición de "listo para asignar" que debe leer la app. Las tres cifras vienen
+/// ya convertidas a la moneda base del hogar.
+struct BudgetPeriodSummary: Decodable, Sendable {
+    let periodId: UUID
+    let baseCurrency: String
+    let totalIncome: Decimal
+    /// Suma de `allocated`, SIN el arrastre. Es lo que se descuenta del ingreso.
+    let totalAllocated: Decimal
+    /// Suma de `allocated + rollover_from_prev`. Es lo que hay en los sobres.
+    ///
+    /// El arrastre no se resta del ingreso: se fondeó con el ingreso del mes ANTERIOR, y
+    /// descontarlo de éste sería cobrarlo dos veces. Es exactamente la divergencia que se activó
+    /// el día que se arregló el rollover.
+    let totalBudgeted: Decimal
+    let readyToAssign: Decimal
+    /// Sobres cuya moneda no tiene cotización. No se asumen en 1: se cuentan aparte para poder
+    /// avisar que el número está incompleto en vez de mostrarlo como si fuera exacto.
+    let fxMissingCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case periodId = "period_id"
+        case baseCurrency = "base_currency"
+        case totalIncome = "total_income"
+        case totalAllocated = "total_allocated"
+        case totalBudgeted = "total_budgeted"
+        case readyToAssign = "ready_to_assign"
+        case fxMissingCount = "fx_missing_count"
+    }
+}

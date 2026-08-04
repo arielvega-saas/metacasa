@@ -259,13 +259,22 @@ final class AIToolHandler: @unchecked Sendable {
         )
 
         var spent: [String: Decimal] = [:]
-        for tx in txs where tx.type == .gasto {
+        for tx in txs.excludingTransfers where tx.type == .gasto {
             spent[tx.category, default: 0] += tx.amount
         }
 
+        // El resumen sale del RPC, no de las columnas: el asistente le dice el número al usuario
+        // EN TEXTO, con confianza y sin que se pueda contrastar contra la pantalla de al lado.
+        // Era uno de los cuatro lectores de "listo para asignar" con criterios distintos.
+        let resumen = try? await BudgetService.shared.periodSummary(periodId: period.id)
+
         var lines: [String] = ["Budget Status:"]
-        lines.append("Total allocated: \(fmt(period.totalAllocated))")
-        lines.append("Ready to assign: \(fmt(period.readyToAssign))")
+        lines.append("Total allocated: \(fmt(resumen?.totalAllocated ?? period.totalAllocated))")
+        lines.append("Ready to assign: \(fmt(resumen?.readyToAssign ?? period.readyToAssign))")
+        if let n = resumen?.fxMissingCount, n > 0 {
+            // Sin esto el asistente afirmaría un total exacto sobre datos incompletos.
+            lines.append("Note: \(n) envelope(s) in a currency with no exchange rate are NOT included.")
+        }
         lines.append("")
 
         var overBudget: [String] = []

@@ -81,6 +81,30 @@ actor BudgetService {
         )
     }
 
+    /// Totales del período según la **definición canónica del servidor**
+    /// (`public.budget_period_summary`).
+    ///
+    /// "Listo para asignar" llegó a tener CINCO implementaciones —el card del Home, el hub de
+    /// Presupuesto, el asistente de IA, la web y la columna de la DB— y ninguna coincidía del todo.
+    /// El síntoma que veía el usuario: el Home decía "$0" con un check verde mientras Presupuesto
+    /// decía "$100.000", en la misma app y el mismo mes.
+    ///
+    /// El RPC no puede driftear porque no guarda nada: se calcula sobre las tasas de HOY, que el
+    /// job diario reescribe. Las columnas se siguen manteniendo por trigger, pero sólo para que
+    /// los clientes viejos (1.0.3, que las lee como `Decimal` no-opcional) no crasheen.
+    func periodSummary(periodId: UUID) async throws -> BudgetPeriodSummary {
+        struct Params: Encodable { let p_period_id: UUID }
+        let rows: [BudgetPeriodSummary] = try await SupabaseRPC.call(
+            "budget_period_summary",
+            params: Params(p_period_id: periodId)
+        )
+        guard let r = rows.first else {
+            throw NSError(domain: "BudgetService", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "El período no devolvió resumen"])
+        }
+        return r
+    }
+
     /// Saldo del envelope vía la función SQL `public.envelope_balance(p_period_id, p_category, p_subcategory)`.
     func envelopeBalance(periodId: UUID, category: String, subcategory: String = "") async throws -> Decimal {
         struct Params: Encodable {

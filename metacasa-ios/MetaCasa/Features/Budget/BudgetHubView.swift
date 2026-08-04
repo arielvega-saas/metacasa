@@ -21,6 +21,8 @@ final class BudgetHubViewModel {
     var envelopes: [EnvelopeWithAllocation] = []
     var ingresosMes: Decimal = 0
     var gastosMes: Decimal = 0
+    /// Resumen canónico del período (RPC). Es de dónde sale `readyToAssign`.
+    var summary: BudgetPeriodSummary?
     var selectedMonth: Date = Date()
 
     var isLoading = false
@@ -65,11 +67,22 @@ final class BudgetHubViewModel {
         envelopes.reduce(Decimal(0)) { $0 + $1.status.spent }
     }
 
-    /// Disponible para asignar: ingreso del mes menos lo asignado DESDE ese ingreso.
-    /// Usa `totalAllocated`, no `totalBudgeted`: descontar el arrastre sería cobrarlo dos veces.
+    /// Disponible para asignar, **según el servidor**.
+    ///
+    /// Antes se calculaba acá como `ingresosMes - totalAllocated`. El número estaba bien en el
+    /// caso simple, pero era una definición más: el Home leía la columna de la DB y esta pantalla
+    /// calculaba local, así que el mismo usuario veía "$0 con check verde" en una y "$100.000" en
+    /// la otra. Y esta versión no convertía la moneda de los sobres ni contaba los que no tienen
+    /// cotización.
+    ///
+    /// Mientras el RPC no responde cae al cálculo local, que es una aproximación razonable para
+    /// no mostrar un 0 falso durante la carga.
     var readyToAssign: Decimal {
-        ingresosMes - totalAllocated
+        summary?.readyToAssign ?? (ingresosMes - totalAllocated)
     }
+
+    /// Sobres sin cotización: el número de arriba está incompleto y hay que decirlo.
+    var fxMissingCount: Int { summary?.fxMissingCount ?? 0 }
 
     func load(householdId: UUID) async {
         isLoading = true
@@ -94,6 +107,7 @@ final class BudgetHubViewModel {
             )) ?? (ingresos: 0, gastos: 0)
             self.ingresosMes = totals.ingresos
             self.gastosMes = totals.gastos
+            self.summary = try? await BudgetService.shared.periodSummary(periodId: p.id)
 
             // Calcular envelope status
             var computed: [EnvelopeWithAllocation] = []

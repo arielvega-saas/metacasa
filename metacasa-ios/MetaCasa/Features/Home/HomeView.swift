@@ -28,6 +28,16 @@ final class HomeViewModel {
     var totalGastos: Decimal = 0
     var topGastos: [Transaction] = []
     var period: BudgetPeriod?
+    /// Resumen canónico del período (RPC `budget_period_summary`). Es de donde sale el
+    /// "listo para asignar" que se muestra acá — el mismo que lee el hub de Presupuesto.
+    var periodSummary: BudgetPeriodSummary?
+
+    /// El número que se muestra. Cae a la columna de la DB si el RPC no respondió: esa columna
+    /// la mantienen triggers con la misma definición, así que es el fallback correcto — pero
+    /// puede quedar vieja respecto de las tasas de cambio, que se reescriben a diario.
+    var readyToAssign: Decimal? {
+        periodSummary?.readyToAssign ?? period?.readyToAssign
+    }
     var upcomingBills: [Bill] = []
     var activeDebtsCount: Int = 0
     var activePlansCount: Int = 0
@@ -241,6 +251,9 @@ final class HomeViewModel {
                 .map { (category: $0.key, total: $0.value) }
 
             self.period = try await budgetPeriod
+            if let pid = self.period?.id {
+                self.periodSummary = try? await BudgetService.shared.periodSummary(periodId: pid)
+            }
             self.upcomingBills = (try? await bills) ?? []
             let dbList = (try? await debts) ?? []
             self.activeDebtsCount = dbList.count
@@ -602,7 +615,7 @@ struct HomeView: View {
                 onConfigureTap: { showStrategySettings = true }
             )
         case .readyToAssign:
-            ReadyToAssignCard(period: viewModel.period, currency: householdCurrency)
+            ReadyToAssignCard(readyToAssign: viewModel.readyToAssign, currency: householdCurrency)
         case .upcomingBills:
             UpcomingBillsStrip(
                 bills: viewModel.upcomingBills,
@@ -1300,8 +1313,8 @@ private struct InsightCard: View {
     }
 
     private func overBudgetInsight() -> String? {
-        guard let period = viewModel.period, period.readyToAssign < 0 else { return nil }
-        let amt = Money.format(abs(period.readyToAssign), currency: currency, style: .compact)
+        guard let rta = viewModel.readyToAssign, rta < 0 else { return nil }
+        let amt = Money.format(abs(rta), currency: currency, style: .compact)
         return String(format: String(localized: "home.insight.overBudget %@"), amt)
     }
 
@@ -1388,23 +1401,25 @@ private extension HomeViewModel {
 // MARK: - ReadyToAssignCard
 
 private struct ReadyToAssignCard: View {
-    let period: BudgetPeriod?
+    /// El valor ya resuelto, no el período: así esta vista no puede elegir una definición
+    /// distinta a la del hub de Presupuesto. `nil` = todavía no hay período (no se muestra nada).
+    let readyToAssign: Decimal?
     let currency: String
 
     var body: some View {
-        if let p = period {
+        if let rta = readyToAssign {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(p.readyToAssign >= 0 ? Color.brandSuccess.opacity(0.15) : Color.brandDanger.opacity(0.15))
+                        .fill(rta >= 0 ? Color.brandSuccess.opacity(0.15) : Color.brandDanger.opacity(0.15))
                         .frame(width: 44, height: 44)
-                    Image(systemName: p.readyToAssign >= 0 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(p.readyToAssign >= 0 ? Color.brandSuccess : Color.brandDanger)
+                    Image(systemName: rta >= 0 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(rta >= 0 ? Color.brandSuccess : Color.brandDanger)
                         .font(.title3)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("home.readyToAssign").font(.caption.weight(.bold)).foregroundStyle(Color.textMuted)
-                    AmountLabel(amount: p.readyToAssign, currency: currency, kind: .balance)
+                    AmountLabel(amount: rta, currency: currency, kind: .balance)
                         .font(.mcSerifAmount)
                 }
                 Spacer()
