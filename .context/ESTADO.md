@@ -19,8 +19,29 @@ sobres) y **usarla con datos de verdad destapó dos bugs que con la base vacía 
   duplicadas en React.
 
 Verificado en el navegador con la sesión real: selección múltiple, barra de lote, buscador,
-presupuesto y dashboard. Nota de producto: **no existe el tipo de cuenta "Billetera virtual"**, que
-en LatAm es la cuenta principal de mucha gente (Mercado Pago, Ualá, Naranja X).
+presupuesto y dashboard.
+
+**Las tres sospechas de fecha se confirmaron y están arregladas** (deudas, metas y el "hoy" de
+vencimientos, que se tomaba en UTC y de noche adelantaba un día). Ahora hay un solo helper,
+`parseDayLocal` / `todayLocal` en `lib/i18n/dates`, con 8 tests.
+
+### Pendientes que salieron de esta sesión
+
+- **Falta el tipo de cuenta "Billetera virtual"**, que en LatAm es la cuenta principal de mucha
+  gente (Mercado Pago, Ualá, Naranja X). **No se agregó a propósito**: `AccountType` en iOS era un
+  enum sin caso desconocido, así que crear el tipo desde la web le habría dejado la app publicada
+  sin NINGUNA cuenta. Ya está el fallback (`UnknownTolerantDecodable`), pero recién se puede agregar
+  el tipo cuando la base instalada tenga esa versión — o sea, después de publicar la 1.1.0 y esperar.
+- **Quedan 14 enums `String, Codable` sin caso desconocido** en `metacasa-ios/MetaCasa/Models/`
+  (`GoalStatus`, `DebtStatus`, `BillStatus`, `Frequency`, `RolloverMode`, `SubscriptionStatus`…).
+  Cada uno es la misma bomba: un valor nuevo del lado servidor y la respuesta entera se pierde.
+  Conformarlos a `UnknownTolerantDecodable` es una línea cada uno; se dejó para después del submit.
+  `TxType` es el caso donde **no** corresponde fallback: no hay a dónde caer sin falsear los totales.
+- **Marzo 2027, mudanza a España**: el hogar pasa a operar en EUR. **No hay que cambiarle la moneda
+  al hogar actual** — `transactions.amount` está en la moneda base, así que el histórico argentino se
+  reinterpretaría como euros. El camino es un hogar nuevo en EUR (la app ya soporta varios). Antes
+  conviene verificar que el patrimonio neto no sume hogares de monedas distintas y que el
+  entitlement sea por usuario y no por hogar.
 
 ---
 
