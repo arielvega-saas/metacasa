@@ -8,16 +8,25 @@ import StoreKit
 /// borrado de datos porque está atada a la cuenta de App Store, NO al
 /// dispositivo. Es el método recomendado por Apple para trials a nivel app.
 ///
-/// **Fallback**: en entornos donde `AppTransaction` aún no está verificado
-/// (algunos casos de sandbox/TestFlight en el primer arranque), se usa la
-/// primera fecha de uso persistida en Keychain. Es best-effort; el ancla real
-/// es `AppTransaction`.
+/// **Se pregunta UNA sola vez.** Apenas se conoce, el ancla se persiste en
+/// Keychain y todos los arranques siguientes la leen de ahí, sin tocar StoreKit.
+/// Esto no es una optimización: `AppTransaction.shared` es **interactivo**. Si el
+/// dispositivo no tiene sesión de App Store iniciada, StoreKit abre el diálogo
+/// "Iniciar sesión en cuenta de Apple" — y como se llamaba en cada arranque, al
+/// cancelarlo volvía a aparecer, en loop, con la app trabada en el splash detrás.
+/// Un pedido de credenciales de Apple sin contexto, en una app de finanzas, es
+/// además exactamente lo que entrena al usuario a caer en phishing.
+///
+/// **Fallback**: si `AppTransaction` no está disponible (sandbox/TestFlight en el
+/// primer arranque, o el usuario canceló el login), se ancla en la primera fecha
+/// de uso. Es best-effort; el ancla preferida sigue siendo `AppTransaction`.
 enum TrialManager {
 
     /// Duración exacta del trial: 7 días.
     static let trialDuration: TimeInterval = 7 * 24 * 60 * 60
 
-    private static let keychainKey = "trial_first_launch_iso"
+    /// Internal (no private) para que los tests puedan sembrar y restaurar el ancla.
+    static let keychainKey = "trial_first_launch_iso"
 
     nonisolated(unsafe) private static let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -25,12 +34,21 @@ enum TrialManager {
         return f
     }()
 
-    /// Fecha de inicio del trial (descarga del Apple ID, o fallback Keychain).
+    /// Fecha de inicio del trial (descarga del Apple ID, o fallback primera apertura).
+    ///
+    /// El ancla se resuelve **una sola vez** y queda en Keychain. Mientras haya ancla
+    /// guardada no se consulta StoreKit: el arranque no depende de la red ni puede
+    /// disparar el diálogo de login de Apple.
     static func trialStartDate() async -> Date {
-        if let d = await appStoreOriginalPurchaseDate() {
-            return d
+        if let stored = storedAnchor() {
+            return stored
         }
-        return keychainFirstLaunchDate()
+        // Primer arranque en este dispositivo: es el único momento en que se pregunta.
+        // Si Apple no contesta (o el usuario cancela el login) se ancla en ahora, que
+        // es lo mismo que hacía el fallback anterior.
+        let anchor = await appStoreOriginalPurchaseDate() ?? Date()
+        persistAnchor(anchor)
+        return anchor
     }
 
     /// Momento exacto en que vence el trial.
@@ -76,13 +94,14 @@ enum TrialManager {
         return resultado ?? nil
     }
 
-    private static func keychainFirstLaunchDate() -> Date {
-        if let stored = KeychainStore.get(keychainKey),
-           let date = iso.date(from: stored) {
-            return date
-        }
-        let now = Date()
-        KeychainStore.set(iso.string(from: now), for: keychainKey)
-        return now
+    /// Ancla ya resuelta, si existe. El Keychain sobrevive a desinstalar la app, así
+    /// que reinstalar no regala un trial nuevo.
+    static func storedAnchor() -> Date? {
+        guard let stored = KeychainStore.get(keychainKey) else { return nil }
+        return iso.date(from: stored)
+    }
+
+    private static func persistAnchor(_ date: Date) {
+        KeychainStore.set(iso.string(from: date), for: keychainKey)
     }
 }

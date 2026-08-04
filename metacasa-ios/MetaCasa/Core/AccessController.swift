@@ -66,8 +66,10 @@ final class AccessController {
 
     /// Re-evalúa acceso: suscripción activa O trial vigente.
     ///
-    /// El orden importa. El trial se calcula LOCAL (comparación de fechas, sin red), así que se
-    /// resuelve primero y corta: un usuario en trial entra sin depender de StoreKit para nada.
+    /// El orden importa. El trial se calcula LOCAL (comparación de fechas contra el ancla ya
+    /// guardada en Keychain, sin red), así que se resuelve primero y corta: un usuario en trial
+    /// entra sin depender de StoreKit para nada. La única excepción es el primerísimo arranque
+    /// en el dispositivo, donde `TrialManager` resuelve el ancla una vez y la persiste.
     /// Sólo si el trial venció hace falta preguntar por la suscripción, y esa consulta va acotada.
     func refresh() async {
         let inTrial = await TrialManager.isInTrial()
