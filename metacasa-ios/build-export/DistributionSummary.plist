@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Home Finance.ipa</key>
+	<array>
+		<dict>
+			<key>architectures</key>
+			<array>
+				<string>arm64</string>
+			</array>
+			<key>buildNumber</key>
+			<string>13</string>
+			<key>certificate</key>
+			<dict>
+				<key>SHA1</key>
+				<string>5F4240CD6CAEBF7EDF27173372F0FE87D2A8A624</string>
+				<key>dateExpires</key>
+				<string>15/05/2027</string>
+				<key>type</key>
+				<string>Cloud Managed Apple Distribution</string>
+			</dict>
+			<key>embeddedBinaries</key>
+			<array>
+				<dict>
+					<key>architectures</key>
+					<array>
+						<string>arm64</string>
+					</array>
+					<key>buildNumber</key>
+					<string>13</string>
+					<key>certificate</key>
+					<dict>
+						<key>SHA1</key>
+						<string>5F4240CD6CAEBF7EDF27173372F0FE87D2A8A624</string>
+						<key>dateExpires</key>
+						<string>15/05/2027</string>
+						<key>type</key>
+						<string>Cloud Managed Apple Distribution</string>
+					</dict>
+					<key>entitlements</key>
+					<dict>
+						<key>application-identifier</key>
+						<string>K84H562MWX.com.metacasa.app.widgets</string>
+						<key>beta-reports-active</key>
+						<true/>
+						<key>com.apple.developer.team-identifier</key>
+						<string>K84H562MWX</string>
+						<key>com.apple.security.application-groups</key>
+						<array>
+							<string>group.com.metacasa.shared</string>
+						</array>
+						<key>get-task-allow</key>
+						<false/>
+					</dict>
+					<key>name</key>
+					<string>MetaCasaWidgets.appex</string>
+					<key>profile</key>
+					<dict>
+						<key>UUID</key>
+						<string>878bb21d-2855-4502-b5e4-3a3b5f9d718c</string>
+						<key>dateExpires</key>
+						<string>15/05/2027</string>
+						<key>name</key>
+						<string>iOS Team Store Provisioning Profile: com.metacasa.app.widgets</string>
+					</dict>
+					<key>symbols</key>
+					<true/>
+					<key>team</key>
+					<dict>
+						<key>id</key>
+						<string>K84H562MWX</string>
+						<key>name</key>
+						<string></string>
+					</dict>
+					<key>versionNumber</key>
+					<string>1.1.0</string>
+				</dict>
+			</array>
+			<key>entitlements</key>
+			<dict>
+				<key>application-identifier</key>
+				<string>K84H562MWX.com.metacasa.app</string>
+				<key>beta-reports-active</key>
+				<true/>
+				<key>com.apple.developer.associated-domains</key>
+				<array>
+					<string>applinks:usehomefinance.com</string>
+				</array>
+				<key>com.apple.developer.team-identifier</key>
+				<string>K84H562MWX</string>
+				<key>com.apple.security.application-groups</key>
+				<array>
+					<string>group.com.metacasa.shared</string>
+				</array>
+				<key>get-task-allow</key>
+				<false/>
+			</dict>
+			<key>name</key>
+			<string>Home Finance.app</string>
+			<key>profile</key>
+			<dict>
+				<key>UUID</key>
+				<string>b961eb28-846a-4f71-9515-01d173eb0152</string>
+				<key>dateExpires</key>
+				<string>15/05/2027</string>
+				<key>name</key>
+				<string>iOS Team Store Provisioning Profile: com.metacasa.app</string>
+			</dict>
+			<key>symbols</key>
+			<true/>
+			<key>team</key>
+			<dict>
+				<key>id</key>
+				<string>K84H562MWX</string>
+				<key>name</key>
+				<string></string>
+			</dict>
+			<key>versionNumber</key>
+			<string>1.1.0</string>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest del app extension de widgets.
+
+  Cada binario que use una required-reason API necesita el SUYO: no alcanza con el de la app
+  contenedora. `WidgetSnapshot.swift` usa `UserDefaults(suiteName:)` para leer el snapshot del
+  App Group, así que sin este archivo Apple manda el ITMS-91053 y desde 2024 rechaza.
+
+  El widget NO recolecta datos: sólo LEE lo que la app ya escribió en el App Group. Por eso
+  `NSPrivacyCollectedDataTypes` va vacío — declarar acá los tipos que ya declara la app sería
+  decir que el widget los recolecta por su cuenta, que no es cierto.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- CA92.1: acceder a UserDefaults de un App Group que comparten apps del
+                     mismo grupo de desarrollador. Es exactamente este caso. -->
+                <string>CA92.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

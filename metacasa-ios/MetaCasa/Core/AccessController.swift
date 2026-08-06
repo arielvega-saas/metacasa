@@ -9,10 +9,16 @@ import StoreKit
 /// - Pasados los 7 días, la app queda **completamente bloqueada** hasta que el
 ///   usuario tenga una suscripción activa (mensual o anual).
 ///
-/// La verificación de suscripción usa StoreKit 2 directamente
-/// (`Transaction.currentEntitlements`), así que el gate funciona aunque
-/// RevenueCat todavía no esté configurado. RevenueCat solo maneja la UI/flujo
-/// de compra en el paywall.
+/// Hay **tres** vías de acceso y cualquiera alcanza:
+///
+/// 1. Trial vigente — local, sin red.
+/// 2. StoreKit 2 (`Transaction.currentEntitlements`) — la compra hecha en este Apple ID.
+/// 3. `user_entitlements` en el servidor — la compra hecha en cualquier otro lado.
+///
+/// La 2 va antes que la 3 porque es local e instantánea. La 3 existe porque StoreKit
+/// **sólo** conoce lo comprado en ese Apple ID: sin ella, quien paga desde la web o
+/// desde Android queda bloqueado en iOS. RevenueCat no participa de la decisión — sólo
+/// maneja la UI de compra en el paywall y alimenta la tabla vía webhook server-side.
 @MainActor
 @Observable
 final class AccessController {
@@ -86,11 +92,43 @@ final class AccessController {
         let subscribed = await Self.hasActiveSubscriptionBounded()
         isSubscribed = subscribed
 
-        // Si StoreKit no contestó, `subscribed` viene en false y se cae al paywall — que TIENE
-        // botón de reintento. Es la salida correcta: no regala acceso (sería el agujero de
-        // monetización que ya costó una vez) y tampoco deja la app colgada. Un suscriptor real
-        // recupera el acceso apenas StoreKit responde, sin reinstalar nada.
-        state = subscribed ? .granted : .locked
+        if subscribed {
+            state = .granted
+            return
+        }
+
+        // StoreKit sólo conoce las compras hechas EN ESTE Apple ID. Una suscripción
+        // comprada desde la web o desde Android no está ahí, y hasta este arreglo la app
+        // la bloqueaba igual: cobrábamos y no dábamos acceso, que es el peor final posible
+        // y el mismo patrón que ya costó una vez con el doble-grant del paywall.
+        //
+        // El respaldo es `user_entitlements`, que escribe el webhook server-side de
+        // RevenueCat y se lee por el RPC `has_active_entitlement` (con RLS: el cliente no
+        // puede falsearla). Va SEGUNDO a propósito: StoreKit es local, instantáneo y
+        // funciona sin red, así que el 99% de los casos se resuelve antes de llegar acá.
+        //
+        // Si ninguna de las dos contesta, `locked` y al paywall — que tiene reintento.
+        // Ante la duda no se regala acceso.
+        let serverEntitled = await Self.hasServerEntitlementBounded()
+        isSubscribed = serverEntitled
+        state = Self.decide(inTrial: false, storeKitSubscribed: false, serverEntitled: serverEntitled)
+    }
+
+    /// Consulta el entitlement del servidor con el mismo tope de tiempo que StoreKit.
+    /// Devuelve `false` si no contesta: sin respuesta no hay acceso.
+    private static func hasServerEntitlementBounded() async -> Bool {
+        let resultado: Bool? = await withTimeout(storeKitTimeout) {
+            (try? await EntitlementService.shared.hasActive(UserEntitlement.Name.premium)) ?? false
+        }
+        return resultado ?? false
+    }
+
+    /// La regla de acceso, aislada de StoreKit y de la red para poder testearla.
+    ///
+    /// Cualquiera de las tres vías abre la app; ninguna es capaz de cerrarla por su cuenta.
+    /// Que sea un OR es el punto: el usuario pagó una vez, no importa por qué canal.
+    static func decide(inTrial: Bool, storeKitSubscribed: Bool, serverEntitled: Bool) -> State {
+        (inTrial || storeKitSubscribed || serverEntitled) ? .granted : .locked
     }
 
     /// `hasActiveSubscription()` con tope de tiempo. Devuelve `false` si StoreKit no contestó.
