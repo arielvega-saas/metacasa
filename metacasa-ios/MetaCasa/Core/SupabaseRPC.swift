@@ -85,6 +85,22 @@ enum SupabaseRPC {
             let container = try decoder.singleValueContainer()
             let str = try container.decode(String.self)
 
+            // Una columna `date` de Postgres ("2026-08-05") **no es un instante**: es un
+            // día del calendario del usuario. Parsearla en UTC y mostrarla en local la
+            // corre un día para atrás en todo huso negativo —toda LatAm, que es el
+            // mercado de esta app—: un vencimiento de HOY aparecía como "1 día de atraso",
+            // y las fechas de metas y deudas mostraban el día anterior.
+            //
+            // Por eso la fecha-sola se parsea en la zona LOCAL y va primero. Los formatos
+            // con hora sí son instantes y siguen en UTC.
+            if str.count == 10 {
+                let soloFecha = DateFormatter()
+                soloFecha.locale = Locale(identifier: "en_US_POSIX")
+                soloFecha.timeZone = .current
+                soloFecha.dateFormat = "yyyy-MM-dd"
+                if let date = soloFecha.date(from: str) { return date }
+            }
+
             // Formato Postgres con microsegundos: "2026-04-20 00:50:41.767043+00"
             let pg = DateFormatter()
             pg.locale = Locale(identifier: "en_US_POSIX")
@@ -93,8 +109,7 @@ enum SupabaseRPC {
                 "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",
                 "yyyy-MM-dd'T'HH:mm:ssXXXXX",
                 "yyyy-MM-dd HH:mm:ss.SSSSSSXX",
-                "yyyy-MM-dd HH:mm:ssXX",
-                "yyyy-MM-dd"
+                "yyyy-MM-dd HH:mm:ssXX"
             ]
             for fmt in formats {
                 pg.dateFormat = fmt
