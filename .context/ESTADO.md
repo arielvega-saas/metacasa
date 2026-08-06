@@ -4,6 +4,29 @@
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
+## Sesión 2026-08-06 — fila de acciones primarias
+
+**Ítem 10 del plan, hecho.** Cuatro círculos pegados al saldo —Gasto, Ingreso, Vencimiento,
+Preguntar— como MP/Nubank/Ualá. Gasto e Ingreso abren el alta con el tipo **ya elegido**: ese
+toque del selector es el que se saltea y hace que un sueldo entre cargado como gasto. Va fija,
+no como widget del dashboard: si se pudiera ocultar dejaría de ser primaria. Verificada en el
+simulador.
+
+**Del ítem 11 (onboarding), lo que realmente falta es menos de lo que decía el plan:**
+- ✅ La **checklist gamificada ya existía** y está bien resuelta: `OnboardingProgress`
+  auto-detecta cada paso consultando los servicios reales, así que nunca miente sobre el
+  estado. El plan la listaba como pendiente.
+- ❌ **Quiz de personalización.** Lo valioso sería preguntar **cada cuánto cobra** el usuario
+  (`PeriodType` ya soporta week/biweek/month) y qué quiere lograr primero, para preconfigurar
+  el período del presupuesto y el orden de los widgets. Hoy el presupuesto es mensual sí o sí:
+  para alguien que cobra quincenal, la app arranca desalineada con su realidad.
+- ❌ **Modo demo antes de pedir datos.** Es un **cambio de arquitectura**, no una pantalla: la
+  app necesita sesión de Supabase para todo. Requiere una capa de datos local de sólo lectura
+  y decidir qué pasa al registrarse (¿se migran los datos de prueba o se descartan?). No
+  conviene hacerlo apurado.
+
+---
+
 ## Sesión 2026-08-05 — la 1.1.0 enviada y tres bugs más
 
 **La 1.1.0 (build 13) está EN REVISIÓN en App Store.** Archive, export firmado, `VERIFY
