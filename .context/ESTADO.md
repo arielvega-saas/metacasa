@@ -4,6 +4,39 @@
 > Este archivo es lo primero que tiene que leer cualquier IA que entre al proyecto.
 > Si trabajaste acá y algo de esto cambió, **actualizalo antes de cerrar la sesión**.
 
+## Sesión 2026-08-05 — la 1.1.0 enviada y tres bugs más
+
+**La 1.1.0 (build 13) está EN REVISIÓN en App Store.** Archive, export firmado, `VERIFY
+SUCCEEDED`, upload con la API key, versión creada, novedades en los tres idiomas (son
+obligatorias en los tres: el primer envío falló por eso) y enviada.
+
+**Dos bloqueos documentados que ya no existen:**
+- **El App Group `group.com.metacasa.shared` YA ESTÁ**: existe en el portal, habilitado en
+  `com.metacasa.app` y `com.metacasa.app.widgets`, y el binario lo lleva firmado en la app y en
+  el appex. Verificado con `codesign -d --entitlements`.
+- Los códigos promocionales de App Store **no sirven** para desbloquear premium: son códigos *de
+  la app*, que es gratuita. La vía es TestFlight, donde las compras son sandbox.
+
+**Tres bugs arreglados (no van en la 1.1.0, que ya está en la cola):**
+1. **Quien pagaba fuera de iOS quedaba bloqueado igual.** El gate miraba trial + StoreKit, y
+   StoreKit sólo conoce las compras de ESE Apple ID. `EntitlementService` existía hace meses,
+   funcionaba, y lo usaba únicamente el paywall para mostrar información. Ahora son tres vías.
+2. **12 enums sin caso desconocido.** Un valor nuevo del servidor tiraba la respuesta ENTERA.
+   `TxType` y `SubscriptionStore` quedan estrictos a propósito.
+3. **Las fechas de vencimiento se mostraban un día antes.** El decoder parseaba las columnas
+   `date` en UTC; en huso negativo eso retrocede un día y **un vencimiento de hoy salía como
+   vencido**. Afecta también metas y deudas, porque el decoder es compartido.
+
+**Cuenta de App Review**: tenía Vencimientos, Cuotas y Deudas **vacíos** — el reviewer veía tres
+pantallas en blanco. Se poblaron con datos coherentes (5 vencimientos, 2 planes de cuotas, 1
+deuda). De ahí salió el bug de fechas.
+
+**Screenshots es-MX: 6 de 6 completos** con la identidad nueva.
+
+**176 tests iOS, 151 web.**
+
+---
+
 ## Sesión 2026-08-04 (tarde) — la app cargada con datos reales
 
 Se cargó el agosto real del hogar de Ariel (40 movimientos, 5 vencimientos, presupuesto con 11
