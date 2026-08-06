@@ -39,8 +39,13 @@ struct AddTransactionView: View {
     @State private var fxRateStr: String = ""
     @State private var knownFxRates: [String: Decimal] = [:]
 
-    init(template: TransactionTemplate? = nil) {
-        _type = State(initialValue: template?.type ?? .gasto)
+    /// - Parameters:
+    ///   - template: si viene, precarga monto, categoría y nota de un atajo guardado.
+    ///   - presetType: fija gasto o ingreso sin precargar nada más. Lo usa la fila de
+    ///     acciones del Home: entrar ya en "Ingreso" ahorra el toque del selector, que es
+    ///     justo el que se olvida y hace que un sueldo termine cargado como gasto.
+    init(template: TransactionTemplate? = nil, presetType: TxType? = nil) {
+        _type = State(initialValue: template?.type ?? presetType ?? .gasto)
         _amountStr = State(initialValue: template.map { "\($0.amount)" } ?? "")
         _category = State(initialValue: template?.category ?? "Alimentación")
         _subcategory = State(initialValue: template?.subcategory)

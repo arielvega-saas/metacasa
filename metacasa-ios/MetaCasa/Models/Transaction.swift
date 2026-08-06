@@ -165,3 +165,10 @@ struct NewTransactionInput: Codable, Sendable {
         case date
     }
 }
+
+/// Permite usar el tipo como identidad de un `.sheet(item:)` — la fila de acciones del
+/// Home abre el alta ya en gasto o en ingreso, y `item:` es lo que garantiza que el
+/// sheet se reconstruya con el tipo correcto en vez de reusar el anterior.
+extension TxType: Identifiable {
+    public var id: String { rawValue }
+}

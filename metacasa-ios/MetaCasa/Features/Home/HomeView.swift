@@ -338,6 +338,9 @@ struct HomeView: View {
     /// Altas disparadas desde los estados vacíos de los widgets del Home.
     @State private var showAddGoal = false
     @State private var showAddBill = false
+    /// Tipo con el que abre el alta desde la fila de acciones (nil = cerrada).
+    @State private var quickAddType: TxType?
+    @State private var showHomeAssistant = false
     @State private var selectedTemplate: TransactionTemplate?
     /// Tip del editor del dashboard (TipKit decide cuándo mostrarlo).
     private let dashboardTip = DashboardEditorTip()
@@ -370,6 +373,12 @@ struct HomeView: View {
                         // Widgets respetan orden definido por el user en el Dashboard Editor.
                         // Cada widget es render-eado por `widgetView(for:)` más abajo —
                         // ese @ViewBuilder conoce los params de cada uno desde viewModel.
+                        // Si el usuario ocultó el saldo desde el editor, la fila de
+                        // acciones sube al tope igual: son primarias y no pueden
+                        // depender de que otro widget esté visible.
+                        if !dashboardPrefs.orderedVisibleWidgets.contains(.hero) {
+                            quickActions
+                        }
                         ForEach(dashboardPrefs.orderedVisibleWidgets, id: \.self) { widget in
                             // Física iOS 26: las cards se atenúan/encogen
                             // levemente al entrar/salir del viewport. Con
@@ -380,6 +389,12 @@ struct HomeView: View {
                                         .opacity(reduceMotion || phase.isIdentity ? 1 : 0.65)
                                         .scaleEffect(reduceMotion || phase.isIdentity ? 1 : 0.96)
                                 }
+                            // Va pegada al saldo aunque el usuario reordene los widgets:
+                            // es donde la tienen MP, Nubank y Ualá, y separada del número
+                            // pierde el sentido de "y ahora qué hago".
+                            if widget == .hero {
+                                quickActions
+                            }
                         }
                         if let msg = viewModel.errorMessage {
                             Text(msg).font(.mcCaption).foregroundStyle(.red)
@@ -454,6 +469,10 @@ struct HomeView: View {
             .sheet(item: $selectedTemplate) { template in
                 AddTransactionView(template: template)
             }
+            .sheet(item: $quickAddType) { tipo in
+                AddTransactionView(presetType: tipo)
+            }
+            .sheet(isPresented: $showHomeAssistant) { AssistantChatView() }
             .sheet(isPresented: $showCompare) { CompareMonthsView() }
             .sheet(isPresented: $showAnnual) { AnnualView() }
             .sheet(item: $breakdownMode) { mode in
@@ -690,6 +709,16 @@ struct HomeView: View {
         lines.append("")
         lines.append(String(localized: "home.share.footer"))
         return lines.joined(separator: "\n")
+    }
+
+    /// Fila de acciones primarias. Ver `QuickActionsRow` para por qué son estas cuatro.
+    private var quickActions: some View {
+        QuickActionsRow(
+            onExpense:   { quickAddType = .gasto },
+            onIncome:    { quickAddType = .ingreso },
+            onBill:      { showAddBill = true },
+            onAssistant: { showHomeAssistant = true }
+        )
     }
 
     private var backgroundGradient: some View {
