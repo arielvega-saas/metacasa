@@ -129,3 +129,13 @@ struct BudgetPeriodSummary: Decodable, Sendable {
         case fxMissingCount = "fx_missing_count"
     }
 }
+
+/// Es el default de la columna en Postgres.
+extension PeriodType: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .month }
+}
+
+/// Lo conservador: ante la duda no arrastra saldo, que sería inventar plata.
+extension RolloverMode: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .none }
+}

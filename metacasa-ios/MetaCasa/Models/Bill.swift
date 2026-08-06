@@ -83,3 +83,8 @@ enum BillStatus: String, Codable, Hashable, Sendable {
         }
     }
 }
+
+/// Un vencimiento desconocido se muestra como pendiente: es el error seguro (te avisa de más, no de menos).
+extension BillStatus: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .pending }
+}

@@ -115,3 +115,8 @@ struct InstallmentPayment: Codable, Identifiable, Hashable, Sendable {
         case transactionId = "transaction_id"
     }
 }
+
+/// Mismo criterio que las deudas: el plan sigue vivo hasta que el servidor diga otra cosa que entendamos.
+extension InstallmentPlan.PlanStatus: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .active }
+}

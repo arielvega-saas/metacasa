@@ -77,3 +77,18 @@ enum SubscriptionStatus: String, Codable, Hashable, Sendable {
 enum PeriodKind: String, Codable, Hashable, Sendable {
     case normal, intro, trial
 }
+
+/// NO se regala acceso ante un estado desconocido; el gate real ya usa el RPC del servidor.
+extension SubscriptionStatus: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .expired }
+}
+
+/// Período normal es el caso base.
+extension PeriodKind: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .normal }
+}
+
+/// Ante la duda se asume producción, que es el caso estricto.
+extension SubscriptionEnvironment: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .production }
+}

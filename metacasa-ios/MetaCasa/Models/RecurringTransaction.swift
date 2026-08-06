@@ -78,3 +78,8 @@ enum Frequency: String, Codable, Hashable, Sendable, CaseIterable {
         }
     }
 }
+
+/// La frecuencia más común y la que menos sorprende si el valor real era otro.
+extension Frequency: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .monthly }
+}

@@ -85,3 +85,8 @@ struct Debt: Codable, Identifiable, Hashable, Sendable {
 enum DebtStatus: String, Codable, Hashable, Sendable {
     case active, settled
 }
+
+/// Una deuda desconocida se sigue debiendo; darla por `settled` la borraría de la vista.
+extension DebtStatus: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .active }
+}

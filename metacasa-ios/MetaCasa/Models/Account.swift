@@ -131,3 +131,8 @@ struct CreditCardDetails: Codable, Hashable, Sendable {
 enum CardNetwork: String, Codable, Hashable, Sendable {
     case visa, mastercard, amex, discover, other
 }
+
+/// No se asume que una cuenta es compartida sin saberlo.
+extension AccountOwnership: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .personal }
+}

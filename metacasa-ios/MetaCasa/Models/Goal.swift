@@ -81,3 +81,8 @@ struct GoalContribution: Codable, Identifiable, Hashable, Sendable {
         case transactionId = "transaction_id"
     }
 }
+
+/// Una meta que llega del servidor con un estado nuevo se sigue viendo; `completed` o `canceled` la esconderían.
+extension GoalStatus: UnknownTolerantDecodable {
+    static var unknownFallback: Self { .active }
+}
