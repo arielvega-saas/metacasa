@@ -589,7 +589,6 @@ actor AnthropicProvider {
 
     // MARK: - Tool execution
 
-    @MainActor
     private func executeToolUses(
         response: APIResponse,
         handler: AIToolHandler

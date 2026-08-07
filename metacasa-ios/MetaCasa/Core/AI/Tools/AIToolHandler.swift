@@ -12,8 +12,22 @@ import Foundation
 ///
 /// Si algún día un handler necesita una API de iOS 26 **en su cuerpo**, ese
 /// método —y sólo ese— lleva su propio `@available`; no todo el archivo.
-@MainActor
-final class AIToolHandler: @unchecked Sendable {
+/// ─── POR QUÉ ES UN `actor` Y NO `@MainActor` ──────────────────────────────
+///
+/// Estuvo marcado `@MainActor` sin ninguna razón: **no toca interfaz**. Todo lo
+/// que usa (`TransactionService`, `AccountService`, `BudgetService`, …) ya son
+/// `actor`, y lo demás es formateo y filtrado puro.
+///
+/// El costo de esa anotación de más lo pagaba la UI: las 22 tools corrían en el
+/// hilo principal, incluidos los `filter`/`reduce` sobre miles de filas y el
+/// formateo de cada importe. Con un pedido grande —"cargá estos trece
+/// movimientos"— eso dejaba la app congelada hasta que el sistema la mataba.
+///
+/// Como `actor`, el trabajo va a un executor propio y **la interfaz no puede
+/// bloquearse por este camino**, sin importar cuánto tarde adentro. El estado
+/// mutable (`cuentaPorDefecto`) queda protegido por el aislamiento del actor,
+/// así que tampoco hace falta el `@unchecked Sendable` que había antes.
+actor AIToolHandler {
     private let householdId: UUID
     private let userId: UUID
     private let currency: String
@@ -149,11 +163,50 @@ final class AIToolHandler: @unchecked Sendable {
         return lines.joined(separator: "\n")
     }
 
+    /// Corrige el año cuando el modelo devuelve una fecha absurda.
+    ///
+    /// Nace de un caso real: el usuario pegó su resumen del banco con "05/08" y
+    /// "06/08" —día y mes, sin año— y el modelo completó con **2024**, el año de
+    /// sus datos de entrenamiento. Los trece gastos se cargaron bien… dos años
+    /// atrás. No aparecían en el mes, ni en el presupuesto, ni en los reportes,
+    /// y el asistente respondió "cargué los 13 gastos" con total naturalidad.
+    ///
+    /// Decirle la fecha de hoy en el system prompt es necesario, pero no puede
+    /// ser la única defensa: un prompt es una sugerencia, no una garantía. Acá
+    /// vale la misma regla que con cualquier dato que viene del modelo — se
+    /// valida antes de escribirlo en la base.
+    ///
+    /// La regla respeta lo que el usuario dijo (día y mes) y sólo toca el año:
+    /// si la fecha cae fuera de la ventana razonable, se reubica en el año que
+    /// la deje más cerca de hoy sin quedar en el futuro. Se devuelve además si
+    /// hubo ajuste, para poder decírselo al usuario en vez de corregir en
+    /// silencio.
+    static func fechaRazonable(_ propuesta: Date?, hoy: Date = Date()) -> (fecha: Date, ajustada: Bool) {
+        guard let propuesta else { return (hoy, false) }
+        let cal = Calendar.current
+
+        // Ventana aceptable: hasta 13 meses atrás (cubre "el año pasado por esta
+        // época") y hasta 1 mes adelante (un gasto programado, un vencimiento).
+        let piso = cal.date(byAdding: .month, value: -13, to: hoy) ?? hoy
+        let techo = cal.date(byAdding: .month, value: 1, to: hoy) ?? hoy
+        if propuesta >= piso && propuesta <= techo { return (propuesta, false) }
+
+        // Fuera de rango: conservamos día y mes, y probamos el año actual; si eso
+        // cae en el futuro, el anterior. Es lo que haría cualquiera al leer
+        // "05/08" en un resumen de banco.
+        var comps = cal.dateComponents([.month, .day, .hour, .minute], from: propuesta)
+        comps.year = cal.component(.year, from: hoy)
+        guard let esteAño = cal.date(from: comps) else { return (hoy, true) }
+        if esteAño <= techo { return (esteAño, true) }
+        comps.year = cal.component(.year, from: hoy) - 1
+        return (cal.date(from: comps) ?? hoy, true)
+    }
+
     // MARK: - 2. Add Transaction
 
     func addTransaction(_ p: AddTransactionArgs) async throws -> String {
         let txType: TxType = p.type.uppercased() == "INGRESO" ? .ingreso : .gasto
-        let date = parseDate(p.date) ?? Date()
+        let (date, añoAjustado) = Self.fechaRazonable(parseDate(p.date))
         let amount = Decimal(p.amount)
 
         let input = try NewTransactionInput.converting(
@@ -176,7 +229,14 @@ final class AIToolHandler: @unchecked Sendable {
 
         let created = try await TransactionService.shared.insert(input)
         let typeLabel = txType == .gasto ? "expense" : "income"
-        return "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString.prefix(8))."
+        var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString.prefix(8))."
+        if añoAjustado {
+            // Que el modelo lo CUENTE. Corregir en silencio es tan malo como
+            // guardar mal: el usuario tiene que poder decir "no, ese era del año
+            // pasado" y arreglarlo.
+            salida += " NOTE: the date you sent (\(p.date ?? "—")) was out of range, so the year was corrected to \(fmtDate(date)). Tell the user explicitly which date you used."
+        }
+        return salida
     }
 
     // MARK: - 3. Update Transaction

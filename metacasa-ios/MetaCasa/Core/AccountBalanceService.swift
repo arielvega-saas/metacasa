@@ -15,7 +15,13 @@ import Foundation
 ///
 /// Todo en memoria — no hace requests. Se pasa `[Transaction]` ya fetcheadas
 /// por el caller (normalmente HomeViewModel o NetWorthWidget).
-@MainActor
+///
+/// **Sin `@MainActor` a propósito**: es aritmética pura sobre valores, no toca
+/// interfaz. Estaba anotado igual, y eso obligaba a que el cálculo corriera en
+/// el hilo principal — incluido el del asistente, que recorre hasta 10.000
+/// transacciones por cada cuenta. Las vistas lo siguen llamando sin cambios
+/// (desde el main actor se puede invocar código no aislado); lo que cambia es
+/// que ahora también puede llamarlo un `actor` de fondo sin arrastrar la UI.
 enum AccountBalanceService {
 
     /// Balance actual de una cuenta, **en la moneda de esa cuenta**.

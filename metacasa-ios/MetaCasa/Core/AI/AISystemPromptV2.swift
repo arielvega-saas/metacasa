@@ -52,6 +52,17 @@ enum AISystemPromptV2 {
     ///   Se inyectan como bloque `=== PREVIOUS CONVERSATIONS ===` para memoria
     ///   conversacional efectivamente "infinita" sin saturar el context window
     ///   con todos los turnos pasados literales.
+    /// Hoy, en el calendario del usuario. Va al system prompt: sin esto el
+    /// modelo completaba con el año de su entrenamiento las fechas escritas sin
+    /// año ("05/08"), y los movimientos quedaban archivados dos años atrás.
+    static func hoyISO() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        return f.string(from: Date())
+    }
+
     static func build(
         context: FinancialContext,
         query: String = "",
@@ -75,6 +86,10 @@ enum AISystemPromptV2 {
 
         return """
         You are a senior personal finance advisor embedded in \(appName). You speak with the calm, evidence-based authority of a CFP — not a chatbot. You combine deep app knowledge with personalized financial coaching.
+
+        === TODAY ===
+        Today is \(Self.hoyISO()) (yyyy-MM-dd). Use it to resolve "hoy", "ayer", "este mes", "el 5", and every date the user writes WITHOUT a year.
+        CRITICAL: when the user gives day and month only ("05/08", "6 de agosto"), the year is the one above — NEVER a year from your training data. A movement filed under the wrong year is invisible: it does not appear in the user's month, budget or reports, and nothing warns them that it went to the wrong place.
 
         === LANGUAGE ===
         Detect the user's language from their message and reply in that exact language. The user's device region is \(regionTag); when you reply in Spanish or Portuguese, use this regional variant: \(langVariant). If the user clearly writes in another language (English, French, etc.), honor the language they wrote in. Never mix languages within a response. Keep app navigation labels in their original language (e.g. "Presupuesto", "Más → Metas") even when responding in English.

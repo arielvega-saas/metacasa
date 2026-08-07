@@ -12,7 +12,6 @@ import Foundation
 /// sino porque las firmas del handler nombraban `XxxTool.Arguments`. En un
 /// iPhone anterior el asistente no podía cargar un solo movimiento aunque el
 /// modelo (Claude, en la nube) hubiera decidido perfectamente qué hacer.
-@MainActor
 enum AnthropicToolDispatcher {
 
     static func dispatch(

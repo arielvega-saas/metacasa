@@ -222,41 +222,87 @@ struct AssistantChatView: View {
 
     // MARK: - Messages
 
+    // ─── POR QUÉ ESTO ES UN `List` Y NO UN `ScrollView` + `LazyVStack` ────
+    //
+    // Esta pantalla se congeló cuatro veces seguidas, con dos causas distintas
+    // y el mismo síntoma: hilo principal al 100 % de CPU para siempre, la app
+    // viva pero sorda (el cursor titila porque lo anima el render server, que
+    // corre en otro proceso).
+    //
+    // Medido con Instruments sobre el iPhone congelado:
+    //   · el hilo principal está `Running`, no bloqueado — es un bucle, no una
+    //     espera;
+    //   · el 100 % del tiempo cae dentro de `_UIHostingView.beginTransaction`
+    //     → `ScrollViewAdjustedState.adjustOffsetIfNeeded` →
+    //     `alignIfNeeded(…anchors:)` → `ScrollViewLayoutComputer.sizeThatFits`;
+    //   · el instrumento de SwiftUI reporta **cero** cambios de estado en esos
+    //     segundos.
+    //
+    // O sea: nada de lo nuestro se está re-evaluando. Es la resolución de
+    // geometría del propio ScrollView que no converge. Sobre un `LazyVStack`
+    // el tamaño del contenido depende de qué filas existen; mover el offset al
+    // fondo materializa filas nuevas, eso agranda el contenido, y el contenido
+    // más grande vuelve a correr el offset. El ciclo se realimenta solo.
+    //
+    // Las dos formas de pedir "quedate abajo" caen en esa trampa:
+    // `proxy.scrollTo(id)` (que además mide TODAS las filas anteriores) y
+    // `.defaultScrollAnchor(.bottom)`.
+    //
+    // `List` no puede entrar en ese bucle: por debajo es un UICollectionView,
+    // recicla celdas y su tamaño de contenido sale de alturas estimadas, no de
+    // medir todo el historial. Es lo que usan las apps de chat en serio.
     private var messagesScroll: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 14) {
-                    ForEach(viewModel.messages) { msg in
-                        MessageRow(message: msg, onActionTap: { action in
-                            Task { await viewModel.handleAction(action, appState: appState) }
-                        })
-                        .id(msg.id)
-                    }
-                    if viewModel.isThinking {
-                        thinkingBubble.id("thinking")
-                    }
-                    if viewModel.messages.count == 1 {
-                        quickSuggestions.padding(.top, 8)
-                    }
+            List {
+                ForEach(viewModel.messages) { msg in
+                    MessageRow(message: msg, onActionTap: { action in
+                        Task { await viewModel.handleAction(action, appState: appState) }
+                    })
+                    // Sin `.equatable()`, cualquier cambio en `messages` invalida
+                    // el body de TODAS las filas, y evaluar una fila implica
+                    // re-correr el line-breaking de su texto completo.
+                    .equatable()
+                    .modifier(FilaDeChat())
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                if viewModel.isThinking {
+                    thinkingBubble.modifier(FilaDeChat())
+                }
+                if viewModel.messages.count == 1 {
+                    quickSuggestions.padding(.top, 8).modifier(FilaDeChat())
+                }
+                // Ancla del fondo: una fila de 1 pt a la que se scrollea. Tener
+                // un id fijo evita depender del id del último mensaje, que
+                // cambia en cada turno.
+                Color.clear
+                    .frame(height: 1)
+                    .id(Self.anclaFondo)
+                    .modifier(FilaDeChat())
             }
-            .onChange(of: viewModel.messages.count) { _, _ in
-                if let last = viewModel.messages.last {
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
-            }
-            .onChange(of: viewModel.isThinking) { _, thinking in
-                if thinking {
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        proxy.scrollTo("thinking", anchor: .bottom)
-                    }
-                }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .environment(\.defaultMinListRowHeight, 1)
+            // Bajar es un COMANDO puntual, no una propiedad del layout: se
+            // dispara en eventos discretos y nunca por cada carácter que llega.
+            .onChange(of: viewModel.messages.count) { _, _ in bajar(proxy) }
+            .onChange(of: viewModel.isThinking) { _, _ in bajar(proxy) }
+            .onChange(of: inputFocused) { _, nuevo in if nuevo { bajar(proxy) } }
+            // Durante el stream seguimos el texto, pero por tramos de 400
+            // caracteres —no por tick— así el seguimiento no vuelve a ser el
+            // trabajo dominante del hilo principal.
+            .onChange(of: (viewModel.messages.last?.content.count ?? 0) / 400) { _, _ in
+                bajar(proxy)
             }
         }
+    }
+
+    /// Id de la fila-ancla del fondo de la conversación.
+    private static let anclaFondo = "fondo-de-la-conversacion"
+
+    /// Sin animación a propósito: durante el stream esto se llama varias veces
+    /// y animar cada salto encima del anterior es trabajo puro de más.
+    private func bajar(_ proxy: ScrollViewProxy) {
+        proxy.scrollTo(Self.anclaFondo, anchor: .bottom)
     }
 
     private var thinkingBubble: some View {
@@ -687,9 +733,33 @@ private struct IdentifiableImage: Identifiable {
     let image: UIImage
 }
 
-private struct MessageRow: View {
+/// Deja una fila de `List` con el aspecto que tenía dentro del `LazyVStack`:
+/// una burbuja suelta sobre el fondo de la pantalla, sin separador ni fondo
+/// propio. Los 7 pt arriba y abajo reproducen el `spacing: 14` de antes.
+private struct FilaDeChat: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 7, leading: 14, bottom: 7, trailing: 14))
+    }
+}
+
+private struct MessageRow: View, Equatable {
     let message: AssistantMessage
     let onActionTap: (AssistantAction) -> Void
+
+    /// `onActionTap` no se compara y no hace falta: captura referencias
+    /// (`viewModel`, `appState`) que no cambian de identidad en la vida de la
+    /// pantalla. Lo único que decide si esta fila hay que redibujarla es su
+    /// mensaje.
+    ///
+    /// `nonisolated` porque SwiftUI compara vistas fuera del main actor; sin eso
+    /// Swift 6 rechaza la conformancia por posible carrera. Es seguro: sólo
+    /// compara dos `AssistantMessage`, que son valores `Sendable`.
+    nonisolated static func == (a: MessageRow, b: MessageRow) -> Bool {
+        a.message == b.message
+    }
     @State private var imageViewerImage: IdentifiableImage?
     @State private var pdfToView: IdentifiableFileURL?
 
@@ -697,14 +767,62 @@ private struct MessageRow: View {
     /// Si el parser falla (markdown malformado), cae a texto plano.
     /// Preserva los newlines reemplazándolos antes del parse — sin esto,
     /// AttributedString colapsa los `\n` en espacios (Markdown spec lo manda).
-    @ViewBuilder
-    private var renderedContent: some View {
-        if let attributed = try? AttributedString(
-            markdown: message.content,
+    /// ─── POR QUÉ ESTO ESTÁ CACHEADO ───────────────────────────────────────
+    /// `AttributedString(markdown:)` es caro, y esto era una propiedad
+    /// **computada**: SwiftUI la evalúa en cada dibujado de la fila. Como todas
+    /// las filas viven en el mismo `ForEach`, cualquier cambio en `messages`
+    /// —mandar un mensaje, recibir un token del stream— re-parseaba el markdown
+    /// de **todas** las filas visibles.
+    ///
+    /// Con una conversación de mensajes largos eso deja al hilo principal sin
+    /// aire: la app sigue viva (el cursor del campo titila, porque lo anima el
+    /// render server aparte) pero no atiende un solo toque — ni siquiera la X
+    /// para cerrar.
+    ///
+    /// El diagnóstico salió de comparar con el modo voz: mismo motor, mismas
+    /// tools, mismo backend, pero sin filas de chat que dibujar — y ahí nunca se
+    /// trabó. Todo lo que se había mirado antes (volumen de datos, memoria,
+    /// concurrencia del asistente) era el lugar equivocado: el hogar tiene 54
+    /// transacciones, nada de eso podía pesar.
+    ///
+    /// El contenido de un mensaje no cambia salvo mientras llega su stream, así
+    /// que cachear por texto es correcto: mismo texto, mismo resultado.
+    @MainActor
+    private static var cacheMarkdown: [String: AttributedString] = [:]
+
+    /// Tope del cache. Una conversación real no llega a cientos de mensajes; el
+    /// límite existe porque el stream produce un texto distinto por refresco y
+    /// sin tope el diccionario crecería sin fin.
+    private static let topeCacheMarkdown = 400
+
+    @MainActor
+    private static func parsearMarkdown(_ texto: String) -> AttributedString? {
+        if let cacheado = cacheMarkdown[texto] { return cacheado }
+        guard let attributed = try? AttributedString(
+            markdown: texto,
             options: AttributedString.MarkdownParsingOptions(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
             )
-        ) {
+        ) else { return nil }
+        if cacheMarkdown.count >= topeCacheMarkdown {
+            cacheMarkdown.removeAll(keepingCapacity: true)
+        }
+        cacheMarkdown[texto] = attributed
+        return attributed
+    }
+
+    @ViewBuilder
+    private var renderedContent: some View {
+        // Mientras llega el stream NO se parsea markdown: cada refresco trae un
+        // texto distinto, así que el cache falla SIEMPRE y se re-parsea la
+        // respuesta entera diez veces por segundo — cuadrático sobre su largo
+        // final. Peor: cada fallo agrega una entrada, y al llegar al tope el
+        // vaciado se lleva puesto el markdown ya resuelto de todos los mensajes
+        // viejos, que se re-parsean enteros en la pasada siguiente.
+        // Se resuelve una sola vez, cuando el mensaje se cierra.
+        if message.isStreaming {
+            Text(message.content)
+        } else if let attributed = Self.parsearMarkdown(message.content) {
             Text(attributed)
         } else {
             Text(message.content)
@@ -894,15 +1012,36 @@ private struct MessageRow: View {
 
 // MARK: - Model
 
-struct AssistantMessage: Identifiable, Sendable {
+struct AssistantMessage: Identifiable, Sendable, Equatable {
     let id = UUID()
     let role: Role
     var content: String
     var attachment: AssistantAttachment?
     var actions: [AssistantAction] = []
+    /// `true` mientras llega el stream de este mensaje. Ver `renderedContent`:
+    /// no tiene sentido parsear markdown de un texto que todavía está creciendo.
+    var isStreaming: Bool = false
     let timestamp: Date = Date()
 
     enum Role: Sendable { case user, assistant, system }
+
+    /// Igualdad barata y suficiente para que SwiftUI pueda saltear filas.
+    ///
+    /// Sin `Equatable`, cualquier mutación del array de mensajes invalida el
+    /// body de **todas** las filas — y evaluar una fila implica medir su texto
+    /// entero. Con una conversación de mensajes largos, eso es lo que ahogaba al
+    /// hilo principal.
+    ///
+    /// Lo único que muta después de crear un mensaje es `content` (durante el
+    /// stream) y `actions` (cuando se resuelve un import). `attachment` es
+    /// inmutable para un id dado y guarda una `UIImage`: compararla sería
+    /// carísimo, así que se omite a propósito.
+    static func == (a: AssistantMessage, b: AssistantMessage) -> Bool {
+        a.id == b.id
+            && a.isStreaming == b.isStreaming
+            && a.actions.count == b.actions.count
+            && a.content == b.content
+    }
 }
 
 enum AssistantAttachment: @unchecked Sendable {
@@ -1148,12 +1287,29 @@ final class AssistantViewModel {
                let token = await TokenHolder.shared.get(),
                appState.currentHouseholdId != nil,
                appState.currentUserId != nil {
-                let placeholder = AssistantMessage(role: .assistant, content: "")
+                let placeholder = AssistantMessage(role: .assistant, content: "", isStreaming: true)
                 let placeholderId = placeholder.id
                 messages.append(placeholder)
                 isThinking = false  // ya tenemos UI visible — el typing reemplaza el indicator
 
                 var fullText = ""
+                // La UI se refresca como mucho cada 100 ms, no en cada token.
+                //
+                // Escribir `messages[idx].content` en cada delta obliga a SwiftUI
+                // a reconstruir TODA la conversación por token. Con un chat que ya
+                // tiene mensajes de veinte líneas son decenas de rebuilds por
+                // segundo sobre una lista grande: el hilo principal deja de
+                // atender toques y la app queda viva pero muerta para el usuario.
+                //
+                // Lo confirmó comparar con el modo voz: mismo motor, mismas tools,
+                // mismo backend — pero sin lista de chat que redibujar, y ahí no
+                // se traba nunca. El cuello no estaba en el asistente sino en cómo
+                // el chat pinta la respuesta.
+                //
+                // 100 ms se sigue leyendo como "va escribiendo" y baja el trabajo
+                // de la UI en un orden de magnitud.
+                var ultimoRefresco = ContinuousClock.now
+                let intervaloRefresco = Duration.milliseconds(100)
                 do {
                     for try await delta in AnthropicProvider.shared.respondStream(
                         message: msg,
@@ -1163,9 +1319,20 @@ final class AssistantViewModel {
                         pastSummaries: pastSummaries
                     ) {
                         fullText += delta
+                        let ahora = ContinuousClock.now
+                        guard ahora - ultimoRefresco >= intervaloRefresco else { continue }
+                        ultimoRefresco = ahora
                         if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
                             messages[idx].content = fullText
                         }
+                    }
+                    // Volcado final: el último tramo pudo quedar por debajo del
+                    // intervalo, y perderlo sería cortar la respuesta. Acá además
+                    // se cierra el mensaje, que es cuando recién conviene parsear
+                    // su markdown (ver `renderedContent`).
+                    if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
+                        messages[idx].content = fullText
+                        messages[idx].isStreaming = false
                     }
                     // Stream completó OK.
                     if !fullText.isEmpty {
