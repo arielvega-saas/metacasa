@@ -110,6 +110,25 @@ actor AIAssistantService {
         }
     }
 
+    /// Heurística: ¿el mensaje pide cargar varios movimientos de una vez?
+    ///
+    /// Cuenta cuántas líneas contienen un importe. El caso que motivó esto es
+    /// pegar el resumen del banco —una línea por movimiento, con fecha, comercio
+    /// e importe— y pedir "agregá estos gastos". A partir de ~5 el tier
+    /// on-device no llega, y el solapamiento con el de nube congelaba la app.
+    ///
+    /// Deliberadamente NO mira palabras como "agregá" o "cargá": lo que importa
+    /// es el VOLUMEN, no la intención. Un "cargá este gasto" suelto tiene que
+    /// seguir yendo al modelo on-device, que es gratis y más rápido.
+    static func pareceCargaMasiva(_ mensaje: String) -> Bool {
+        // Un importe: dígitos con separadores, opcionalmente con símbolo.
+        let importe = /[$]?\s?\d{1,3}([.,]\d{3})+([.,]\d{1,2})?|\d+[.,]\d{2}\b/
+        let lineasConImporte = mensaje
+            .split(separator: "\n")
+            .count { $0.firstMatch(of: importe) != nil }
+        return lineasConImporte >= 5
+    }
+
     /// Mismo detalle de error que tenían los `catch` por tipo, pero en un solo lugar.
     private static func describe(_ error: Error) -> String {
         switch error {
@@ -135,9 +154,18 @@ actor AIAssistantService {
     ) async -> String {
         var debugTrace: [String] = []
 
-        // Tier 1: Apple Intelligence (FoundationModels) — on-device, free.
+        // Tier 1: Apple Intelligence (FoundationModels) — on-device, gratis.
+        //
+        // Se saltea cuando el mensaje pide cargar VARIOS movimientos de una vez.
+        // El modelo on-device tiene una ventana chica y con diez o trece altas no
+        // llega a los 30 s del tope: se lo abandonaba a mitad de cargar, arrancaba
+        // el tier de nube, y los dos terminaban cargando los mismos movimientos
+        // en paralelo sobre el mismo actor. Eso es lo que congelaba la app.
+        //
+        // Para una pregunta normal el on-device sigue siendo el primero: es
+        // gratis, privado y más rápido.
         #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), !Self.pareceCargaMasiva(message) {
             switch await Self.runTier(seconds: 30, operation: {
                 try await FoundationModelsProvider.ask(
                     message: message,

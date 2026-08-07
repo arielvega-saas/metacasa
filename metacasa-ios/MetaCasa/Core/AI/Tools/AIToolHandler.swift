@@ -18,10 +18,27 @@ final class AIToolHandler: @unchecked Sendable {
     private let userId: UUID
     private let currency: String
 
+    /// Cuenta por defecto, resuelta UNA vez por turno.
+    ///
+    /// `defaultAccountId` hace un `GET /accounts` completo. Como cada
+    /// `add_transaction` la pedía, cargar trece movimientos eran trece consultas
+    /// redundantes intercaladas con los trece POST: veintiséis viajes en serie
+    /// donde alcanzaban catorce. El handler vive lo que dura un turno, así que
+    /// cachearlo acá no puede quedar rancio.
+    private var cuentaPorDefecto: UUID??
+
     init(householdId: UUID, userId: UUID, currency: String) {
         self.householdId = householdId
         self.userId = userId
         self.currency = currency
+    }
+
+    /// La cuenta a la que imputar cuando el usuario no eligió una.
+    private func resolverCuentaPorDefecto() async -> UUID? {
+        if let cacheada = cuentaPorDefecto { return cacheada }
+        let id = await AccountService.shared.defaultAccountId(householdId: householdId)
+        cuentaPorDefecto = .some(id)
+        return id
     }
 
     // MARK: - Date helpers
@@ -142,7 +159,7 @@ final class AIToolHandler: @unchecked Sendable {
         let input = try NewTransactionInput.converting(
             householdId: householdId,
             userId: userId,
-            accountId: await AccountService.shared.defaultAccountId(householdId: householdId),
+            accountId: await resolverCuentaPorDefecto(),
             type: txType,
             amountOriginal: amount,
             currency: currency,

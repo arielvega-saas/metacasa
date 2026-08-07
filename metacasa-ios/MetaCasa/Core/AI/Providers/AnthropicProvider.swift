@@ -34,7 +34,18 @@ actor AnthropicProvider {
     /// acá conviene un techo generoso: quedarse corto no ahorra tiempo, deja el
     /// trabajo a medias.
     private let maxToolLoopIterations = 10
-    private let maxOutputTokens = 1024
+    /// Techo de tokens de salida.
+    ///
+    /// Estuvo en 1024 y era **la causa silenciosa** de que "cargame estos 13
+    /// movimientos" no cargara nada. Cada `add_transaction` es un bloque
+    /// `tool_use` con type/amount/category/note/date; trece no entran en 1024
+    /// tokens. El modelo cortaba con `stop_reason == "max_tokens"` **en medio de
+    /// emitir las tools**, y el loop devolvía el texto parcial sin ejecutar una
+    /// sola: ni error, ni aviso, ni movimientos cargados.
+    ///
+    /// Aparecía justo a partir de ~10 movimientos, que es donde la función deja
+    /// de ser un juguete y empieza a valer la pena.
+    private let maxOutputTokens = 8192
 
     enum AnthropicError: LocalizedError {
         case missingAccessToken
@@ -47,6 +58,11 @@ actor AnthropicProvider {
         /// el response completo. El caller atrapa este error y reintenta con
         /// `respond(...)`.
         case toolCallInStream
+        /// El modelo se quedó sin tokens de salida mientras emitía los bloques
+        /// `tool_use`: ninguna acción llegó a ejecutarse. Es un caso propio y no
+        /// un `invalidResponse` porque el usuario tiene que saber que **no se
+        /// cargó nada** y que conviene mandar menos ítems por vez.
+        case outputTruncated
 
         var errorDescription: String? {
             switch self {
@@ -62,6 +78,8 @@ actor AnthropicProvider {
                 "El asistente se quedó dando vueltas. Probá reformulando la pregunta."
             case .toolCallInStream:
                 "Necesito ejecutar una acción — cambiando a modo no-streaming."
+            case .outputTruncated:
+                "Eran demasiados movimientos para una sola vez y no llegué a cargar ninguno. Probá mandándome la mitad."
             }
         }
     }
@@ -139,7 +157,18 @@ actor AnthropicProvider {
                 continue
             }
 
-            // Cualquier otro stop_reason (max_tokens, stop_sequence) → devolver lo que haya.
+            // `max_tokens` con tools a medio emitir NO se puede devolver como si
+            // nada: el modelo se quedó sin espacio mientras escribía los bloques
+            // `tool_use`, así que ninguno se ejecutó. Devolver el texto parcial
+            // era exactamente el bug que hacía que "cargame estos 13 movimientos"
+            // no cargara nada y no dijera por qué.
+            if response.stopReason == "max_tokens",
+               response.content.contains(where: { $0.type == "tool_use" }) {
+                throw AnthropicError.outputTruncated
+            }
+
+            // Cualquier otro stop_reason (stop_sequence, o max_tokens sin tools a
+            // medias) → devolver lo que haya.
             return Self.extractText(from: response)
         }
 
