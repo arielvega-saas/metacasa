@@ -22,7 +22,11 @@ actor AnthropicProvider {
     private init() {}
 
     private let model = "claude-haiku-4-5-20251001"
-    private let maxToolLoopIterations = 10
+    /// Vueltas de tool calling antes de cortar. Cada vuelta es un round trip
+    /// completo (hasta 45 s), así que este techo también es tiempo que el usuario
+    /// pasa mirando la burbuja de "pensando…": con 10 el peor caso eran ~7 min.
+    /// Una pregunta sobre datos reales resuelve en 1-2 vueltas; 4 deja margen.
+    private let maxToolLoopIterations = 4
     private let maxOutputTokens = 1024
 
     enum AnthropicError: LocalizedError {
@@ -207,7 +211,10 @@ actor AnthropicProvider {
         messages.append(APIMessage(role: "user", content: .text(message)))
 
         let url = Config.supabaseURL.appendingPathComponent("functions/v1/ai-proxy")
-        var req = URLRequest(url: url)
+        // Mismo tope que `callProxy`. Sin él caía al default de 60 s de
+        // `URLSession.shared`, así que el camino de streaming tardaba un minuto
+        // entero en admitir que no iba a contestar y recién ahí caía al fallback.
+        var req = URLRequest(url: url, timeoutInterval: 45)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
@@ -838,7 +845,12 @@ enum AnyJSON: Codable, Sendable {
     }
     var intValue: Int? {
         if case .int(let v) = self { return v }
-        if case .double(let v) = self { return Int(v) }
+        // `Int(exactly:)` y no `Int(v)`: esto convierte JSON que escribió un
+        // modelo, no un valor nuestro. `Int(1e30)` —o cualquier `Double` fuera
+        // del rango de `Int64`, incluidos `nan` e `inf`— es un trap que mata la
+        // app acá, antes de que ningún handler llegue a validar el argumento.
+        // Redondeamos primero para que un `20.0` siga siendo `20`.
+        if case .double(let v) = self { return Int(exactly: v.rounded()) }
         return nil
     }
     var doubleValue: Double? {

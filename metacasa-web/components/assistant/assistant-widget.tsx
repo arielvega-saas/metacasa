@@ -7,14 +7,40 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useT, useLocale } from "@/components/i18n/locale-provider";
 
-/** Un mensaje del chat en estado local. */
+/** Un mensaje del chat en estado local (lo que se dibuja en pantalla). */
 type Message = { id: string; role: "user" | "assistant"; content: string };
+
+/**
+ * Un turno tal como viaja al backend. El `content` puede ser texto o una lista
+ * de bloques (tool_use / tool_result) cuando el asistente ejecutó acciones: por
+ * eso es `unknown` y no `string`. Este historial es el que hay que reenviar
+ * intacto, o el próximo turno pierde los ids de lo que el asistente acaba de
+ * buscar.
+ */
+type WireMessage = { role: "user" | "assistant"; content: unknown };
 
 /** `t()` del provider (mismo tipo en todo el widget). */
 type TFn = ReturnType<typeof useT>;
 
 function newId() {
   return Math.random().toString(36).slice(2);
+}
+
+/**
+ * El día de calendario del usuario, `YYYY-MM-DD`.
+ *
+ * Se calcula acá, en el browser, y no en el server: el server corre en UTC, así
+ * que a las 21:00 de Argentina allá ya es el día siguiente y un "gasté 5000 en
+ * el súper" cargado de noche quedaba fechado mañana — justo a la hora en que la
+ * gente carga los gastos del día. Una fecha sola no es un instante: es un día
+ * del calendario de quien la escribe.
+ */
+function todayLocalIso() {
+  const ahora = new Date();
+  const y = ahora.getFullYear();
+  const m = String(ahora.getMonth() + 1).padStart(2, "0");
+  const d = String(ahora.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /**
@@ -32,6 +58,9 @@ export function AssistantWidget() {
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // Historial "de cable": lo que devolvió el backend en el último turno, con los
+  // bloques de tools incluidos. Va en un ref porque no se dibuja.
+  const wireRef = React.useRef<WireMessage[]>([]);
 
   // Autoscroll al fondo cuando entran mensajes o aparece el loader.
   React.useEffect(() => {
@@ -58,34 +87,41 @@ export function AssistantWidget() {
       if (!text || pending) return;
 
       const userMsg: Message = { id: newId(), role: "user", content: text };
-      // Snapshot del historial que mandamos al backend (incluye el nuevo turno).
-      const history = [...messages, userMsg];
-      setMessages(history);
+      setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setPending(true);
+
+      // Lo que va al backend: el historial de cable (con bloques de tools si el
+      // asistente ejecutó algo) + el turno nuevo del usuario.
+      const outgoing: WireMessage[] = [...wireRef.current, { role: "user", content: text }];
 
       try {
         const res = await fetch("/api/assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: history.map((m) => ({ role: m.role, content: m.content })),
-            locale,
-          }),
+          body: JSON.stringify({ messages: outgoing, locale, today: todayLocalIso() }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           text?: string;
           error?: string;
+          messages?: WireMessage[];
         };
 
         if (!res.ok || !data.text) {
           const msg = data.error ?? t("assistant.genericError");
           toast.error(msg);
-          // Devolvemos el texto al input para que no se pierda lo escrito.
+          // Devolvemos el texto al input para que no se pierda lo escrito. El
+          // historial de cable queda como estaba (el turno fallido no cuenta).
           setInput(text);
           setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
           return;
         }
+
+        // El backend devuelve la conversación completa, incluidos los bloques
+        // tool_use/tool_result. Si por lo que sea no vino, degradamos a texto.
+        wireRef.current = Array.isArray(data.messages)
+          ? data.messages
+          : [...outgoing, { role: "assistant", content: data.text }];
 
         setMessages((prev) => [
           ...prev,
@@ -100,7 +136,7 @@ export function AssistantWidget() {
         inputRef.current?.focus();
       }
     },
-    [messages, pending, locale, t],
+    [pending, locale, t],
   );
 
   function handleSubmit(e: React.FormEvent) {

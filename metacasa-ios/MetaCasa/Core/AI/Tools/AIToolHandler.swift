@@ -78,7 +78,13 @@ final class AIToolHandler: @unchecked Sendable {
     func queryTransactions(_ p: QueryTransactionsTool.Arguments) async throws -> String {
         let from = parseDate(p.dateFrom) ?? Calendar.current.date(byAdding: .month, value: -1, to: Date())!
         let to = parseDate(p.dateTo) ?? Date()
-        let limit = min(p.limit ?? 20, 50)
+        // `max(1, …)` y no sólo `min(…, 50)`: el `limit` lo elige el modelo, y
+        // ante un "mostrame TODAS mis transacciones" Claude emite `-1`, que es la
+        // convención habitual de "sin límite". `min(-1, 50)` da `-1`, y
+        // `Array.prefix(-1)` es un `_precondition` que mata la app en Release
+        // ("Can't take a prefix of negative length"). El schema que se le manda
+        // al modelo tampoco declara `minimum`, así que nada lo acota antes.
+        let limit = max(1, min(p.limit ?? 20, 50))
 
         var txs = try await TransactionService.shared.fetchForPeriod(
             householdId: householdId, from: from, to: to, limit: 5000
@@ -327,14 +333,18 @@ final class AIToolHandler: @unchecked Sendable {
 
         lines.append("\nAssets:")
         for acc in accounts where acc.type != .creditCard && acc.type != .loan {
-            let bal = AccountBalanceService.currentBalance(account: acc, transactions: txs)
+            let bal = AccountBalanceService.currentBalance(
+                account: acc, transactions: txs, baseCurrency: currency
+            )
             totalAssets += bal
             lines.append("  • \(acc.name) (\(acc.type.rawValue)): \(fmt(bal, cur: acc.currency))")
         }
 
         lines.append("\nLiabilities:")
         for acc in accounts where acc.type == .creditCard || acc.type == .loan {
-            let bal = AccountBalanceService.currentBalance(account: acc, transactions: txs)
+            let bal = AccountBalanceService.currentBalance(
+                account: acc, transactions: txs, baseCurrency: currency
+            )
             let owed = abs(bal)
             totalLiabilities += owed
             lines.append("  • \(acc.name): \(fmt(owed, cur: acc.currency))")

@@ -351,6 +351,13 @@ struct AssistantChatView: View {
 
     private var inputBar: some View {
         VStack(spacing: 0) {
+            // El scroll y el input comparten el VStack, así que la última burbuja
+            // quedaba cortada justo contra el borde del input sin nada que separara
+            // una zona de la otra. Una línea de 0.5 pt alcanza para que se lean como
+            // dos superficies distintas.
+            Rectangle()
+                .fill(Color.textPrimary.opacity(0.08))
+                .frame(height: 0.5)
             if speech.isRecording {
                 recordingBanner
             }
@@ -414,10 +421,15 @@ struct AssistantChatView: View {
                   text: $viewModel.input, axis: .vertical)
             .textFieldStyle(.plain)
             .font(.body)
-            .lineLimit(1...5)
+            // Ocho líneas, no cinco. Lo que la gente le escribe a este asistente
+            // no es una pregunta corta: es "gasté 12500 en el súper, 4300 de nafta
+            // y 2800 en el kiosco, cargámelo". Con cinco líneas el principio del
+            // mensaje se va scrolleando fuera de vista justo cuando lo querés releer
+            // antes de mandarlo.
+            .lineLimit(1...8)
             .focused($inputFocused)
             .padding(.horizontal, 16).padding(.vertical, 14)
-            .frame(minHeight: 48)
+            .frame(minHeight: 52)
             .background(Color.appSurfaceInset)
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)

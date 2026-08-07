@@ -77,29 +77,46 @@ actor AIAssistantService {
         return .unknown
     }
 
-    private struct TimeoutError: Error, LocalizedError {
-        let seconds: TimeInterval
-        var errorDescription: String? {
-            "se demoró más de \(Int(seconds))s sin responder"
+    /// Resultado de un tier, aplanado a tipos `Sendable` para poder cruzar el
+    /// tope de tiempo. El error viaja ya formateado como `String` a propósito:
+    /// un `any Error` existencial complica el `Sendable` y acá lo único que se
+    /// hace con él es escribirlo en `debugTrace`.
+    private enum TierOutcome: Sendable {
+        case ok(String)
+        case failed(String)
+    }
+
+    /// Corre un tier con tope de tiempo **real**. `nil` = venció.
+    ///
+    /// Antes esto era un `withThrowingTaskGroup` con un sleep compitiendo y un
+    /// `cancelAll()`. **No cortaba nada**: un task group espera a todos sus hijos
+    /// al salir del scope, y ninguna llamada de `Core/AI/` chequea
+    /// `Task.isCancelled`, así que el hijo colgado seguía bloqueando el grupo.
+    /// El tope era decorativo y el asistente quedaba en "pensando…" para siempre
+    /// —el síntoma que se veía en el iPhone y no en la web, porque solo iOS
+    /// recorre el loop de tool calling—.
+    ///
+    /// `Core/Timeout.swift` ya tenía la versión que sí funciona (dos `Task`
+    /// sueltas compitiendo por una continuación), escrita para el mismo bug en
+    /// el splash. Esto delega ahí en vez de reimplementar la regla: dos copias
+    /// de la misma regla es exactamente cómo una de las dos vuelve a quedar mal.
+    private static func runTier(
+        seconds: TimeInterval,
+        operation: @Sendable @escaping () async throws -> String
+    ) async -> TierOutcome? {
+        await withTimeout(.seconds(seconds)) {
+            do { return TierOutcome.ok(try await operation()) }
+            catch { return TierOutcome.failed(Self.describe(error)) }
         }
     }
 
-    /// Race entre `operation` y un sleep de `seconds`. Si el sleep gana, lanza
-    /// `TimeoutError`. Garantiza que ningún tier se quede colgado para siempre
-    /// y deje el spinner del UI sin liberar.
-    private static func withTimeout<T: Sendable>(
-        seconds: TimeInterval,
-        operation: @Sendable @escaping () async throws -> T
-    ) async throws -> T {
-        try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask { try await operation() }
-            group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                throw TimeoutError(seconds: seconds)
-            }
-            let first = try await group.next()!
-            group.cancelAll()
-            return first
+    /// Mismo detalle de error que tenían los `catch` por tipo, pero en un solo lugar.
+    private static func describe(_ error: Error) -> String {
+        switch error {
+        case let e as AnthropicProvider.AnthropicError: return e.localizedDescription
+        case let e as URLError: return "network \(e.code.rawValue) — \(e.localizedDescription)"
+        case let e as DecodingError: return "decoding \(String(describing: e))"
+        default: return "\(type(of: error)) — \(error.localizedDescription)"
         }
     }
 
@@ -121,19 +138,23 @@ actor AIAssistantService {
         // Tier 1: Apple Intelligence (FoundationModels) — on-device, free.
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            do {
-                let response = try await Self.withTimeout(seconds: 30) {
-                    try await FoundationModelsProvider.ask(
-                        message: message,
-                        context: context,
-                        householdId: householdId,
-                        userId: userId
-                    )
-                }
+            switch await Self.runTier(seconds: 30, operation: {
+                try await FoundationModelsProvider.ask(
+                    message: message,
+                    context: context,
+                    householdId: householdId,
+                    userId: userId
+                )
+            }) {
+            case .ok(let response):
                 NSLog("[AI] Tier 1 (FoundationModels) success")
                 return response
-            } catch {
-                let msg = "Tier 1 (FoundationModels): \(error.localizedDescription)"
+            case .failed(let detalle):
+                let msg = "Tier 1 (FoundationModels): \(detalle)"
+                NSLog("[AI] %@", msg)
+                debugTrace.append(msg)
+            case nil:
+                let msg = "Tier 1 (FoundationModels): timeout 30s"
                 NSLog("[AI] %@", msg)
                 debugTrace.append(msg)
             }
@@ -160,35 +181,30 @@ actor AIAssistantService {
             return debugWrap(debugTrace, fallback: statisticalFallback(message: message, context: context))
         }
 
-        do {
-            let response = try await Self.withTimeout(seconds: 60) {
-                try await AnthropicProvider.shared.respond(
-                    message: message,
-                    context: context,
-                    householdId: hid,
-                    userId: uid,
-                    accessToken: accessToken,
-                    history: history,
-                    voiceMode: voiceMode,
-                    pastSummaries: pastSummaries
-                )
-            }
+        // 45 s de pared. El loop de tools puede dar varias vueltas de red (cada
+        // `callProxy` ya tiene su propio `timeoutInterval` de 45), así que sin un
+        // tope de pared el peor caso se multiplica por la cantidad de vueltas.
+        switch await Self.runTier(seconds: 45, operation: {
+            try await AnthropicProvider.shared.respond(
+                message: message,
+                context: context,
+                householdId: hid,
+                userId: uid,
+                accessToken: accessToken,
+                history: history,
+                voiceMode: voiceMode,
+                pastSummaries: pastSummaries
+            )
+        }) {
+        case .ok(let response):
             NSLog("[AI] Tier 2 (Anthropic Cloud) success")
             return response
-        } catch let error as AnthropicProvider.AnthropicError {
-            let msg = "Tier 2 (Anthropic): \(error.localizedDescription)"
+        case .failed(let detalle):
+            let msg = "Tier 2 (Anthropic): \(detalle)"
             NSLog("[AI] %@", msg)
             debugTrace.append(msg)
-        } catch let urlError as URLError {
-            let msg = "Tier 2 (Anthropic) network error: \(urlError.code.rawValue) — \(urlError.localizedDescription)"
-            NSLog("[AI] %@", msg)
-            debugTrace.append(msg)
-        } catch let decodingError as DecodingError {
-            let msg = "Tier 2 (Anthropic) decoding error: \(String(describing: decodingError))"
-            NSLog("[AI] %@", msg)
-            debugTrace.append(msg)
-        } catch {
-            let msg = "Tier 2 (Anthropic) unexpected: \(type(of: error)) — \(error.localizedDescription)"
+        case nil:
+            let msg = "Tier 2 (Anthropic): timeout 45s"
             NSLog("[AI] %@", msg)
             debugTrace.append(msg)
         }

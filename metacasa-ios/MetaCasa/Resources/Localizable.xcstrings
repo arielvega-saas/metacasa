@@ -3597,19 +3597,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ask me or dictate…"
+            "value": "Tell me an expense or ask…"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preguntame o dictá…"
+            "value": "Contame un gasto o preguntá…"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pergunte ou dite…"
+            "value": "Conte um gasto ou pergunte…"
           }
         }
       }
@@ -3731,19 +3731,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hi 👋 I'm your financial assistant.\n\nAsk me about your spending, budgets, goals, and habits:\n• Where did I spend the most this month?\n• How much do I have left to spend?\n• What budget should I adjust?\n• How can I reach my goal sooner?\n• Which expenses repeat every month?\n\nI can also read photos of receipts (📎) and recognize voice dictation (🎙️).\n\nThe information I share is for guidance only and is not a substitute for professional financial advice."
+            "value": "Hi 👋 I'm your financial assistant.\n\nTell me what you spent and I'll log it:\n• \"Spent 12.50 at the supermarket\"\n• \"Paid the power bill, 40\"\n• \"Got paid today\"\n\nI can also answer:\n• Where did I spend the most this month?\n• How much do I have left to spend?\n• What budget should I adjust?\n\nI read photos of receipts (📎) and understand voice dictation (🎙️).\n\nThe information I share is for guidance only and is not a substitute for professional financial advice."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hola 👋 Soy tu asistente financiero.\n\nPreguntame sobre tus gastos, presupuestos, metas y hábitos:\n• ¿Dónde gasté más este mes?\n• ¿Cuánto me queda disponible?\n• ¿Qué presupuesto me conviene ajustar?\n• ¿Cómo puedo llegar antes a mi meta?\n• ¿Qué gastos se repiten todos los meses?\n\nTambién puedo leer fotos de recibos (📎) y reconocer dictado de voz (🎙️).\n\nLa información que comparto es orientativa y no reemplaza asesoramiento financiero profesional."
+            "value": "Hola 👋 Soy tu asistente financiero.\n\nContame lo que gastaste y lo cargo yo:\n• \"Gasté 12.500 en el súper\"\n• \"Pagué la luz, 40.000\"\n• \"Cobré el sueldo\"\n\nTambién puedo responderte:\n• ¿Dónde gasté más este mes?\n• ¿Cuánto me queda disponible?\n• ¿Qué presupuesto me conviene ajustar?\n\nLeo fotos de recibos (📎) y entiendo dictado de voz (🎙️).\n\nLa información que comparto es orientativa y no reemplaza asesoramiento financiero profesional."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Olá 👋 Sou seu assistente financeiro.\n\nPergunte sobre seus gastos, orçamentos, metas e hábitos:\n• Onde gastei mais este mês?\n• Quanto tenho disponível?\n• Qual orçamento devo ajustar?\n• Como chegar mais rápido na minha meta?\n• Quais gastos se repetem todo mês?\n\nTambém posso ler fotos de recibos (📎) e reconhecer ditado de voz (🎙️).\n\nAs informações que compartilho são orientativas e não substituem o aconselhamento financeiro profissional."
+            "value": "Olá 👋 Sou seu assistente financeiro.\n\nMe conte o que você gastou e eu registro:\n• \"Gastei 125 no supermercado\"\n• \"Paguei a luz, 400\"\n• \"Recebi o salário\"\n\nTambém posso responder:\n• Onde gastei mais este mês?\n• Quanto tenho disponível?\n• Qual orçamento devo ajustar?\n\nLeio fotos de recibos (📎) e entendo ditado de voz (🎙️).\n\nAs informações que compartilho são orientativas e não substituem o aconselhamento financeiro profissional."
           }
         }
       }
