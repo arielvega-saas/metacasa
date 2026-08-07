@@ -11,7 +11,46 @@ final class CloudTTSService: NSObject {
     static let shared = CloudTTSService()
 
     private var audioPlayer: AVAudioPlayer?
+
+    /// Callback del caller de `speak(_:accessToken:onFinish:)`. **Sólo eso.**
+    ///
+    /// Antes este campo se compartía con `playAndWaitForFinish`, que lo pisaba
+    /// con su propia continuación. Como cualquiera de los cuatro caminos que
+    /// terminan audio (`stop`, `stopInternal`, los dos delegates de
+    /// `AVAudioPlayer`) consume "el handler que haya", uno podía consumir el de
+    /// otro flujo: el `catch` de una locución cancelada llamaba al callback de
+    /// la SIGUIENTE, la cola resumía la continuación de `speak`, y el callback
+    /// del caller quedaba descartado en el camino feliz. De ahí salían tanto
+    /// cierres inesperados como el modo voz trabado en `.speaking`.
     private var onFinishHandler: (() -> Void)?
+
+    /// Continuación de la reproducción en curso (`playAndWaitForFinish`), en su
+    /// propio canal y protegida contra doble reanudación.
+    private var playbackGate: PlaybackGate?
+
+    /// Número de la locución vigente. Ver `speak(_:accessToken:onFinish:)`.
+    private var generacion: UInt64 = 0
+
+    /// Una `CheckedContinuation` que varios caminos pueden intentar reanudar.
+    ///
+    /// Reanudar dos veces una continuación **no es un warning: mata el proceso**
+    /// ("SWIFT TASK CONTINUATION MISUSE"). Acá los caminos que pueden querer
+    /// cerrarla son genuinamente concurrentes —el audio termina solo, el usuario
+    /// toca el orb, se cierra la hoja de voz, arranca otra locución— y no se
+    /// puede garantizar por inspección que sólo uno gane. Se garantiza acá:
+    /// abrir de más es inofensivo.
+    ///
+    /// Todo el servicio vive en `@MainActor`, así que alcanza con el flag.
+    @MainActor
+    private final class PlaybackGate {
+        private var cont: CheckedContinuation<Void, Never>?
+        init(_ cont: CheckedContinuation<Void, Never>) { self.cont = cont }
+        /// Reanuda si nadie lo hizo antes. Idempotente.
+        func open() {
+            cont?.resume()
+            cont = nil
+        }
+    }
 
     var isSpeaking: Bool = false
     var lastError: String?
@@ -110,14 +149,25 @@ final class CloudTTSService: NSObject {
         accessToken: String,
         onFinish: @escaping @Sendable () -> Void
     ) async {
-        // Cancelar reproducción previa. `callFinish: true` y no `false`: cada
-        // handler pendiente es una `withCheckedContinuation` esperando del otro
-        // lado (`VoiceConversationManager.speakWithCloudTTS`). Descartarlo sin
-        // llamarlo dejaba esa continuation colgada para siempre y el modo voz
-        // trabado en `.speaking`, sin volver a escuchar nunca.
-        if isSpeaking {
+        // Cada locución se numera. Los dos `await` de abajo duran hasta 30 s con
+        // red mala, y en ese rato el usuario puede pedir otra cosa: sin este
+        // número, el `catch` de la locución VIEJA consumía `onFinishHandler` —que
+        // para entonces ya era el de la NUEVA— y lo llamaba. Como el caller
+        // (`VoiceConversationManager.speakWithCloudTTS`) envuelve ese callback en
+        // una `withCheckedContinuation` y hace `resume()` en cada invocación,
+        // eso terminaba reanudando la continuación de otro flujo. Reanudar dos
+        // veces no es un warning: es SWIFT TASK CONTINUATION MISUSE y la app
+        // muere en el acto.
+        // Cerrar la locución anterior ANTES de tomar número: `stopInternal`
+        // también incrementa la generación, así que el orden importa. Se avisa
+        // al caller viejo (`callFinish: true`): su continuación está esperando y
+        // descartarla dejaba el modo voz trabado en `.speaking`.
+        if isSpeaking || onFinishHandler != nil {
             stopInternal(callFinish: true)
         }
+
+        generacion &+= 1
+        let mia = generacion
 
         let cleaned = cleanForSpeech(text)
         guard !cleaned.isEmpty else {
@@ -125,36 +175,21 @@ final class CloudTTSService: NSObject {
             return
         }
 
-        // Si quedó un handler de una llamada anterior que no pasó por el stop
-        // de arriba, se libera antes de pisarlo: pisarlo es filtrar su continuation.
-        if let pendiente = onFinishHandler {
-            onFinishHandler = nil
-            pendiente()
-        }
-        self.onFinishHandler = onFinish
+        onFinishHandler = onFinish
 
         do {
             let audioData = try await fetchAudio(text: cleaned, accessToken: accessToken)
+            // Llegó tarde: mientras bajaba el audio arrancó otra locución y el
+            // canal ya no es nuestro. Reproducir ahora pisaría la suya.
+            guard generacion == mia else { return }
             try await play(audioData: audioData)
         } catch {
             lastError = error.localizedDescription
+            // Sólo cerramos el canal si SEGUIMOS siendo la locución vigente. Si
+            // otra ya tomó el relevo, ella es la dueña de `onFinishHandler` y
+            // tocarlo es exactamente el bug que este número evita.
+            guard generacion == mia else { return }
             isSpeaking = false
-            // Consumir el CAMPO, no llamar al parámetro local.
-            //
-            // Los dos `await` de arriba duran hasta 30 s con red mala, y en ese
-            // rato el usuario puede tocar el orb o cerrar la hoja de voz: las dos
-            // cosas llaman `stop()` → `stopInternal(callFinish: true)`, que ya
-            // consume el handler y lo invoca. Cuando después el `fetchAudio`
-            // falla —`stop()` no cancela el request— este catch llamaba a
-            // `onFinish()` de nuevo.
-            //
-            // El caller (`VoiceConversationManager.speakWithCloudTTS`) envuelve
-            // este closure en un `withCheckedContinuation` y hace `resume()` en
-            // cada invocación. Reanudar dos veces una continuation no es un
-            // warning: es SWIFT TASK CONTINUATION MISUSE y la app muere ahí.
-            //
-            // Nilificar sin consultar no alcanzaba: nilifica el campo pero
-            // llamaba igual a la copia local.
             let handler = onFinishHandler
             onFinishHandler = nil
             handler?()
@@ -175,10 +210,40 @@ final class CloudTTSService: NSObject {
         stopInternal(callFinish: true)
     }
 
+    /// Cierre normal de una reproducción: la terminó el propio player.
+    ///
+    /// Los dos delegates de `AVAudioPlayer` llegan por acá en vez de repetir la
+    /// secuencia cada uno. El `Task { @MainActor }` de los delegates se encola,
+    /// así que para cuando esto corre `stopInternal` puede haber pasado ya: por
+    /// eso el gate es idempotente y el handler se consume antes de llamarse.
+    private func finishPlayback() {
+        audioPlayer = nil
+        isSpeaking = false
+        playbackGate?.open()
+        playbackGate = nil
+        let handler = onFinishHandler
+        onFinishHandler = nil
+        handler?()
+    }
+
     private func stopInternal(callFinish: Bool) {
+        // Invalida cualquier locución en vuelo. Es lo que evita el choque de
+        // sesión de audio: `stop()` NO cancela el `fetchAudio` que está bajando,
+        // así que sin esto, un `speak` que el usuario ya interrumpió volvía 20 s
+        // después y llamaba `play()` → `setCategory(.playback)` + `setActive(true)`
+        // **con el micrófono ya grabando** (el orb reabre `.playAndRecord`), y
+        // CoreAudio aborta el proceso. En el simulador no pasa: el input node no
+        // es real.
+        generacion &+= 1
         audioPlayer?.stop()
         audioPlayer = nil
         isSpeaking = false
+        // El gate se abre SIEMPRE, aun con `callFinish: false`: es una
+        // continuación suspendida, no un callback opcional. Dejarla sin abrir
+        // cuelga a `playAndWaitForFinish` —y con él a toda la cola de oraciones—
+        // para siempre. `callFinish` decide sólo si se avisa al caller.
+        playbackGate?.open()
+        playbackGate = nil
         let handler = onFinishHandler
         onFinishHandler = nil
         if callFinish { handler?() }
@@ -264,6 +329,13 @@ final class CloudTTSService: NSObject {
                     return
                 }
 
+                // Entre bajar el audio y reproducirlo pudo pasar un `stop()`, que
+                // cancela esta tarea y reabre el micrófono. Reproducir igual
+                // reconfigura la sesión a `.playback` con el engine grabando y
+                // CoreAudio aborta el proceso. `fetchAudio` no coopera con la
+                // cancelación, así que hay que chequear acá.
+                if Task.isCancelled { return }
+
                 do {
                     try await self.playAndWaitForFinish(audioData: audioData)
                 } catch {
@@ -289,9 +361,9 @@ final class CloudTTSService: NSObject {
         isSpeaking = true
 
         await withCheckedContinuation { cont in
-            self.onFinishHandler = {
-                cont.resume()
-            }
+            // Canal propio: pisar `onFinishHandler` descartaba el callback del
+            // caller de `speak` y mezclaba dos flujos en una sola variable.
+            self.playbackGate = PlaybackGate(cont)
             player.play()
         }
     }
@@ -513,24 +585,15 @@ final class CloudTTSService: NSObject {
 extension CloudTTSService: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.audioPlayer = nil
-            self.isSpeaking = false
-            let handler = self.onFinishHandler
-            self.onFinishHandler = nil
-            handler?()
+            self?.finishPlayback()
         }
     }
 
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.audioPlayer = nil
-            self.isSpeaking = false
             self.lastError = error?.localizedDescription ?? "decode error"
-            let handler = self.onFinishHandler
-            self.onFinishHandler = nil
-            handler?()
+            self.finishPlayback()
         }
     }
 }

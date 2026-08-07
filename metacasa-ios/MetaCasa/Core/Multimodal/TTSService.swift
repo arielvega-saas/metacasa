@@ -46,6 +46,17 @@ final class TTSService: NSObject {
             return
         }
 
+        // Liberar el handler pendiente ANTES de pisarlo. Es la misma regla que
+        // `CloudTTSService`, que acá faltaba: el `didCancel` que dispara
+        // `stopSpeaking` llega de forma asíncrona —o sea, DESPUÉS de esta
+        // línea— y termina consumiendo el handler NUEVO. El de la locución
+        // anterior se perdía, y con él la `withCheckedContinuation` de
+        // `VoiceConversationManager.speakWithLocalTTS`: el modo voz quedaba
+        // trabado sin volver a escuchar nunca.
+        if let pendiente = onFinishHandler {
+            onFinishHandler = nil
+            pendiente()
+        }
         self.onFinishHandler = onFinish
 
         let utterance = AVSpeechUtterance(string: cleaned)
