@@ -22,11 +22,18 @@ actor AnthropicProvider {
     private init() {}
 
     private let model = "claude-haiku-4-5-20251001"
-    /// Vueltas de tool calling antes de cortar. Cada vuelta es un round trip
-    /// completo (hasta 45 s), así que este techo también es tiempo que el usuario
-    /// pasa mirando la burbuja de "pensando…": con 10 el peor caso eran ~7 min.
-    /// Una pregunta sobre datos reales resuelve en 1-2 vueltas; 4 deja margen.
-    private let maxToolLoopIterations = 4
+    /// Vueltas de tool calling antes de cortar.
+    ///
+    /// Estuvo en 4 y era **muy poco**: el caso real más valioso del asistente es
+    /// "acá tenés el resumen de Mercado Pago, cargámelo", donde el usuario pega
+    /// ocho o diez movimientos de una vez. Si el modelo los va cargando de a uno,
+    /// cada alta consume una vuelta y el loop se agota a mitad de camino.
+    ///
+    /// Lo que acota el tiempo de espera ya no es este número sino el tope de
+    /// pared de `AIAssistantService.runTier`, que corta pase lo que pase. Así que
+    /// acá conviene un techo generoso: quedarse corto no ahorra tiempo, deja el
+    /// trabajo a medias.
+    private let maxToolLoopIterations = 10
     private let maxOutputTokens = 1024
 
     enum AnthropicError: LocalizedError {
@@ -136,7 +143,26 @@ actor AnthropicProvider {
             return Self.extractText(from: response)
         }
 
-        throw AnthropicError.toolLoopExceeded
+        // Se agotaron las vueltas y el modelo seguía pidiendo tools. Lanzar acá
+        // era lo peor posible: las altas YA se ejecutaron —la plata ya está en la
+        // base— pero el error descartaba la conversación entera y el usuario
+        // caía al fallback estadístico sin enterarse de qué se cargó y qué no.
+        //
+        // En vez de eso, una llamada de cierre SIN tools: el modelo no puede
+        // pedir más acciones y se ve obligado a redactar con lo que ya hizo.
+        // Mismo criterio que la web (`app/api/assistant/route.ts`).
+        messages.append(APIMessage(role: "user", content: .text(
+            "Ya no podés ejecutar más acciones. Resumí en pocas líneas qué "
+            + "quedó registrado y qué faltó, para que el usuario sepa exactamente "
+            + "en qué estado quedó todo."
+        )))
+        let cierre = try await callProxy(
+            accessToken: accessToken,
+            system: systemPrompt,
+            tools: [],
+            messages: messages
+        )
+        return Self.extractText(from: cierre)
     }
 
     /// Envía un mensaje al cloud LLM con **streaming SSE** — emite deltas de

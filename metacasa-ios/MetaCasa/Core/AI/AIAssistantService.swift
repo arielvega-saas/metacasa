@@ -157,6 +157,14 @@ actor AIAssistantService {
                 let msg = "Tier 1 (FoundationModels): timeout 30s"
                 NSLog("[AI] %@", msg)
                 debugTrace.append(msg)
+                // El tope de tiempo ABANDONA la operación, no la cancela: la
+                // tarea sigue viva generando sobre la `LanguageModelSession`
+                // cacheada. Como esa sesión se reusa 10 minutos, el siguiente
+                // turno entraba a una sesión ocupada y Apple devolvía
+                // `concurrentRequests` — o sea, Apple Intelligence quedaba roto
+                // el resto de la sesión por un solo timeout. Se descarta para
+                // que el próximo turno arranque con una limpia.
+                await AIConversationManager.shared.reset()
             }
         }
         #endif
@@ -181,10 +189,16 @@ actor AIAssistantService {
             return debugWrap(debugTrace, fallback: statisticalFallback(message: message, context: context))
         }
 
-        // 45 s de pared. El loop de tools puede dar varias vueltas de red (cada
-        // `callProxy` ya tiene su propio `timeoutInterval` de 45), así que sin un
-        // tope de pared el peor caso se multiplica por la cantidad de vueltas.
-        switch await Self.runTier(seconds: 45, operation: {
+        // 120 s de pared. Es el ÚNICO tope real del loop de tools —cada vuelta
+        // es un round trip con su propio `timeoutInterval`, así que sin esto el
+        // peor caso se multiplica por la cantidad de vueltas.
+        //
+        // Parece mucho, y lo es para una pregunta; pero el caso que manda es
+        // "cargame estos diez movimientos", donde cada alta es una vuelta y
+        // cortar a los 45 s dejaba la mitad sin cargar. Vale más esperar que
+        // quedarse con el trabajo a medias: el corte no cancela lo ya escrito
+        // en la base, sólo la explicación de qué pasó.
+        switch await Self.runTier(seconds: 120, operation: {
             try await AnthropicProvider.shared.respond(
                 message: message,
                 context: context,
