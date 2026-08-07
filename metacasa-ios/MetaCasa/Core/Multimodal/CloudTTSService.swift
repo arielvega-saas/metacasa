@@ -110,9 +110,13 @@ final class CloudTTSService: NSObject {
         accessToken: String,
         onFinish: @escaping @Sendable () -> Void
     ) async {
-        // Cancelar reproducción previa
+        // Cancelar reproducción previa. `callFinish: true` y no `false`: cada
+        // handler pendiente es una `withCheckedContinuation` esperando del otro
+        // lado (`VoiceConversationManager.speakWithCloudTTS`). Descartarlo sin
+        // llamarlo dejaba esa continuation colgada para siempre y el modo voz
+        // trabado en `.speaking`, sin volver a escuchar nunca.
         if isSpeaking {
-            stopInternal(callFinish: false)
+            stopInternal(callFinish: true)
         }
 
         let cleaned = cleanForSpeech(text)
@@ -121,6 +125,12 @@ final class CloudTTSService: NSObject {
             return
         }
 
+        // Si quedó un handler de una llamada anterior que no pasó por el stop
+        // de arriba, se libera antes de pisarlo: pisarlo es filtrar su continuation.
+        if let pendiente = onFinishHandler {
+            onFinishHandler = nil
+            pendiente()
+        }
         self.onFinishHandler = onFinish
 
         do {
@@ -129,8 +139,25 @@ final class CloudTTSService: NSObject {
         } catch {
             lastError = error.localizedDescription
             isSpeaking = false
+            // Consumir el CAMPO, no llamar al parámetro local.
+            //
+            // Los dos `await` de arriba duran hasta 30 s con red mala, y en ese
+            // rato el usuario puede tocar el orb o cerrar la hoja de voz: las dos
+            // cosas llaman `stop()` → `stopInternal(callFinish: true)`, que ya
+            // consume el handler y lo invoca. Cuando después el `fetchAudio`
+            // falla —`stop()` no cancela el request— este catch llamaba a
+            // `onFinish()` de nuevo.
+            //
+            // El caller (`VoiceConversationManager.speakWithCloudTTS`) envuelve
+            // este closure en un `withCheckedContinuation` y hace `resume()` en
+            // cada invocación. Reanudar dos veces una continuation no es un
+            // warning: es SWIFT TASK CONTINUATION MISUSE y la app muere ahí.
+            //
+            // Nilificar sin consultar no alcanzaba: nilifica el campo pero
+            // llamaba igual a la copia local.
+            let handler = onFinishHandler
             onFinishHandler = nil
-            onFinish()
+            handler?()
         }
     }
 

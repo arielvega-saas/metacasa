@@ -133,7 +133,15 @@ struct GoalDetailView: View {
             return String(localized: "goal.eta.noPace")
         }
 
-        let monthsToGo = (remaining as NSDecimalNumber).doubleValue / (avgMonthly as NSDecimalNumber).doubleValue
+        // El cociente se acota antes de que lo toque `Int(ceil(...))`: el guard de
+        // arriba descarta `avgMonthly <= 0` (y con eso `inf`/`nan`), pero no el
+        // caso "meta de mil millones aportando cien por mes", que da un cociente
+        // mayor que `Int64.max` y trapea al CONVERTIRLO — o sea al abrir la
+        // pantalla, sin que el usuario toque nada. `Money.parse` no pone techo al
+        // monto objetivo, así que ese estado se alcanza escribiendo un número
+        // largo al crear la meta. 100 años es "no vas a llegar" igual.
+        let crudo = (remaining as NSDecimalNumber).doubleValue / (avgMonthly as NSDecimalNumber).doubleValue
+        let monthsToGo = min(crudo, 1200)
 
         if let td = goal.targetDate {
             let daysLeft = cal.dateComponents([.day], from: Date(), to: td).day ?? 0

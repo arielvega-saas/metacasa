@@ -32,7 +32,18 @@ struct CompoundInterestCalculatorView: View {
 
     private var principal: Decimal { Money.parse(principalStr) ?? 0 }
     private var monthlyContribution: Decimal { Money.parse(monthlyStr) ?? 0 }
-    private var years: Int { Int(yearsStr) ?? 0 }
+    /// Años, acotados a un horizonte que exista.
+    ///
+    /// El campo es un `.numberPad` sin tope y `body` recalcula la proyección en
+    /// cada tecla, así que el número entra crudo:
+    /// - con 18 nueves, `years * 12` desborda `Int` y el runtime de Swift mata
+    ///   la app (los checks de overflow siguen activos en Release);
+    /// - mucho antes, con 100.000 años, `projection` arma 1,2 millones de puntos
+    ///   **por render**, y la leen el chart y cuatro totales distintos: cientos
+    ///   de MB por tecla y jetsam. Para el usuario, "se cerró sola".
+    ///
+    /// 100 años cubre cualquier proyección real de finanzas personales.
+    private var years: Int { min(max(Int(yearsStr) ?? 0, 0), 100) }
     private var annualRatePct: Double { Double(annualRateStr.replacingOccurrences(of: ",", with: ".")) ?? 0 }
 
     private var months: Int { years * 12 }

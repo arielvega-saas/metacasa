@@ -8,6 +8,11 @@ struct EditTransactionView: View {
     @State private var note: String
     @State private var isLoading = false
     @State private var errorMessage: String?
+    /// Categorías propias del hogar. Sin esto el Picker ofrecía sólo el catálogo
+    /// por defecto: una categoría creada por el usuario (o puesta por el
+    /// asistente) no matcheaba ninguna opción, el Picker aparecía sin selección
+    /// y el primer toque la reemplazaba en silencio.
+    @State private var categoriesBlob: CategoriesBlob?
 
     let onSaved: () async -> Void
 
@@ -26,6 +31,23 @@ struct EditTransactionView: View {
         self.onSaved = onSaved
     }
 
+    /// Catálogo del hogar (por defecto + propias) para el tipo actual, con la
+    /// categoría del movimiento garantizada adentro.
+    ///
+    /// Ese último detalle es el que evita perder datos: si el movimiento tiene
+    /// una categoría que ya no está en el catálogo —se renombró, se borró, o el
+    /// blob todavía no cargó— el Picker no tendría ningún `tag` que matchee, se
+    /// mostraría vacío y el primer toque la pisaría. Incluirla la deja elegible
+    /// y visible aunque nadie más la use.
+    private var categoriasDisponibles: [String] {
+        var cats = CategoryService.merged(custom: categoriesBlob?.data, type: transaction.type)
+            .map(\.name)
+        if !cats.contains(transaction.category) {
+            cats.insert(transaction.category, at: 0)
+        }
+        return cats
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -39,9 +61,8 @@ struct EditTransactionView: View {
                     TextField("form.field.amount", text: $amountStr).keyboardType(.decimalPad)
                 }
                 Section("form.section.category") {
-                    let cats = transaction.type == .gasto ? CategoryCatalog.defaultGastos : CategoryCatalog.defaultIngresos
                     Picker("form.section.category", selection: $transaction.category) {
-                        ForEach(cats, id: \.self) { c in
+                        ForEach(categoriasDisponibles, id: \.self) { c in
                             HStack { Text(CategoryCatalog.emoji(for: c)); Text(c) }.tag(c)
                         }
                     }
@@ -72,6 +93,13 @@ struct EditTransactionView: View {
                 }
             }
             .navigationTitle(Text("tx.edit.title"))
+            .task {
+                // Si falla, `categoriasDisponibles` cae al catálogo por defecto
+                // más la categoría actual: se puede seguir editando igual.
+                categoriesBlob = try? await CategoryService.shared.fetch(
+                    householdId: transaction.householdId
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("action.cancel") { dismiss() }
