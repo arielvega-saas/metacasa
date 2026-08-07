@@ -18,18 +18,62 @@ import Foundation
 @MainActor
 enum AccountBalanceService {
 
-    /// Balance actual de una cuenta tras aplicar todas las transacciones
-    /// que la referencian. Si la transacción no tiene `accountId`, no la
-    /// considera (quedó "del hogar").
+    /// Balance actual de una cuenta, **en la moneda de esa cuenta**.
+    ///
+    /// `startingBalance` está en la moneda de la cuenta y `tx.amount` en la
+    /// moneda BASE del hogar: sumarlos directo era sumar dólares con pesos. Una
+    /// caja de ahorro en USD dentro de un hogar en ARS, con saldo inicial
+    /// US$1.000 y un ingreso de US$500 a tasa 1000, daba `1.000 + 500.000` y la
+    /// pantalla mostraba **US$ 501.000** en vez de US$1.500.
+    ///
+    /// Regla (idéntica a `saldoDeCuenta` en la web, `lib/db/account-balance.ts`):
+    /// de cada movimiento se toma el monto en la moneda de la cuenta —
+    /// `amountOriginal` cuando la moneda coincide, y si no, se convierte desde
+    /// base con la tasa del hogar. Sin tasa se suma el monto en base: descartar
+    /// el movimiento dejaría el saldo mal sin que nada lo indique.
+    ///
+    /// Si la transacción no tiene `accountId`, no se considera (quedó "del hogar").
+    ///
+    /// - Parameters:
+    ///   - baseCurrency: moneda base del hogar, en la que está `tx.amount`.
+    ///   - fxRates: tasas del hogar (moneda → tasa hacia base).
     static func currentBalance(
         account: Account,
-        transactions: [Transaction]
+        transactions: [Transaction],
+        baseCurrency: String,
+        fxRates: [String: FXRate] = [:]
     ) -> Decimal {
+        let cuenta = account.currency.uppercased()
+        let base = baseCurrency.uppercased()
         let accountTxs = transactions.filter { $0.accountId == account.id }
+
         let delta = accountTxs.reduce(Decimal(0)) { acc, tx in
-            tx.type == .gasto ? acc - tx.amount : acc + tx.amount
+            let monto = montoEnMonedaDeCuenta(
+                tx, cuenta: cuenta, base: base, fxRates: fxRates
+            )
+            return tx.type == .gasto ? acc - monto : acc + monto
         }
         return account.startingBalance + delta
+    }
+
+    /// Monto de `tx` expresado en la moneda de la cuenta.
+    private static func montoEnMonedaDeCuenta(
+        _ tx: Transaction,
+        cuenta: String,
+        base: String,
+        fxRates: [String: FXRate]
+    ) -> Decimal {
+        let original = (tx.currencyOriginal ?? base).uppercased()
+        if original == cuenta, let amountOriginal = tx.amountOriginal {
+            return amountOriginal
+        }
+        if cuenta == base { return tx.amount }
+        // `amount` está en base y la tasa va de la moneda de la cuenta HACIA
+        // base, así que para ir de base a la cuenta se divide.
+        if let tasa = fxRates[cuenta]?.rate, tasa != 0 {
+            return tx.amount / tasa
+        }
+        return tx.amount
     }
 
     /// Igual que `netWorth(accounts:transactions:debts:)` pero con los saldos ya
@@ -124,7 +168,12 @@ enum AccountBalanceService {
         // que es lo que pasa cuando la misma regla vive en dos lugares.
         var balances: [UUID: Decimal] = [:]
         for account in accounts where account.isActive {
-            balances[account.id] = currentBalance(account: account, transactions: transactions)
+            balances[account.id] = currentBalance(
+                account: account,
+                transactions: transactions,
+                baseCurrency: baseCurrency,
+                fxRates: fxRates
+            )
         }
         return netWorth(
             accounts: accounts,

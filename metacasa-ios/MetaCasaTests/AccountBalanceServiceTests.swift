@@ -68,7 +68,8 @@ final class AccountBalanceServiceTests: XCTestCase {
         let acc = makeAccount(type: .checking, startingBalance: 1000)
         let balance = AccountBalanceService.currentBalance(
             account: acc,
-            transactions: []
+            transactions: [],
+            baseCurrency: "USD"
         )
         XCTAssertEqual(balance, 1000)
     }
@@ -78,7 +79,8 @@ final class AccountBalanceServiceTests: XCTestCase {
         let tx = makeTx(accountId: acc.id, type: .gasto, amount: 300)
         let balance = AccountBalanceService.currentBalance(
             account: acc,
-            transactions: [tx]
+            transactions: [tx],
+            baseCurrency: "USD"
         )
         XCTAssertEqual(balance, 700)
     }
@@ -88,7 +90,8 @@ final class AccountBalanceServiceTests: XCTestCase {
         let tx = makeTx(accountId: acc.id, type: .ingreso, amount: 500)
         let balance = AccountBalanceService.currentBalance(
             account: acc,
-            transactions: [tx]
+            transactions: [tx],
+            baseCurrency: "USD"
         )
         XCTAssertEqual(balance, 1500)
     }
@@ -98,7 +101,8 @@ final class AccountBalanceServiceTests: XCTestCase {
         let tx = makeTx(accountId: UUID(), type: .gasto, amount: 500)
         let balance = AccountBalanceService.currentBalance(
             account: acc,
-            transactions: [tx]
+            transactions: [tx],
+            baseCurrency: "USD"
         )
         XCTAssertEqual(balance, 1000)
     }
@@ -108,7 +112,8 @@ final class AccountBalanceServiceTests: XCTestCase {
         let tx = makeTx(accountId: nil, type: .gasto, amount: 500)
         let balance = AccountBalanceService.currentBalance(
             account: acc,
-            transactions: [tx]
+            transactions: [tx],
+            baseCurrency: "USD"
         )
         XCTAssertEqual(balance, 1000)
     }

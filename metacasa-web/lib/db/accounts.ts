@@ -1,3 +1,5 @@
+import { parseFxRates } from "@/lib/fx";
+import { saldoDeCuenta, type MovimientoParaSaldo } from "@/lib/db/account-balance";
 import type { Client } from "@/lib/supabase/types";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/database.types";
 
@@ -21,23 +23,43 @@ export async function listAccounts(
 }
 
 /**
- * Cuentas con saldo calculado, IDÉNTICO a iOS `AccountBalanceService.currentBalance`:
+ * Cuenta a la que se imputa un movimiento cuando nadie eligió una.
  *
- *   balance = starting_balance + Σ (type === "GASTO" ? -amount : +amount)
+ * Paridad con iOS (`AccountService.defaultAccountId`): la primera cuenta activa
+ * por `display_order`. iOS además prefiere la última usada, que guarda en
+ * `UserDefaults` — la web no tiene ese estado, así que cae al mismo fallback.
  *
- * sobre las transacciones cuyo `account_id` apunta a la cuenta.
+ * Importa porque una transacción sin `account_id` **no mueve ningún saldo**:
+ * queda "del hogar" y las cuentas siguen mostrando el número viejo. El asistente
+ * cargaba todo así, con lo cual los movimientos que registraba por chat no se
+ * veían reflejados en ninguna cuenta.
  *
- * DEFINICIÓN CANÓNICA (paridad con iOS): siempre se suma el monto en MONEDA BASE
- * del hogar (`transactions.amount`), nunca `amount_original`. iOS jamás mira
- * `amount_original` para el balance: opera sobre `tx.amount` y `tx.type` (ver
- * `Core/AccountBalanceService.swift`, `currentBalance`). La versión anterior de
- * la web mezclaba `amount_original` (cuando la moneda de la tx coincidía con la
- * de la cuenta) con `amount` en el resto, divergiendo del balance que muestra la
- * app para la misma data. Ahora ambos clientes producen el mismo número.
+ * Devuelve `null` si el hogar todavía no tiene cuentas: es válido: el movimiento
+ * se guarda sin imputar, igual que si se cargara a mano en ese estado.
+ */
+export async function defaultAccountId(
+  supabase: Client,
+  householdId: string,
+): Promise<string | null> {
+  const cuentas = await listAccounts(supabase, householdId);
+  return cuentas[0]?.id ?? null;
+}
+
+/**
+ * Cuentas con su saldo, **en la moneda de cada cuenta**.
  *
- * Nota: como `amount` está en moneda base, el balance resultante también está en
- * moneda base — exactamente como en iOS. Las tx sin `account_id` no afectan
- * saldos de cuenta (quedan "del hogar"), igual que en iOS (filtra por accountId).
+ * La regla vive en `lib/db/account-balance.ts` (`saldoDeCuenta`), que explica
+ * por qué no se puede sumar `starting_balance` con `amount` a secas. Resumen:
+ * el primero está en la moneda de la cuenta y el segundo en la moneda base del
+ * hogar, así que una cuenta en USD dentro de un hogar en ARS salía multiplicada
+ * por la cotización.
+ *
+ * El comentario anterior afirmaba que el saldo quedaba "en moneda base, igual
+ * que iOS". Las dos mitades eran falsas: `starting_balance` nunca estuvo en
+ * base, y la UI ya pintaba el resultado con `account.currency`.
+ *
+ * Las tx sin `account_id` no afectan saldos de cuenta (quedan "del hogar"),
+ * igual que en iOS, que filtra por `accountId`.
  */
 export async function listAccountsWithBalance(
   supabase: Client,
@@ -45,24 +67,45 @@ export async function listAccountsWithBalance(
 ): Promise<AccountWithBalance[]> {
   const accounts = await listAccounts(supabase, householdId);
 
+  // Moneda base y tasas se leen acá adentro para que la función siga siendo
+  // autosuficiente: la llaman cinco pantallas y ninguna debería tener que
+  // saber que el saldo necesita FX.
+  const { data: hogar } = await supabase
+    .from("households")
+    .select("default_currency, fx_rates")
+    .eq("id", householdId)
+    .maybeSingle();
+  const base = hogar?.default_currency ?? "ARS";
+  const rates = parseFxRates(hogar?.fx_rates);
+
   const { data: txs } = await supabase
     .from("transactions")
-    .select("account_id, amount, type")
+    .select("account_id, amount, type, amount_original, currency_original")
     .eq("household_id", householdId)
     .not("account_id", "is", null);
 
-  const delta = new Map<string, number>();
+  const porCuenta = new Map<string, MovimientoParaSaldo[]>();
   for (const t of txs ?? []) {
     if (!t.account_id) continue;
-    // Paridad iOS: GASTO resta, todo lo demás (INGRESO) suma. Siempre `amount` base.
-    const sign = t.type === "GASTO" ? -1 : 1;
-    delta.set(t.account_id, (delta.get(t.account_id) ?? 0) + sign * Number(t.amount));
+    const lista = porCuenta.get(t.account_id) ?? [];
+    lista.push(t);
+    porCuenta.set(t.account_id, lista);
   }
 
-  return accounts.map((a) => ({
-    ...a,
-    balance: Number(a.starting_balance) + (delta.get(a.id) ?? 0),
-  }));
+  return accounts.map((a) => {
+    // El saldo queda en la moneda de LA CUENTA. Antes se sumaba
+    // `starting_balance` (moneda de la cuenta) con `amount` (moneda base): una
+    // caja de ahorro en USD dentro de un hogar en ARS mostraba el saldo
+    // multiplicado por la cotización.
+    const { balance } = saldoDeCuenta(
+      Number(a.starting_balance),
+      a.currency ?? base,
+      base,
+      porCuenta.get(a.id) ?? [],
+      rates,
+    );
+    return { ...a, balance };
+  });
 }
 
 /**
