@@ -1025,11 +1025,33 @@ final class AssistantViewModel {
         }
     }
 
+    /// `true` si este dispositivo puede ejecutar acciones (cargar movimientos,
+    /// marcar vencimientos pagados…) desde el chat.
+    ///
+    /// El despachador de tools está gateado a iOS 26 porque los argumentos se
+    /// declaran con las macros `@Generable` de FoundationModels
+    /// (`AnthropicToolDispatcher.dispatch`). En un iPhone anterior el asistente
+    /// **sólo puede consultar y explicar**, no escribir.
+    static var puedeEjecutarAcciones: Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) { return true }
+        #endif
+        return false
+    }
+
     private func seedWelcomeIfEmpty() {
         guard messages.isEmpty else { return }
+        // Dos bienvenidas, porque prometer de más es peor que prometer de menos:
+        // la versión completa arranca con "contame lo que gastaste y lo cargo yo",
+        // y en un dispositivo que no puede escribir eso es una promesa que se
+        // rompe en el primer intento — justo el momento en que el usuario decide
+        // si la app le sirve.
+        let clave: String.LocalizationValue = Self.puedeEjecutarAcciones
+            ? "assistant.welcome"
+            : "assistant.welcome.readOnly"
         messages.append(AssistantMessage(
             role: .assistant,
-            content: String(localized: "assistant.welcome")
+            content: String(localized: clave)
         ))
     }
 
@@ -1185,7 +1207,18 @@ final class AssistantViewModel {
         guard !images.isEmpty else { return }
         Haptics.play(.impactLight)
         for img in images {
-            let userMsg = AssistantMessage(role: .user, content: "", attachment: .image(img))
+            // Miniatura, NO la original. `messages` vive en un singleton que no
+            // se vacía en toda la sesión, así que cada foto adjuntada quedaba
+            // retenida a resolución completa: diez capturas de 12 MP son ~480 MB
+            // de bitmaps decodificados y el sistema mata la app. Para el usuario
+            // eso es "Home Finance falló", sin crash log que lo explique —jetsam
+            // no genera uno normal—, y no pasa en el simulador porque ahí la
+            // memoria no aprieta. La burbuja del chat mide ~200 pt: no hay nada
+            // que ganar reteniendo el original, que además ya se consumió al
+            // mandarlo al modelo.
+            let userMsg = AssistantMessage(
+                role: .user, content: "", attachment: .image(Self.thumbnail(from: img))
+            )
             messages.append(userMsg)
             // Persistimos un placeholder para que en el resumen futuro el LLM
             // sepa que en ese turno hubo una imagen (no persistimos la image
@@ -1282,6 +1315,19 @@ final class AssistantViewModel {
             lines.append("• … y \(receipts.count - 15) más")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Versión chica para mostrar en la burbuja del chat.
+    ///
+    /// Se guarda ESTA y no la original: ver el comentario de `handleImages`. Si
+    /// la foto ya es chica se devuelve tal cual (redibujarla no ahorraría nada).
+    private static func thumbnail(from image: UIImage, maxDimension: CGFloat = 600) -> UIImage {
+        let ladoLargo = max(image.size.width, image.size.height)
+        guard ladoLargo > maxDimension else { return image }
+        let escala = maxDimension / ladoLargo
+        let nuevo = CGSize(width: image.size.width * escala, height: image.size.height * escala)
+        let renderer = UIGraphicsImageRenderer(size: nuevo)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: nuevo)) }
     }
 
     private static func compressedJPEGData(from image: UIImage, maxDimension: CGFloat = 1568, quality: CGFloat = 0.8) -> Data? {

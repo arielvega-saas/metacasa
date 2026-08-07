@@ -16,16 +16,16 @@
     },
     "%@ con errores (se saltean)": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ con errores (se saltean)"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ with errors (skipped)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ con errores (se saltean)"
           }
         },
         "pt-BR": {
@@ -38,16 +38,16 @@
     },
     "%@ duplicadas (se saltean)": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ duplicadas (se saltean)"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ duplicates (skipped)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ duplicadas (se saltean)"
           }
         },
         "pt-BR": {
@@ -60,16 +60,16 @@
     },
     "%@ movimiento%@": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ movimiento%2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ transaction%2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ movimiento%2$@"
           }
         },
         "pt-BR": {
@@ -82,16 +82,16 @@
     },
     "%@ subcategoría%@": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ subcategoría%2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ subcategor%2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ subcategoría%2$@"
           }
         },
         "pt-BR": {
@@ -104,16 +104,16 @@
     },
     "%@ válidas": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ válidas"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ valid"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ válidas"
           }
         },
         "pt-BR": {
@@ -132,16 +132,16 @@
     },
     "%@%% completado": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@%% completado"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@%% complete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% completado"
           }
         },
         "pt-BR": {
@@ -154,16 +154,16 @@
     },
     "%@%% debts.detail.paid": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@%% pagado"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@%% paid"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% pagado"
           }
         },
         "pt-BR": {
@@ -176,16 +176,16 @@
     },
     "%@%% usado": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@%% usado"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@%% used"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% usado"
           }
         },
         "pt-BR": {
@@ -204,16 +204,16 @@
     },
     "+ %@ filas más": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "+ %@ filas más"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "+ %@ more rows"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ %@ filas más"
           }
         },
         "pt-BR": {
@@ -623,16 +623,16 @@
     "Cualquier suscripción activa via App Store (gestionala desde Ajustes → Apple ID → Suscripciones).": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cualquier suscripción activa via App Store (gestionala desde Ajustes → Apple ID → Suscripciones)."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Any active App Store subscription (manage it from Settings → Apple ID → Subscriptions)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cualquier suscripción activa via App Store (gestionala desde Ajustes → Apple ID → Suscripciones)."
           }
         },
         "pt-BR": {
@@ -663,16 +663,16 @@
     "Datos enviados: %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Datos enviados: %@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Data sent: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datos enviados: %@"
           }
         },
         "pt-BR": {
@@ -718,16 +718,16 @@
     "ELIMINAR": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ELIMINAR"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "DELETE"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ELIMINAR"
           }
         },
         "pt-BR": {
@@ -773,16 +773,16 @@
     "El historial del Asistente IA guardado en tu cuenta.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El historial del Asistente IA guardado en tu cuenta."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The AI Assistant history stored in your account."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El historial del Asistente IA guardado en tu cuenta."
           }
         },
         "pt-BR": {
@@ -845,16 +845,16 @@
     "Eliminando...": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminando..."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Deleting..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminando..."
           }
         },
         "pt-BR": {
@@ -868,16 +868,16 @@
     "Eliminar cuenta": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminar cuenta"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Delete account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar cuenta"
           }
         },
         "pt-BR": {
@@ -891,16 +891,16 @@
     "Eliminar cuenta permanentemente": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminar cuenta permanentemente"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Delete account permanently"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar cuenta permanentemente"
           }
         },
         "pt-BR": {
@@ -1126,16 +1126,16 @@
     },
     "Gastos por categoría / Expenses by category": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gastos por categoría"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Expenses by category"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gastos por categoría"
           }
         },
         "pt-BR": {
@@ -1293,16 +1293,16 @@
     "LLM del Asistente IA (chat, voz, visión).": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "LLM del Asistente IA (chat, voz, visión)."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "LLM behind the AI Assistant (chat, voice, vision)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM del Asistente IA (chat, voz, visión)."
           }
         },
         "pt-BR": {
@@ -1509,16 +1509,16 @@
     "No se pudo eliminar la cuenta": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudo eliminar la cuenta"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Could not delete the account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo eliminar la cuenta"
           }
         },
         "pt-BR": {
@@ -1597,13 +1597,13 @@
     "OK": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
+        "en": {
           "stringUnit": {
             "state": "translated",
             "value": "OK"
           }
         },
-        "en": {
+        "es": {
           "stringUnit": {
             "state": "translated",
             "value": "OK"
@@ -1824,16 +1824,16 @@
     "Procesado on-device. Nada sale del iPhone.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Procesado on-device. Nada sale del iPhone."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Processed on-device. Nothing leaves your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procesado on-device. Nada sale del iPhone."
           }
         },
         "pt-BR": {
@@ -1862,16 +1862,16 @@
     },
     "Página %@ / %@": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Página %1$@ / %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Page %1$@ / %2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Página %1$@ / %2$@"
           }
         },
         "pt-BR": {
@@ -1985,16 +1985,16 @@
     "Reconocimiento de voz y OCR de recibos.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reconocimiento de voz y OCR de recibos."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Speech recognition and receipt OCR."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconocimiento de voz y OCR de recibos."
           }
         },
         "pt-BR": {
@@ -2286,16 +2286,16 @@
     "Solo el texto de la respuesta del asistente.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solo el texto de la respuesta del asistente."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Only the text of the assistant's reply."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo el texto de la respuesta del asistente."
           }
         },
         "pt-BR": {
@@ -2342,16 +2342,16 @@
     "Síntesis de voz (TTS) cuando usás el modo voz.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Síntesis de voz (TTS) cuando usás el modo voz."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Speech synthesis (TTS) when you use voice mode."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Síntesis de voz (TTS) cuando usás el modo voz."
           }
         },
         "pt-BR": {
@@ -2398,16 +2398,16 @@
     "Tu membresía en todos los hogares compartidos. Si sos el único miembro de un hogar, sus datos quedan inaccesibles.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu membresía en todos los hogares compartidos. Si sos el único miembro de un hogar, sus datos quedan inaccesibles."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Your membership in every shared household. If you are the only member of a household, its data becomes inaccessible."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu membresía en todos los hogares compartidos. Si sos el único miembro de un hogar, sus datos quedan inaccesibles."
           }
         },
         "pt-BR": {
@@ -2421,16 +2421,16 @@
     "Tu perfil y datos de inicio de sesión.": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu perfil y datos de inicio de sesión."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Your profile and sign-in data."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu perfil y datos de inicio de sesión."
           }
         },
         "pt-BR": {
@@ -2621,16 +2621,16 @@
     "Volver": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Volver"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Back"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver"
           }
         },
         "pt-BR": {
@@ -3748,19 +3748,42 @@
         }
       }
     },
-    "assistantPrivacy.section.thirdParties": {
+    "assistant.welcome.readOnly": {
       "extractionState": "manual",
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hi 👋 I'm your financial assistant.\n\nAsk me about your numbers:\n• Where did I spend the most this month?\n• How much do I have left to spend?\n• What budget should I adjust?\n• Which expenses repeat every month?\n\nI read photos of receipts (📎) and understand voice dictation (🎙️).\n\nTo add transactions, use the + button on the main screen.\n\nThe information I share is for guidance only and is not a substitute for professional financial advice."
+          }
+        },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Servicios de terceros que usamos"
+            "value": "Hola 👋 Soy tu asistente financiero.\n\nPreguntame sobre tus números:\n• ¿Dónde gasté más este mes?\n• ¿Cuánto me queda disponible?\n• ¿Qué presupuesto me conviene ajustar?\n• ¿Qué gastos se repiten todos los meses?\n\nLeo fotos de recibos (📎) y entiendo dictado de voz (🎙️).\n\nPara cargar movimientos, usá el botón + de la pantalla principal.\n\nLa información que comparto es orientativa y no reemplaza asesoramiento financiero profesional."
           }
         },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Olá 👋 Sou seu assistente financeiro.\n\nPergunte sobre seus números:\n• Onde gastei mais este mês?\n• Quanto tenho disponível?\n• Qual orçamento devo ajustar?\n• Quais gastos se repetem todo mês?\n\nLeio fotos de recibos (📎) e entendo ditado de voz (🎙️).\n\nPara lançar movimentações, use o botão + da tela principal.\n\nAs informações que compartilho são orientativas e não substituem o aconselhamento financeiro profissional."
+          }
+        }
+      }
+    },
+    "assistantPrivacy.section.thirdParties": {
+      "extractionState": "manual",
+      "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Third-party services we use"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servicios de terceros que usamos"
           }
         },
         "pt-BR": {
@@ -3774,16 +3797,16 @@
     "assistantPrivacy.section.whatWeProcess": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Qué procesamos"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "What we process"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qué procesamos"
           }
         },
         "pt-BR": {
@@ -4292,24 +4315,6 @@
     "backup.report.skipped %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld elemento omitido"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld elementos omitidos"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -4323,6 +4328,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld items skipped"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld elemento omitido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld elementos omitidos"
                 }
               }
             }
@@ -4462,24 +4485,6 @@
     "bills.days.in %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "en %lld día"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "en %lld días"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -4493,6 +4498,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "in %lld days"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "en %lld día"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "en %lld días"
                 }
               }
             }
@@ -4521,24 +4544,6 @@
     "bills.days.overdue %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld día de atraso"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld días de atraso"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -4552,6 +4557,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld days overdue"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día de atraso"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días de atraso"
                 }
               }
             }
@@ -5791,16 +5814,16 @@
     "budget.pace.willOverspend": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A este ritmo te vas a pasar"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "At this pace you will go over"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A este ritmo te vas a pasar"
           }
         },
         "pt-BR": {
@@ -7604,24 +7627,6 @@
     "debts.detail.daysLeft %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "falta %lld día"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "faltan %lld días"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -7635,6 +7640,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld days left"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "falta %lld día"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "faltan %lld días"
                 }
               }
             }
@@ -8246,24 +8269,6 @@
     "debts.row.months %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld mes"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld meses"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -8277,6 +8282,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld months"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mes"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld meses"
                 }
               }
             }
@@ -10264,16 +10287,16 @@
     "form.priority.format %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prioridad %lld"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Priority %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prioridad %lld"
           }
         },
         "pt-BR": {
@@ -10765,16 +10788,16 @@
     "fx.error.noRate %@ %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No hay cotización de %1$@ a %2$@. Cargala en Ajustes → Monedas para poder guardar este movimiento."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "There is no %1$@ to %2$@ rate. Add it in Settings → Currencies to save this transaction."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay cotización de %1$@ a %2$@. Cargala en Ajustes → Monedas para poder guardar este movimiento."
           }
         },
         "pt-BR": {
@@ -12670,24 +12693,6 @@
     "home.streak %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld día seguido"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld días seguidos"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -12701,6 +12706,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld-day streak"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día seguido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días seguidos"
                 }
               }
             }
@@ -12775,24 +12798,6 @@
     "import.commit %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Importar %lld transacción"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Importar %lld transacciones"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -12806,6 +12811,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "Import %lld transactions"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transacción"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Importar %lld transacciones"
                 }
               }
             }
@@ -12834,16 +12857,16 @@
     "import.destination": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Destino"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Destination"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destino"
           }
         },
         "pt-BR": {
@@ -12857,16 +12880,16 @@
     "import.destination.account": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuenta"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
           }
         },
         "pt-BR": {
@@ -12880,16 +12903,16 @@
     "import.destination.currency": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Moneda del archivo"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "File currency"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moneda del archivo"
           }
         },
         "pt-BR": {
@@ -12903,16 +12926,16 @@
     "import.destination.hint": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todos los movimientos del archivo entran en esta cuenta. La moneda se usa para las filas que no traen columna de moneda propia."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Every transaction in the file goes into this account. The currency is used for rows that have no currency column of their own."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los movimientos del archivo entran en esta cuenta. La moneda se usa para las filas que no traen columna de moneda propia."
           }
         },
         "pt-BR": {
@@ -12926,16 +12949,16 @@
     "import.destination.noAccount": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sin cuenta"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin cuenta"
           }
         },
         "pt-BR": {
@@ -13132,16 +13155,16 @@
     "import.issue.noRate %@ %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sin cotización de %1$@ a %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No %1$@ to %2$@ rate"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin cotización de %1$@ a %2$@"
           }
         },
         "pt-BR": {
@@ -13178,16 +13201,16 @@
     "import.missingRates %@ %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "El archivo trae montos en %1$@ y no hay cotización a %2$@. Cargala en Ajustes → Monedas, o esas filas no se van a importar."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The file has amounts in %1$@ and there is no rate to %2$@. Add it in Settings → Currencies, or those rows will not be imported."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El archivo trae montos en %1$@ y no hay cotización a %2$@. Cargala en Ajustes → Monedas, o esas filas no se van a importar."
           }
         },
         "pt-BR": {
@@ -13315,24 +13338,6 @@
     "import.success.count %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld transacción importada"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld transacciones importadas"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -13346,6 +13351,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld transactions imported"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transacción importada"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transacciones importadas"
                 }
               }
             }
@@ -13418,16 +13441,16 @@
     "installments.detail.month %lld %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuota %1$lld · %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Installment %1$lld · %2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuota %1$lld · %2$@"
           }
         },
         "pt-BR": {
@@ -13575,24 +13598,6 @@
     "installments.form.count %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld cuota"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld cuotas"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -13606,6 +13611,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld installments"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld cuota"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld cuotas"
                 }
               }
             }
@@ -13791,16 +13814,16 @@
     "installments.progress %lld %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld de %2$lld pagadas"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld of %2$lld paid"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld de %2$lld pagadas"
           }
         },
         "pt-BR": {
@@ -15045,24 +15068,6 @@
     "notif.bills.daysBeforeValue %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld día antes"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld días antes"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -15076,6 +15081,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld days before"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld día antes"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld días antes"
                 }
               }
             }
@@ -15171,16 +15194,16 @@
     "notif.bills.timingHint %lld %@": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Te avisamos %1$lld días antes del vencimiento, a las %2$@."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "We'll notify you %1$lld days before the due date, at %2$@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te avisamos %1$lld días antes del vencimiento, a las %2$@."
           }
         },
         "pt-BR": {
@@ -15354,16 +15377,16 @@
     "notif.goals.dayOfMonthValue %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Día %lld"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Day %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Día %lld"
           }
         },
         "pt-BR": {
@@ -15422,16 +15445,16 @@
     "notif.goals.timingHint %lld": {
       "extractionState": "manual",
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Te recordamos tus metas el día %lld de cada mes."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "We'll remind you about your goals on day %lld of each month."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te recordamos tus metas el día %lld de cada mes."
           }
         },
         "pt-BR": {
@@ -18257,16 +18280,16 @@
     },
     "rol: %@ · expira %@": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "rol: %1$@ · expira %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "role: %1$@ · expires %2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "rol: %1$@ · expira %2$@"
           }
         },
         "pt-BR": {
@@ -21409,16 +21432,16 @@
     },
     "ya cargada": {
       "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ya cargada"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "already added"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ya cargada"
           }
         },
         "pt-BR": {
