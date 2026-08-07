@@ -108,12 +108,16 @@ enum Money {
     static func parse(_ input: String, locale: Locale? = nil) -> Decimal? {
         let loc = locale ?? Self.currentLocale()
 
+        // Los símbolos COMPUESTOS van primero: sacar el "$" suelto antes dejaba
+        // "US" o "R" pegados al número ("U$S 5.000" → "US 5.000") y el parseo
+        // devolvía nil. Cualquier monto tipeado con el símbolo del dólar
+        // completo era ilegible.
         let stripped = input
-            .replacingOccurrences(of: "$", with: "")
-            .replacingOccurrences(of: "€", with: "")
             .replacingOccurrences(of: "U$S", with: "")
             .replacingOccurrences(of: "US$", with: "")
             .replacingOccurrences(of: "R$", with: "")
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: "€", with: "")
             .replacingOccurrences(of: "ARS", with: "")
             .replacingOccurrences(of: "USD", with: "")
             .replacingOccurrences(of: "EUR", with: "")
@@ -138,16 +142,40 @@ enum Money {
         return Decimal(string: stripped)
     }
 
-    /// Heurística: el ÚLTIMO separador (. o ,) es el decimal; los anteriores son miles.
+    /// Decide qué separador es el decimal y normaliza a "entero.fracción".
+    ///
+    /// La versión anterior tomaba el último separador como decimal **siempre**,
+    /// sin mirar cuántos dígitos lo seguían. Con eso:
+    ///
+    /// - `"15.000"` → **15**. Es la forma normal de tipear quince mil en
+    ///   Argentina, y quedaba guardado como quince pesos, sin ningún aviso.
+    /// - `"1.234.567"` → **1234.567**, porque el último punto se comía como
+    ///   decimal en vez de agrupar.
+    ///
+    /// Un separador es de MILES cuando lo siguen exactamente 3 dígitos y no hay
+    /// otro separador distinto más a la derecha. Ninguna moneda que soporta la
+    /// app (ARS, USD, EUR, BRL) tiene 3 decimales, así que no hay ambigüedad
+    /// real: se resigna sólo poder escribir "0,750" exacto, que en dinero no
+    /// existe.
     private static func parseHeuristic(_ s: String) -> Decimal? {
         let lastDot = s.lastIndex(of: ".")
         let lastComma = s.lastIndex(of: ",")
-        let decimalIndex: String.Index?
+        var decimalIndex: String.Index?
         switch (lastDot, lastComma) {
         case (nil, nil):          decimalIndex = nil
         case (let d?, nil):       decimalIndex = d
         case (nil, let c?):       decimalIndex = c
         case (let d?, let c?):    decimalIndex = d > c ? d : c
+        }
+
+        // Si detrás del candidato hay exactamente 3 dígitos, no era el decimal:
+        // agrupaba miles. Vale tanto para "15.000" como para el último punto de
+        // "1.234.567".
+        if let idx = decimalIndex {
+            let cola = s[s.index(after: idx)...]
+            if cola.count == 3, cola.allSatisfy(\.isNumber) {
+                decimalIndex = nil
+            }
         }
 
         var normalized = s

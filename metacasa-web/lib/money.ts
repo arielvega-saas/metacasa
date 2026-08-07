@@ -100,9 +100,20 @@ export function formatNumber(amount: number, fractionDigits = 0): string {
  *     ("1,234,567" → 1234567) — no puede haber dos decimales.
  *  3. Hay más de un punto (y ninguna coma) → son separadores de miles LatAm.
  *     ("1.234.567" → 1234567)
- *  4. Un único separador → AMBIGUO. La coma se toma como decimal (convención
- *     LatAm, "1,50" → 1.5) y el punto también ("1.50" → 1.5). "1.234" queda en
- *     1,234 y "1,234" en 1,234: no hay forma de distinguirlo sin más contexto.
+ *  4. Un único separador seguido de EXACTAMENTE 3 dígitos → agrupa miles.
+ *     ("15.000" → 15000 · "15,000" → 15000)
+ *  5. Un único separador con 1, 2 o 4+ dígitos detrás → decimal.
+ *     ("1,50" → 1.5 · "1.50" → 1.5 · "1,5" → 1.5)
+ *
+ * La regla 4 no estaba y era el peor bug de la app: escribir "15.000" —la forma
+ * NORMAL de tipear quince mil en Argentina— guardaba **15**. Ni siquiera hacía
+ * round-trip consigo misma: `formatMoney(1500, "ARS")` da "$ 1.500" y volver a
+ * parsearlo daba 1,5. Afectaba a todos los inputs de dinero (movimientos,
+ * vencimientos, metas, deudas, plantillas) y a la importación de CSV.
+ *
+ * Se documentaba como "ambiguo", y no lo es: ninguna moneda soportada tiene 3
+ * decimales, así que 3 dígitos detrás del separador sólo pueden ser un grupo de
+ * miles. El caso que se resigna —querer 0,750 exacto— no existe en dinero real.
  */
 export function parseMoney(input: string): number {
   if (!input) return 0;
@@ -123,10 +134,15 @@ export function parseMoney(input: string): number {
     s = s.replace(/,/g, ""); // miles al estilo US
   } else if (dots > 1) {
     s = s.replace(/\./g, ""); // miles al estilo LatAm
-  } else if (commas === 1) {
-    s = s.replace(",", "."); // decimal con coma
+  } else if (commas === 1 || dots === 1) {
+    // Un único separador: si detrás hay exactamente 3 dígitos, agrupa miles.
+    if (/[.,]\d{3}$/.test(s)) {
+      s = s.replace(/[.,]/, "");
+    } else if (commas === 1) {
+      s = s.replace(",", "."); // decimal con coma
+    }
+    // Un único punto decimal ya es parseable tal cual.
   }
-  // Un único punto (o ningún separador) ya es parseable tal cual.
 
   const value = parseFloat(s);
   return Number.isFinite(value) ? value : 0;

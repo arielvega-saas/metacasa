@@ -154,6 +154,32 @@ describe("parseMoney", () => {
   it("toma un único separador como decimal", () => {
     expect(parseMoney("1,50")).toBe(1.5);
     expect(parseMoney("1.50")).toBe(1.5);
+    expect(parseMoney("1,5")).toBe(1.5);
+    expect(parseMoney("0.75")).toBe(0.75);
+  });
+
+  /// El peor bug que tuvo la app: "15.000" es la forma NORMAL de tipear quince
+  /// mil en Argentina, y se guardaba **15**. Se documentaba como caso ambiguo,
+  /// pero no lo es: ninguna moneda soportada tiene 3 decimales, así que tres
+  /// dígitos detrás del separador sólo pueden ser un grupo de miles.
+  /// Los tests viejos sólo cubrían 2 dígitos ("1,50"), por eso nunca lo vieron.
+  it("un único separador con 3 dígitos detrás agrupa miles, no decimales", () => {
+    expect(parseMoney("15.000")).toBe(15000);
+    expect(parseMoney("15,000")).toBe(15000);
+    expect(parseMoney("1.500")).toBe(1500);
+    expect(parseMoney("1,500")).toBe(1500);
+  });
+
+  it("con 4 o más dígitos detrás sigue siendo decimal", () => {
+    expect(parseMoney("12.3456")).toBe(12.3456);
+  });
+
+  /// Si la app no puede releer lo que ella misma escribió, cualquier campo
+  /// prellenado con un monto formateado se corrompe al guardar.
+  it("hace ida y vuelta con su propio formato en montos redondos", () => {
+    for (const monto of [1500, 15000, 1234567.89, 250000]) {
+      expect(parseMoney(formatMoney(monto, "ARS")), `${monto}`).toBe(monto);
+    }
   });
 
   it("parsea negativos", () => {
