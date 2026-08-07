@@ -1,5 +1,20 @@
 import Foundation
 
+// Declaración de las 22 tools para FoundationModels (Apple Intelligence, iOS 26+).
+//
+// Cada tool declara sus `Arguments` con `@Generable`/`@Guide` porque de ahí sale
+// el schema que ve el modelo on-device; eso obliga al `@available(iOS 26.0, *)`
+// y al `#if canImport` de este archivo.
+//
+// La LÓGICA, en cambio, no tiene nada de iOS 26: vive en `AIToolHandler` y toma
+// los args planos de `AIToolArgs.swift`. El puente es siempre el mismo en las 22:
+// `Arguments.plain` → handler. Así el camino cloud (Anthropic), que corre desde
+// iOS 17, ejecuta exactamente las mismas tools sin pasar por FoundationModels.
+//
+// `get_net_worth` y `get_financial_health_score` son la única excepción visible:
+// su `Arguments` es un placeholder (`@Generable` exige al menos un campo) y el
+// handler no recibe nada, así que no tienen `plain`.
+
 #if canImport(FoundationModels)
 import FoundationModels
 
@@ -34,12 +49,27 @@ struct QueryTransactionsTool: Tool {
         var amountMax: Double?
         @Guide(description: "Maximum number of results to return (default 20)")
         var limit: Int?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: QueryTransactionsArgs {
+            .init(
+                category: category,
+                dateFrom: dateFrom,
+                dateTo: dateTo,
+                type: type,
+                noteContains: noteContains,
+                amountMin: amountMin,
+                amountMax: amountMax,
+                limit: limit
+            )
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.queryTransactions(arguments)
+        try await handler.queryTransactions(arguments.plain)
     }
 }
 
@@ -70,12 +100,25 @@ struct AddTransactionTool: Tool {
         var note: String?
         @Guide(description: "Date in yyyy-MM-dd format. Use today if not specified")
         var date: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: AddTransactionArgs {
+            .init(
+                type: type,
+                amount: amount,
+                category: category,
+                subcategory: subcategory,
+                note: note,
+                date: date
+            )
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.addTransaction(arguments)
+        try await handler.addTransaction(arguments.plain)
     }
 }
 
@@ -107,12 +150,26 @@ struct UpdateTransactionTool: Tool {
         var date: String?
         @Guide(description: "New type: 'GASTO' or 'INGRESO'")
         var type: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: UpdateTransactionArgs {
+            .init(
+                transactionId: transactionId,
+                amount: amount,
+                category: category,
+                subcategory: subcategory,
+                note: note,
+                date: date,
+                type: type
+            )
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.updateTransaction(arguments)
+        try await handler.updateTransaction(arguments.plain)
     }
 }
 
@@ -132,12 +189,18 @@ struct DeleteTransactionTool: Tool {
     struct Arguments {
         @Guide(description: "The UUID of the transaction to delete")
         var transactionId: String
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: DeleteTransactionArgs {
+            .init(transactionId: transactionId)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.deleteTransaction(arguments)
+        try await handler.deleteTransaction(arguments.plain)
     }
 }
 
@@ -161,12 +224,18 @@ struct GetFinancialSummaryTool: Tool {
         var month: String?
         @Guide(description: "If true, include comparison with previous month")
         var includeComparison: Bool?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: GetFinancialSummaryArgs {
+            .init(month: month, includeComparison: includeComparison)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.getFinancialSummary(arguments)
+        try await handler.getFinancialSummary(arguments.plain)
     }
 }
 
@@ -187,12 +256,18 @@ struct GetBudgetStatusTool: Tool {
     struct Arguments {
         @Guide(description: "Month in yyyy-MM format (default: current month)")
         var month: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: GetBudgetStatusArgs {
+            .init(month: month)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.getBudgetStatus(arguments)
+        try await handler.getBudgetStatus(arguments.plain)
     }
 }
 
@@ -272,12 +347,24 @@ struct ProjectScenarioTool: Tool {
         var fixedAmountChange: Double?
         @Guide(description: "Number of months to project (default 3)")
         var months: Int?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: ProjectScenarioArgs {
+            .init(
+                scenario: scenario,
+                category: category,
+                percentChange: percentChange,
+                fixedAmountChange: fixedAmountChange,
+                months: months
+            )
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.projectScenario(arguments)
+        try await handler.projectScenario(arguments.plain)
     }
 }
 
@@ -300,12 +387,18 @@ struct DetectSpendingPatternsTool: Tool {
         var monthsBack: Int?
         @Guide(description: "Focus on a specific category (optional)")
         var category: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: DetectSpendingPatternsArgs {
+            .init(monthsBack: monthsBack, category: category)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.detectSpendingPatterns(arguments)
+        try await handler.detectSpendingPatterns(arguments.plain)
     }
 }
 
@@ -326,12 +419,18 @@ struct SuggestSavingsTool: Tool {
     struct Arguments {
         @Guide(description: "Target monthly savings amount the user wants to achieve")
         var targetSavings: Double?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: SuggestSavingsArgs {
+            .init(targetSavings: targetSavings)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.suggestSavings(arguments)
+        try await handler.suggestSavings(arguments.plain)
     }
 }
 
@@ -351,12 +450,18 @@ struct GetGoalsTool: Tool {
     struct Arguments {
         @Guide(description: "Include completed goals")
         var includeCompleted: Bool?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: GetGoalsArgs {
+            .init(includeCompleted: includeCompleted)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.getGoals(arguments)
+        try await handler.getGoals(arguments.plain)
     }
 }
 
@@ -376,12 +481,18 @@ struct GetAccountsTool: Tool {
     struct Arguments {
         @Guide(description: "Include inactive/archived accounts")
         var includeInactive: Bool?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: GetAccountsArgs {
+            .init(includeInactive: includeInactive)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.getAccounts(arguments)
+        try await handler.getAccounts(arguments.plain)
     }
 }
 
@@ -401,12 +512,18 @@ struct GetBillsTool: Tool {
     struct Arguments {
         @Guide(description: "Number of days ahead to look (default 30)")
         var daysAhead: Int?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: GetBillsArgs {
+            .init(daysAhead: daysAhead)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.getBills(arguments)
+        try await handler.getBills(arguments.plain)
     }
 }
 
@@ -430,12 +547,18 @@ struct AnalyzeInflationTool: Tool {
         var monthsBack: Int?
         @Guide(description: "Focus on a specific category")
         var category: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: AnalyzeInflationArgs {
+            .init(monthsBack: monthsBack, category: category)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.analyzeInflation(arguments)
+        try await handler.analyzeInflation(arguments.plain)
     }
 }
 
@@ -456,12 +579,18 @@ struct MarkBillPaidTool: Tool {
     struct Arguments {
         @Guide(description: "UUID of the bill to mark as paid")
         var billId: String
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: MarkBillPaidArgs {
+            .init(billId: billId)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.markBillPaid(arguments)
+        try await handler.markBillPaid(arguments.plain)
     }
 }
 
@@ -484,12 +613,18 @@ struct ComparePeriodsTool: Tool {
         var periodA: String
         @Guide(description: "Second period in yyyy-MM format (e.g. 2026-03 or 2025-04 for YoY)")
         var periodB: String
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: ComparePeriodsArgs {
+            .init(periodA: periodA, periodB: periodB)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.comparePeriods(arguments)
+        try await handler.comparePeriods(arguments.plain)
     }
 }
 
@@ -517,12 +652,18 @@ struct SetBudgetEnvelopeTool: Tool {
         var subcategory: String?
         @Guide(description: "Month in yyyy-MM format (default: current month)")
         var month: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: SetBudgetEnvelopeArgs {
+            .init(category: category, amount: amount, subcategory: subcategory, month: month)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.setBudgetEnvelope(arguments)
+        try await handler.setBudgetEnvelope(arguments.plain)
     }
 }
 
@@ -551,12 +692,18 @@ struct TransferBetweenAccountsTool: Tool {
         var amount: Double
         @Guide(description: "Optional note for both legs of the transfer")
         var note: String?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: TransferBetweenAccountsArgs {
+            .init(fromAccountId: fromAccountId, toAccountId: toAccountId, amount: amount, note: note)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.transferBetweenAccounts(arguments)
+        try await handler.transferBetweenAccounts(arguments.plain)
     }
 }
 
@@ -579,12 +726,18 @@ struct CategorizeTransactionTool: Tool {
     struct Arguments {
         @Guide(description: "Free-text description (merchant name, note, or context)")
         var text: String
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: CategorizeTransactionArgs {
+            .init(text: text)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.categorizeTransaction(arguments)
+        try await handler.categorizeTransaction(arguments.plain)
     }
 }
 
@@ -609,12 +762,18 @@ struct ValidateCFDITool: Tool {
     struct Arguments {
         @Guide(description: "QR text or full verification URL from a CFDI 4.0 receipt")
         var qrText: String
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: ValidateCFDIArgs {
+            .init(qrText: qrText)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.validateCFDI(arguments)
+        try await handler.validateCFDI(arguments.plain)
     }
 }
 
@@ -644,12 +803,18 @@ struct ValidateARCATool: Tool {
         var comprobante: String?
         @Guide(description: "Optional total amount of the invoice (for cross-check)")
         var total: Double?
+
+        /// Los mismos valores, sin FoundationModels: es lo que consume
+        /// `AIToolHandler`, que corre desde iOS 17.
+        var plain: ValidateARCAArgs {
+            .init(cae: cae, comprobante: comprobante, total: total)
+        }
     }
 
     let handler: AIToolHandler
 
     func call(arguments: Arguments) async throws -> String {
-        try await handler.validateARCA(arguments)
+        try await handler.validateARCA(arguments.plain)
     }
 }
 

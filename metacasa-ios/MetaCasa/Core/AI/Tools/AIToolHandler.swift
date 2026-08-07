@@ -1,9 +1,17 @@
 import Foundation
 
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
-
+/// Ejecución de las 22 tools del asistente. **Sin FoundationModels y sin gate
+/// de versión: corre desde iOS 17**, que es el deployment target de la app.
+///
+/// Estos métodos estuvieron marcados `@available(iOS 26.0, *)` dentro de
+/// `#if canImport(FoundationModels)` sin usar una sola API del framework: el
+/// gate lo heredaban de los tipos de sus argumentos (`XxxTool.Arguments`, que
+/// son structs `@Generable` anidados en tools de iOS 26). Ahora toman los args
+/// planos de `AIToolArgs.swift` y el gate se quedó donde de verdad hace falta:
+/// en la declaración de las tools y en el provider on-device.
+///
+/// Si algún día un handler necesita una API de iOS 26 **en su cuerpo**, ese
+/// método —y sólo ese— lleva su propio `@available`; no todo el archivo.
 @MainActor
 final class AIToolHandler: @unchecked Sendable {
     private let householdId: UUID
@@ -73,9 +81,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 1. Query Transactions
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func queryTransactions(_ p: QueryTransactionsTool.Arguments) async throws -> String {
+    func queryTransactions(_ p: QueryTransactionsArgs) async throws -> String {
         let from = parseDate(p.dateFrom) ?? Calendar.current.date(byAdding: .month, value: -1, to: Date())!
         let to = parseDate(p.dateTo) ?? Date()
         // `max(1, …)` y no sólo `min(…, 50)`: el `limit` lo elige el modelo, y
@@ -128,8 +134,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 2. Add Transaction
 
-    @available(iOS 26.0, *)
-    func addTransaction(_ p: AddTransactionTool.Arguments) async throws -> String {
+    func addTransaction(_ p: AddTransactionArgs) async throws -> String {
         let txType: TxType = p.type.uppercased() == "INGRESO" ? .ingreso : .gasto
         let date = parseDate(p.date) ?? Date()
         let amount = Decimal(p.amount)
@@ -159,8 +164,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 3. Update Transaction
 
-    @available(iOS 26.0, *)
-    func updateTransaction(_ p: UpdateTransactionTool.Arguments) async throws -> String {
+    func updateTransaction(_ p: UpdateTransactionArgs) async throws -> String {
         guard let uuid = UUID(uuidString: expandUUID(p.transactionId)) else {
             return "Error: invalid transaction ID format."
         }
@@ -181,8 +185,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 4. Delete Transaction
 
-    @available(iOS 26.0, *)
-    func deleteTransaction(_ p: DeleteTransactionTool.Arguments) async throws -> String {
+    func deleteTransaction(_ p: DeleteTransactionArgs) async throws -> String {
         guard let uuid = UUID(uuidString: expandUUID(p.transactionId)) else {
             return "Error: invalid transaction ID format."
         }
@@ -192,8 +195,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 5. Financial Summary
 
-    @available(iOS 26.0, *)
-    func getFinancialSummary(_ p: GetFinancialSummaryTool.Arguments) async throws -> String {
+    func getFinancialSummary(_ p: GetFinancialSummaryArgs) async throws -> String {
         let range = monthRange(p.month)
         let totals = try await TransactionService.shared.totals(
             householdId: householdId, from: range.start, to: range.end
@@ -250,8 +252,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 6. Budget Status
 
-    @available(iOS 26.0, *)
-    func getBudgetStatus(_ p: GetBudgetStatusTool.Arguments) async throws -> String {
+    func getBudgetStatus(_ p: GetBudgetStatusArgs) async throws -> String {
         let range = monthRange(p.month)
         guard let period = try await BudgetService.shared.fetchPeriod(
             householdId: householdId, containing: range.start
@@ -315,7 +316,6 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 7. Net Worth
 
-    @available(iOS 26.0, *)
     func getNetWorth() async throws -> String {
         let accounts = try await AccountService.shared.fetchAll(householdId: householdId, includingInactive: false)
         let debts = try await DebtService.shared.fetchAll(householdId: householdId, includeSettled: false)
@@ -364,7 +364,6 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 8. Health Score
 
-    @available(iOS 26.0, *)
     func getHealthScore() async throws -> String {
         let cal = Calendar.current
         let now = Date()
@@ -437,8 +436,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 9. Project Scenario
 
-    @available(iOS 26.0, *)
-    func projectScenario(_ p: ProjectScenarioTool.Arguments) async throws -> String {
+    func projectScenario(_ p: ProjectScenarioArgs) async throws -> String {
         let cal = Calendar.current
         let now = Date()
         let comps = cal.dateComponents([.year, .month], from: now)
@@ -490,8 +488,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 10. Spending Patterns
 
-    @available(iOS 26.0, *)
-    func detectSpendingPatterns(_ p: DetectSpendingPatternsTool.Arguments) async throws -> String {
+    func detectSpendingPatterns(_ p: DetectSpendingPatternsArgs) async throws -> String {
         let monthsBack = min(p.monthsBack ?? 3, 12)
         let cal = Calendar.current
         let now = Date()
@@ -567,8 +564,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 11. Savings Opportunities
 
-    @available(iOS 26.0, *)
-    func suggestSavings(_ p: SuggestSavingsTool.Arguments) async throws -> String {
+    func suggestSavings(_ p: SuggestSavingsArgs) async throws -> String {
         let cal = Calendar.current
         let now = Date()
         let threeMonthsAgo = cal.date(byAdding: .month, value: -3, to: now) ?? now
@@ -632,8 +628,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 12. Goals
 
-    @available(iOS 26.0, *)
-    func getGoals(_ p: GetGoalsTool.Arguments) async throws -> String {
+    func getGoals(_ p: GetGoalsArgs) async throws -> String {
         let goals = try await GoalService.shared.fetchAll(
             householdId: householdId, includeCompleted: p.includeCompleted ?? false
         )
@@ -665,8 +660,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 13. Accounts
 
-    @available(iOS 26.0, *)
-    func getAccounts(_ p: GetAccountsTool.Arguments) async throws -> String {
+    func getAccounts(_ p: GetAccountsArgs) async throws -> String {
         let accounts = try await AccountService.shared.fetchAll(
             householdId: householdId, includingInactive: p.includeInactive ?? false
         )
@@ -687,8 +681,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 14. Bills
 
-    @available(iOS 26.0, *)
-    func getBills(_ p: GetBillsTool.Arguments) async throws -> String {
+    func getBills(_ p: GetBillsArgs) async throws -> String {
         let days = p.daysAhead ?? 30
         let bills = try await BillService.shared.fetchUpcoming(householdId: householdId, daysAhead: days)
 
@@ -713,8 +706,7 @@ final class AIToolHandler: @unchecked Sendable {
 
     // MARK: - 15. Inflation Impact
 
-    @available(iOS 26.0, *)
-    func analyzeInflation(_ p: AnalyzeInflationTool.Arguments) async throws -> String {
+    func analyzeInflation(_ p: AnalyzeInflationArgs) async throws -> String {
         let monthsBack = p.monthsBack ?? 3
         let cal = Calendar.current
         let now = Date()
@@ -784,13 +776,10 @@ final class AIToolHandler: @unchecked Sendable {
 
         return lines.joined(separator: "\n")
     }
-    #endif
 
     // MARK: - 16. Mark Bill Paid
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func markBillPaid(_ p: MarkBillPaidTool.Arguments) async throws -> String {
+    func markBillPaid(_ p: MarkBillPaidArgs) async throws -> String {
         guard let uuid = UUID(uuidString: p.billId) else {
             return "Error: billId no es un UUID válido"
         }
@@ -801,13 +790,10 @@ final class AIToolHandler: @unchecked Sendable {
             return "Error al marcar la factura: \(error.localizedDescription)"
         }
     }
-    #endif
 
     // MARK: - 17. Compare Periods
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func comparePeriods(_ p: ComparePeriodsTool.Arguments) async throws -> String {
+    func comparePeriods(_ p: ComparePeriodsArgs) async throws -> String {
         let cal = Calendar.current
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM"
@@ -891,13 +877,10 @@ final class AIToolHandler: @unchecked Sendable {
 
         return lines.joined(separator: "\n")
     }
-    #endif
 
     // MARK: - 18. Set Budget Envelope
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func setBudgetEnvelope(_ p: SetBudgetEnvelopeTool.Arguments) async throws -> String {
+    func setBudgetEnvelope(_ p: SetBudgetEnvelopeArgs) async throws -> String {
         guard p.amount >= 0 else {
             return "Error: el monto debe ser >= 0"
         }
@@ -934,13 +917,10 @@ final class AIToolHandler: @unchecked Sendable {
         }
         _ = cal
     }
-    #endif
 
     // MARK: - 19. Transfer Between Accounts
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func transferBetweenAccounts(_ p: TransferBetweenAccountsTool.Arguments) async throws -> String {
+    func transferBetweenAccounts(_ p: TransferBetweenAccountsArgs) async throws -> String {
         guard p.amount > 0 else {
             return "Error: el monto debe ser mayor a cero"
         }
@@ -993,13 +973,10 @@ final class AIToolHandler: @unchecked Sendable {
             return "Error en la transferencia: \(error.localizedDescription). No se creó ningún movimiento."
         }
     }
-    #endif
 
     // MARK: - 20. Categorize Transaction
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func categorizeTransaction(_ p: CategorizeTransactionTool.Arguments) async throws -> String {
+    func categorizeTransaction(_ p: CategorizeTransactionArgs) async throws -> String {
         let text = p.text.lowercased()
         guard !text.isEmpty else {
             return "Error: necesito un texto descriptivo para categorizar"
@@ -1033,13 +1010,10 @@ final class AIToolHandler: @unchecked Sendable {
 
         return "Sugerencia: \(best.0) (confianza \(String(format: "%.0f", best.1 * 100))%). Si no es correcto, indicame la categoria correcta."
     }
-    #endif
 
     // MARK: - 21. Validate CFDI (Mexico)
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func validateCFDI(_ p: ValidateCFDITool.Arguments) async throws -> String {
+    func validateCFDI(_ p: ValidateCFDIArgs) async throws -> String {
         let input = p.qrText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else {
             return "Error: pasame el QR text o la URL de verificacion del CFDI"
@@ -1138,13 +1112,10 @@ final class AIToolHandler: @unchecked Sendable {
 
         return lines.joined(separator: "\n")
     }
-    #endif
 
     // MARK: - 22. Validate ARCA (Argentina)
 
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    func validateARCA(_ p: ValidateARCATool.Arguments) async throws -> String {
+    func validateARCA(_ p: ValidateARCAArgs) async throws -> String {
         let cae = p.cae.trimmingCharacters(in: .whitespaces)
 
         // El CAE de ARCA es un numero de 14 digitos (sin dashes ni espacios).
@@ -1199,7 +1170,6 @@ final class AIToolHandler: @unchecked Sendable {
 
         return lines.joined(separator: "\n")
     }
-    #endif
 
     // MARK: - Helpers
 

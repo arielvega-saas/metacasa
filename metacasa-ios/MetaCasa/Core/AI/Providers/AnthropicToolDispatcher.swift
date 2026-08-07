@@ -3,9 +3,15 @@ import Foundation
 /// Dispatcher que mapea tool calls del cloud LLM a `AIToolHandler`.
 ///
 /// Recibe el `name` de la tool + el `input` (dict JSON) y ejecuta la tool
-/// correspondiente. Cuando estamos en iOS 26+ y FoundationModels está disponible,
-/// usamos los tipos `Arguments` de cada tool. Como AnthropicProvider corre en
-/// cualquier iOS, parseamos el input directamente sin depender de @Generable.
+/// correspondiente. **Corre en cualquier iOS soportado por la app (17+)**: los
+/// argumentos son los structs planos de `AIToolArgs.swift`, no los `@Generable`
+/// de FoundationModels.
+///
+/// Antes esto estaba gateado a iOS 26 y devolvía "Tool execution requires
+/// iOS 26+" — no porque hiciera falta Apple Intelligence para ejecutar nada,
+/// sino porque las firmas del handler nombraban `XxxTool.Arguments`. En un
+/// iPhone anterior el asistente no podía cargar un solo movimiento aunque el
+/// modelo (Claude, en la nube) hubiera decidido perfectamente qué hacer.
 @MainActor
 enum AnthropicToolDispatcher {
 
@@ -14,56 +20,21 @@ enum AnthropicToolDispatcher {
         input: [String: AnyJSON],
         handler: AIToolHandler
     ) async throws -> String {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            return try await dispatchOniOS26(name: name, input: input, handler: handler)
-        }
-        #endif
-        return "Tool execution requires iOS 26+ (currently the AI tool handler is gated to FoundationModels-eligible builds)."
-    }
-
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    private static func dispatchOniOS26(
-        name: String,
-        input: [String: AnyJSON],
-        handler: AIToolHandler
-    ) async throws -> String {
         switch name {
         case "query_transactions":
-            let args = QueryTransactionsTool.Arguments(
-                category: input["category"]?.stringValue,
-                dateFrom: input["dateFrom"]?.stringValue,
-                dateTo: input["dateTo"]?.stringValue,
-                type: input["type"]?.stringValue,
-                noteContains: input["noteContains"]?.stringValue,
-                amountMin: input["amountMin"]?.doubleValue,
-                amountMax: input["amountMax"]?.doubleValue,
-                limit: input["limit"]?.intValue
-            )
-            return try await handler.queryTransactions(args)
+            return try await handler.queryTransactions(queryTransactionsArgs(from: input))
 
         case "add_transaction":
-            guard let type = input["type"]?.stringValue,
-                  let amount = input["amount"]?.doubleValue,
-                  let category = input["category"]?.stringValue else {
+            guard let args = addTransactionArgs(from: input) else {
                 return "Error: missing required field (type, amount, or category)"
             }
-            let args = AddTransactionTool.Arguments(
-                type: type,
-                amount: amount,
-                category: category,
-                subcategory: input["subcategory"]?.stringValue,
-                note: input["note"]?.stringValue,
-                date: input["date"]?.stringValue
-            )
             return try await handler.addTransaction(args)
 
         case "update_transaction":
             guard let id = input["transactionId"]?.stringValue else {
                 return "Error: transactionId required"
             }
-            let args = UpdateTransactionTool.Arguments(
+            let args = UpdateTransactionArgs(
                 transactionId: id,
                 amount: input["amount"]?.doubleValue,
                 category: input["category"]?.stringValue,
@@ -79,12 +50,12 @@ enum AnthropicToolDispatcher {
                 return "Error: transactionId required"
             }
             return try await handler.deleteTransaction(
-                DeleteTransactionTool.Arguments(transactionId: id)
+                DeleteTransactionArgs(transactionId: id)
             )
 
         case "get_financial_summary":
             return try await handler.getFinancialSummary(
-                GetFinancialSummaryTool.Arguments(
+                GetFinancialSummaryArgs(
                     month: input["month"]?.stringValue,
                     includeComparison: input["includeComparison"]?.boolValue
                 )
@@ -92,7 +63,7 @@ enum AnthropicToolDispatcher {
 
         case "get_budget_status":
             return try await handler.getBudgetStatus(
-                GetBudgetStatusTool.Arguments(month: input["month"]?.stringValue)
+                GetBudgetStatusArgs(month: input["month"]?.stringValue)
             )
 
         case "get_net_worth":
@@ -106,7 +77,7 @@ enum AnthropicToolDispatcher {
                 return "Error: scenario description required"
             }
             return try await handler.projectScenario(
-                ProjectScenarioTool.Arguments(
+                ProjectScenarioArgs(
                     scenario: scenario,
                     category: input["category"]?.stringValue,
                     percentChange: input["percentChange"]?.doubleValue,
@@ -117,7 +88,7 @@ enum AnthropicToolDispatcher {
 
         case "detect_spending_patterns":
             return try await handler.detectSpendingPatterns(
-                DetectSpendingPatternsTool.Arguments(
+                DetectSpendingPatternsArgs(
                     monthsBack: input["monthsBack"]?.intValue,
                     category: input["category"]?.stringValue
                 )
@@ -125,35 +96,35 @@ enum AnthropicToolDispatcher {
 
         case "suggest_savings_opportunities":
             return try await handler.suggestSavings(
-                SuggestSavingsTool.Arguments(
+                SuggestSavingsArgs(
                     targetSavings: input["targetSavings"]?.doubleValue
                 )
             )
 
         case "get_goals":
             return try await handler.getGoals(
-                GetGoalsTool.Arguments(
+                GetGoalsArgs(
                     includeCompleted: input["includeCompleted"]?.boolValue
                 )
             )
 
         case "get_accounts":
             return try await handler.getAccounts(
-                GetAccountsTool.Arguments(
+                GetAccountsArgs(
                     includeInactive: input["includeInactive"]?.boolValue
                 )
             )
 
         case "get_bills":
             return try await handler.getBills(
-                GetBillsTool.Arguments(
+                GetBillsArgs(
                     daysAhead: input["daysAhead"]?.intValue
                 )
             )
 
         case "analyze_inflation_impact":
             return try await handler.analyzeInflation(
-                AnalyzeInflationTool.Arguments(
+                AnalyzeInflationArgs(
                     monthsBack: input["monthsBack"]?.intValue,
                     category: input["category"]?.stringValue
                 )
@@ -164,7 +135,7 @@ enum AnthropicToolDispatcher {
                 return "Error: billId required"
             }
             return try await handler.markBillPaid(
-                MarkBillPaidTool.Arguments(billId: id)
+                MarkBillPaidArgs(billId: id)
             )
 
         case "compare_periods":
@@ -173,7 +144,7 @@ enum AnthropicToolDispatcher {
                 return "Error: periodA and periodB required (yyyy-MM)"
             }
             return try await handler.comparePeriods(
-                ComparePeriodsTool.Arguments(periodA: a, periodB: b)
+                ComparePeriodsArgs(periodA: a, periodB: b)
             )
 
         case "set_budget_envelope":
@@ -182,7 +153,7 @@ enum AnthropicToolDispatcher {
                 return "Error: category and amount required"
             }
             return try await handler.setBudgetEnvelope(
-                SetBudgetEnvelopeTool.Arguments(
+                SetBudgetEnvelopeArgs(
                     category: category,
                     amount: amount,
                     subcategory: input["subcategory"]?.stringValue,
@@ -197,7 +168,7 @@ enum AnthropicToolDispatcher {
                 return "Error: fromAccountId, toAccountId, amount required"
             }
             return try await handler.transferBetweenAccounts(
-                TransferBetweenAccountsTool.Arguments(
+                TransferBetweenAccountsArgs(
                     fromAccountId: from,
                     toAccountId: to,
                     amount: amount,
@@ -210,7 +181,7 @@ enum AnthropicToolDispatcher {
                 return "Error: text required"
             }
             return try await handler.categorizeTransaction(
-                CategorizeTransactionTool.Arguments(text: text)
+                CategorizeTransactionArgs(text: text)
             )
 
         case "validate_cfdi":
@@ -218,7 +189,7 @@ enum AnthropicToolDispatcher {
                 return "Error: qrText required (the QR text or verification URL)"
             }
             return try await handler.validateCFDI(
-                ValidateCFDITool.Arguments(qrText: qrText)
+                ValidateCFDIArgs(qrText: qrText)
             )
 
         case "validate_arca":
@@ -226,7 +197,7 @@ enum AnthropicToolDispatcher {
                 return "Error: cae required (the 14-digit CAE)"
             }
             return try await handler.validateARCA(
-                ValidateARCATool.Arguments(
+                ValidateARCAArgs(
                     cae: cae,
                     comprobante: input["comprobante"]?.stringValue,
                     total: input["total"]?.doubleValue
@@ -237,5 +208,42 @@ enum AnthropicToolDispatcher {
             return "Error: unknown tool '\(name)'"
         }
     }
-    #endif
+
+    // MARK: - Parseo (funciones puras, testeables)
+
+    /// Las dos tools que más se ejercitan —consultar y cargar— tienen su parseo
+    /// separado del `switch` a propósito: es lo único del dispatcher que se
+    /// puede verificar sin red ni sesión, y es exactamente lo que el gate de
+    /// iOS 26 rompía. El resto arma sus args inline porque el `switch` sigue
+    /// siendo la forma más legible de leer las 22 de un vistazo.
+
+    static func queryTransactionsArgs(from input: [String: AnyJSON]) -> QueryTransactionsArgs {
+        QueryTransactionsArgs(
+            category: input["category"]?.stringValue,
+            dateFrom: input["dateFrom"]?.stringValue,
+            dateTo: input["dateTo"]?.stringValue,
+            type: input["type"]?.stringValue,
+            noteContains: input["noteContains"]?.stringValue,
+            amountMin: input["amountMin"]?.doubleValue,
+            amountMax: input["amountMax"]?.doubleValue,
+            limit: input["limit"]?.intValue
+        )
+    }
+
+    /// `nil` cuando falta alguno de los tres campos obligatorios.
+    static func addTransactionArgs(from input: [String: AnyJSON]) -> AddTransactionArgs? {
+        guard let type = input["type"]?.stringValue,
+              let amount = input["amount"]?.doubleValue,
+              let category = input["category"]?.stringValue else {
+            return nil
+        }
+        return AddTransactionArgs(
+            type: type,
+            amount: amount,
+            category: category,
+            subcategory: input["subcategory"]?.stringValue,
+            note: input["note"]?.stringValue,
+            date: input["date"]?.stringValue
+        )
+    }
 }

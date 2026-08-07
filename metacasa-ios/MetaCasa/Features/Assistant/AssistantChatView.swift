@@ -1028,15 +1028,28 @@ final class AssistantViewModel {
     /// `true` si este dispositivo puede ejecutar acciones (cargar movimientos,
     /// marcar vencimientos pagados…) desde el chat.
     ///
-    /// El despachador de tools está gateado a iOS 26 porque los argumentos se
-    /// declaran con las macros `@Generable` de FoundationModels
-    /// (`AnthropicToolDispatcher.dispatch`). En un iPhone anterior el asistente
-    /// **sólo puede consultar y explicar**, no escribir.
+    /// Ya no depende de la versión de iOS: `AnthropicToolDispatcher` ejecuta las
+    /// 22 tools desde iOS 17. Lo que decide ahora es **qué motor va a atender el
+    /// turno**:
+    /// - Tier 1 (FoundationModels, iOS 26+): ejecuta tools on-device.
+    /// - Tier 2 (Claude en la nube): ejecuta tools en cualquier iOS, siempre que
+    ///   el usuario no haya pedido "solo on-device".
+    /// - Tier 3 (motor estadístico): no ejecuta nada, sólo describe.
+    ///
+    /// Por eso el único caso que hoy NO puede escribir es "solo on-device" en un
+    /// iPhone sin Apple Intelligence: ahí el asistente cae al Tier 3.
+    ///
+    /// Se mira `assistantOnDeviceOnly` y no `canUseCloudAssistant` a propósito:
+    /// el consentimiento de nube todavía puede estar sin dar la primera vez que
+    /// se siembra la bienvenida (el sheet aparece recién al abrir el chat), y no
+    /// vale prometer de menos por una decisión que el usuario aún no tomó. El
+    /// toggle "solo on-device", en cambio, ya es una decisión tomada y guardada
+    /// —rechazar la nube en el sheet es justamente lo que lo enciende—.
     static var puedeEjecutarAcciones: Bool {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) { return true }
         #endif
-        return false
+        return !PrivacyManager.shared.assistantOnDeviceOnly
     }
 
     private func seedWelcomeIfEmpty() {
