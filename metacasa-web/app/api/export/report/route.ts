@@ -5,6 +5,7 @@ import {
   listTransactions,
   type Transaction,
 } from "@/lib/db/transactions";
+import { excludeTransferLegs } from "@/lib/db/transfer-exclusion";
 import {
   resolveExportContext,
   fetchAccountNameMap,
@@ -81,7 +82,11 @@ async function gatherMonthData(
   return {
     summary: { income: summary.income, expense: summary.expense, count: summary.count },
     topCategories,
-    transactions: list.rows,
+    // El reporte mensual es un AGREGADO: sus KPIs salen de `getMonthSummary` y su
+    // top de categorías de `getCategoryBreakdown`, que ya excluyen las piernas de
+    // transferencia. Listarlas igual hacía que la tabla de movimientos no cerrara
+    // contra sus propios KPIs (ni contra `summary.count`, que tampoco las cuenta).
+    transactions: excludeTransferLegs(list.rows),
   };
 }
 

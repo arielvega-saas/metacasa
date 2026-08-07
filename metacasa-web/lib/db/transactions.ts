@@ -1,6 +1,7 @@
 import type { Client } from "@/lib/supabase/types";
 import type { Tables } from "@/lib/database.types";
 import type { TxType } from "@/lib/constants";
+import { inclusiveDateEnd } from "@/lib/db/date-range";
 
 export type Transaction = Tables<"transactions">;
 
@@ -29,30 +30,59 @@ function escapeLike(term: string): string {
   return term.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+/**
+ * Cadena de filtros de PostgREST, reducida a lo que usa este módulo. Tipar el
+ * mínimo estructural (en vez de arrastrar los genéricos de
+ * `PostgrestFilterBuilder`) permite aplicar los MISMOS filtros a consultas con
+ * `select` distinto: la lista (`*` + count) y el agregado que le calcula los
+ * totales (`amount, type`).
+ */
+interface TxFilterChain {
+  gte(column: string, value: unknown): this;
+  lte(column: string, value: unknown): this;
+  eq(column: string, value: unknown): this;
+  ilike(column: string, pattern: string): this;
+}
+
+/**
+ * Aplica los filtros de `TxFilters` a una consulta ya scopeada al hogar.
+ *
+ * Existe —y se exporta— porque la lista y su total tienen que mirar EXACTAMENTE
+ * el mismo conjunto: si el filtro se escribe dos veces, algún día uno de los dos
+ * gana un `.eq(...)` que el otro no tiene y el pie de la pantalla contradice a
+ * la lista que tiene justo arriba. Misma lección que `inclusiveDateEnd`, un
+ * nivel más arriba: la regla tiene un nombre y un solo lugar.
+ */
+export function applyTxFilters<Q extends TxFilterChain>(q: Q, f: TxFilters): Q {
+  let out = q;
+  if (f.from) out = out.gte("date", f.from);
+  // `inclusiveDateEnd` y no `f.to` crudo: las tx se guardan a mediodía UTC, así
+  // que comparar contra la medianoche del último día lo excluía entero.
+  if (f.to) out = out.lte("date", inclusiveDateEnd(f.to));
+  if (f.type) out = out.eq("type", f.type);
+  if (f.category) out = out.eq("category", f.category);
+  if (f.accountId) out = out.eq("account_id", f.accountId);
+  if (f.search) out = out.ilike("note", `%${escapeLike(f.search)}%`);
+  // Filtro por monto sobre el `amount` base. Los montos se guardan como magnitud
+  // positiva (el signo lo da `type`), así que comparamos directo contra `amount`.
+  if (f.amountMin != null && Number.isFinite(f.amountMin)) {
+    out = out.gte("amount", f.amountMin);
+  }
+  if (f.amountMax != null && Number.isFinite(f.amountMax)) {
+    out = out.lte("amount", f.amountMax);
+  }
+  return out;
+}
+
 /** Lista transacciones con filtros avanzados + total count para paginar. */
 export async function listTransactions(
   supabase: Client,
   f: TxFilters,
 ): Promise<{ rows: Transaction[]; count: number }> {
-  let q = supabase
-    .from("transactions")
-    .select("*", { count: "exact" })
-    .eq("household_id", f.householdId);
-
-  if (f.from) q = q.gte("date", f.from);
-  if (f.to) q = q.lte("date", f.to);
-  if (f.type) q = q.eq("type", f.type);
-  if (f.category) q = q.eq("category", f.category);
-  if (f.accountId) q = q.eq("account_id", f.accountId);
-  if (f.search) q = q.ilike("note", `%${escapeLike(f.search)}%`);
-  // Filtro por monto sobre el `amount` base. Los montos se guardan como magnitud
-  // positiva (el signo lo da `type`), así que comparamos directo contra `amount`.
-  if (f.amountMin != null && Number.isFinite(f.amountMin)) {
-    q = q.gte("amount", f.amountMin);
-  }
-  if (f.amountMax != null && Number.isFinite(f.amountMax)) {
-    q = q.lte("amount", f.amountMax);
-  }
+  let q = applyTxFilters(
+    supabase.from("transactions").select("*", { count: "exact" }).eq("household_id", f.householdId),
+    f,
+  );
 
   q = q.order("date", { ascending: false });
 

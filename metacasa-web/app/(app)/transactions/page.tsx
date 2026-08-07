@@ -4,6 +4,7 @@ import { Plus, ArrowDownLeft, ArrowUpRight, Scale, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { resolveActiveHousehold } from "@/lib/household";
 import { listTransactions } from "@/lib/db/transactions";
+import { getFilteredTotals } from "@/lib/db/transfer-exclusion";
 import { listAccounts } from "@/lib/db/accounts";
 import { getCategories } from "@/lib/db/categories";
 import { listTemplates } from "@/lib/db/templates";
@@ -111,7 +112,11 @@ export default async function TransactionsPage({
     }),
     listAccounts(supabase, householdId),
     getCategories(supabase, householdId),
-    filteredSummary(supabase, householdId, {
+    // Totales del filtro COMPLETO (todas las páginas) y sin transferencias, con
+    // los mismos filtros que la lista de arriba. La regla vive en un solo lugar
+    // (`lib/db/transfer-exclusion.ts`); acá sólo se la invoca.
+    getFilteredTotals(supabase, {
+      householdId,
       type,
       category,
       accountId,
@@ -219,53 +224,4 @@ function SummaryCard({
       />
     </Card>
   );
-}
-
-/**
- * Resumen agregado (ingresos/gastos) del conjunto filtrado completo, sin
- * paginar. Consulta sólo `amount, type` para mantenerlo liviano. Espeja los
- * filtros de `listTransactions` (no se modifica esa función compartida).
- */
-async function filteredSummary(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  householdId: string,
-  f: {
-    type?: TxType;
-    category?: string;
-    accountId?: string;
-    from?: string;
-    to?: string;
-    search?: string;
-    amountMin?: number;
-    amountMax?: number;
-  },
-): Promise<{ income: number; expense: number }> {
-  let q = supabase
-    .from("transactions")
-    .select("amount, type")
-    .eq("household_id", householdId)
-    // Los totales del pie de la lista son agregados: las transferencias no cuentan. La LISTA de
-    // arriba sí las muestra — el usuario tiene que poder ver que movió plata entre sus cuentas.
-    .is("transfer_group_id", null);
-
-  if (f.from) q = q.gte("date", f.from);
-  if (f.to) q = q.lte("date", f.to);
-  if (f.type) q = q.eq("type", f.type);
-  if (f.category) q = q.eq("category", f.category);
-  if (f.accountId) q = q.eq("account_id", f.accountId);
-  // Escapamos comodines LIKE igual que listTransactions (match literal).
-  if (f.search) q = q.ilike("note", `%${f.search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
-  if (f.amountMin != null) q = q.gte("amount", f.amountMin);
-  if (f.amountMax != null) q = q.lte("amount", f.amountMax);
-
-  const { data, error } = await q;
-  if (error) throw error;
-
-  let income = 0;
-  let expense = 0;
-  for (const t of data ?? []) {
-    if (t.type === TX_TYPE.INCOME) income += Number(t.amount);
-    else if (t.type === TX_TYPE.EXPENSE) expense += Number(t.amount);
-  }
-  return { income, expense };
 }

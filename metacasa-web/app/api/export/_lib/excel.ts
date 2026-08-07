@@ -1,6 +1,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import type { Transaction } from "@/lib/db/transactions";
+import { totalsExcludingTransfers } from "@/lib/db/transfer-exclusion";
 import { intlLocale } from "@/lib/i18n/dates";
 import { TX_TYPE } from "@/lib/constants";
 import { signedAmount, typeLabel, type ExportContext } from "./shared";
@@ -35,6 +36,13 @@ function styleHeaderRow(row: ExcelJS.Row) {
  * hoja "Resumen" (ingresos/gastos/balance). Encabezados y fechas localizados con
  * el locale activo. El monto va como NÚMERO con signo (GASTO negativo), para que
  * el usuario pueda sumar/filtrar en la planilla.
+ *
+ * El archivo tiene que decir **lo mismo que la pantalla** (es literalmente la
+ * exportación de la vista, con sus mismos filtros): la hoja de movimientos LISTA
+ * las dos piernas de una transferencia —son movimientos reales del usuario— pero
+ * los totales las excluyen, porque esa plata nunca salió del hogar. Sin esto, una
+ * transferencia de $500.000 le sumaba $500.000 a los ingresos Y $500.000 a los
+ * gastos del archivo, y la tasa de ahorro del Excel contradecía a la de la app.
  */
 export async function buildTransactionsWorkbook(
   ctx: ExportContext,
@@ -68,12 +76,11 @@ export async function buildTransactionsWorkbook(
   ];
   styleHeaderRow(ws.getRow(1));
 
-  let income = 0;
-  let expense = 0;
+  // Agregado: sin las piernas de transferencia (regla única en `transfer-exclusion`).
+  const { income, expense } = totalsExcludingTransfers(rows);
+
   for (const tx of rows) {
     const signed = signedAmount(tx);
-    if (tx.type === TX_TYPE.INCOME) income += Math.abs(Number(tx.amount));
-    else if (tx.type === TX_TYPE.EXPENSE) expense += Math.abs(Number(tx.amount));
 
     const row = ws.addRow({
       date: dateFmt.format(new Date(tx.date)),
