@@ -11,14 +11,12 @@ import {
 import { getActiveDays, getDailySpend, getAnnualFlows } from "@/lib/db/analytics";
 import { ReportsView } from "@/components/reports/reports-view";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
+import { getToday } from "@/lib/today-server";
+import { resolveYm, splitYm } from "@/lib/today";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return { title: t("reports.title") };
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
 }
 
 /** Reportes y estadísticas del hogar activo (read-only). */
@@ -43,20 +41,24 @@ export default async function ReportsPage({
   // está o es inválido, usamos el mes actual. Antes se forzaba `new Date()`
   // siempre, así que un usuario en un mes sin datos veía todo vacío y no podía
   // navegar a meses anteriores.
+  //
+  // "Mes actual" = el del CALENDARIO DEL USUARIO (cookie `mc_tz`). El server de
+  // Netlify corre en UTC: el 31 a las 21:05 en Argentina, reportes abría vacío
+  // porque ya estaba mirando el mes siguiente.
   const sp = await searchParams;
-  const now = new Date();
-  const ym =
-    sp.ym && /^\d{4}-\d{2}$/.test(sp.ym)
-      ? sp.ym
-      : `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-  const [year, month] = ym.split("-").map(Number);
+  const today = await getToday();
+  const ym = resolveYm(sp.ym, today);
+  const [year, month] = splitYm(ym);
 
   // El AÑO de las secciones anuales (heatmap + vista anual) viene de `?fy=`,
   // un parámetro SEPARADO del `?ym=` mensual para que no se pisen. Default: año
   // actual. Se clampa al rango razonable [2000, año actual] (paridad iOS: el
-  // heatmap no navega al futuro).
-  const fyRaw = sp.fy && /^\d{4}$/.test(sp.fy) ? Number(sp.fy) : now.getFullYear();
-  const fiscalYear = Math.min(Math.max(fyRaw, 2000), now.getFullYear());
+  // heatmap no navega al futuro). El "año actual" también sale del día del
+  // usuario: el 31/12 a las 21:05 en Argentina el clamp del server ya dejaba
+  // pasar el año siguiente.
+  const currentYear = Number(today.slice(0, 4));
+  const fyRaw = sp.fy && /^\d{4}$/.test(sp.fy) ? Number(sp.fy) : currentYear;
+  const fiscalYear = Math.min(Math.max(fyRaw, 2000), currentYear);
 
   // Mes anterior (para la comparación mes a mes).
   const prevDate = new Date(year, month - 2, 1);

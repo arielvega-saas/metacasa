@@ -7,6 +7,8 @@
  * Component y no se puede importar desde tests.
  */
 
+import { dayStartUtc, isIsoDay } from "./today";
+
 /** Clave "YYYY-MM-DD" (UTC) de un Date — alineada con las claves de `getActiveTxDays`. */
 export function utcDayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -40,16 +42,34 @@ export function computeHealthScore(
 }
 
 /**
- * Racha de días consecutivos (hacia atrás desde `now`) con al menos un
- * movimiento. Puerto de iOS `HomeViewModel.streak`. Trabaja en UTC sobre el set
- * de días. `now` es inyectable para poder testear sin depender del reloj.
+ * Racha de días consecutivos (hacia atrás desde hoy) con al menos un movimiento.
+ * Puerto de iOS `HomeViewModel.streak`.
+ *
+ * `today` acepta dos formas:
+ *  - `"YYYY-MM-DD"` — el día del calendario del USUARIO (lo que devuelve
+ *    `getToday()`, derivado de la cookie de zona horaria). **Es la forma
+ *    correcta en producción.** Pasar un `Date` hace que el cursor arranque en el
+ *    día UTC, y el server de Netlify corre en UTC: entre las 21:00 y las 24:00
+ *    en Argentina eso arrancaba la cuenta en MAÑANA y la racha daba 0 aunque el
+ *    usuario acabara de cargar un movimiento.
+ *  - `Date` — sólo por compatibilidad y para tests; se interpreta en UTC.
+ *
+ * En ambos casos itera en UTC sobre el set de días, que es como están armadas
+ * las claves (`transactions.date` se guarda a mediodía UTC vía `toStableDate`).
  */
 export function computeStreak(
   activeDays: Set<string>,
-  now: Date = new Date(),
+  today: string | Date = new Date(),
 ): number {
   let count = 0;
-  const cursor = new Date(now);
+  const cursor =
+    typeof today === "string"
+      ? // Día ya resuelto en la zona del usuario → medianoche UTC de ESE día.
+        // Si llegara un string con otra forma, caemos al reloj (nunca NaN).
+        isIsoDay(today)
+        ? dayStartUtc(today)
+        : new Date()
+      : new Date(today);
   // Normalizamos a medianoche UTC para iterar día a día.
   cursor.setUTCHours(0, 0, 0, 0);
   while (activeDays.has(utcDayKey(cursor))) {

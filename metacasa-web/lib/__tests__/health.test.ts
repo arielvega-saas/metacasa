@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeHealthScore, computeStreak, utcDayKey } from "@/lib/health";
+import { todayFromTimeZoneCookie, utcToday } from "@/lib/today";
 
 /** Set de días activos a partir de claves "YYYY-MM-DD". */
 function days(...keys: string[]): Set<string> {
@@ -111,5 +112,49 @@ describe("computeStreak", () => {
     const late = new Date("2026-07-27T23:59:59.000Z");
     const set = consecutive("2026-07-27", 2);
     expect(computeStreak(set, early)).toBe(computeStreak(set, late));
+  });
+});
+
+/**
+ * El bug de Netlify: el server corre con `TZ=UTC`, así que de 21:00 a 24:00 en
+ * Argentina su "hoy" ya es MAÑANA. La racha arrancaba el cursor ahí, no
+ * encontraba movimientos y mostraba 0 justo a la hora en que la gente carga los
+ * gastos del día.
+ */
+describe("computeStreak — borde de las 21:00 en UTC-3", () => {
+  const AR = "America/Argentina/Buenos_Aires";
+  // 2026-08-04 21:05 en Buenos Aires = 2026-08-05 00:05 UTC.
+  const instante = new Date("2026-08-05T00:05:00.000Z");
+  // El usuario cargó movimientos hoy (4), ayer (3) y anteayer (2).
+  const activos = days("2026-08-04", "2026-08-03", "2026-08-02");
+
+  it("con el reloj UTC del server la racha se corta en seco (el bug)", () => {
+    expect(utcToday(instante)).toBe("2026-08-05");
+    expect(computeStreak(activos, instante)).toBe(0);
+  });
+
+  it("con el día local del usuario cuenta la racha real", () => {
+    const hoy = todayFromTimeZoneCookie(AR, instante);
+    expect(hoy).toBe("2026-08-04");
+    expect(computeStreak(activos, hoy)).toBe(3);
+  });
+
+  it("cruza el fin de mes en el mismo borde horario", () => {
+    // 2026-08-31 21:05 en AR = 2026-09-01 00:05 UTC.
+    const finDeMes = new Date("2026-09-01T00:05:00.000Z");
+    const hoy = todayFromTimeZoneCookie(AR, finDeMes);
+    const set = days("2026-08-31", "2026-08-30", "2026-08-29");
+    expect(computeStreak(set, finDeMes)).toBe(0); // reloj del server
+    expect(computeStreak(set, hoy)).toBe(3); // día del usuario
+  });
+
+  it("sin cookie de zona se comporta igual que antes (fallback UTC, no rompe)", () => {
+    const hoy = todayFromTimeZoneCookie(undefined, instante);
+    expect(computeStreak(activos, hoy)).toBe(computeStreak(activos, instante));
+  });
+
+  it("un string con forma inesperada no produce NaN ni tira", () => {
+    expect(() => computeStreak(activos, "no-es-un-dia")).not.toThrow();
+    expect(Number.isInteger(computeStreak(activos, "no-es-un-dia"))).toBe(true);
   });
 });

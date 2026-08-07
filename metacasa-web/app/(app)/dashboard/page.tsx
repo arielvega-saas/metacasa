@@ -22,14 +22,12 @@ import {
 } from "@/components/dashboard/sections/skeletons";
 import { getT } from "@/lib/i18n/server";
 import { parseFxRates, convertToBase } from "@/lib/fx";
+import { getToday } from "@/lib/today-server";
+import { resolveYm, splitYm } from "@/lib/today";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return { title: t("dashboard.title") };
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
 }
 
 /**
@@ -65,12 +63,11 @@ export default async function DashboardPage({
   const householdId = active.id;
   const currency = active.default_currency;
 
-  const now = new Date();
-  const ym =
-    sp.ym && /^\d{4}-\d{2}$/.test(sp.ym)
-      ? sp.ym
-      : `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-  const [year, month] = ym.split("-").map(Number);
+  // El mes por defecto es el del CALENDARIO DEL USUARIO (cookie `mc_tz`), no el
+  // del reloj del server: en Netlify corre en UTC y el 31 a las 21:05 en
+  // Argentina el dashboard abría en el mes siguiente, todo en $0 y delta -100%.
+  const ym = resolveYm(sp.ym, await getToday());
+  const [year, month] = splitYm(ym);
   const prev = new Date(year, month - 2, 1);
 
   // Queries del shell: rápidas y necesarias para pintar KPIs + card de cuentas.

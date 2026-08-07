@@ -9,6 +9,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { CreateHouseholdGate } from "@/components/onboarding/create-household";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { CommandPalette } from "@/components/command-palette";
+import { TimezoneCookie } from "@/components/layout/timezone-cookie";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -81,6 +82,10 @@ export default async function AppLayout({
       <AssistantWidget />
       {/* Paleta de comandos ⌘K / Ctrl+K (global a toda la app). */}
       <CommandPalette />
+      {/* Publica la zona horaria del browser en `mc_tz`: sin esto los Server
+          Components derivan "hoy" del reloj UTC del server y, de 21 a 24 en
+          Argentina, el mes y la racha salen del día equivocado. Sin UI. */}
+      <TimezoneCookie />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { resolveActiveHousehold } from "@/lib/household";
 import { getT } from "@/lib/i18n/server";
+import { getToday } from "@/lib/today-server";
+import { splitYm } from "@/lib/today";
 import {
   createPeriod,
   upsertAllocation,
@@ -19,6 +21,11 @@ function revalidateBudget() {
 /**
  * Crea el período de presupuesto del mes actual (envelope budgeting YNAB-style).
  * Calcula el rango [primer día, último día] del mes en curso.
+ *
+ * "Mes en curso" es el del CALENDARIO DEL USUARIO (cookie `mc_tz`), no el del
+ * reloj del server: en Netlify corre en UTC y el 31 a las 21:05 en Argentina
+ * esto creaba el período del mes SIGUIENTE, dejando huérfano el mes que el
+ * usuario estaba mirando.
  */
 export async function createMonthlyPeriod() {
   const t = await getT();
@@ -26,14 +33,13 @@ export async function createMonthlyPeriod() {
   const { active } = await resolveActiveHousehold(supabase);
   if (!active) throw new Error(t("errors.noHousehold"));
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth(); // 0-based
+  const [year, month] = splitYm(await getToday()); // month 1-12
   const pad = (n: number) => String(n).padStart(2, "0");
-  // Último día del mes: día 0 del mes siguiente.
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const periodStart = `${year}-${pad(month + 1)}-01`;
-  const periodEnd = `${year}-${pad(month + 1)}-${pad(lastDay)}`;
+  // Último día del mes: día 0 del mes siguiente (en UTC, para no depender del
+  // huso del proceso).
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const periodStart = `${year}-${pad(month)}-01`;
+  const periodEnd = `${year}-${pad(month)}-${pad(lastDay)}`;
 
   await createPeriod(supabase, {
     householdId: active.id,

@@ -1,24 +1,10 @@
 import type { Client } from "@/lib/supabase/types";
 import type { Tables } from "@/lib/database.types";
+import { inclusiveDateEnd } from "@/lib/db/date-range";
 
 export type BudgetPeriod = Tables<"budget_periods">;
 export type BudgetAllocation = Tables<"budget_allocations">;
 
-/**
- * Cota superior INCLUSIVA para filtrar transacciones por fecha en un período.
- * Las tx fecha-sólo se guardan a mediodía UTC (`YYYY-MM-DDT12:00:00.000Z`, ver
- * `toStableDate` en `db/transactions.ts`), así que un `.lte("date", period_end)`
- * con `period_end` como fecha-sólo (`YYYY-MM-DD` = medianoche UTC) EXCLUYE el
- * último día del período. Empujamos la cota al final del día (`T23:59:59.999Z`)
- * para que el último día quede incluido. Único helper compartido entre
- * `createPeriod` y `getCurrentPeriod` para que ambos coincidan exactamente.
- */
-function inclusiveDateEnd(periodEnd: string): string {
-  // Si ya viene con componente de hora, respetarlo; si es fecha-sólo, extender.
-  return /^\d{4}-\d{2}-\d{2}$/.test(periodEnd)
-    ? `${periodEnd}T23:59:59.999Z`
-    : periodEnd;
-}
 
 /**
  * Suma de ingresos (en moneda base) del hogar dentro del rango `[start, end]`.
@@ -58,12 +44,20 @@ async function periodSummary(
   };
 }
 
-/** Período de presupuesto vigente hoy (si existe). */
+/**
+ * Período de presupuesto vigente hoy (si existe).
+ *
+ * `today` se pasa desde afuera (`getToday()`, que resuelve el día del usuario a
+ * partir de la cookie de zona horaria). Calcularlo acá con el reloj del server
+ * sería mirar el día UTC: en Netlify las funciones corren con `TZ=UTC`, así que
+ * el último día del mes, después de las 21 en Argentina, el período vigente ya
+ * habría "terminado" para el usuario que todavía lo está viviendo.
+ */
 export async function getCurrentPeriod(
   supabase: Client,
   householdId: string,
+  today: string = new Date().toISOString().slice(0, 10),
 ): Promise<BudgetPeriod | null> {
-  const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("budget_periods")
     .select("*")
@@ -102,8 +96,12 @@ export async function getPeriodForMonth(
   supabase: Client,
   householdId: string,
   ym: string,
+  today?: string,
 ): Promise<BudgetPeriod | null> {
-  if (!/^\d{4}-\d{2}$/.test(ym)) return getCurrentPeriod(supabase, householdId);
+  // Sólo se llega acá con un `ym` inválido, que hoy no pasa desde las páginas
+  // (siempre mandan uno válido). Se propaga `today` igual para que el fallback
+  // no vuelva al reloj UTC del server el día que alguien sí lo alcance.
+  if (!/^\d{4}-\d{2}$/.test(ym)) return getCurrentPeriod(supabase, householdId, today);
   const anchor = `${ym}-15`; // mediodía del mes, dentro de cualquier período mensual
 
   const { data, error } = await supabase

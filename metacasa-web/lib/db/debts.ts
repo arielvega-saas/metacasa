@@ -1,6 +1,7 @@
 import type { Client } from "@/lib/supabase/types";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/database.types";
 import { convertToBase, type FXRateMap } from "@/lib/fx";
+import { parseDayLocal } from "@/lib/i18n/dates";
 
 export type Debt = Tables<"debts">;
 
@@ -74,7 +75,14 @@ export function estimatedMonthsToPayoff(debt: Debt): number | null {
  */
 export function daysUntilMaturity(debt: Debt, now: Date = new Date()): number | null {
   if (!debt.maturity_date) return null;
-  const due = new Date(debt.maturity_date);
+  // `parseDayLocal` y no `new Date(str)`: un "2026-08-06" se interpreta como
+  // medianoche UTC, y leer después `getFullYear/getMonth/getDate` en hora local
+  // lo corre un día para atrás en todo huso negativo — o sea, toda LatAm. Una
+  // deuda que vence HOY aparecía en rojo con el badge "Vencida" el día entero.
+  // El helper ya existía y se usa cuatro líneas más abajo en `debt-card` para
+  // mostrar la misma fecha: era la misma regla escrita dos veces, con distinto
+  // resultado.
+  const due = parseDayLocal(debt.maturity_date);
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   // Comparamos a medianoche local para contar días de calendario.
   const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -18,12 +18,10 @@ import { BudgetBoard, type AllocationRow } from "@/components/budgets/budget-boa
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { formatMonthYear } from "@/lib/i18n/dates";
+import { getToday } from "@/lib/today-server";
+import { resolveYm, splitYm } from "@/lib/today";
 
 export const metadata: Metadata = { title: "Presupuesto" };
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
 
 export default async function BudgetsPage({
   searchParams,
@@ -56,16 +54,16 @@ export default async function BudgetsPage({
   const currency = active.default_currency;
 
   // Mes seleccionado vía `?ym=` (default: mes actual), como dashboard/reportes.
-  const now = new Date();
-  const ym =
-    sp.ym && /^\d{4}-\d{2}$/.test(sp.ym)
-      ? sp.ym
-      : `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-  const [year, month] = ym.split("-").map(Number);
+  // El "mes actual" es el del CALENDARIO DEL USUARIO (cookie `mc_tz`): con el
+  // reloj UTC del server, el 31 a las 21:05 en Argentina esta pantalla ofrecía
+  // crear el período del mes SIGUIENTE cuando todavía quedaban 3 horas del actual.
+  const hoy = await getToday();
+  const ym = resolveYm(sp.ym, hoy);
+  const [year, month] = splitYm(ym);
   const periodLabel = formatMonthYear(year, month, locale);
 
   // Resuelve el período del MES seleccionado (no necesariamente el de hoy).
-  const period = await getPeriodForMonth(supabase, householdId, ym);
+  const period = await getPeriodForMonth(supabase, householdId, ym, hoy);
 
   // Sin período para el mes elegido → CTA para crearlo (zero-based arranca acá).
   if (!period) {

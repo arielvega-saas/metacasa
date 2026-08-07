@@ -8,6 +8,7 @@ import {
   getActiveTxDays,
 } from "@/lib/db/dashboard-extras";
 import { computeHealthScore, computeStreak } from "@/lib/health";
+import { getToday } from "@/lib/today-server";
 import type { FXRateMap } from "@/lib/fx";
 
 export interface OverviewSectionProps {
@@ -43,10 +44,14 @@ export async function OverviewSection({
   summary,
 }: OverviewSectionProps) {
   const supabase = await createClient();
-  const [debtList, splitStrategy, activeTxDays] = await Promise.all([
+  const [debtList, splitStrategy, activeTxDays, today] = await Promise.all([
     listDebts(supabase, householdId, { includeSettled: false }),
     getHouseholdSplitStrategy(supabase, householdId),
     getActiveTxDays(supabase, householdId, 30),
+    // Día del calendario del USUARIO: con el reloj UTC del server, entre las
+    // 21:00 y las 24:00 en Argentina la racha arrancaba a contar en MAÑANA y
+    // daba 0 aunque el usuario acabara de cargar un movimiento.
+    getToday(),
   ]);
 
   // Patrimonio neto (paridad iOS `AccountBalanceService.netWorth` + `debtTotals`):
@@ -58,7 +63,7 @@ export async function OverviewSection({
 
   // Health Score (0–100) + racha — paridad iOS `HomeViewModel`.
   const score = computeHealthScore(summary.income, summary.expense, activeTxDays);
-  const streak = computeStreak(activeTxDays);
+  const streak = computeStreak(activeTxDays, today);
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
