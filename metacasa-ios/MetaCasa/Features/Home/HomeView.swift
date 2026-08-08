@@ -49,6 +49,10 @@ final class HomeViewModel {
     var topCategories: [(category: String, total: Decimal)] = []
     var templates: [TransactionTemplate] = []
     var recentTransactions: [Transaction] = []
+    /// Resumen de los últimos 7 días. `nil` mientras no hay con qué decir nada
+    /// —sin movimientos en ninguna de las dos ventanas cualquier veredicto
+    /// sería inventado—.
+    var recap: RecapSemanal?
 
     /// Ventana RODANTE de 40 días para las métricas de constancia (health score, racha,
     /// sparkline de 7 días). Va aparte de `recentTransactions`, que es el mes CALENDARIO.
@@ -228,6 +232,15 @@ final class HomeViewModel {
             let txs = try await transactions
             self.recentTransactions = txs
             self.consistencyTransactions = (try? await consistencyTxs) ?? txs
+
+            // El recap sale de los 40 días que ya se traen para la racha: no
+            // necesita otra consulta. El índice de inflación se pide aparte y
+            // si no está el recap cae al cambio nominal en vez de desaparecer.
+            let cer = await CERService.shared.snapshot()
+            self.recap = CalculadoraDeRecap.calcular(
+                movimientos: self.consistencyTransactions,
+                indice: cer.estaVacio ? nil : { cer.valor($0) }
+            )
             self.topGastos = Array(txs.excludingTransfers.filter { $0.type == .gasto }.sorted { $0.amount > $1.amount }.prefix(5))
 
             var byCat: [String: Decimal] = [:]
@@ -591,6 +604,9 @@ struct HomeView: View {
                     breakdownMode = .balance
                 }
             )
+        case .recapSemanal:
+            RecapSemanalCard(recap: viewModel.recap, currency: householdCurrency)
+
         case .stats:
             StatsRow(
                 ingresos: viewModel.totalIngresos,

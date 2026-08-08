@@ -84,6 +84,7 @@ final class DashboardPreferences {
 enum DashboardWidgetID: String, CaseIterable, Sendable, Identifiable {
     case hero
     case stats
+    case recapSemanal
     case insight
     case health
     case netWorth
@@ -101,6 +102,7 @@ enum DashboardWidgetID: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .hero:              return "dashboard.widget.hero"
         case .stats:             return "dashboard.widget.stats"
+        case .recapSemanal:      return "dashboard.widget.recap"
         case .insight:           return "dashboard.widget.insight"
         case .health:            return "dashboard.widget.health"
         case .netWorth:          return "dashboard.widget.netWorth"
@@ -118,6 +120,7 @@ enum DashboardWidgetID: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .hero:              return "creditcard.fill"
         case .stats:             return "chart.line.uptrend.xyaxis"
+        case .recapSemanal:      return "calendar.badge.clock"
         case .insight:           return "sparkles"
         case .health:            return "heart.fill"
         case .netWorth:          return "scale.3d"
@@ -135,6 +138,7 @@ enum DashboardWidgetID: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .hero:              return "dashboard.widget.hero.desc"
         case .stats:             return "dashboard.widget.stats.desc"
+        case .recapSemanal:      return "dashboard.widget.recap.desc"
         case .insight:           return "dashboard.widget.insight.desc"
         case .health:            return "dashboard.widget.health.desc"
         case .netWorth:          return "dashboard.widget.netWorth.desc"

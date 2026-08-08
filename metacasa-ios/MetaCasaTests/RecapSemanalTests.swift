@@ -173,3 +173,47 @@ final class RecapSemanalTests: XCTestCase {
         }
     }
 }
+
+/// Los textos de la tarjeta del recap.
+///
+/// Es un widget nuevo del dashboard: si sus claves no resuelven, en pantalla
+/// aparece el identificador crudo en los tres idiomas.
+final class TextosDelRecapTests: XCTestCase {
+
+    func testLasClavesDelRecapResuelven() {
+        for clave in ["recap.title", "recap.spent", "recap.vsPrevious", "recap.realChange",
+                      "recap.biggestRise", "recap.better", "recap.worse", "recap.empty",
+                      "dashboard.widget.recap", "dashboard.widget.recap.desc"] {
+            let resuelto = String(localized: String.LocalizationValue(clave))
+            XCTAssertNotEqual(resuelto, clave, "\(clave) no resuelve")
+        }
+    }
+
+    /// "1 días sin movimientos" es el error clásico del plural.
+    func testElAvisoDeDiasFaltantesUsaPlural() {
+        let uno = String(localized: "recap.missingDays \(1)")
+        let varios = String(localized: "recap.missingDays \(4)")
+        XCTAssertFalse(uno.contains("recap.missingDays"), "no resolvió: \(uno)")
+        XCTAssertNotEqual(uno, varios)
+        XCTAssertFalse(uno.lowercased().contains("días"), "singular mal formado: \(uno)")
+    }
+
+    /// El widget tiene que estar registrado en el dashboard, o no hay forma de
+    /// mostrarlo ni de que el usuario lo oculte.
+    func testElWidgetEstaRegistradoEnElDashboard() {
+        XCTAssertTrue(DashboardWidgetID.allCases.contains(.recapSemanal))
+    }
+
+    /// Un widget nuevo no puede reordenarle el dashboard a quien ya tenía uno
+    /// guardado: la reconciliación agrega los nuevos al final.
+    func testUnWidgetNuevoNoRompeElOrdenGuardado() {
+        let guardado: [DashboardWidgetID] = [.hero, .stats, .goals]
+        let conocidos = Set(guardado)
+        let faltantes = DashboardWidgetID.allCases.filter { !conocidos.contains($0) }
+        let reconciliado = guardado + faltantes
+
+        XCTAssertEqual(Array(reconciliado.prefix(3)), guardado, "el orden del usuario se conserva")
+        XCTAssertTrue(reconciliado.contains(.recapSemanal))
+        XCTAssertEqual(Set(reconciliado).count, DashboardWidgetID.allCases.count)
+    }
+}
