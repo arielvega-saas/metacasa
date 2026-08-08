@@ -96,7 +96,10 @@ actor AnthropicProvider {
         accessToken: String,
         history: [ChatTurn] = [],
         voiceMode: Bool = false,
-        pastSummaries: [String] = []
+        pastSummaries: [String] = [],
+        /// `true` cuando el turno viene de una orden de escritura y el modelo
+        /// no puede tener la opción de contestar texto. Ver `ToolChoice`.
+        forzarHerramienta: Bool = false
     ) async throws -> String {
         let systemPrompt = AISystemPromptV2.build(
             context: context,
@@ -122,12 +125,17 @@ actor AnthropicProvider {
         messages.append(APIMessage(role: "user", content: .text(message)))
 
         // Loop de tool calling.
-        for _ in 0..<maxToolLoopIterations {
+        for vuelta in 0..<maxToolLoopIterations {
+            // Sólo la PRIMERA vuelta se fuerza: después el modelo tiene que
+            // poder cerrar con el resumen en texto de lo que hizo. Forzar
+            // siempre lo dejaría llamando herramientas para siempre.
+            let forzar = forzarHerramienta && vuelta == 0
             let response = try await callProxy(
                 accessToken: accessToken,
                 system: systemPrompt,
                 tools: AnthropicToolBuilder.allTools(),
-                messages: messages
+                messages: messages,
+                toolChoice: forzar ? .cualquiera : nil
             )
 
             // Si el modelo terminó normalmente, devolvemos el texto.
@@ -631,7 +639,8 @@ actor AnthropicProvider {
         accessToken: String,
         system: String,
         tools: [APITool],
-        messages: [APIMessage]
+        messages: [APIMessage],
+        toolChoice: ToolChoice? = nil
     ) async throws -> APIResponse {
         let url = Config.supabaseURL.appendingPathComponent("functions/v1/ai-proxy")
         var req = URLRequest(url: url, timeoutInterval: 45)
@@ -645,7 +654,8 @@ actor AnthropicProvider {
             messages: messages,
             tools: tools,
             maxTokens: maxOutputTokens,
-            temperature: 0.7
+            temperature: 0.7,
+            toolChoice: toolChoice
         )
 
         // No keyEncodingStrategy/keyDecodingStrategy: confiamos solo en los
@@ -704,11 +714,33 @@ private struct ProxyRequest: Encodable {
     let maxTokens: Int
     let temperature: Double
     var stream: Bool = false
+    /// Obliga al modelo a llamar una herramienta en vez de poder contestar
+    /// texto. Ver `ToolChoice`.
+    var toolChoice: ToolChoice? = nil
 
     enum CodingKeys: String, CodingKey {
         case system, messages, tools, temperature, stream
         case maxTokens = "max_tokens"
+        case toolChoice = "tool_choice"
     }
+}
+
+/// Cómo decide el modelo si usa una herramienta.
+///
+/// ─── POR QUÉ HIZO FALTA ───────────────────────────────────────────────────
+/// Medido en el iPhone con el sello de diagnóstico: pedir "agregá un gasto de
+/// 1.000.000 en supermercado" y confirmar con "Si" pasaba por el camino CON
+/// loop de tools, con las 22 herramientas bien formadas en el payload —hay un
+/// test que lo verifica— y aun así terminaba en `escrituras: 0`. El modelo
+/// contestaba `end_turn` con un texto que afirmaba la carga, incluido un
+/// balance inventado.
+///
+/// O sea: tenía la herramienta a mano y elegía no usarla. Ningún prompt
+/// arregla eso de manera confiable. `{"type":"any"}` le saca la opción: en esa
+/// vuelta **tiene** que llamar a alguna herramienta.
+struct ToolChoice: Encodable, Sendable {
+    let type: String
+    static let cualquiera = ToolChoice(type: "any")
 }
 
 private struct SystemBlock: Encodable {

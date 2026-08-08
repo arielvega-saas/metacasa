@@ -53,6 +53,49 @@ enum AfirmacionDeCambio {
         "error", "falló", "fallo", "no se aplicó", "no se aplico",
     ]
 
+
+    /// ¿Este mensaje del usuario va a terminar en una escritura?
+    ///
+    /// Sirve para **saltear el camino rápido**. El streaming existe para que la
+    /// respuesta empiece a aparecer en medio segundo, y para una pregunta eso
+    /// vale. Pero medido en el iPhone: pidiendo "agregá un gasto de 1.000.000 en
+    /// supermercado" y confirmando con "Si", el modelo en streaming **no pide la
+    /// herramienta** y redacta igual la confirmación —con monto, categoría,
+    /// fecha y hasta un balance inventado—. El turno terminaba sin escribir una
+    /// sola fila.
+    ///
+    /// Cuando hay plata de por medio, medio segundo de latencia vale menos que
+    /// ejecutar de verdad. Estos mensajes van directo al camino con loop de
+    /// tools.
+    static func esOrdenDeEscritura(_ mensaje: String) -> Bool {
+        let m = mensaje.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Confirmaciones sueltas: son la respuesta a "¿confirmás?", y el turno
+        // que sigue es siempre la escritura. Se comparan como mensaje COMPLETO
+        // para no capturar un "si" dentro de una pregunta larga.
+        let confirmaciones: Set<String> = [
+            "si", "sí", "si.", "sí.", "sip", "dale", "dale!", "ok", "okey", "oka",
+            "confirmo", "confirmado", "correcto", "exacto", "listo", "hacelo",
+            "hazlo", "adelante", "sí, dale", "si dale", "yes", "va", "obvio",
+        ]
+        let sinSignos = m.trimmingCharacters(in: CharacterSet(charactersIn: ".,!¡ "))
+        if confirmaciones.contains(sinSignos) { return true }
+
+        // Órdenes explícitas, en imperativo (con y sin tilde: el teclado del
+        // usuario no siempre acompaña).
+        let ordenes = [
+            "agrega", "agregá", "agregar", "carga", "cargá", "cargar", "cargame",
+            "anota", "anotá", "anotar", "sumá", "suma", "registra", "registrá",
+            "borra", "borrá", "borrar", "elimina", "eliminá", "eliminar",
+            "corregi", "corregí", "corrige", "corregir", "cambia", "cambiá",
+            "actualiza", "actualizá", "actualizar", "modifica", "modificá",
+            "transferi", "transferí", "transferir", "move", "mové",
+            "marca", "marcá", "marcar", "pone", "poné", "poner", "seteá", "setea",
+        ]
+        let palabras = Set(m.split(whereSeparator: { !$0.isLetter }).map(String.init))
+        return palabras.contains(where: { ordenes.contains($0) })
+    }
+
     /// `true` si el texto afirma un cambio ya consumado sobre los datos.
     static func afirmaCambio(_ texto: String) -> Bool {
         let normal = texto.lowercased()

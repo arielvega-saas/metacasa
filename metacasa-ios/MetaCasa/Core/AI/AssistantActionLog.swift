@@ -58,6 +58,12 @@ actor AssistantActionLog {
         acciones
     }
 
+    /// Cuántas escrituras registró el turno. El guardrail lo cruza contra lo
+    /// que el texto de la respuesta afirma.
+    func cantidad() -> Int {
+        acciones.count
+    }
+
     /// Revierte una acción contra la base.
     ///
     /// No es "recordar el estado y confiar": vuelve a escribir y deja que el

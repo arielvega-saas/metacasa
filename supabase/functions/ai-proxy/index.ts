@@ -47,6 +47,13 @@ interface AnthropicRequest {
   system?: any;
   messages: any[];
   tools?: any[];
+  // Deja que el cliente OBLIGUE al modelo a usar una herramienta.
+  //
+  // Sin esto, pedirle "agregá un gasto de 1.000.000" y confirmar con "Si"
+  // terminaba en una respuesta de texto que afirmaba la carga sin haberla
+  // hecho: el modelo tiene las tools disponibles y elige no usarlas. Con
+  // `{"type":"any"}` no puede responder texto — tiene que llamar a alguna.
+  tool_choice?: any;
   max_tokens?: number;
   temperature?: number;
   stream?: boolean;
@@ -153,6 +160,7 @@ Deno.serve(async (req: Request) => {
     system: body.system,
     messages: body.messages,
     tools: body.tools,
+    ...(body.tool_choice ? { tool_choice: body.tool_choice } : {}),
     stream: isStreaming,
   };
 

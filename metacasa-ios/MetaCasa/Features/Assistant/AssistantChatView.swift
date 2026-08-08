@@ -1553,17 +1553,25 @@ final class AssistantViewModel {
             await AuthManager.shared.ensureFreshToken()
             let context = try await FinancialContextBuilder.build(appState: appState)
             let allowCloud = PrivacyManager.shared.canUseCloudAssistant
+            // Antes esto vivía dentro del bloque de streaming, así que un turno
+            // que iba derecho al camino no-streaming arrastraba las acciones
+            // del turno anterior.
+            await AssistantActionLog.shared.iniciarTurno()
 
             // ─── STREAMING FAST PATH ─────────────────────────────────────
             // Si el user permitió cloud y tenemos token, intentamos streaming
             // SSE: TTFT cae de ~3s a ~500ms. El user ve typing effect mientras
             // Claude genera. Si el modelo decide invocar una tool, cae al
             // método no-streaming (que maneja el loop tool_use).
+            //
+            // Las órdenes de escritura NO van por acá: en streaming el modelo
+            // no pide la herramienta y redacta la confirmación igual. Medio
+            // segundo de latencia vale menos que ejecutar de verdad.
             if allowCloud,
+               !AfirmacionDeCambio.esOrdenDeEscritura(msg),
                let token = await TokenHolder.shared.get(),
                appState.currentHouseholdId != nil,
                appState.currentUserId != nil {
-                await AssistantActionLog.shared.iniciarTurno()
                 let placeholder = AssistantMessage(role: .assistant, content: "", isStreaming: true)
                 let placeholderId = placeholder.id
                 messages.append(placeholder)
@@ -1612,8 +1620,17 @@ final class AssistantViewModel {
                         messages[idx].isStreaming = false
                         messages[idx].revertibles = await AssistantActionLog.shared.delTurno()
                     }
-                    // Stream completó OK.
-                    if !fullText.isEmpty {
+                    // Red de seguridad: si el stream afirma un cambio y no
+                    // hubo NI UNA escritura, el turno se rehace por el camino
+                    // con loop de tools en vez de mostrarse como un hecho.
+                    // Rehacer es seguro justamente porque el contador está en
+                    // cero: no hay nada escrito que se pueda duplicar.
+                    let escrituras = await AssistantActionLog.shared.cantidad()
+                    if escrituras == 0, AfirmacionDeCambio.afirmaCambio(fullText) {
+                        NSLog("[Stream] afirmó un cambio sin escribir — se rehace sin streaming")
+                        messages.removeAll { $0.id == placeholderId }
+                        isThinking = true
+                    } else if !fullText.isEmpty {
                         if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
                             persist(messages[idx], appState: appState)
                         }
@@ -1645,7 +1662,12 @@ final class AssistantViewModel {
                 pastSummaries: pastSummaries,
                 allowCloud: allowCloud
             )
-            let reply = AssistantMessage(role: .assistant, content: response)
+            // El "Deshacer" también acá: este es el camino que de verdad
+            // ejecuta las herramientas, así que es donde MÁS hace falta. Antes
+            // sólo lo adjuntaba el camino de streaming —que justamente nunca
+            // escribe— y por eso la tarjeta no aparecía nunca.
+            var reply = AssistantMessage(role: .assistant, content: response)
+            reply.revertibles = await AssistantActionLog.shared.delTurno()
             messages.append(reply)
             persist(reply, appState: appState)
         } catch {

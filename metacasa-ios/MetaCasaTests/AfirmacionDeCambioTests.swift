@@ -96,4 +96,52 @@ final class AfirmacionDeCambioTests: XCTestCase {
     func testTextoVacio() {
         XCTAssertFalse(afirma(""))
     }
+
+    // MARK: - Qué mensajes NO pueden ir por el camino rápido
+
+    /// Medido en el iPhone: por streaming el modelo no pide la herramienta y
+    /// redacta la confirmación igual. Estos mensajes tienen que ir derecho al
+    /// camino con loop de tools.
+    func testLasConfirmacionesSueltasSonOrdenDeEscritura() {
+        for m in ["Si", "si", "sí", "Dale", "ok", "Confirmo", "listo", "Sí.", "correcto", "hacelo"] {
+            XCTAssertTrue(AfirmacionDeCambio.esOrdenDeEscritura(m), "\(m) debería saltear el streaming")
+        }
+    }
+
+    func testLasOrdenesExplicitasSonOrdenDeEscritura() {
+        for m in [
+            "Agrega un gasto de hoy de 1.000.000 en supermercado",
+            "cargá 12500 de nafta",
+            "Borrá el duplicado de ayer",
+            "corregí el gasto de Higgsfield a 78.972,57",
+            "marcá la factura de luz como pagada",
+            "transferí 50.000 a la caja de ahorro",
+        ] {
+            XCTAssertTrue(AfirmacionDeCambio.esOrdenDeEscritura(m), "\(m) debería saltear el streaming")
+        }
+    }
+
+    /// Las preguntas sí pueden ir por el camino rápido: son la mayoría y ahí el
+    /// streaming es lo que hace que la app se sienta viva.
+    func testLasPreguntasSiguenPorElCaminoRapido() {
+        for m in [
+            "¿Cuánto gasté este mes?",
+            "¿Dónde se me va la plata?",
+            "Mostrame los gastos de agosto",
+            "¿Qué presupuesto me conviene ajustar?",
+            "¿Cómo vengo con el ahorro?",
+        ] {
+            XCTAssertFalse(AfirmacionDeCambio.esOrdenDeEscritura(m), "\(m) no debería saltear el streaming")
+        }
+    }
+
+    /// Un "si" adentro de una pregunta larga no es una confirmación.
+    func testUnSiAdentroDeUnaFraseNoCuenta() {
+        XCTAssertFalse(AfirmacionDeCambio.esOrdenDeEscritura("¿Sabés si me alcanza para fin de mes?"))
+    }
+
+    func testMensajeVacioNoEsOrden() {
+        XCTAssertFalse(AfirmacionDeCambio.esOrdenDeEscritura(""))
+        XCTAssertFalse(AfirmacionDeCambio.esOrdenDeEscritura("   "))
+    }
 }

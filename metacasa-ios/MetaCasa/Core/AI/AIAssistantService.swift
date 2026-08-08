@@ -193,7 +193,7 @@ actor AIAssistantService {
                     break
                 }
                 NSLog("[AI] Tier 1 (FoundationModels) success (escrituras: %d)", escrituras)
-                return response
+                return sellar(response, motor: "on-device", escrituras: escrituras)
             case .failed(let detalle):
                 let msg = "Tier 1 (FoundationModels): \(detalle)"
                 NSLog("[AI] %@", msg)
@@ -252,12 +252,29 @@ actor AIAssistantService {
                 accessToken: accessToken,
                 history: history,
                 voiceMode: voiceMode,
-                pastSummaries: pastSummaries
+                pastSummaries: pastSummaries,
+                // Si el turno viene de una orden de escritura, el modelo no
+                // puede tener la opción de responder texto: tiene que llamar
+                // una herramienta. Es lo que impedía que "Si" cargara el gasto.
+                forzarHerramienta: AfirmacionDeCambio.esOrdenDeEscritura(message)
             )
         }) {
         case .ok(let response):
-            NSLog("[AI] Tier 2 (Anthropic Cloud) success")
-            return response
+            // Mismo control que en Tier 1, pero acá ya no hay a dónde escalar:
+            // Claude es el motor con tools. Si igual afirma un cambio sin
+            // haberlo escrito, lo que corresponde es **desmentirlo en la misma
+            // pantalla**. Preferimos un mensaje incómodo antes que dejar al
+            // usuario creyendo que su gasto quedó cargado.
+            let escrituras2 = await AssistantActionLog.shared.cantidad()
+            if escrituras2 == 0, AfirmacionDeCambio.afirmaCambio(response) {
+                NSLog("[AI] Tier 2 afirmó un cambio sin ejecutar ninguna escritura")
+                return sellar(
+                    response + "\n\n⚠️ Ojo: **no llegué a guardar ese cambio**. " +
+                        "Revisá en Movimientos y pedímelo de nuevo si falta.",
+                    motor: "nube (afirmó sin escribir)", escrituras: 0)
+            }
+            NSLog("[AI] Tier 2 (Anthropic Cloud) success (escrituras: %d)", escrituras2)
+            return sellar(response, motor: "nube", escrituras: escrituras2)
         case .failed(let detalle):
             let msg = "Tier 2 (Anthropic): \(detalle)"
             NSLog("[AI] %@", msg)
@@ -269,6 +286,22 @@ actor AIAssistantService {
         }
 
         return debugWrap(debugTrace, fallback: statisticalFallback(message: message, context: context))
+    }
+
+
+    /// Sello de diagnóstico al pie de cada respuesta, **sólo en desarrollo**.
+    ///
+    /// El syslog del device no captura los `NSLog` de este proceso —lo intenté
+    /// con filtro por mensaje y por proceso, cero líneas del binario propio—,
+    /// así que el diagnóstico va donde sí se ve: en la pantalla. Dice qué motor
+    /// atendió el turno y cuántas escrituras hizo de verdad, que son las dos
+    /// preguntas que venimos respondiendo por deducción.
+    private func sellar(_ respuesta: String, motor: String, escrituras: Int) -> String {
+        #if DEBUG
+        return respuesta + "\n\n`🔍 \(motor) · escrituras: \(escrituras)`"
+        #else
+        return respuesta
+        #endif
     }
 
     private func debugWrap(_ trace: [String], fallback: String) -> String {
