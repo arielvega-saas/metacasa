@@ -54,6 +54,8 @@ export interface ReportsData {
   summary: Summary;
   /** Resumen del mes anterior, para la comparación mes a mes. */
   prevSummary: Summary;
+  /** Variación del gasto descontando inflación. `null` si no hay índice. */
+  realExpenseChange?: number | null;
   /** Score de salud financiera + desglose, calculado en el server (page.tsx). */
   health: HealthScoreData;
   /** Gasto diario del año `fiscalYear` (heatmap). Solo días con gasto. */
@@ -73,6 +75,7 @@ export async function ReportsView({
   breakdown,
   summary,
   prevSummary,
+  realExpenseChange,
   health,
   dailySpend,
   annualFlows,
@@ -140,6 +143,7 @@ export async function ReportsView({
     ),
     current: summary,
     previous: prevSummary,
+    realExpenseChange,
   };
   const hasMonthComparison =
     summary.income > 0 ||

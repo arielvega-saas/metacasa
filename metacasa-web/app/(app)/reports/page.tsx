@@ -13,6 +13,8 @@ import { ReportsView } from "@/components/reports/reports-view";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { getToday } from "@/lib/today-server";
 import { resolveYm, splitYm } from "@/lib/today";
+import { obtenerSerieCER, lectorDeIndice } from "@/lib/cer";
+import { variacionReal } from "@/lib/reexpresion";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -65,7 +67,7 @@ export default async function ReportsPage({
   const prevYear = prevDate.getFullYear();
   const prevMonth = prevDate.getMonth() + 1;
 
-  const [flows, breakdown, summary, prevSummary, activeDays, dailySpend, annualFlows] =
+  const [flows, breakdown, summary, prevSummary, activeDays, dailySpend, annualFlows, serieCER] =
     await Promise.all([
       getMonthlyFlows(supabase, householdId, 12),
       getCategoryBreakdown(supabase, householdId, year, month),
@@ -74,7 +76,22 @@ export default async function ReportsPage({
       getActiveDays(supabase, householdId, 30),
       getDailySpend(supabase, householdId, fiscalYear),
       getAnnualFlows(supabase, householdId, fiscalYear),
+      // El índice de inflación va en el mismo Promise.all: pedirlo después
+      // sumaría su latencia a la de la página en vez de solaparla.
+      obtenerSerieCER(),
     ]);
+
+  // Variación REAL del gasto contra el mes anterior. Se toma el día 15 de cada
+  // mes como referencia: es el promedio de cuándo se gastó, y evita reexpresar
+  // un mes entero con el índice de su día 1.
+  const indiceCER = lectorDeIndice(serieCER);
+  const realExpenseChange = variacionReal(
+    prevSummary.expense,
+    new Date(prevYear, prevMonth - 1, 15),
+    summary.expense,
+    new Date(year, month - 1, 15),
+    indiceCER,
+  );
 
   // ── Health score (paridad iOS: ReportsView.swift → healthScore) ──────────
   // El score del mes actual usa el resumen del mes (ingreso/gasto) + la
@@ -104,6 +121,7 @@ export default async function ReportsPage({
         dailySpend={dailySpend}
         annualFlows={annualFlows}
         fiscalYear={fiscalYear}
+        realExpenseChange={realExpenseChange}
       />
     </div>
   );

@@ -26,6 +26,16 @@ export interface MonthComparisonData {
   previousLabel: string;
   current: { income: number; expense: number; balance: number };
   previous: { income: number; expense: number; balance: number };
+  /**
+   * Variación del GASTO descontando la inflación (CER oficial del BCRA).
+   * `null` si no hay índice para esas fechas — se prefiere no mostrar nada
+   * antes que un número sin respaldo.
+   *
+   * Es el dato que le falta a toda comparación mes a mes en Argentina: con
+   * 33,5% interanual, "gastaste 20% más" puede ser gastaste MENOS en términos
+   * reales.
+   */
+  realExpenseChange?: number | null;
 }
 
 interface Row {
@@ -181,6 +191,35 @@ export function MonthComparison({
           <MetricRow key={row.key} row={row} currency={currency} t={t} />
         ))}
       </div>
+      {/*
+        La variación REAL del gasto. Va abajo de todo y con su propia
+        aclaración: un porcentaje sin decir "descontando inflación" al lado de
+        los nominales se lee como uno más y engaña.
+      */}
+      {typeof data.realExpenseChange === "number" ? (
+        <div className="border-border mt-3 border-t pt-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-text-muted text-[11px]">
+              {t("reports.realChangeLabel")}
+            </span>
+            <span
+              className={
+                data.realExpenseChange < 0
+                  ? "text-sage text-sm font-semibold tabular-nums"
+                  : "text-amber text-sm font-semibold tabular-nums"
+              }
+            >
+              {data.realExpenseChange > 0 ? "+" : ""}
+              {Math.round(data.realExpenseChange * 100)}%
+            </span>
+          </div>
+          <p className="text-text-dim mt-1 text-[11px]">
+            {data.realExpenseChange < 0
+              ? t("reports.realChangeBetter")
+              : t("reports.realChangeWorse")}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

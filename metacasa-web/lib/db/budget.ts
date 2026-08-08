@@ -1,17 +1,10 @@
 import type { Client } from "@/lib/supabase/types";
 import type { Tables } from "@/lib/database.types";
-import { inclusiveDateEnd } from "@/lib/db/date-range";
 
 export type BudgetPeriod = Tables<"budget_periods">;
 export type BudgetAllocation = Tables<"budget_allocations">;
 
 
-/**
- * Suma de ingresos (en moneda base) del hogar dentro del rango `[start, end]`.
- * Usa la cota superior inclusiva compartida. Devuelve el total redondeado a la
- * representación numérica de JS (la columna es numeric en DB). Es la ÚNICA
- * fuente de verdad del `total_income` para crear y para recomputar en vivo.
- */
 /**
  * Totales del período según la **definición canónica del servidor**
  * (`public.budget_period_summary`).
