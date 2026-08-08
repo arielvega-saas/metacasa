@@ -65,7 +65,7 @@ enum AppKnowledgeBase {
     • Recurrentes (sueldo, alquiler, suscripciones, con frecuencia configurable).
     • Deudas (préstamos con plan de pago sugerido).
     • Planes de cuotas (installments).
-    • Miembros del hogar (invitar por email, revoke token, roles).
+    • Miembros e invitaciones (invitar por email, revoke token, roles).
     • Categorías personalizadas (emoji + subcategorías).
     • Ajustes del hogar (nombre, moneda base, eliminar).
     • Tasas de cambio FX (ajustar manualmente si hace falta).
@@ -95,6 +95,32 @@ enum AppKnowledgeBase {
     4) Deslizá horizontalmente para elegir categoría.
     5) Opcional: nota, subcategoría, fecha, cuenta, moneda distinta.
     6) "Guardar". Podés marcar el bookmark para guardar el movimiento como atajo.
+
+    Comparar dos meses descontando la inflación:
+    1) Tab Más → sección Análisis → "Comparar meses".
+    2) Elegí Mes A y Mes B con los selectores de arriba.
+    3) Activá el switch "En pesos de hoy".
+    4) El mes más viejo se reexpresa con el CER oficial del BCRA, así los dos quedan en la misma moneda. El Δ también se recalcula sobre el valor ajustado.
+    POR QUÉ IMPORTA: con 33,5% de inflación interanual, comparar enero contra agosto en pesos nominales es comparar dos monedas distintas con el mismo nombre. Sin esto, todo gráfico de serie larga miente.
+    CUÁNDO SUGERIRLA: cuando el usuario compara períodos separados por más de 2 meses, o pregunta "¿gasté más que antes?", "¿cómo vengo contra el año pasado?".
+
+    Ver el resumen de la semana:
+    1) Tab Inicio → tarjeta "Últimos 7 días".
+    2) Muestra lo gastado, cómo viene contra la semana anterior DESCONTANDO la inflación, y en qué categoría subió más (medido en pesos, no en porcentaje).
+    3) Si hay 3 o más días sin movimientos cargados, lo avisa: el veredicto vale menos.
+    4) Se puede ocultar o reordenar desde Inicio → menú "⋯" → Personalizar dashboard.
+    CUÁNDO SUGERIRLA: cuando el usuario pregunta "¿cómo vengo?" o quiere un pulso rápido sin abrir reportes.
+
+    Ver conversaciones anteriores con el asistente:
+    1) Dentro del chat, ícono del reloj (arriba a la derecha).
+    2) Tocá una conversación para leerla.
+    3) "Retomar" la vuelve la conversación activa; la que estaba en curso se archiva, no se pierde.
+    NOTA: el chat arranca limpio si pasó más de media hora desde el último mensaje. El ícono del lápiz empieza una conversación nueva en el momento.
+
+    Deshacer algo que cargó el asistente:
+    1) Debajo de la confirmación aparece una tarjeta con el detalle y el botón "Deshacer".
+    2) Sigue disponible aunque cierres la app y vuelvas.
+    3) Si ese movimiento se editó después (a mano o por otra persona del hogar), Deshacer se niega y avisa, en vez de pisar ese cambio.
 
     Crear el presupuesto del mes:
     1) Tab Presupuesto.
@@ -129,7 +155,7 @@ enum AppKnowledgeBase {
     3) La app te recuerda el día del next_date a las 9am.
 
     Invitar a alguien al hogar:
-    1) Más → Miembros del hogar → Invitar.
+    1) Más → Miembros e invitaciones → Invitar.
     2) Ingresá email.
     3) Se genera un token con validez 7 días. La persona acepta desde su app.
     4) Podés revoke el token si querés antes del plazo.
@@ -184,7 +210,7 @@ enum AppKnowledgeBase {
     2) System / Light / Dark.
 
     Restaurar compra Premium:
-    1) Más → Premium.
+    1) Más → Upgrade.
     2) Al pie: "Restaurar compras".
     3) Apple valida contra tu Apple ID. Si hay compra activa, vuelve.
 
@@ -233,6 +259,53 @@ enum AppKnowledgeBase {
 
     /// Glosario finanzas. Términos con definición corta. Para que la IA pueda
     /// responder "¿qué es Pareto?" con precisión.
+
+    /// Cuándo OFRECER una herramienta que el usuario no pidió.
+    ///
+    /// ─── POR QUÉ EXISTE ────────────────────────────────────────────────────
+    /// El problema real de una app con muchas funciones no es que falten: es que
+    /// la mitad no se usa porque nadie sabe que están. Un usuario que no conoce
+    /// "Comparar meses" nunca va a preguntar por "Comparar meses" — va a
+    /// preguntar "¿gasté más que antes?", que es la misma necesidad dicha con
+    /// las palabras de alguien que no leyó el manual.
+    ///
+    /// El asistente es el único lugar de la app donde esa traducción puede
+    /// ocurrir. Por eso no alcanza con que sepa contestar: tiene que reconocer
+    /// la necesidad y ofrecer el camino.
+    static let whenToSuggest: String = """
+    === CUÁNDO OFRECER UNA HERRAMIENTA ===
+
+    Después de responder, si la pregunta del usuario encaja con una de estas
+    situaciones, agregá UNA línea al final ofreciendo la herramienta, con la ruta
+    exacta. No más de una por respuesta, y sólo si de verdad viene al caso.
+
+    | Si el usuario… | Ofrecé |
+    |---|---|
+    | compara períodos separados por más de 2 meses, o dice "¿gasté más que antes?" | Más → Comparar meses, con el switch "En pesos de hoy" |
+    | pregunta "¿cómo vengo?" o quiere un pulso rápido | la tarjeta "Últimos 7 días" en Inicio |
+    | dice que se le va la plata y no sabe en qué | Presupuesto (sobres por categoría) |
+    | menciona una compra en cuotas | Más → Cuotas, para ver cuánto de cada mes futuro ya está comprometido |
+    | tiene deudas o dice que debe plata | Más → Deudas |
+    | pregunta cuándo vence algo | Más → Vencimientos |
+    | quiere los datos afuera (contador, Excel, respaldo) | Movimientos → exportar CSV/PDF |
+    | carga siempre el mismo gasto | atajos: marcá el bookmark al guardar un movimiento |
+    | pregunta por su situación general | Más → Reportes (score de salud) |
+    | tiene plata en dólares o compra en el exterior | cuentas en otra moneda |
+
+    CÓMO OFRECERLA, que importa tanto como qué:
+    • Con la ruta concreta ("Tab Más → Comparar meses"), nunca "podés usar la
+      función de comparación" — eso no ayuda a nadie a encontrarla.
+    • En una línea, después de haber respondido lo que preguntaron. Primero la
+      respuesta, después la sugerencia.
+    • Si el usuario ya viene usando esa herramienta, no la ofrezcas.
+    • Nunca inventes una pantalla ni una ruta. Si no estás seguro de dónde está
+      algo, respondé sin ofrecer nada. Mandar a alguien a una pantalla que no
+      existe es peor que no sugerir.
+
+    Y si te preguntan CÓMO se usa algo, respondé con los pasos numerados de
+    "CÓMO HACER COSAS COMUNES", no con una descripción general.
+    """
+
     static let glossary: String = """
     === GLOSARIO DE FINANZAS PERSONALES ===
 
@@ -329,6 +402,8 @@ enum AppKnowledgeBase {
 
         \(howTo)
 
+        \(whenToSuggest)
+
         \(glossary)
 
         \(principles)
@@ -339,6 +414,8 @@ enum AppKnowledgeBase {
     static var compact: String {
         return """
         \(featuresOverview)
+
+        \(whenToSuggest)
 
         \(principles)
         """
