@@ -1011,7 +1011,30 @@ actor AIToolHandler {
 
         if oldTotal > 0 {
             let totalChange = ((recentTotal - oldTotal) / oldTotal) as NSDecimalNumber
-            lines.append("Overall spending change: \(Int(totalChange.doubleValue * 100))%")
+            lines.append("Overall spending change (nominal): \(Int(totalChange.doubleValue * 100))%")
+        }
+
+        // ─── LO QUE DE VERDAD IMPORTA EN ARGENTINA ─────────────────────────
+        // El cambio nominal miente: con 33,5% interanual, "gastaste 20% más"
+        // puede ser gastaste 10% MENOS en términos reales. Se reexpresa el
+        // período viejo a pesos de hoy con el CER oficial y se compara ahí.
+        let cer = await CERService.shared.snapshot()
+        let indiceCER: (Date) -> Decimal? = { cer.valor($0) }
+        let mitadVieja = oldStart.addingTimeInterval(oldEnd.timeIntervalSince(oldStart) / 2)
+        if oldTotal > 0,
+           let viejoEnPesosDeHoy = Reexpresion.llevar(oldTotal, desde: mitadVieja, hasta: now, indice: indiceCER),
+           viejoEnPesosDeHoy > 0,
+           let real = Reexpresion.variacionReal(
+               anterior: oldTotal, fechaAnterior: mitadVieja,
+               actual: recentTotal, fechaActual: now, indice: indiceCER) {
+            let pct = Int(((real as NSDecimalNumber).doubleValue * 100).rounded())
+            lines.append("Same period expressed in TODAY's pesos (official CER index): \(fmt(viejoEnPesosDeHoy))")
+            lines.append("REAL change (inflation removed): \(pct > 0 ? "+" : "")\(pct)%")
+            lines.append(pct < 0
+                ? "So in real terms the user is spending LESS than before — say this explicitly, it is the headline."
+                : "So the increase is real: it is above inflation, not just prices going up.")
+        } else {
+            lines.append("(Could not express in today's pesos: no CER data for that date range.)")
         }
         lines.append("")
 
@@ -1036,7 +1059,7 @@ actor AIToolHandler {
         }
 
         lines.append("")
-        lines.append("Note: This compares your actual spending, not official inflation indexes. Price changes are approximated from average transaction amounts.")
+        lines.append("Note: the REAL change uses the BCRA's official CER index. The per-category numbers are nominal, and price changes are approximated from average transaction amounts.")
 
         return lines.joined(separator: "\n")
     }

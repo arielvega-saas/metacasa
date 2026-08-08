@@ -16,6 +16,13 @@ struct CompareMonthsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    /// Comparar dos meses en pesos nominales es comparar dos monedas distintas
+    /// con el mismo nombre. Con 33,5% interanual, "gastaste 20% más" puede ser
+    /// "gastaste 10% menos" en términos reales. Este switch es el que hace que
+    /// la comparación signifique algo.
+    @State private var enPesosDeHoy = false
+    @State private var cer: CERService.Snapshot?
+
     private var householdCurrency: String {
         appState.households.first(where: { $0.id == appState.currentHouseholdId })?.defaultCurrency ?? "USD"
     }
@@ -25,6 +32,7 @@ struct CompareMonthsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     pickersCard
+                    switchDeMoneda
                     if isLoading {
                         ProgressView().padding()
                     } else {
@@ -45,7 +53,13 @@ struct CompareMonthsView: View {
                     Button("Cerrar") { dismiss() }
                 }
             }
-            .task { await reload() }
+            .task {
+                await reload()
+                // El índice sólo hace falta en esta pantalla, así que se carga
+                // acá y no al arrancar la app.
+                let s = await CERService.shared.snapshot()
+                cer = s.estaVacio ? nil : s
+            }
             .onChange(of: monthA) { _, _ in Task { await reload() } }
             .onChange(of: monthB) { _, _ in Task { await reload() } }
         }
@@ -72,6 +86,44 @@ struct CompareMonthsView: View {
         }
     }
 
+    /// Lleva un total del mes A a la moneda del mes B. Se toma el punto medio
+    /// del mes como fecha de referencia: es el promedio de cuándo se gastó, y
+    /// evita que un mes entero se reexprese con el índice de su día 1.
+    private func aMonedaDeB(_ monto: Decimal) -> Decimal? {
+        guard enPesosDeHoy, let cer else { return nil }
+        let cal = Calendar.current
+        let medioA = cal.date(byAdding: .day, value: 15, to: inicioDeMes(monthA)) ?? monthA
+        let medioB = cal.date(byAdding: .day, value: 15, to: inicioDeMes(monthB)) ?? monthB
+        return Reexpresion.llevar(monto, desde: medioA, hasta: medioB, indice: { cer.valor($0) })
+    }
+
+    private func inicioDeMes(_ d: Date) -> Date {
+        let cal = Calendar.current
+        return cal.date(from: cal.dateComponents([.year, .month], from: d)) ?? d
+    }
+
+    private var switchDeMoneda: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $enPesosDeHoy.animation(.easeInOut(duration: 0.2))) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("compare.constantPesos").font(.mcBody.weight(.semibold))
+                    Text("compare.constantPesos.help")
+                        .font(.mcCaption)
+                        .foregroundStyle(Color.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Color.brandPrimary)
+            .disabled(cer == nil)
+            if cer == nil {
+                Text("compare.constantPesos.unavailable")
+                    .font(.mcCaption)
+                    .foregroundStyle(Color.textMuted)
+            }
+        }
+        .mcCard()
+    }
+
     private var totalsCard: some View {
         let (ingA, gasA) = totals(txs: txsA)
         let (ingB, gasB) = totals(txs: txsB)
@@ -91,7 +143,11 @@ struct CompareMonthsView: View {
         .mcCard()
     }
 
-    private func compareRow(labelKey: LocalizedStringKey, valueA: Decimal, valueB: Decimal, kind: AmountLabel.Kind) -> some View {
+    private func compareRow(labelKey: LocalizedStringKey, valueA valueAOriginal: Decimal, valueB: Decimal, kind: AmountLabel.Kind) -> some View {
+        // Si el switch está activo, el mes A se muestra YA reexpresado, y el Δ
+        // se calcula sobre ese valor: mostrar un delta nominal al lado de un
+        // importe reexpresado sería peor que no reexpresar nada.
+        let valueA = aMonedaDeB(valueAOriginal) ?? valueAOriginal
         let delta = valueB - valueA
         return VStack(alignment: .leading, spacing: 6) {
             Text(labelKey).font(.mcLabel).foregroundStyle(Color.textMuted)

@@ -6539,6 +6539,75 @@
         }
       }
     },
+    "compare.constantPesos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's pesos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En pesos de hoy"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Em reais de hoje"
+          }
+        }
+      }
+    },
+    "compare.constantPesos.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjusts the older month for inflation so both months are comparable."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajusta el mes más viejo por inflación para que los dos sean comparables."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajusta o mês mais antigo pela inflação para que os dois sejam comparáveis."
+          }
+        }
+      }
+    },
+    "compare.constantPesos.unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The inflation index isn't available right now."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El índice de inflación no está disponible en este momento."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O índice de inflação não está disponível no momento."
+          }
+        }
+      }
+    },
     "compare.expenses": {
       "extractionState": "stale",
       "localizations": {

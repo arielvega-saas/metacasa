@@ -43,21 +43,30 @@ actor CERService {
         return serie[diasOrdenados[idx]]
     }
 
-    /// Snapshot sincrónico para usar dentro de un cálculo.
+    /// Copia inmutable de la serie, para calcular sin volver al actor.
     ///
-    /// `Reexpresion` toma una closure sincrónica a propósito: reexpresar una
-    /// lista de mil movimientos no puede hacer mil `await`. Se pide el snapshot
-    /// una vez y se calcula todo con él.
-    func snapshot() async -> (Date) -> Decimal? {
-        await cargarSiHaceFalta()
-        let serieLocal = serie
-        let diasLocal = diasOrdenados
-        return { fecha in
-            let clave = Self.clave(fecha)
-            if let exacto = serieLocal[clave] { return exacto }
-            guard let idx = diasLocal.lastIndex(where: { $0 <= clave }) else { return nil }
-            return serieLocal[diasLocal[idx]]
+    /// Reexpresar mil movimientos no puede hacer mil `await`: se pide el
+    /// snapshot una vez y se calcula todo con él. Es un **valor** `Sendable` y
+    /// no una closure a propósito — una closure capturando el estado del actor
+    /// no puede cruzar la frontera de aislamiento.
+    struct Snapshot: Sendable {
+        fileprivate let serie: [String: Decimal]
+        fileprivate let dias: [String]
+
+        /// Igual que `valor(para:)`: día exacto, o el último anterior.
+        func valor(_ fecha: Date) -> Decimal? {
+            let clave = CERService.clave(fecha)
+            if let exacto = serie[clave] { return exacto }
+            guard let idx = dias.lastIndex(where: { $0 <= clave }) else { return nil }
+            return serie[dias[idx]]
         }
+
+        var estaVacio: Bool { serie.isEmpty }
+    }
+
+    func snapshot() async -> Snapshot {
+        await cargarSiHaceFalta()
+        return Snapshot(serie: serie, dias: diasOrdenados)
     }
 
     /// Fuerza una actualización desde el BCRA. Se llama al abrir la app.
