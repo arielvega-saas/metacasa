@@ -31,6 +31,13 @@ struct ChatMessageRecord: Codable, Identifiable, Sendable {
     let content: String
     let timestamp: Date
     let hadAttachment: Bool
+    /// Lo que el asistente escribió en la base en ese turno, para que el botón
+    /// "Deshacer" sobreviva a cerrar el chat.
+    ///
+    /// Opcional a propósito: los mensajes guardados antes de que este campo
+    /// existiera tienen que seguir decodificando. Un campo nuevo obligatorio en
+    /// un modelo persistido rompe el historial entero.
+    var revertibles: [AccionRevertible]?
 
     enum Role: String, Codable, Sendable {
         case user
@@ -43,13 +50,15 @@ struct ChatMessageRecord: Codable, Identifiable, Sendable {
         role: Role,
         content: String,
         timestamp: Date = Date(),
-        hadAttachment: Bool = false
+        hadAttachment: Bool = false,
+        revertibles: [AccionRevertible]? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.hadAttachment = hadAttachment
+        self.revertibles = revertibles
     }
 }
 

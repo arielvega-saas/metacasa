@@ -1356,7 +1356,8 @@ final class AssistantViewModel {
                     case .system: return .system
                     }
                 }(),
-                content: rec.content
+                content: rec.content,
+                revertibles: rec.revertibles ?? []
             )
         }
         loadedHouseholdId = hid
@@ -1506,7 +1507,8 @@ final class AssistantViewModel {
             role: role,
             content: msg.content,
             timestamp: msg.timestamp,
-            hadAttachment: hadAttachment
+            hadAttachment: hadAttachment,
+            revertibles: msg.revertibles.isEmpty ? nil : msg.revertibles
         )
         Task.detached {
             await ChatPersistenceService.shared.appendMessage(
