@@ -175,7 +175,24 @@ actor AIAssistantService {
                 )
             }) {
             case .ok(let response):
-                NSLog("[AI] Tier 1 (FoundationModels) success")
+                // ─── NO LE CREEMOS LA PALABRA ────────────────────────────
+                // El modelo on-device redacta confirmaciones sin ejecutar la
+                // acción: "Actualicé el gasto a 78.972,57" sobre un registro
+                // que en la base quedó intacto. Si el texto afirma un cambio y
+                // el turno no ejecutó ni una escritura, el turno se descarta y
+                // lo atiende Claude, que sí trae las tools con verificación
+                // contra la base.
+                //
+                // Escalar es seguro justamente porque el contador está en
+                // CERO: no hay nada escrito que se pueda duplicar.
+                let escrituras = await AIConversationManager.shared.escriturasDelUltimoTurno() ?? 0
+                if escrituras == 0, AfirmacionDeCambio.afirmaCambio(response) {
+                    let msg = "Tier 1 descartado: afirmó un cambio sin ejecutar ninguna escritura"
+                    NSLog("[AI] %@", msg)
+                    debugTrace.append(msg)
+                    break
+                }
+                NSLog("[AI] Tier 1 (FoundationModels) success (escrituras: %d)", escrituras)
                 return response
             case .failed(let detalle):
                 let msg = "Tier 1 (FoundationModels): \(detalle)"

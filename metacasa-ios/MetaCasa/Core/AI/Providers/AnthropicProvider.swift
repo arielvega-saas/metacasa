@@ -600,6 +600,7 @@ actor AnthropicProvider {
                   let name = block.name else { continue }
 
             let resultText: String
+            var fallo = false
             do {
                 resultText = try await AnthropicToolDispatcher.dispatch(
                     name: name,
@@ -607,13 +608,18 @@ actor AnthropicProvider {
                     handler: handler
                 )
             } catch {
-                resultText = "Error executing tool: \(error.localizedDescription)"
+                // `is_error: true` es lo que hace que el modelo trate esto como
+                // un fracaso en vez de como un dato más. Sin la marca, decía
+                // "listo, lo corregí" sobre una escritura que nunca ocurrió.
+                resultText = "La herramienta falló: \(error.localizedDescription)"
+                fallo = true
             }
 
             results.append(APIBlock(
                 type: "tool_result",
                 toolUseId: id,
-                content: resultText
+                content: resultText,
+                isError: fallo
             ))
         }
         return results
@@ -769,17 +775,26 @@ struct APIBlock: Codable, Sendable {
     var toolUseId: String?
     var content: String?
     var source: ImageSource?
+    /// Marca un `tool_result` como fallido.
+    ///
+    /// Sin esto, un error viaja como resultado normal —un string más— y el
+    /// modelo lo puede pasar por alto. Pasó en producción: `update_transaction`
+    /// devolvía "Error: invalid transaction ID format." y el asistente contestó
+    /// "Corregido", con monto y todo, sin haber tocado la base.
+    var isError: Bool?
 
     enum CodingKeys: String, CodingKey {
         case type, text, id, name, input, source
         case toolUseId = "tool_use_id"
         case content
+        case isError = "is_error"
     }
 
-    init(type: String, toolUseId: String, content: String) {
+    init(type: String, toolUseId: String, content: String, isError: Bool = false) {
         self.type = type
         self.toolUseId = toolUseId
         self.content = content
+        self.isError = isError ? true : nil
     }
 
     init(type: String, text: String) {
@@ -818,6 +833,7 @@ struct APIBlock: Codable, Sendable {
         try c.encodeIfPresent(toolUseId, forKey: .toolUseId)
         try c.encodeIfPresent(content, forKey: .content)
         try c.encodeIfPresent(source, forKey: .source)
+        try c.encodeIfPresent(isError, forKey: .isError)
     }
 }
 

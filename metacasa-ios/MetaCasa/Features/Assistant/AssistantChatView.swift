@@ -84,6 +84,22 @@ struct AssistantChatView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
+                        Haptics.play(.impactLight)
+                        Task { await viewModel.empezarNuevaConversacion(appState: appState) }
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.title3)
+                            .foregroundStyle(Color.textPrimary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    // Con sólo la bienvenida en pantalla no hay nada que
+                    // archivar, y el botón sería un engaño.
+                    .disabled(viewModel.messages.count <= 1 || viewModel.isThinking)
+                    .accessibilityLabel(Text("assistant.newConversation"))
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
                         if privacy.canUseCloudAssistant {
                             // Pasamos la history actual al voice mode para continuidad.
                             VoiceConversationManager.shared.bridgeFrom(messages: viewModel.messages)
@@ -287,11 +303,18 @@ struct AssistantChatView: View {
             .onChange(of: viewModel.messages.count) { _, _ in bajar(proxy) }
             .onChange(of: viewModel.isThinking) { _, _ in bajar(proxy) }
             .onChange(of: inputFocused) { _, nuevo in if nuevo { bajar(proxy) } }
-            // Durante el stream seguimos el texto, pero por tramos de 400
-            // caracteres —no por tick— así el seguimiento no vuelve a ser el
-            // trabajo dominante del hilo principal.
-            .onChange(of: (viewModel.messages.last?.content.count ?? 0) / 400) { _, _ in
+            // Durante el stream seguimos el texto por tramos, no por tick. 400
+            // caracteres era demasiado grueso: una respuesta corta no llegaba a
+            // un solo tramo y el chat no se movía ni una vez, así que la
+            // respuesta entera quedaba abajo de la pantalla. 60 caracteres es
+            // ~una línea, y sobre un `List` cada salto es barato.
+            .onChange(of: (viewModel.messages.last?.content.count ?? 0) / 60) { _, _ in
                 bajar(proxy)
+            }
+            // Y al cerrar el mensaje: recién ahí se parsea el markdown, así que
+            // la burbuja cambia de alto una última vez DESPUÉS del último tramo.
+            .onChange(of: viewModel.messages.last?.isStreaming) { _, sigue in
+                if sigue == false { bajar(proxy) }
             }
         }
     }
@@ -1119,6 +1142,20 @@ final class AssistantViewModel {
             return
         }
 
+        // ¿La conversación quedó vieja? Entonces esta apertura arranca una
+        // nueva. Va ANTES del early-return de abajo: si no, reabrir el chat
+        // sin haber matado la app mostraría para siempre lo que quedó en
+        // memoria, aunque en disco ya se haya rotado.
+        if let vieja = await ChatPersistenceService.shared
+            .rotar(householdId: hid, userId: uid, soloSiVencio: true) {
+            Task.detached {
+                let token = await TokenHolder.shared.get()
+                await ChatPersistenceService.shared.resumirEIndexar(vieja, accessToken: token)
+            }
+            messages = []
+            loadedHouseholdId = nil
+        }
+
         if loadedHouseholdId == hid && !messages.isEmpty {
             // Mismo hogar y ya hay contenido — no recargar, mantener estado UI.
             return
@@ -1147,6 +1184,25 @@ final class AssistantViewModel {
         // Cargar resúmenes en background — no bloquea la UI.
         pastSummaries = await ChatPersistenceService.shared
             .recentSummaries(householdId: hid, limit: 3)
+    }
+
+    /// "Empezar de nuevo" a mano, sin esperar a que venza la ventana de
+    /// continuidad. Lo que había se archiva y se resume igual, así que el
+    /// asistente no pierde la memoria de esa charla: sólo desaparece de la
+    /// pantalla.
+    func empezarNuevaConversacion(appState: AppState) async {
+        guard let hid = appState.currentHouseholdId,
+              let uid = appState.currentUserId else { return }
+        if let vieja = await ChatPersistenceService.shared
+            .rotar(householdId: hid, userId: uid, soloSiVencio: false) {
+            Task.detached {
+                let token = await TokenHolder.shared.get()
+                await ChatPersistenceService.shared.resumirEIndexar(vieja, accessToken: token)
+            }
+        }
+        messages = []
+        loadedHouseholdId = nil
+        await bootstrap(appState: appState)
     }
 
     /// Cierra la sesión actual al dismissar el chat. Si tuvo >4 mensajes,

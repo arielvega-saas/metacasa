@@ -144,6 +144,94 @@ actor ChatPersistenceService {
         try? saveSession(fresh, to: currentSessionURL(householdId: householdId))
     }
 
+    // MARK: - Rotación de la conversación
+
+    /// Cuánto vale "la conversación de ahora".
+    ///
+    /// Volver al asistente dentro de esta ventana retoma lo que venías
+    /// hablando; más tarde, abrir el asistente empieza de cero. Media hora es
+    /// el corte natural de una tarea acá: cargar los gastos del finde, revisar
+    /// el mes. Volver al otro día es otro tema, y arrastrar el anterior sólo
+    /// confunde —al usuario, que ve una pantalla que no pidió, y al modelo,
+    /// que arrastra contexto viejo.
+    static let ventanaDeContinuidad: TimeInterval = 30 * 60
+
+    /// Archiva la conversación actual y deja una limpia.
+    ///
+    /// **Devuelve la vieja para que el llamador la resuma en background**: el
+    /// resumen pega a la red y no puede demorar la apertura del chat. Por eso
+    /// esta parte es sincrónica y local, y la del resumen va aparte
+    /// (`resumirEIndexar`). `nil` si no había nada que rotar.
+    ///
+    /// Con `soloSiVencio: false` rota igual — es el "empezar de nuevo" manual.
+    func rotar(
+        householdId: UUID,
+        userId: UUID,
+        soloSiVencio: Bool,
+        ahora: Date = Date()
+    ) -> ChatSessionRecord? {
+        var session = loadOrCreateCurrent(householdId: householdId, userId: userId)
+        let reales = session.messages.filter { !$0.content.isEmpty && $0.role != .system }
+        guard !reales.isEmpty else { return nil }
+        if soloSiVencio,
+           ahora.timeIntervalSince(session.lastUpdatedAt) <= Self.ventanaDeContinuidad {
+            return nil
+        }
+
+        session.isClosed = true
+        try? saveSession(
+            session,
+            to: archivedSessionURL(householdId: householdId, sessionId: session.id)
+        )
+        let fresh = ChatSessionRecord(
+            id: UUID(),
+            householdId: householdId,
+            userId: userId,
+            createdAt: ahora,
+            lastUpdatedAt: ahora,
+            summary: nil,
+            isClosed: false,
+            messages: []
+        )
+        try? saveSession(fresh, to: currentSessionURL(householdId: householdId))
+        return session
+    }
+
+    /// Resume una sesión ya archivada y la agrega al índice que alimenta la
+    /// memoria del asistente. Pensado para correr en background después de
+    /// `rotar`: si falla, se pierde el resumen, no la conversación.
+    func resumirEIndexar(_ session: ChatSessionRecord, accessToken: String?) async {
+        guard let token = accessToken else { return }
+        let reales = session.messages.filter { !$0.content.isEmpty && $0.role != .system }
+        // Una charla de cuatro mensajes no tiene nada que recordar.
+        guard reales.count > 4 else { return }
+        do {
+            let summary = try await Self.summarizeViaHaiku(messages: reales, accessToken: token)
+            var index = (try? loadSummaryIndex(householdId: session.householdId))
+                ?? ChatSummaryIndex(entries: [])
+            index.entries.append(ChatSummaryEntry(
+                id: UUID(),
+                sessionId: session.id,
+                createdAt: session.createdAt,
+                summary: summary,
+                messageCount: reales.count
+            ))
+            if index.entries.count > 20 {
+                index.entries = Array(index.entries.suffix(20))
+            }
+            try saveSummaryIndex(index, householdId: session.householdId)
+
+            var actualizada = session
+            actualizada.summary = summary
+            try saveSession(
+                actualizada,
+                to: archivedSessionURL(householdId: session.householdId, sessionId: session.id)
+            )
+        } catch {
+            NSLog("[ChatPersistence] resumen diferido falló: \(error.localizedDescription)")
+        }
+    }
+
     /// Reset total — útil cuando el user elimina su hogar.
     func clearAll(householdId: UUID) {
         let dir = sessionsDir(householdId: householdId)

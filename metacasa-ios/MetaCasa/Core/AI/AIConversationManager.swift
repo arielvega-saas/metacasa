@@ -30,6 +30,11 @@ actor AIConversationManager {
     }
     private var memory = ConversationMemory()
 
+    /// El handler de la sesión activa, para poder contar las escrituras REALES
+    /// de cada turno. La sesión se reusa varios minutos, así que el handler
+    /// vive más que un turno y el contador se resetea al empezar cada uno.
+    private var handlerActivo: AIToolHandler?
+
     // MARK: - Public API
 
     #if canImport(FoundationModels)
@@ -47,6 +52,7 @@ actor AIConversationManager {
             query: message
         )
 
+        await handlerActivo?.iniciarTurno()
         let response = try await session.respond(to: message)
         turnCount += 1
 
@@ -62,10 +68,21 @@ actor AIConversationManager {
     func reset() {
         #if canImport(FoundationModels)
         _activeSession = nil
+        handlerActivo = nil
         sessionCreatedAt = nil
         turnCount = 0
         lastHouseholdId = nil
         #endif
+    }
+
+    /// Escrituras REALES que ejecutó el último turno on-device.
+    ///
+    /// `nil` si no hay handler (no hubo sesión). Se usa para desmentir al
+    /// modelo cuando afirma un cambio que no ocurrió — ver
+    /// [AfirmacionDeCambio].
+    func escriturasDelUltimoTurno() async -> Int? {
+        guard let h = handlerActivo else { return nil }
+        return await h.escriturasDelTurno
     }
 
     func clearMemory() {
@@ -100,6 +117,7 @@ actor AIConversationManager {
             currency: context.currency
         )
 
+        handlerActivo = handler
         let tools = buildToolset(handler: handler)
         let session = LanguageModelSession(
             model: model,

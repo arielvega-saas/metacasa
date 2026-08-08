@@ -1,5 +1,35 @@
 import Foundation
 
+/// Por qué las tools **lanzan** en vez de devolver "Error: …" como texto.
+///
+/// Un string que empieza con "Error:" es, para el modelo, un resultado más:
+/// puede leerlo, decidir que no es importante y seguir. Lanzando, el
+/// `tool_result` viaja con `is_error: true`, que es la señal que el modelo sí
+/// respeta. La diferencia se pagó en producción: el asistente confirmó por
+/// escrito una corrección de importe que nunca llegó a la base.
+enum AIToolError: LocalizedError {
+    case referenciaInvalida(String)
+    case referenciaAmbigua(String, Int)
+    case movimientoNoEncontrado(String)
+    case escrituraNoVerificable(String)
+    case escrituraNoImpactada(pedido: String, real: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .referenciaInvalida(let r):
+            return "\"\(r)\" no identifica un movimiento. Buscá el movimiento primero y usá el id completo que devuelve la búsqueda."
+        case .referenciaAmbigua(let r, let n):
+            return "\"\(r)\" coincide con \(n) movimientos. Pedí el id completo antes de escribir."
+        case .movimientoNoEncontrado(let r):
+            return "No existe ningún movimiento con id \(r). NO informes ningún cambio: no se modificó nada."
+        case .escrituraNoVerificable(let id):
+            return "El movimiento \(id) no se pudo releer después de escribir, así que el cambio no está confirmado. NO informes que se guardó."
+        case .escrituraNoImpactada(let pedido, let real):
+            return "El cambio NO se aplicó. Se pidió \(pedido) y en la base quedó \(real). NO informes que se guardó."
+        }
+    }
+}
+
 /// Ejecución de las 22 tools del asistente. **Sin FoundationModels y sin gate
 /// de versión: corre desde iOS 17**, que es el deployment target de la app.
 ///
@@ -40,6 +70,28 @@ actor AIToolHandler {
     /// donde alcanzaban catorce. El handler vive lo que dura un turno, así que
     /// cachearlo acá no puede quedar rancio.
     private var cuentaPorDefecto: UUID??
+
+    /// Cuántas escrituras REALES ejecutó el turno.
+    ///
+    /// Existe porque el asistente puede **redactar** una confirmación sin haber
+    /// ejecutado nada: "Actualicé el gasto a $78.972,57" sobre un registro que
+    /// quedó intacto. Ningún prompt evita eso de manera confiable —un modelo
+    /// chico alucina confirmaciones—, así que la app no le cree a la palabra:
+    /// cuenta los efectos.
+    ///
+    /// Sólo suma cuando la escritura ya volvió verificada de la base, nunca al
+    /// intentarla.
+    private(set) var escriturasDelTurno = 0
+
+    /// Arranca un turno nuevo. La sesión on-device se reusa varios minutos, así
+    /// que el contador tiene que volver a cero acá y no al crear el handler.
+    func iniciarTurno() {
+        escriturasDelTurno = 0
+    }
+
+    private func registrarEscritura() {
+        escriturasDelTurno += 1
+    }
 
     init(householdId: UUID, userId: UUID, currency: String) {
         self.householdId = householdId
@@ -157,7 +209,7 @@ actor AIToolHandler {
         for tx in display {
             let sign = tx.type == .gasto ? "-" : "+"
             let note = tx.note.flatMap { $0.isEmpty ? nil : " (\($0))" } ?? ""
-            lines.append("• \(fmtDate(tx.date)): \(sign)\(fmt(tx.amount)) \(tx.category)\(note) [id:\(tx.id.uuidString.prefix(8))]")
+            lines.append("• \(fmtDate(tx.date)): \(sign)\(fmt(tx.amount)) \(tx.category)\(note) [id:\(tx.id.uuidString)]")
         }
 
         return lines.joined(separator: "\n")
@@ -228,8 +280,9 @@ actor AIToolHandler {
         )
 
         let created = try await TransactionService.shared.insert(input)
+        registrarEscritura()
         let typeLabel = txType == .gasto ? "expense" : "income"
-        var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString.prefix(8))."
+        var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString)."
         if añoAjustado {
             // Que el modelo lo CUENTE. Corregir en silencio es tan malo como
             // guardar mal: el usuario tiene que poder decir "no, ese era del año
@@ -242,32 +295,80 @@ actor AIToolHandler {
     // MARK: - 3. Update Transaction
 
     func updateTransaction(_ p: UpdateTransactionArgs) async throws -> String {
-        guard let uuid = UUID(uuidString: expandUUID(p.transactionId)) else {
-            return "Error: invalid transaction ID format."
-        }
-        guard var tx = try await TransactionService.shared.fetchOne(id: uuid) else {
-            return "Error: transaction not found."
-        }
+        var tx = try await resolverTransaccion(p.transactionId)
+        let antes = tx
 
         if let a = p.amount { tx.amount = Decimal(a) }
         if let c = p.category { tx.category = c }
         if let s = p.subcategory { tx.subcategory = s }
         if let n = p.note { tx.note = n }
-        if let d = p.date, let date = parseDate(d) { tx.date = date }
+        if let d = p.date, let date = parseDate(d) {
+            // Misma validación de año que al crear: una edición también puede
+            // venir con el año inventado por el modelo.
+            tx.date = Self.fechaRazonable(date, hoy: Date()).fecha
+        }
         if let t = p.type { tx.type = t.uppercased() == "INGRESO" ? .ingreso : .gasto }
 
-        let updated = try await TransactionService.shared.update(tx)
-        return "Transaction updated: \(fmt(updated.amount)) in \(updated.category) on \(fmtDate(updated.date))."
+        _ = try await TransactionService.shared.update(tx)
+
+        // Releer antes de contestar. El resultado tiene que describir **lo que
+        // quedó en la base**, no lo que se pidió escribir: si el update no
+        // impactó, acá se ve, y el modelo no puede anunciar un cambio
+        // inexistente.
+        guard let confirmada = try await TransactionService.shared.fetchOne(id: tx.id) else {
+            throw AIToolError.escrituraNoVerificable(tx.id.uuidString)
+        }
+        guard confirmada.amount == tx.amount, confirmada.category == tx.category else {
+            throw AIToolError.escrituraNoImpactada(
+                pedido: "\(fmt(tx.amount)) en \(tx.category)",
+                real: "\(fmt(confirmada.amount)) en \(confirmada.category)"
+            )
+        }
+
+        var cambios: [String] = []
+        if antes.amount != confirmada.amount {
+            cambios.append("importe \(fmt(antes.amount)) → \(fmt(confirmada.amount))")
+        }
+        if antes.category != confirmada.category {
+            cambios.append("categoría \(antes.category) → \(confirmada.category)")
+        }
+        if (antes.note ?? "") != (confirmada.note ?? "") {
+            cambios.append("detalle → \(confirmada.note ?? "(vacío)")")
+        }
+        if antes.date != confirmada.date {
+            cambios.append("fecha \(fmtDate(antes.date)) → \(fmtDate(confirmada.date))")
+        }
+        if antes.type != confirmada.type {
+            cambios.append("tipo → \(confirmada.type == .ingreso ? "ingreso" : "gasto")")
+        }
+
+        let detalle = cambios.isEmpty
+            ? "no cambió ningún campo (los valores enviados ya eran los guardados)"
+            : cambios.joined(separator: ", ")
+        registrarEscritura()
+        return """
+        Verificado en la base — \(detalle).
+        Estado actual: \(fmt(confirmada.amount)) en \(confirmada.category) \
+        el \(fmtDate(confirmada.date)) [id:\(confirmada.id.uuidString)]
+        """
     }
 
     // MARK: - 4. Delete Transaction
 
     func deleteTransaction(_ p: DeleteTransactionArgs) async throws -> String {
-        guard let uuid = UUID(uuidString: expandUUID(p.transactionId)) else {
-            return "Error: invalid transaction ID format."
+        let tx = try await resolverTransaccion(p.transactionId)
+        try await TransactionService.shared.delete(id: tx.id)
+
+        // Igual que en el update: se verifica que de verdad ya no esté antes de
+        // decir que se borró.
+        if try await TransactionService.shared.fetchOne(id: tx.id) != nil {
+            throw AIToolError.escrituraNoImpactada(
+                pedido: "borrar \(fmt(tx.amount)) en \(tx.category)",
+                real: "el movimiento sigue existiendo"
+            )
         }
-        try await TransactionService.shared.delete(id: uuid)
-        return "Transaction deleted."
+        registrarEscritura()
+        return "Verificado en la base — borrado: \(fmt(tx.amount)) en \(tx.category) el \(fmtDate(tx.date))."
     }
 
     // MARK: - 5. Financial Summary
@@ -862,6 +963,7 @@ actor AIToolHandler {
         }
         do {
             try await BillService.shared.markPaid(id: uuid)
+            registrarEscritura()
             return "✅ Factura marcada como pagada."
         } catch {
             return "Error al marcar la factura: \(error.localizedDescription)"
@@ -988,6 +1090,7 @@ actor AIToolHandler {
             monthFmt.dateFormat = "yyyy-MM"
             monthFmt.locale = Locale(identifier: "en_US_POSIX")
             let periodLabel = monthFmt.string(from: period.periodStart)
+            registrarEscritura()
             return "✅ Presupuesto seteado: \(p.category)\(sub) = \(formatted) para \(periodLabel)."
         } catch {
             return "Error al setear presupuesto: \(error.localizedDescription)"
@@ -1044,6 +1147,7 @@ actor AIToolHandler {
                 )
             )
             let formatted = Money.format(amount, currency: currency, style: .compact)
+            registrarEscritura()
             return "✅ Transferencia ejecutada: \(formatted) movido entre cuentas."
         } catch {
             // Sin "puede que haya quedado a medias": la RPC es atómica, si falló no entró nada.
@@ -1250,8 +1354,60 @@ actor AIToolHandler {
 
     // MARK: - Helpers
 
-    private func expandUUID(_ s: String) -> String {
-        if s.count == 8 { return s }
-        return s
+    /// Resuelve la referencia a un movimiento que manda el modelo.
+    ///
+    /// ─── EL BUG QUE ARREGLA ────────────────────────────────────────────────
+    /// Los listados devolvían el id **recortado a 8 caracteres** (`[id:b3deed5d]`)
+    /// y el único "expansor" que había era esto:
+    ///
+    ///     private func expandUUID(_ s: String) -> String {
+    ///         if s.count == 8 { return s }
+    ///         return s
+    ///     }
+    ///
+    /// —o sea, nada—. Después venía `UUID(uuidString: "b3deed5d")`, que da `nil`.
+    /// Resultado: **editar y borrar movimientos desde el chat nunca funcionó**,
+    /// porque el modelo jamás podía conocer otro id que el recortado. Y como el
+    /// fallo se devolvía como texto normal, el asistente contestaba "Corregido"
+    /// igual. Caso real: un gasto de $98.800 que quedó en $98.800 después de que
+    /// el asistente confirmara que lo había cambiado a $78.972,57.
+    ///
+    /// Ahora los listados mandan el UUID entero, así el id sobrevive en el
+    /// historial de la conversación y sirve en cualquier turno posterior. Esta
+    /// función además sigue aceptando referencias cortas, que es lo que hay en
+    /// las conversaciones ya empezadas.
+    private func resolverTransaccion(_ ref: String) async throws -> Transaction {
+        let limpio = ref.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let uuid = UUID(uuidString: limpio) {
+            guard let tx = try await TransactionService.shared.fetchOne(id: uuid) else {
+                throw AIToolError.movimientoNoEncontrado(limpio)
+            }
+            return tx
+        }
+
+        // Referencia corta. Menos de 6 caracteres no identifica nada: mejor
+        // fallar que editar el movimiento equivocado.
+        let prefijo = limpio.lowercased()
+        guard prefijo.count >= 6, prefijo.allSatisfy({ $0.isHexDigit || $0 == "-" }) else {
+            throw AIToolError.referenciaInvalida(limpio)
+        }
+
+        let cal = Calendar.current
+        let hoy = Date()
+        let candidatas = try await TransactionService.shared.fetchForPeriod(
+            householdId: householdId,
+            from: cal.date(byAdding: .month, value: -24, to: hoy) ?? hoy,
+            to: cal.date(byAdding: .month, value: 12, to: hoy) ?? hoy,
+            limit: 5000
+        ).filter { $0.id.uuidString.lowercased().hasPrefix(prefijo) }
+
+        guard candidatas.count <= 1 else {
+            throw AIToolError.referenciaAmbigua(limpio, candidatas.count)
+        }
+        guard let tx = candidatas.first else {
+            throw AIToolError.movimientoNoEncontrado(limpio)
+        }
+        return tx
     }
 }
