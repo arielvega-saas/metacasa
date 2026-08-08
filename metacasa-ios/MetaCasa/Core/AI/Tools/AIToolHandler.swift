@@ -180,6 +180,18 @@ actor AIToolHandler {
         return "\(currencyCode) \(formatted)"
     }
 
+
+    /// Importe formateado para que lo lea una PERSONA.
+    ///
+    /// `fmt` está pensado para el modelo: código ISO explícito y sin separador
+    /// de miles, para que no interprete el "$" como dólares (sesgo de su
+    /// entrenamiento). Eso mismo, mostrado en la tarjeta de deshacer, se lee
+    /// "ARS 500000" — que en una app de plata queda mal y encima es más difícil
+    /// de verificar de un vistazo.
+    private func paraElUsuario(_ amount: Decimal) -> String {
+        Money.format(amount, currency: currency, style: .compact)
+    }
+
     // MARK: - 1. Query Transactions
 
     func queryTransactions(_ p: QueryTransactionsArgs) async throws -> String {
@@ -301,7 +313,7 @@ actor AIToolHandler {
         registrarEscritura()
         await AssistantActionLog.shared.registrar(AccionRevertible(
             clase: .alta,
-            descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(fmt(amount)) en \(p.category)",
+            descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(paraElUsuario(amount)) en \(p.category)",
             objetivo: created
         ))
         let typeLabel = txType == .gasto ? "expense" : "income"
@@ -371,7 +383,7 @@ actor AIToolHandler {
         registrarEscritura()
         await AssistantActionLog.shared.registrar(AccionRevertible(
             clase: .edicion,
-            descripcion: "Edición de \(fmt(antes.amount)) en \(antes.category)",
+            descripcion: "Edición de \(paraElUsuario(antes.amount)) en \(antes.category)",
             objetivo: antes
         ))
         return """
