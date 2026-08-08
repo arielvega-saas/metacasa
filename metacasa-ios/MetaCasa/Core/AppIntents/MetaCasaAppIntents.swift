@@ -54,7 +54,7 @@ struct AddExpenseIntent: AppIntent {
             userId: session.userId,
             accountId: await AccountService.shared.defaultAccountId(householdId: hid),
             type: .gasto,
-            amount: Decimal(amount),
+            amount: Money.decimalDeMonto(amount),
             currencyOriginal: nil,
             category: category,
             subcategory: nil,
@@ -65,7 +65,7 @@ struct AddExpenseIntent: AppIntent {
         do {
             _ = try await TransactionService.shared.insert(input)
             let householdCurrency = households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
-            let formatted = Money.format(Decimal(amount), currency: householdCurrency, style: .compact)
+            let formatted = Money.format(Money.decimalDeMonto(amount), currency: householdCurrency, style: .compact)
             return .result(dialog: "Listo, cargué un gasto de \(formatted) en \(category).")
         } catch {
             return .result(dialog: "No pude cargar el gasto: \(error.localizedDescription)")
@@ -159,7 +159,7 @@ struct AddIncomeIntent: AppIntent {
             userId: session.userId,
             accountId: await AccountService.shared.defaultAccountId(householdId: hid),
             type: .ingreso,
-            amount: Decimal(amount),
+            amount: Money.decimalDeMonto(amount),
             currencyOriginal: nil,
             category: category,
             subcategory: nil,
@@ -170,7 +170,7 @@ struct AddIncomeIntent: AppIntent {
         do {
             _ = try await TransactionService.shared.insert(input)
             let currency = households.first(where: { $0.id == hid })?.defaultCurrency ?? "USD"
-            let formatted = Money.format(Decimal(amount), currency: currency, style: .compact)
+            let formatted = Money.format(Money.decimalDeMonto(amount), currency: currency, style: .compact)
             return .result(dialog: "Listo, registré un ingreso de \(formatted) en \(category).")
         } catch {
             return .result(dialog: "No pude registrar el ingreso: \(error.localizedDescription)")

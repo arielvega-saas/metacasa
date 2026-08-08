@@ -105,10 +105,7 @@ actor AIToolHandler {
     /// como `Double`; lo que se puede hacer es cortar el error acá, en el único
     /// lugar por donde entra.
     private static func montoDecimal(_ d: Double) -> Decimal {
-        var origen = Decimal(d)
-        var redondeado = Decimal()
-        NSDecimalRound(&redondeado, &origen, 2, .plain)
-        return redondeado
+        Money.decimalDeMonto(d)
     }
 
     init(householdId: UUID, userId: UUID, currency: String) {
@@ -357,7 +354,8 @@ actor AIToolHandler {
         await AssistantActionLog.shared.registrar(AccionRevertible(
             clase: .alta,
             descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(paraElUsuario(amount)) en \(categoria)",
-            objetivo: created
+            objetivo: created,
+            resultado: created
         ))
         let typeLabel = txType == .gasto ? "expense" : "income"
         var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(categoria) on \(fmtDate(date)). ID: \(created.id.uuidString)."
@@ -430,7 +428,8 @@ actor AIToolHandler {
         await AssistantActionLog.shared.registrar(AccionRevertible(
             clase: .edicion,
             descripcion: "Edición de \(paraElUsuario(antes.amount)) en \(antes.category)",
-            objetivo: antes
+            objetivo: antes,
+            resultado: confirmada
         ))
         return """
         Verificado en la base — \(detalle).

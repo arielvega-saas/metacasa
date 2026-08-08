@@ -38,16 +38,21 @@ final class MontoDelAsistenteTests: XCTestCase {
         XCTAssertEqual(redondear(10.004), Decimal(string: "10.00")!)
     }
 
+    /// El importe entra por dos puertas —el asistente y los App Intents de
+    /// Siri— y las dos son `Double`. La regla es una sola.
+    func testLaPuertaDeSiriUsaLaMismaRegla() {
+        XCTAssertEqual(Money.decimalDeMonto(12500.99), Decimal(string: "12500.99")!)
+        XCTAssertEqual(Money.decimalDeMonto(0.1 + 0.2), Decimal(string: "0.30")!)
+    }
+
     func testMontosGrandesLATAM() {
         XCTAssertEqual(redondear(2591362.43), Decimal(string: "2591362.43")!)
     }
 
-    // Misma conversión que usa `AIToolHandler.montoDecimal` (privada por diseño:
-    // el importe sólo debe convertirse en el borde donde entra).
+    /// La implementación REAL, no una copia. Testear una copia de la regla es
+    /// exactamente cómo se pasa un bug: el test queda verde y producción usa
+    /// otro código.
     private func redondear(_ d: Double) -> Decimal {
-        var origen = Decimal(d)
-        var out = Decimal()
-        NSDecimalRound(&out, &origen, 2, .plain)
-        return out
+        Money.decimalDeMonto(d)
     }
 }

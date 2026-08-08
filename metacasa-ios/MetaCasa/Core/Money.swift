@@ -28,6 +28,28 @@ enum Money {
     }
 
     /// Formatea un monto como moneda según locale + código ISO 4217.
+
+    /// Convierte a `Decimal` un importe que llegó como `Double`.
+    ///
+    /// ─── POR QUÉ NO ALCANZA CON `Decimal(unDouble)` ────────────────────────
+    /// Conserva el error binario del double: pedir 78.972,57 guarda
+    /// `78972.57000000001024` en la columna de plata. No cambia ningún total
+    /// visible, pero es basura que reaparece en exportaciones, en
+    /// comparaciones por igualdad y en cualquier vista con más de dos
+    /// decimales. Ya pasó en producción.
+    ///
+    /// Los importes entran a la app como `Double` por dos puertas —el JSON del
+    /// asistente y los parámetros de los App Intents (Siri, Atajos)— y ninguna
+    /// de las dos puede declarar un decimal. Así que el error se corta acá, en
+    /// un solo lugar: **dos copias de esta regla es exactamente cómo una de las
+    /// dos vuelve a quedar mal.**
+    static func decimalDeMonto(_ d: Double) -> Decimal {
+        var origen = Decimal(d)
+        var redondeado = Decimal()
+        NSDecimalRound(&redondeado, &origen, 2, .plain)
+        return redondeado
+    }
+
     static func format(
         _ amount: Decimal,
         currency: String,
