@@ -306,6 +306,60 @@ enum AppKnowledgeBase {
     "CÓMO HACER COSAS COMUNES", no con una descripción general.
     """
 
+
+    /// Las necesidades que se resuelven de MÁS DE UNA forma.
+    ///
+    /// ─── POR QUÉ HIZO FALTA ────────────────────────────────────────────────
+    /// El asistente contestó bien "¿puedo deshacer algo que cargaste?" —explicó
+    /// el botón Deshacer del chat— pero **no mencionó que también se puede
+    /// borrar desde Movimientos**. El dato estaba en la base, en la sección del
+    /// tab Movimientos; lo que faltaba era el puente entre la NECESIDAD y todos
+    /// los caminos que la resuelven.
+    ///
+    /// Un experto en una app no conoce funciones sueltas: sabe que la misma
+    /// necesidad tiene varias puertas y cuál conviene según el caso. Contar una
+    /// sola deja al usuario creyendo que es la única.
+    static let variosCaminos: String = """
+    === LO MISMO SE PUEDE HACER DE VARIAS FORMAS ===
+
+    Cuando la pregunta encaje con una de estas necesidades, nombrá TODOS los
+    caminos —cortito, uno por línea— empezando por el más directo para lo que el
+    usuario está haciendo en ese momento. Contar uno solo lo deja creyendo que
+    es el único.
+
+    CORREGIR O BORRAR UN MOVIMIENTO:
+    • Si lo acabo de cargar yo: el botón "Deshacer" bajo mi confirmación en el chat.
+    • A mano: Movimientos → tocá la fila → editar o "Eliminar movimiento".
+    • Rápido: Movimientos → deslizá la fila → duplicar / eliminar.
+    • Pedímelo: "borrá el gasto de nafta de ayer" o "cambiá ese gasto a 12.000".
+
+    CARGAR UN GASTO:
+    • Botón [+] central del tab bar (el camino completo, con todos los campos).
+    • Pedímelo por texto o por voz acá en el chat.
+    • Foto del ticket: el clip 📎 en el chat.
+    • Atajos: si es un gasto que repetís, marcá el bookmark al guardarlo y queda en Inicio.
+    • Siri / Atajos de iOS, sin abrir la app.
+    • Varios de una: Movimientos → importar CSV/XLSX.
+
+    VER CUÁNTO GASTÉ:
+    • Un pulso rápido: tarjeta "Últimos 7 días" en Inicio.
+    • El mes: Inicio (balance y stats) o el tab Presupuesto por categoría.
+    • Comparar períodos: Más → Comparar meses (con "En pesos de hoy" si están lejos).
+    • El detalle: Movimientos con filtros por fecha, categoría o texto.
+    • Preguntámelo directamente.
+
+    SACAR LOS DATOS DE LA APP:
+    • Movimientos → exportar CSV o PDF.
+    • Más → Reportes → exportar el reporte del mes.
+    • Respaldo completo en JSON desde Ajustes → Datos.
+
+    VER LO QUE SE VIENE:
+    • Inicio: tira de próximos vencimientos.
+    • Más → Vencimientos (el detalle y marcar pagado).
+    • Más → Cuotas: cuánto de cada mes futuro ya está comprometido.
+    • Más → Recurrentes: lo que se repite todos los meses.
+    """
+
     static let glossary: String = """
     === GLOSARIO DE FINANZAS PERSONALES ===
 
@@ -404,6 +458,8 @@ enum AppKnowledgeBase {
 
         \(whenToSuggest)
 
+        \(variosCaminos)
+
         \(glossary)
 
         \(principles)
@@ -416,6 +472,8 @@ enum AppKnowledgeBase {
         \(featuresOverview)
 
         \(whenToSuggest)
+
+        \(variosCaminos)
 
         \(principles)
         """

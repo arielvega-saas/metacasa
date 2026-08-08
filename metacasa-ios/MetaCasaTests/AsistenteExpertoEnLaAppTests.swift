@@ -80,7 +80,7 @@ final class AsistenteExpertoEnLaAppTests: XCTestCase {
             // El destino termina en coma, punto, paréntesis, pipe o flecha.
             // Las comillas también cierran el destino: en el texto las rutas
             // aparecen citadas ("podés crear una meta en 'Más → Metas' con…").
-            var destino = resto.prefix { !",.()|→\"'".contains($0) }
+            var destino = resto.prefix { !",.()|→:\"'".contains($0) }
                 .trimmingCharacters(in: .whitespaces)
             destino = destino.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
             // "sección Análisis" es un encabezado del menú, no una pantalla.
@@ -106,5 +106,52 @@ final class AsistenteExpertoEnLaAppTests: XCTestCase {
         }
         XCTAssertGreaterThan(nombres.count, 5, "no se resolvieron los nombres del menú")
         return nombres
+    }
+}
+
+/// Las necesidades que se resuelven de más de una forma.
+///
+/// El asistente contestó bien "¿puedo deshacer algo que cargaste?" —explicó el
+/// botón Deshacer del chat— pero no mencionó que también se puede borrar desde
+/// Movimientos. El dato estaba en la base; faltaba el puente entre la NECESIDAD
+/// y todos los caminos que la resuelven. Contar uno solo deja al usuario
+/// creyendo que es el único.
+final class CaminosAlternativosTests: XCTestCase {
+
+    private let kb = AppKnowledgeBase.full
+
+    func testExisteLaSeccionDeCaminosAlternativos() {
+        XCTAssertTrue(kb.contains("LO MISMO SE PUEDE HACER DE VARIAS FORMAS"))
+    }
+
+    /// El caso exacto que falló: borrar un movimiento tiene cuatro caminos y el
+    /// asistente contó uno.
+    func testBorrarUnMovimientoListaTodosLosCaminos() throws {
+        let bloque = try bloqueDe("CORREGIR O BORRAR UN MOVIMIENTO:")
+        XCTAssertTrue(bloque.contains("Deshacer"), "falta el del chat")
+        XCTAssertTrue(bloque.contains("Movimientos"), "falta el de la lista")
+        XCTAssertTrue(bloque.contains("Eliminar movimiento"), "falta el botón real de la pantalla")
+        XCTAssertTrue(bloque.lowercased().contains("desliz"), "falta el swipe")
+    }
+
+    /// Cargar un gasto tiene más puertas que ninguna otra cosa en la app, y es
+    /// donde más se pierde a un usuario nuevo.
+    func testCargarUnGastoListaLasPuertasPrincipales() throws {
+        let bloque = try bloqueDe("CARGAR UN GASTO:")
+        for camino in ["[+]", "voz", "Siri", "importar"] {
+            XCTAssertTrue(bloque.localizedCaseInsensitiveContains(camino),
+                          "falta el camino: \(camino)")
+        }
+    }
+
+    /// La instrucción sin el orden es media instrucción: cuál conviene depende
+    /// de qué está haciendo el usuario.
+    func testLaGuiaPideEmpezarPorElMasDirecto() {
+        XCTAssertTrue(kb.contains("empezando por el más directo"))
+    }
+
+    private func bloqueDe(_ titulo: String) throws -> String {
+        let r = try XCTUnwrap(kb.range(of: titulo), "falta la sección \(titulo)")
+        return String(kb[r.upperBound...].prefix(500))
     }
 }
