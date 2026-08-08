@@ -28,6 +28,25 @@
   command = "npm run build"
   publish = ".next"
 
+  # NO construir cuando el commit no tocó la web.
+  #
+  # Esto es un MONOREPO: iOS, la web y el resto viven en el mismo repo, y
+  # Netlify construye ante cualquier push salvo que se le diga lo contrario.
+  # El 2026-08-08 se pusherarón 18 commits en un día y **sólo 2 tocaron la
+  # web**: los otros 16 construyeron el mismo sitio idéntico, 16 veces.
+  #
+  # Con ~15 créditos por deploy sobre un plan de 300 al mes, eso son ~240
+  # créditos tirados en un día — y es lo que agotó el ciclo y dejó los deploys
+  # pausados justo cuando hacía falta publicar un cambio real.
+  #
+  # `ignore` invierte la lógica de los exit codes: **0 = cancelar el build**.
+  # `git diff --quiet` devuelve 0 cuando NO hay diferencias, que es exactamente
+  # el caso en que no hay nada que publicar.
+  #
+  # Se compara contra `netlify.toml` también: un cambio en la configuración del
+  # deploy sí tiene que reconstruir, aunque no toque el código de la web.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../netlify.toml"
+
 # Adaptador oficial de Next.js: traduce App Router, Server Actions, middleware
 # y rutas dinámicas a funciones de Netlify. Netlify lo instala solo al detectar
 # Next, pero declararlo evita sorpresas si cambia la autodetección.
