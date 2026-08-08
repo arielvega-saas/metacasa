@@ -54,6 +54,9 @@ struct BalanceWidgetProvider: TimelineProvider {
 struct BalanceWidgetView: View {
     let entry: BalanceWidgetEntry
     @Environment(\.widgetFamily) var family
+    /// `.fullColor` en el widget normal; `.accented` o `.vibrant` cuando el
+    /// usuario elige el estilo tintado o de vidrio.
+    @Environment(\.widgetRenderingMode) private var modoDeRender
 
     var body: some View {
         if let snapshot = entry.snapshot {
@@ -83,7 +86,7 @@ struct BalanceWidgetView: View {
 
     private func smallLayout(snapshot: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Balance").font(.caption2.weight(.bold))
+            Text("widget.balance").font(.caption2.weight(.bold))
                 .foregroundStyle(.secondary)
             Text(snapshot.balanceMonth)
                 .font(.title3.bold())
@@ -102,37 +105,48 @@ struct BalanceWidgetView: View {
     private func mediumLayout(snapshot: WidgetSnapshot) -> some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Balance").font(.caption.weight(.bold))
+                Text("widget.balance").font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
                 Text(snapshot.balanceMonth)
                     .font(.title2.bold())
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
+                // El ícono (flecha abajo / arriba) es el que distingue ingreso
+                // de gasto; el color sólo lo refuerza. En modo tintado o vidrio
+                // —iOS 26— el sistema pinta todo monocromo y el color se
+                // pierde: si fuera el único portador, el widget quedaría
+                // ilegible. Vale igual para daltonismo.
                 HStack(spacing: 8) {
                     Label(snapshot.ingresosMonth, systemImage: "arrow.down")
                         .font(.caption2)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(modoDeRender == .fullColor ? AnyShapeStyle(.green) : AnyShapeStyle(.primary))
                     Label(snapshot.gastosMonth, systemImage: "arrow.up")
                         .font(.caption2)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(modoDeRender == .fullColor ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
                 }
             }
             Spacer()
             if let title = snapshot.nextBillTitle,
                let amount = snapshot.nextBillAmount {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("Próximo").font(.caption2.weight(.bold))
-                        .foregroundStyle(.orange)
+                    Text("widget.next").font(.caption2.weight(.bold))
+                        .foregroundStyle(modoDeRender == .fullColor ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
                     Text(title)
                         .font(.caption2)
                         .lineLimit(1)
                     Text(amount)
                         .font(.caption.bold().monospacedDigit())
                     if let days = snapshot.nextBillInDays {
-                        Text(days <= 0 ? "Hoy" : "En \(days)d")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if days <= 0 {
+                                Text("widget.today")
+                            } else {
+                                Text("widget.inDays \(days)")
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -150,7 +164,7 @@ struct BalanceWidgetView: View {
     private var placeholderView: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("app.name").font(.caption.weight(.bold))
-            Text("Abrí la app para ver tu balance").font(.caption2)
+            Text("widget.empty").font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .padding(12)
@@ -163,9 +177,13 @@ struct BalanceWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: BalanceWidgetProvider()) { entry in
             BalanceWidgetView(entry: entry)
+                // Obligatorio desde iOS 17, y es lo que permite que el sistema
+                // reemplace el fondo: sin esto el widget se ve roto en StandBy,
+                // en CarPlay y en los modos tintado/vidrio de iOS 26.
+                .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Balance del mes")
-        .description("Tu balance, ingresos, gastos y próximo vencimiento.")
+        .configurationDisplayName(Text("widget.displayName"))
+        .description(Text("widget.description"))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline, .accessoryCircular])
     }
 }

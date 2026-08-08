@@ -107,6 +107,10 @@ targets:
       - path: MetaCasaWidgets
         excludes:
           - "**/*.md"
+      # El widget se ve en la pantalla de inicio de alguien que puso el iPhone
+      # en inglés o portugués. Sin el catálogo acá, mostraba "Balance del mes"
+      # y "Abrí la app" en los tres idiomas.
+      - path: MetaCasa/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.metacasa.app.widgets
