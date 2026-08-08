@@ -93,6 +93,24 @@ actor AIToolHandler {
         escriturasDelTurno += 1
     }
 
+    /// Convierte a `Decimal` un importe que viene del modelo como `Double`.
+    ///
+    /// `Decimal(unDouble)` **conserva el error binario del double**: pedir
+    /// 78.972,57 guardaba `78972.57000000001024` en la base. Un centésimo de
+    /// millonésimo no cambia ningún total visible, pero es basura en la columna
+    /// de plata: reaparece en exportaciones, en comparaciones por igualdad y en
+    /// cualquier suma que se muestre con más decimales.
+    ///
+    /// El JSON de la API no tiene tipo decimal, así que el importe llega sí o sí
+    /// como `Double`; lo que se puede hacer es cortar el error acá, en el único
+    /// lugar por donde entra.
+    private static func montoDecimal(_ d: Double) -> Decimal {
+        var origen = Decimal(d)
+        var redondeado = Decimal()
+        NSDecimalRound(&redondeado, &origen, 2, .plain)
+        return redondeado
+    }
+
     init(householdId: UUID, userId: UUID, currency: String) {
         self.householdId = householdId
         self.userId = userId
@@ -259,7 +277,7 @@ actor AIToolHandler {
     func addTransaction(_ p: AddTransactionArgs) async throws -> String {
         let txType: TxType = p.type.uppercased() == "INGRESO" ? .ingreso : .gasto
         let (date, añoAjustado) = Self.fechaRazonable(parseDate(p.date))
-        let amount = Decimal(p.amount)
+        let amount = Self.montoDecimal(p.amount)
 
         let input = try NewTransactionInput.converting(
             householdId: householdId,
@@ -281,6 +299,11 @@ actor AIToolHandler {
 
         let created = try await TransactionService.shared.insert(input)
         registrarEscritura()
+        await AssistantActionLog.shared.registrar(AccionRevertible(
+            clase: .alta,
+            descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(fmt(amount)) en \(p.category)",
+            objetivo: created
+        ))
         let typeLabel = txType == .gasto ? "expense" : "income"
         var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString)."
         if añoAjustado {
@@ -298,7 +321,7 @@ actor AIToolHandler {
         var tx = try await resolverTransaccion(p.transactionId)
         let antes = tx
 
-        if let a = p.amount { tx.amount = Decimal(a) }
+        if let a = p.amount { tx.amount = Self.montoDecimal(a) }
         if let c = p.category { tx.category = c }
         if let s = p.subcategory { tx.subcategory = s }
         if let n = p.note { tx.note = n }
@@ -346,6 +369,11 @@ actor AIToolHandler {
             ? "no cambió ningún campo (los valores enviados ya eran los guardados)"
             : cambios.joined(separator: ", ")
         registrarEscritura()
+        await AssistantActionLog.shared.registrar(AccionRevertible(
+            clase: .edicion,
+            descripcion: "Edición de \(fmt(antes.amount)) en \(antes.category)",
+            objetivo: antes
+        ))
         return """
         Verificado en la base — \(detalle).
         Estado actual: \(fmt(confirmada.amount)) en \(confirmada.category) \
@@ -1081,10 +1109,10 @@ actor AIToolHandler {
                 periodId: period.id,
                 category: p.category,
                 subcategory: p.subcategory ?? "",
-                allocated: Decimal(p.amount),
+                allocated: Self.montoDecimal(p.amount),
                 currency: currency
             )
-            let formatted = Money.format(Decimal(p.amount), currency: currency, style: .compact)
+            let formatted = Money.format(Self.montoDecimal(p.amount), currency: currency, style: .compact)
             let sub = (p.subcategory?.isEmpty == false) ? " > \(p.subcategory!)" : ""
             let monthFmt = DateFormatter()
             monthFmt.dateFormat = "yyyy-MM"
@@ -1111,7 +1139,7 @@ actor AIToolHandler {
         guard fromId != toId else {
             return "Error: la cuenta origen y destino no pueden ser la misma"
         }
-        let amount = Decimal(p.amount)
+        let amount = Self.montoDecimal(p.amount)
         let now = Date()
         let baseNote = p.note?.isEmpty == false ? p.note! : "Transferencia entre cuentas"
 

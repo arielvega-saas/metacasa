@@ -3568,6 +3568,167 @@
         }
       }
     },
+    "assistant.copy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar"
+          }
+        }
+      }
+    },
+    "assistant.disclaimer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The assistant can make mistakes. Check your data before confirming. This is not financial advice."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El asistente puede equivocarse. Revisá los datos antes de confirmar. No es asesoramiento financiero."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O assistente pode errar. Confira os dados antes de confirmar. Não é aconselhamento financeiro."
+          }
+        }
+      }
+    },
+    "assistant.helpful": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helpful"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Útil"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Útil"
+          }
+        }
+      }
+    },
+    "assistant.history.empty.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your past chats will appear here once you start a new one."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acá van a aparecer tus charlas anteriores cuando empieces una nueva."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suas conversas anteriores vão aparecer aqui quando você começar outra."
+          }
+        }
+      }
+    },
+    "assistant.history.empty.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No conversations yet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no hay conversaciones"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ainda não há conversas"
+          }
+        }
+      }
+    },
+    "assistant.history.resume": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retomar"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retomar"
+          }
+        }
+      }
+    },
+    "assistant.history.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Historial"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Histórico"
+          }
+        }
+      }
+    },
     "assistant.input.listening": {
       "extractionState": "stale",
       "localizations": {
@@ -3637,6 +3798,29 @@
         }
       }
     },
+    "assistant.notHelpful": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not helpful"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No me sirvió"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não ajudou"
+          }
+        }
+      }
+    },
     "assistant.quickStart": {
       "localizations": {
         "en": {
@@ -3677,6 +3861,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gravando… fale agora"
+          }
+        }
+      }
+    },
+    "assistant.showLess": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show less"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar menos"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar menos"
+          }
+        }
+      }
+    },
+    "assistant.showMore": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show more"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar más"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar mais"
           }
         }
       }
@@ -3744,6 +3974,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Assistente"
+          }
+        }
+      }
+    },
+    "assistant.undo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deshacer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desfazer"
           }
         }
       }
@@ -6214,6 +6467,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "mais"
+          }
+        }
+      }
+    },
+    "common.close": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fechar"
           }
         }
       }

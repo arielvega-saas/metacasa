@@ -37,6 +37,7 @@ struct AssistantChatView: View {
 
     // UX polish (Sprint 2026-05-06)
     @State private var showPrivacyExplainer = false
+    @State private var showHistory = false
     @FocusState private var inputFocused: Bool
     @State private var thinkingPulse: [Bool] = [false, false, false]
 
@@ -47,6 +48,17 @@ struct AssistantChatView: View {
                 VStack(spacing: 0) {
                     messagesScroll
                     inputBar
+                    // Aviso de IA siempre visible, no escondido en un sheet: es
+                    // lo que hacen las apps del rubro y lo que Apple pide para
+                    // features generativas. Con plata de por medio, además, es
+                    // lo honesto: el asistente escribe en la base del usuario.
+                    Text("assistant.disclaimer")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 6)
+                        .accessibilityAddTraits(.isStaticText)
                 }
             }
             .navigationTitle("")
@@ -81,6 +93,19 @@ struct AssistantChatView: View {
                             privacyBadge
                         }
                     }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Haptics.play(.selection)
+                        showHistory = true
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.title3)
+                            .foregroundStyle(Color.textPrimary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("assistant.history.title"))
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
@@ -201,6 +226,16 @@ struct AssistantChatView: View {
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showHistory) {
+                if let hid = appState.currentHouseholdId, let uid = appState.currentUserId {
+                    AssistantHistoryView(householdId: hid, userId: uid) {
+                        // Retomar reescribe la sesión actual en disco: hay que
+                        // volver a hidratar la UI desde ahí, no dejar lo que
+                        // había en memoria.
+                        Task { await viewModel.recargarDesdeDisco(appState: appState) }
+                    }
+                }
+            }
         }
     }
 
@@ -273,6 +308,8 @@ struct AssistantChatView: View {
                 ForEach(viewModel.messages) { msg in
                     MessageRow(message: msg, onActionTap: { action in
                         Task { await viewModel.handleAction(action, appState: appState) }
+                    }, onUndo: { accion in
+                        Task { await viewModel.deshacer(accion) }
                     })
                     // Sin `.equatable()`, cualquier cambio en `messages` invalida
                     // el body de TODAS las filas, y evaluar una fila implica
@@ -771,6 +808,7 @@ private struct FilaDeChat: ViewModifier {
 private struct MessageRow: View, Equatable {
     let message: AssistantMessage
     let onActionTap: (AssistantAction) -> Void
+    let onUndo: (AccionRevertible) -> Void
 
     /// `onActionTap` no se compara y no hace falta: captura referencias
     /// (`viewModel`, `appState`) que no cambian de identidad en la vida de la
@@ -785,6 +823,18 @@ private struct MessageRow: View, Equatable {
     }
     @State private var imageViewerImage: IdentifiableImage?
     @State private var pdfToView: IdentifiableFileURL?
+    /// Una respuesta larga arranca recortada. Una consulta amplia —"mostrame
+    /// todos los gastos del mes"— tapaba la conversación entera y obligaba a
+    /// scrollear a ciegas para encontrar dónde seguía el diálogo.
+    @State private var expandida = false
+    @State private var copiado = false
+    @State private var voto: Int = 0
+    @State private var deshaciendo: Set<UUID> = []
+
+    /// Arriba de esto, la burbuja se recorta y aparece "Mostrar más".
+    /// Deliberadamente generoso: recortar una respuesta que entraba en pantalla
+    /// es peor que no recortar nada.
+    private static let topeDeCaracteres = 600
 
     /// Renderiza el contenido con soporte para markdown (bold, italic, links).
     /// Si el parser falla (markdown malformado), cae a texto plano.
@@ -845,11 +895,25 @@ private struct MessageRow: View, Equatable {
         // Se resuelve una sola vez, cuando el mensaje se cierra.
         if message.isStreaming {
             Text(message.content)
-        } else if let attributed = Self.parsearMarkdown(message.content) {
+        } else if let attributed = Self.parsearMarkdown(textoVisible) {
             Text(attributed)
         } else {
-            Text(message.content)
+            Text(textoVisible)
         }
+    }
+
+    /// El texto tal como se muestra: entero, o recortado si es largo y la fila
+    /// está colapsada. Nunca se recorta mientras llega el stream —ver crecer un
+    /// texto que además se corta solo es desconcertante—.
+    private var textoVisible: String {
+        guard esLarga, !expandida else { return message.content }
+        return String(message.content.prefix(Self.topeDeCaracteres)) + "…"
+    }
+
+    private var esLarga: Bool {
+        message.role == .assistant
+            && !message.isStreaming
+            && message.content.count > Self.topeDeCaracteres + 120
     }
 
     /// Tool result UI: si el message del asistente empieza con un emoji de
@@ -929,8 +993,30 @@ private struct MessageRow: View, Equatable {
                             .textSelection(.enabled)
                     }
                 }
+                if esLarga {
+                    Button {
+                        Haptics.play(.selection)
+                        withAnimation(.easeInOut(duration: 0.18)) { expandida.toggle() }
+                    } label: {
+                        Label {
+                            Text(expandida ? "assistant.showLess" : "assistant.showMore")
+                        } icon: {
+                            Image(systemName: expandida ? "chevron.up" : "chevron.down")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.brandPrimary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 4)
+                }
                 if !message.actions.isEmpty {
                     actionButtons
+                }
+                if !message.revertibles.isEmpty {
+                    tarjetaDeshacer
+                }
+                if message.role == .assistant, !message.isStreaming, !message.content.isEmpty {
+                    barraDeAcciones
                 }
             }
 
@@ -942,6 +1028,97 @@ private struct MessageRow: View, Equatable {
         .sheet(item: $pdfToView) { item in
             PDFViewerSheet(url: item.url, name: item.name)
         }
+    }
+
+    /// Deshacer lo que el asistente acaba de escribir.
+    ///
+    /// Va pegado a la confirmación que lo anunció y no en un banner global: la
+    /// conversación sigue, y media hora después el usuario tiene que poder
+    /// bajar hasta "cargué el gasto de nafta" y revertir **ese**, no el último.
+    private var tarjetaDeshacer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(message.revertibles) { accion in
+                HStack(spacing: 10) {
+                    Image(systemName: accion.clase == .alta ? "plus.circle" : "pencil.circle")
+                        .foregroundStyle(.secondary)
+                    Text(accion.descripcion)
+                        .font(.caption)
+                        .foregroundStyle(Color.textPrimary)
+                        .lineLimit(2)
+                    Spacer(minLength: 8)
+                    Button {
+                        Haptics.play(.impactLight)
+                        deshaciendo.insert(accion.id)
+                        onUndo(accion)
+                    } label: {
+                        if deshaciendo.contains(accion.id) {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Text("assistant.undo")
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.brandPrimary)
+                    .disabled(deshaciendo.contains(accion.id))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.appSurfaceInset)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.appBorder, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    /// Copiar y pulgar arriba/abajo debajo de cada respuesta.
+    ///
+    /// El pulgar no es decoración: es la única forma barata de enterarse de qué
+    /// respuestas fallan sin leer las conversaciones del usuario —que son
+    /// privadas y no salen del dispositivo—. Se guarda local y anónimo.
+    private var barraDeAcciones: some View {
+        HStack(spacing: 16) {
+            Button {
+                UIPasteboard.general.string = message.content
+                Haptics.play(.impactLight)
+                withAnimation { copiado = true }
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_600_000_000)
+                    withAnimation { copiado = false }
+                }
+            } label: {
+                Image(systemName: copiado ? "checkmark" : "doc.on.doc")
+            }
+            .accessibilityLabel(Text("assistant.copy"))
+
+            Button {
+                Haptics.play(.selection)
+                voto = voto == 1 ? 0 : 1
+                AssistantFeedbackLog.registrar(util: voto == 1, mensaje: message.content)
+            } label: {
+                Image(systemName: voto == 1 ? "hand.thumbsup.fill" : "hand.thumbsup")
+            }
+            .accessibilityLabel(Text("assistant.helpful"))
+
+            Button {
+                Haptics.play(.selection)
+                voto = voto == -1 ? 0 : -1
+                AssistantFeedbackLog.registrar(util: false, mensaje: message.content)
+            } label: {
+                Image(systemName: voto == -1 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+            }
+            .accessibilityLabel(Text("assistant.notHelpful"))
+
+            Spacer()
+        }
+        .font(.footnote)
+        .foregroundStyle(.tertiary)
+        .buttonStyle(.plain)
+        .padding(.leading, 4)
+        .padding(.top, 2)
     }
 
     private func toolResultCard(kind: ToolResultKind) -> some View {
@@ -1044,6 +1221,10 @@ struct AssistantMessage: Identifiable, Sendable, Equatable {
     /// `true` mientras llega el stream de este mensaje. Ver `renderedContent`:
     /// no tiene sentido parsear markdown de un texto que todavía está creciendo.
     var isStreaming: Bool = false
+    /// Lo que el asistente escribió en la base durante este turno. Va en el
+    /// mensaje —y no en un banner global— para que el "Deshacer" quede pegado a
+    /// la confirmación que lo anunció, incluso después de seguir charlando.
+    var revertibles: [AccionRevertible] = []
     let timestamp: Date = Date()
 
     enum Role: Sendable { case user, assistant, system }
@@ -1184,6 +1365,45 @@ final class AssistantViewModel {
         // Cargar resúmenes en background — no bloquea la UI.
         pastSummaries = await ChatPersistenceService.shared
             .recentSummaries(householdId: hid, limit: 3)
+    }
+
+    /// Revierte una escritura del asistente y lo cuenta en el chat.
+    ///
+    /// El resultado se anuncia como un mensaje más —no como un toast que se va—
+    /// porque revertir también toca la plata del usuario y tiene que quedar
+    /// registrado en la conversación, igual que la escritura original.
+    func deshacer(_ accion: AccionRevertible) async {
+        do {
+            try await AssistantActionLog.shared.revertir(accion)
+            // Sacarla de la tarjeta: ya no hay nada que deshacer.
+            for i in messages.indices {
+                messages[i].revertibles.removeAll { $0.id == accion.id }
+            }
+            messages.append(AssistantMessage(
+                role: .assistant,
+                content: "✅ Deshecho: \(accion.descripcion)."
+            ))
+            // Nota: la app no tiene hoy un canal para avisarle a las otras
+            // pantallas que los datos cambiaron; Movimientos recarga al
+            // aparecer. Lo mismo vale para las altas del asistente, así que
+            // deshacer no queda peor que cargar. Es un pendiente aparte.
+        } catch {
+            messages.append(AssistantMessage(
+                role: .assistant,
+                content: "❌ No pude deshacerlo: \(error.localizedDescription)"
+            ))
+        }
+    }
+
+    /// Vuelve a leer la conversación actual desde disco.
+    ///
+    /// Hace falta cuando algo cambió el archivo por fuera de la UI —retomar una
+    /// conversación del historial—: el early-return de `bootstrap` mantendría
+    /// lo que ya estaba en memoria.
+    func recargarDesdeDisco(appState: AppState) async {
+        messages = []
+        loadedHouseholdId = nil
+        await bootstrap(appState: appState)
     }
 
     /// "Empezar de nuevo" a mano, sin esperar a que venza la ventana de
@@ -1343,6 +1563,7 @@ final class AssistantViewModel {
                let token = await TokenHolder.shared.get(),
                appState.currentHouseholdId != nil,
                appState.currentUserId != nil {
+                await AssistantActionLog.shared.iniciarTurno()
                 let placeholder = AssistantMessage(role: .assistant, content: "", isStreaming: true)
                 let placeholderId = placeholder.id
                 messages.append(placeholder)
@@ -1389,6 +1610,7 @@ final class AssistantViewModel {
                     if let idx = messages.firstIndex(where: { $0.id == placeholderId }) {
                         messages[idx].content = fullText
                         messages[idx].isStreaming = false
+                        messages[idx].revertibles = await AssistantActionLog.shared.delTurno()
                     }
                     // Stream completó OK.
                     if !fullText.isEmpty {

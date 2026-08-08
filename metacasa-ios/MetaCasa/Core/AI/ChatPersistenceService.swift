@@ -179,6 +179,11 @@ actor ChatPersistenceService {
         }
 
         session.isClosed = true
+        // Sellar el cierre con `ahora`: el JSON guarda ISO8601 **sin
+        // fracciones de segundo**, así que si el orden del historial dependiera
+        // del último mensaje, dos charlas cerradas en el mismo segundo
+        // quedarían empatadas y el orden sería indefinido.
+        session.lastUpdatedAt = ahora
         try? saveSession(
             session,
             to: archivedSessionURL(householdId: householdId, sessionId: session.id)
@@ -230,6 +235,87 @@ actor ChatPersistenceService {
         } catch {
             NSLog("[ChatPersistence] resumen diferido falló: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Historial
+
+    /// Una conversación pasada, lista para mostrar en el historial.
+    struct ConversacionArchivada: Identifiable, Sendable, Equatable {
+        let id: UUID
+        let fecha: Date
+        /// Primer mensaje del usuario, recortado. Es mejor título que la fecha:
+        /// uno reconoce "cargá estos gastos del finde" mucho antes que
+        /// "7 de agosto, 20:14".
+        let titulo: String
+        let resumen: String?
+        let mensajes: Int
+    }
+
+    /// Las conversaciones archivadas del hogar, de la más reciente a la más
+    /// vieja.
+    ///
+    /// Lee el directorio y decodifica cada JSON. Con el tope de 50 y sesiones
+    /// de decenas de mensajes esto es despreciable, y evita mantener un índice
+    /// paralelo que se puede desincronizar del contenido real —el índice de
+    /// `summaries.json` existe para el prompt, no para la UI, y sólo guarda 20—.
+    func conversacionesArchivadas(householdId: UUID, limite: Int = 50) -> [ConversacionArchivada] {
+        let dir = sessionsDir(householdId: householdId)
+            .appendingPathComponent("archived", isDirectory: true)
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return [] }
+
+        let sesiones = urls
+            .filter { $0.pathExtension == "json" }
+            .compactMap { try? loadSession(at: $0) }
+            .filter { !$0.messages.isEmpty }
+            .sorted { $0.lastUpdatedAt > $1.lastUpdatedAt }
+            .prefix(limite)
+
+        return sesiones.map { s in
+            let primeroDelUsuario = s.messages.first {
+                $0.role == .user && !$0.content.isEmpty
+            }?.content
+            let titulo = Self.recortar(primeroDelUsuario ?? s.summary ?? "Conversación")
+            return ConversacionArchivada(
+                id: s.id,
+                fecha: s.lastUpdatedAt,
+                titulo: titulo,
+                resumen: s.summary,
+                mensajes: s.messages.count { !$0.content.isEmpty && $0.role != .system }
+            )
+        }
+    }
+
+    /// La conversación completa, para poder leerla.
+    func cargarArchivada(householdId: UUID, sessionId: UUID) -> ChatSessionRecord? {
+        try? loadSession(at: archivedSessionURL(householdId: householdId, sessionId: sessionId))
+    }
+
+    /// Retoma una conversación vieja: archiva la actual y deja la elegida como
+    /// la de ahora.
+    ///
+    /// Devuelve la sesión que pasa a ser la actual, o `nil` si no existe.
+    /// Nunca borra: la que estaba en curso se archiva igual que siempre, así
+    /// que retomar no puede hacerte perder lo que venías hablando.
+    func retomar(householdId: UUID, userId: UUID, sessionId: UUID) -> ChatSessionRecord? {
+        guard var elegida = cargarArchivada(householdId: householdId, sessionId: sessionId) else {
+            return nil
+        }
+        _ = rotar(householdId: householdId, userId: userId, soloSiVencio: false)
+
+        elegida.isClosed = false
+        elegida.lastUpdatedAt = Date()
+        try? saveSession(elegida, to: currentSessionURL(householdId: householdId))
+        return elegida
+    }
+
+    private static func recortar(_ s: String, _ tope: Int = 70) -> String {
+        let limpio = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n", with: " ")
+        guard limpio.count > tope else { return limpio }
+        return String(limpio.prefix(tope)) + "…"
     }
 
     /// Reset total — útil cuando el user elimina su hogar.
