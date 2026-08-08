@@ -192,6 +192,48 @@ actor AIToolHandler {
         Money.format(amount, currency: currency, style: .compact)
     }
 
+
+    /// Ajusta la categoría que eligió el modelo al catálogo REAL del hogar.
+    ///
+    /// ─── EL PROBLEMA ───────────────────────────────────────────────────────
+    /// El modelo escribe la categoría como texto libre. Si inventa una que no
+    /// existe —"Comida hecha", "Celular", "Seguro"—, el movimiento se guarda
+    /// igual pero queda **huérfano**: no aparece en el selector al editarlo, no
+    /// se puede presupuestar, y en los reportes es una categoría de una sola
+    /// fila. Verificado en la base del usuario: cinco movimientos así.
+    ///
+    /// La corrección respeta lo que el usuario quiso decir, en este orden:
+    /// 1. Coincidencia exacta → se usa tal cual.
+    /// 2. Coincidencia ignorando mayúsculas y acentos ("alimentacion" →
+    ///    "Alimentación") → se usa la del catálogo, para no duplicar la misma
+    ///    categoría escrita de dos formas.
+    /// 3. No existe → **se agrega al catálogo del hogar**. El usuario la pidió;
+    ///    esconderla sería peor que crearla. Y se avisa en el resultado para
+    ///    que el asistente lo cuente.
+    private func categoriaDelCatalogo(_ pedida: String, tipo: TxType) async -> (nombre: String, creada: Bool) {
+        let blob = try? await CategoryService.shared.fetch(householdId: householdId)
+        let disponibles = CategoryService.merged(custom: blob?.data, type: tipo)
+
+        if let exacta = disponibles.first(where: { $0.name == pedida }) {
+            return (exacta.name, false)
+        }
+        let normalizar: (String) -> String = { s in
+            s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+                .trimmingCharacters(in: .whitespaces)
+        }
+        let objetivo = normalizar(pedida)
+        if let parecida = disponibles.first(where: { normalizar($0.name) == objetivo }) {
+            return (parecida.name, false)
+        }
+
+        // No existe: se crea, así el movimiento queda utilizable en toda la app.
+        var data = blob?.data ?? CategoriesData(gastos: [], ingresos: [])
+        let nueva = CategoryItem(name: pedida, emoji: CategoryCatalog.emoji(for: pedida))
+        if tipo == .gasto { data.gastos.append(nueva) } else { data.ingresos.append(nueva) }
+        try? await CategoryService.shared.save(householdId: householdId, data: data)
+        return (pedida, true)
+    }
+
     // MARK: - 1. Query Transactions
 
     func queryTransactions(_ p: QueryTransactionsArgs) async throws -> String {
@@ -288,6 +330,7 @@ actor AIToolHandler {
 
     func addTransaction(_ p: AddTransactionArgs) async throws -> String {
         let txType: TxType = p.type.uppercased() == "INGRESO" ? .ingreso : .gasto
+        let (categoria, categoriaCreada) = await categoriaDelCatalogo(p.category, tipo: txType)
         let (date, añoAjustado) = Self.fechaRazonable(parseDate(p.date))
         let amount = Self.montoDecimal(p.amount)
 
@@ -303,7 +346,7 @@ actor AIToolHandler {
             // agregue el argumento herede la regla en vez de reimplementarla.
             baseCurrency: currency,
             rates: [:],
-            category: p.category,
+            category: categoria,
             subcategory: p.subcategory,
             note: p.note,
             date: date
@@ -313,11 +356,14 @@ actor AIToolHandler {
         registrarEscritura()
         await AssistantActionLog.shared.registrar(AccionRevertible(
             clase: .alta,
-            descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(paraElUsuario(amount)) en \(p.category)",
+            descripcion: "\(txType == .gasto ? "Gasto" : "Ingreso") de \(paraElUsuario(amount)) en \(categoria)",
             objetivo: created
         ))
         let typeLabel = txType == .gasto ? "expense" : "income"
-        var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(p.category) on \(fmtDate(date)). ID: \(created.id.uuidString)."
+        var salida = "Transaction created: \(typeLabel) of \(fmt(amount)) in \(categoria) on \(fmtDate(date)). ID: \(created.id.uuidString)."
+        if categoriaCreada {
+            salida += " NOTE: the category \"\(categoria)\" did not exist and was ADDED to the household catalog. Tell the user."
+        }
         if añoAjustado {
             // Que el modelo lo CUENTE. Corregir en silencio es tan malo como
             // guardar mal: el usuario tiene que poder decir "no, ese era del año
